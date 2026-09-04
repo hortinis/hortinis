@@ -1,8 +1,10 @@
 # Deployment
 
-Hortisys is intended to support an autonomous self-hosted installation.
+Hortinis is intended to support an autonomous self-hosted installation.
 
-The concrete deployment method is not selected yet. Future documentation must cover:
+Docker multi-stage images and Docker Compose are the baseline deployment mechanisms. An optional Dev Container reuses the development Compose topology. No Kubernetes deployment is planned without a demonstrated requirement.
+
+Implementation documentation must cover:
 
 - prerequisites and sizing assumptions;
 - installation and configuration;
@@ -13,4 +15,4 @@ The concrete deployment method is not selected yet. Future documentation must co
 - storage lifecycle;
 - failure diagnosis and recovery.
 
-Deployment resources will live under `infrastructure/` once their underlying choices are recorded.
+Deployment resources live under `infrastructure/docker/`. The default installation uses PostgreSQL and filesystem storage in operator-controlled volumes and does not require a Hortinis-operated service.

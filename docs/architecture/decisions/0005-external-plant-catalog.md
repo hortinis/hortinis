@@ -8,7 +8,7 @@ Plant reference data has its own lifecycle and can be reused independently of th
 
 ## Decision
 
-Maintain the canonical plant catalog outside this repository. Hortisys consumes a published, versioned representation through an adapter. Application records refer to catalog entries with stable, opaque identifiers rather than names or positions.
+Maintain the canonical plant catalog outside this repository. Hortinis consumes a published, versioned representation through an adapter. Application records refer to catalog entries with stable, opaque identifiers rather than names or positions.
 
 User-owned garden data remains valid when catalog wording or classification changes. Imported catalog data is distinguishable from user-entered data.
 

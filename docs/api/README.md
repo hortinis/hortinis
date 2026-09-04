@@ -1,5 +1,7 @@
 # API documentation
 
-API contracts have not been defined yet.
+Hortinis APIs use versioned HTTP/JSON contracts described with OpenAPI 3.1. Contract files will live under `contracts/api` when the first non-business operational endpoints are scaffolded.
 
-When introduced, this section must document boundaries, versioning, authentication, authorization, validation, errors, idempotency, pagination where relevant, and compatibility expectations. Generated specifications may be added alongside explanatory guides.
+Contracts are defined before their Spring MVC adapters. This section must document boundaries, versioning, authentication, authorization, validation, errors, idempotency, pagination where relevant, and compatibility expectations. Generated clients and types must be reproducible and must not be edited by hand.
+
+No business API resource has been defined yet.

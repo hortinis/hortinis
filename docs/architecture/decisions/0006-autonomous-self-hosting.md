@@ -4,7 +4,7 @@
 
 ## Context
 
-An operator must be able to deploy and operate Hortisys using only the contents and documented dependencies of this repository.
+An operator must be able to deploy and operate Hortinis using only the contents and documented dependencies of this repository.
 
 ## Decision
 

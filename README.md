@@ -1,6 +1,6 @@
-# Hortisys
+# Hortinis
 
-Hortisys is a self-hostable garden-management application designed to remain useful without a network connection.
+Hortinis is a self-hostable garden-management application designed to remain useful without a network connection.
 
 ## Product boundaries
 
@@ -26,19 +26,31 @@ Presentation -> Application -> Domain
 
 The domain is independent of user-interface, persistence, transport, and vendor-specific concerns. External systems are reached through interfaces owned by the inner layers and implemented by replaceable adapters.
 
-The plant reference catalog is maintained outside this repository. Hortisys integrates it through a defined boundary and refers to catalog entries by stable identifiers.
+The plant reference catalog is maintained outside this repository. Hortinis integrates it through a defined boundary and refers to catalog entries by stable identifiers.
 
 See [Architecture overview](docs/architecture/README.md) for the initial decisions.
 
-## Repository layout
+## Planned repository layout
 
-To be determined.
+```text
+apps/web/                  Angular PWA
+backend/domain/            framework-independent Java domain
+backend/application/       use cases and ports
+backend/sync-protocol/     synchronization primitives
+backend/adapters/          replaceable backend adapters
+services/sync/             Spring Boot synchronization service
+contracts/                 OpenAPI and JSON Schema contracts
+infrastructure/docker/     development and self-hosting resources
+docs/                      architecture, development, deployment, API, and user documentation
+tooling/                   shared tooling configuration
+tests/                     cross-component and architecture tests
+```
 
 ## Status
 
-This is an initial scaffold. No programming language, framework, database engine, transport protocol, deployment platform, or build system has been selected yet.
+The architecture and foundation technologies are selected and recorded in the architecture decision records. The executable scaffold has not been created yet, and no business feature has been implemented.
 
 
 ## License
 
-The project license has not been selected yet. See [LICENSE](LICENSE).
+Hortinis is licensed under GNU Affero General Public License version 3 only. See [LICENSE](LICENSE).

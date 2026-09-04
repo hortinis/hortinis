@@ -18,4 +18,4 @@ The web application treats local state as the immediate working state. Supported
 - Initial installation and operations that inherently require a remote source may still need connectivity and must be identified explicitly.
 - Storage limits, schema evolution, recovery, and conflict behavior require deliberate design.
 
-This record does not select a web framework, local database, cache mechanism, or synchronization algorithm.
+The web framework and local database are selected by ADR-0008. The synchronization model is selected by ADR-0010.

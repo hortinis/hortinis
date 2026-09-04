@@ -8,7 +8,7 @@ Offline-first clients need a way to exchange changes across installations after 
 
 ## Decision
 
-Provide a separately deployable synchronization service under `services/sync`. Shared synchronization concepts belong under `packages/sync`. Application use cases depend on synchronization ports; transport and persistence details remain adapters.
+Provide a separately deployable synchronization service under `services/sync`. Shared backend synchronization concepts belong in the framework-independent `backend/sync-protocol` Gradle module. Language-neutral wire contracts and conformance fixtures belong under `contracts/sync`. Application use cases depend on synchronization ports; transport and persistence details remain adapters.
 
 Every synchronized record must have an identity stable across replicas. The eventual protocol must define change ordering, idempotency, retry, conflict detection, conflict resolution, deletion propagation, schema compatibility, and recovery from interrupted exchange.
 
@@ -19,4 +19,4 @@ Every synchronized record must have an identity stable across replicas. The even
 - Conflicts are represented explicitly rather than silently discarding accepted local work.
 - Protocol compatibility is tested independently of a particular deployment.
 
-The wire protocol, data model, server runtime, and conflict algorithm remain open decisions.
+The protocol model and server runtime are selected by ADR-0007, ADR-0009, and ADR-0010. Resource-specific data models and conflict-resolution interfaces remain open until their workflows are defined.
