@@ -18,6 +18,6 @@ User-owned garden data remains valid when catalog wording or classification chan
 - Catalog updates must support validation, version compatibility, and safe local migration.
 - Missing or retired references remain representable.
 - The application can retain a local catalog snapshot for offline use.
-- `packages/plants` contains the integration boundary and mappings, not the canonical catalog source.
+- Catalog-facing interfaces belong to each consumer's application layer, while acquisition, persistence, and catalog-model mappings belong to infrastructure adapters. Language-neutral distribution contracts belong under `contracts/catalog`.
 
-The publication format, transport, and update policy remain open decisions.
+ADR-0014 selects the publication format, trusted acquisition channels, and activation checks. Chunk sizing, artifact signing, key distribution, and update cadence remain open coordination decisions with the catalog project.

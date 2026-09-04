@@ -8,4 +8,12 @@ The selected development toolchain is:
 - Docker Compose and an optional Dev Container;
 - ESLint, Prettier, Vitest, Playwright, Checkstyle, Spotless, JUnit, AssertJ, ArchUnit, and Testcontainers for automated quality checks.
 
-Exact setup and validation commands will be added with the executable scaffold. Until then, changes must follow the architecture records and must not introduce business functionality.
+Exact setup and automated validation commands will be added with the executable scaffold.
+
+Until that scaffold exists, validate every change by:
+
+- running `git diff --check` against the change;
+- verifying that every relative documentation link resolves to an existing file and anchor;
+- checking that referenced repository paths agree with the planned layout in the root README and with accepted architecture decisions;
+- reviewing the change for consistency with the dependency, offline-first, synchronization, privacy, and self-hosting rules;
+- confirming that the change introduces no business functionality, secrets, generated credentials, local data, or environment-specific configuration.

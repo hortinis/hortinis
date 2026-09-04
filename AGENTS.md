@@ -42,4 +42,4 @@ Keep this repository sufficient to build, run, synchronize, document, and self-h
 
 ## Validation
 
-Before submitting a change, run the checks documented for the selected toolchain. Until a toolchain is chosen, verify the directory structure, internal links, and architectural consistency manually.
+Before submitting a change, run the checks documented in `docs/development/README.md`. Before the executable scaffold exists, run the documented pre-scaffold checks instead; do not treat the selected but not-yet-scaffolded toolchain as having runnable validation commands.
