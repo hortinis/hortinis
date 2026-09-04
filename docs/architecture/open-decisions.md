@@ -6,7 +6,7 @@ The foundation technologies are selected in ADR-0007 through ADR-0016. The follo
 - authorization roles, permissions, and the authentication implementation library;
 - offline unlock, credential recovery, session expiry, and device revocation behavior;
 - domain-specific conflict presentation and resolution;
-- tombstone retention, replica expiry, compaction, and full-resynchronization policy;
+- incremental-history and idempotency retention periods, synchronization-generation rollover, tombstone retention, compaction thresholds, and the full-reconciliation wire format;
 - production reverse proxy and TLS examples;
 - backup, restore, rollback, and upgrade procedures and their automated verification;
 - the optional S3-compatible storage adapter implementation;

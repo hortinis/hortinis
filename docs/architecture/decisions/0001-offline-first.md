@@ -14,6 +14,7 @@ The web application treats local state as the immediate working state. Supported
 
 - Reads and writes for core workflows must work without a network.
 - Reloading the installed application must preserve committed local work.
+- Pending local work does not expire because a client remains offline or because server synchronization history is compacted.
 - Network retries must be safe and must not duplicate accepted changes.
 - Initial installation and operations that inherently require a remote source may still need connectivity and must be identified explicitly.
 - Storage limits, schema evolution, recovery, and conflict behavior require deliberate design.
