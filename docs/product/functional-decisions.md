@@ -3,7 +3,7 @@
 - Consolidated on: 2026-09-05.
 - Status: product framing based on the supplied reports and explicit decisions made during the discussion.
 - Purpose: support continuation without rereading the conversation; this is not yet a detailed specification or a delivery schedule.
-- Related documents: [product direction](product-direction.md) and [open questions and design handoff](open-questions.md).
+- Related documents: [product direction](product-direction.md), [domain glossary and lifecycle rules](domain-model.md), and [open questions and design handoff](open-questions.md).
 
 ## 1. Interpretation and authority
 

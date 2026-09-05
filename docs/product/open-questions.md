@@ -14,15 +14,17 @@ The repository is at the documentation stage: foundation technologies are select
 
 Do not treat the proposed scenarios or horizons as approved decisions. Record the rationale and scope impact of each new decision. New technical selections require an ADR. Write all repository content in English, as required by [ADR-0018](../architecture/decisions/0018-repository-language.md).
 
-The next conversation can start with O-01 through O-03. For long-term strategy, start with the product direction and section 5 below. Avoid opening every topic at once.
+O-01 through O-03 are now resolved in the domain specification. The next domain-design conversation can derive the physical data model or API contracts from it; the next unresolved product topic is O-04. For long-term strategy, start with the product direction and section 5 below. Avoid opening every topic at once.
 
 ## 2. Domain model and workflows
 
-### O-01 — Plans, lots, cycles, and time
+O-01 through O-03 are resolved by the [domain glossary, lifecycle rules, and acceptance scenarios](domain-model.md). The sections below retain the original questions for traceability; the linked specification is authoritative for the accepted answers.
+
+### O-01 — Plans, lots, cycles, and time (resolved)
 
 Accepted decisions: DF-03 and DF-04; separate planned and actual information, related lots, and partial execution.
 
-To determine:
+Resolved topics:
 
 - precise vocabulary: cultivation plan, crop lot, cycle, season, and crop;
 - states and transitions: preparation, establishment, active tracking, completion, abandonment, and archiving;
@@ -33,23 +35,23 @@ To determine:
 - history before and after splitting without duplication in totals;
 - future support for multiple cycles of a perennial without implementing that use now.
 
-Proposed deliverable: a glossary, narrative examples, and state transitions before a physical data model.
+Delivered as a glossary, worked example, lifecycle rules, and acceptance scenarios before a physical data model.
 
-### O-02 — Spaces and multiple gardens
+### O-02 — Spaces and multiple gardens (resolved)
 
 Accepted decision: DF-02; typed spaces with optional nesting.
 
-Determine initial types, minimal attributes, any depth limit, prevention of parent cycles, and moving or archiving an occupied space. Specify how historical locations retain their meaning after reorganization.
+Resolved topics include initial types, minimal attributes, nesting and parent cycles, and moving or archiving an occupied space. Historical locations retain their meaning through stable space identities and time-bounded placement history.
 
-The reports favor multiple gardens in the model and a simplified first experience. Active-garden selection and any cross-garden MVP view have not been decided in detail.
+Multiple gardens are supported as separate domain boundaries. Active-garden selection and any cross-garden read view remain presentation questions under O-04.
 
-### O-03 — Journal, tasks, and corrections
+### O-03 — Journal, tasks, and corrections (resolved)
 
 Accepted decisions: DF-05 and DF-06.
 
-Determine initial action types, genuinely necessary fields, events targeting a garden or space without a crop, partial task completion, undoing a completion, accidental or duplicate entries, and effects of corrections on calculated states.
+Resolved topics include initial action types, required fields, events without a crop target, partial task completion, undoing a completion, accidental or duplicate entries, and effects of corrections on calculated states.
 
-Specify access to previous values and corrections to synchronized records. Crop archiving must not implicitly become the answer to every undo or erasure requirement.
+Previous values remain available through append-only revision history, including for synchronized records. Crop archiving is explicitly separate from completion, correction, voiding, and deletion.
 
 ### O-04 — UX and preferences
 
@@ -164,4 +166,4 @@ After each decision, update the direction where necessary and record any release
 
 ## 6. Suggested handoff prompt
 
-> We are continuing the design of Hortinis. Read AGENTS.md, docs/product/product-direction.md, docs/product/functional-decisions.md, docs/product/open-questions.md, and the relevant ADRs. Functional decisions are accepted; do not reopen them based on older reports. The executable scaffold does not yet exist. Start by summarizing the topic, then ask a small group of focused questions. Work on O-01 through O-03 for domain design, or section 5 and the product direction for long-term strategy. Distinguish decisions, proposals, and open questions. Keep all repository content in English. Do not implement features or modify documents without an explicit request in this new conversation.
+> We are continuing the design of Hortinis. Read AGENTS.md, docs/product/product-direction.md, docs/product/functional-decisions.md, docs/product/domain-model.md, docs/product/open-questions.md, and the relevant ADRs. Functional and domain decisions are accepted; do not reopen them based on older reports. The executable scaffold does not yet exist. Start by summarizing the topic, then ask a small group of focused questions. Derive the physical data model or API contracts from the domain specification, address O-04 or a later open question, or use section 5 and the product direction for long-term strategy. Distinguish decisions, proposals, and open questions. Keep all repository content in English. Do not implement features or modify documents without an explicit request in this new conversation.
