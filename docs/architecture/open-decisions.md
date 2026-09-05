@@ -1,9 +1,10 @@
 # Open technical decisions
 
-The foundation technologies are selected in ADR-0007 through ADR-0016. The following narrower choices remain deliberately unresolved because no business workflow requires them yet:
+The foundation technologies are selected in ADR-0007 through ADR-0016. The following narrower choices remain unresolved pending detailed workflow and technical specifications:
 
 - concrete API resources and domain-specific validation rules;
 - authorization roles, permissions, and the authentication implementation library;
+- the access design for an individually operated server without a mandatory account, its configuration default, and its relationship to the built-in-account baseline in ADR-0013;
 - offline unlock, credential recovery, session expiry, and device revocation behavior;
 - domain-specific conflict presentation and resolution;
 - incremental-history and idempotency retention periods, synchronization-generation rollover, tombstone retention, compaction thresholds, the point-in-time snapshot and continuation mechanism, the indeterminate-operation outcome representation, and the full-reconciliation wire format;
@@ -16,3 +17,5 @@ The foundation technologies are selected in ADR-0007 through ADR-0016. The follo
 - analytics aggregate schemas, browser-side buckets, dimension combinations, retention periods, bot-verification adapters, trusted proxy boundaries, contribution windows and cadence, sparse-bucket rules, differencing defenses, and any contribution noise or privacy budget required by ADR-0017 before analytics activation.
 
 Do not resolve these implicitly while implementing unrelated work. Each selection must be captured in a decision record with context, alternatives, consequences, migration impact, and validation criteria.
+
+See the [functional decisions and MVP scope](../product/functional-decisions.md) for accepted product requirements and the [functional open questions](../product/open-questions.md) for the remaining workflow design. The configurable account requirement is an accepted product decision; its access mechanism still needs an architecture decision before implementation.

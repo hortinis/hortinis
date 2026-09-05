@@ -30,6 +30,16 @@ The plant reference catalog is maintained outside this repository. Hortinis inte
 
 See [Architecture overview](docs/architecture/README.md) for the initial decisions.
 
+## Product specifications
+
+Product documentation separates direction, accepted scope, and unresolved questions:
+
+- [Product direction and exploratory ideas](docs/product/product-direction.md)
+- [Functional decisions and MVP scope](docs/product/functional-decisions.md)
+- [Open questions and conversation handoff](docs/product/open-questions.md)
+
+All repository content must be written in English. See [ADR-0018: Repository language](docs/architecture/decisions/0018-repository-language.md).
+
 ## Planned repository layout
 
 ```text
@@ -41,7 +51,7 @@ backend/adapters/          replaceable backend adapters
 services/sync/             Spring Boot synchronization service
 contracts/                 OpenAPI and JSON Schema contracts
 infrastructure/docker/     development and self-hosting resources
-docs/                      architecture, development, deployment, API, and user documentation
+docs/                      product, architecture, development, deployment, API, and user documentation
 tooling/                   shared tooling configuration
 tests/                     cross-component and architecture tests
 ```

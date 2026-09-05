@@ -4,6 +4,13 @@
 
 Keep this repository sufficient to build, run, synchronize, document, and self-host Hortinis as an autonomous application.
 
+## Repository language
+
+- Write all repository content in English, including documentation, specifications, code identifiers, comments, tests, configuration descriptions, examples, prompts, and repository-authored interface and diagnostic text.
+- Use English for descriptive file and directory names.
+- Translate material from non-English discussions before adding it to the repository; preserve accepted decisions and do not maintain parallel non-English copies.
+- Follow ADR-0018 in `docs/architecture/decisions/0018-repository-language.md` and include language consistency in change review.
+
 ## Architecture
 
 - Preserve the dependency direction `Presentation -> Application -> Domain`.

@@ -11,6 +11,8 @@ Hortinis must:
 - replace external providers without rewriting core behavior;
 - consume plant reference data through stable identifiers.
 
+All repository content must be written in English, as established by [ADR-0018](decisions/0018-repository-language.md).
+
 ## System context
 
 ```text
@@ -68,6 +70,7 @@ Only outer layers know implementation details. Inner layers do not import outer 
 - [ADR-0015: Privacy and observability](decisions/0015-privacy-and-observability.md)
 - [ADR-0016: Project name and license](decisions/0016-project-name-and-license.md)
 - [ADR-0017: Privacy-preserving web analytics](decisions/0017-privacy-preserving-web-analytics.md)
+- [ADR-0018: Repository language](decisions/0018-repository-language.md)
 
 ## Open decisions
 
