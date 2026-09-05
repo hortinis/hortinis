@@ -67,6 +67,7 @@ Only outer layers know implementation details. Inner layers do not import outer 
 - [ADR-0014: Plant catalog distribution contract](decisions/0014-plant-catalog-distribution.md)
 - [ADR-0015: Privacy and observability](decisions/0015-privacy-and-observability.md)
 - [ADR-0016: Project name and license](decisions/0016-project-name-and-license.md)
+- [ADR-0017: Privacy-preserving web analytics](decisions/0017-privacy-preserving-web-analytics.md)
 
 ## Open decisions
 

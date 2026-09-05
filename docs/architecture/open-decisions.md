@@ -12,6 +12,7 @@ The foundation technologies are selected in ADR-0007 through ADR-0016. The follo
 - the optional S3-compatible storage adapter implementation;
 - plant catalog chunk sizing, signing, key distribution, and update cadence;
 - default retention periods for each operational and security log category;
-- optional OpenTelemetry exporter selection.
+- optional OpenTelemetry exporter selection;
+- analytics aggregate schemas, browser-side buckets, dimension combinations, retention periods, bot-verification adapters, trusted proxy boundaries, contribution windows and cadence, sparse-bucket rules, differencing defenses, and any contribution noise or privacy budget required by ADR-0017 before analytics activation.
 
 Do not resolve these implicitly while implementing unrelated work. Each selection must be captured in a decision record with context, alternatives, consequences, migration impact, and validation criteria.

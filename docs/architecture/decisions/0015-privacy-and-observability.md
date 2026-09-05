@@ -11,7 +11,7 @@ Operators need enough diagnostics to maintain a self-hosted installation, while 
 - Emit structured JSON logs with random request, trace, and synchronization operation identifiers.
 - Provide health and readiness endpoints without exposing user data.
 - Keep OpenTelemetry integration optional and disabled by default.
-- Ship without analytics, telemetry, external crash reporting, advertising, optional trackers, or third-party runtime assets.
+- Ship without telemetry, external crash reporting, advertising, optional trackers, third-party analytics, or third-party runtime assets. Local first-party analytics may be enabled by default only within the privacy boundary and activation gates defined by ADR-0017.
 - Use only cookies strictly necessary to provide explicitly requested application functionality.
 - Use allowlisted log fields and redact credentials, tokens, headers, query parameters, and identifiers not needed for the stated diagnostic purpose.
 - Never log request or response bodies, garden content, precise locations, photos, email addresses, passwords, or password hashes.
@@ -21,8 +21,11 @@ Operators need enough diagnostics to maintain a self-hosted installation, while 
 
 ## Consequences
 
-- The default application does not need a consent banner for optional tracking because it performs no optional tracking.
+- The default application performs no optional tracking. Local first-party analytics governed by ADR-0017 require the information, objection or consent mechanism established by their applicable legal assessment.
 - Privacy information can still be legally required, and consent is not the only possible legal basis for processing.
 - Pseudonymous identifiers can remain personal data and receive the same retention and access protections.
 - Debugging that requires user content must use an explicit, time-limited, operator-controlled support procedure rather than ordinary logs.
 
+## Relationship to later decisions
+
+ADR-0017 supersedes only this record's former prohibition on default analytics and its former consequence that the default application performed no analytics. All other decisions in this record continue to apply.

@@ -27,7 +27,7 @@ Keep this repository sufficient to build, run, synchronize, document, and self-h
 
 ## Privacy
 
-- Ship without telemetry, analytics, optional trackers, or third-party runtime assets by default.
+- Ship without telemetry, optional trackers, third-party analytics, or third-party runtime assets by default. Local first-party analytics may be enabled only within the privacy boundary and activation gates defined by ADR-0017.
 - Never log credentials, tokens, request or response bodies, garden content, precise locations, or other user-provided content.
 - Keep logs structured, minimized, redacted, access-controlled, and subject to documented retention and purge rules.
 - External providers are opt-in adapters selected by the operator.
