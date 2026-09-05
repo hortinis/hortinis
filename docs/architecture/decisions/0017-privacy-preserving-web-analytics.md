@@ -1,6 +1,6 @@
 # ADR-0017: Privacy-preserving web analytics
 
-- Status: Accepted
+- Status: Accepted; activation gated
 
 ## Context
 
@@ -10,6 +10,8 @@ ADR-0015 originally required Hortinis to ship without analytics by default. That
 
 Self-hosted operators also need the option to contribute anonymous statistics to the Hortinis project. These contributions can help the project understand adoption, deployment characteristics, feature usage, and performance outside the official deployment. That contribution must not turn self-hosted installations into sources of visitor-level telemetry or make a central Hortinis service necessary for normal operation.
 
+In this decision, analytics collection means receiving browser-generated usage or performance measurements and updating local analytics aggregates. It excludes operational logs, security monitoring, and health or readiness checks governed by ADR-0015.
+
 ## Decision
 
 ### Deployment and control
@@ -17,7 +19,7 @@ Self-hosted operators also need the option to contribute anonymous statistics to
 - Provide the same analytics engine, privacy guarantees, and compatible contracts for web surfaces served by a Hortinis deployment.
 - Keep collection, storage, and reporting isolated by deployment. The official deployment and each self-hosted deployment have separate local statistics.
 - Allow a dimension supplied by an optional infrastructure adapter to degrade to `unknown`; equivalent privacy guarantees do not require every deployment to have every dimension available.
-- Enable local analytics by default and let the operator disable them completely.
+- After the finalization gates are satisfied, enable local analytics by default and let the operator disable them completely.
 - Provide visitors with clear information about analytics and an accessible means to object where the applicable legal basis requires it.
 - A preference stored solely to remember an analytics objection is not an analytics identifier and must not be reused for any other purpose.
 - Keep collection and reporting local to the deployment. A self-hosted installation must operate fully without contacting Hortinis analytics infrastructure.
@@ -150,7 +152,7 @@ This would provide flexible centralized analysis but would create visitor-level 
 
 - Operators receive useful local product and performance statistics without tracking visitors across sessions.
 - Returning unique visitors, cross-session attribution, and individual journeys are intentionally unavailable.
-- Local analytics are active without operator setup, but both operators and visitors retain the controls defined above.
+- Once implemented and authorized through the finalization gates, local analytics require no operator setup, but both operators and visitors retain the controls defined above.
 - Self-hosted operators may voluntarily contribute useful statistics without sending event-level visitor data.
 - Project reports can use contributed aggregates to identify broad adoption, feature-usage, and performance trends, but the voluntary sample is not representative of all Hortinis installations or users.
 - Aggregation schemas require up-front design and cannot be expanded by arbitrary database queries.
@@ -183,6 +185,8 @@ Acceptance of this decision establishes the privacy boundary but does not author
 - define the deployment trust boundary for source addresses, standard request headers, optional country classification, optional bot verification, reverse proxies, and access logs;
 - document the information and objection experience and complete the applicable legal-basis and CNIL audience-measurement self-assessment;
 - keep ADR-0015 and the repository guidance consistent with this decision so that local privacy-preserving analytics remain distinguished from prohibited telemetry, optional trackers, and third-party analytics.
+
+Until these gates are satisfied, no deployment may collect analytics measurements.
 
 Before enabling contribution from self-hosted deployments, the project must additionally:
 

@@ -8,7 +8,7 @@ Development and self-hosting must use standard infrastructure without requiring 
 
 ## Decision
 
-- Use Docker Compose for the local development topology.
+- Use Docker Compose for local development and as the baseline self-hosting deployment topology.
 - Build production components with multi-stage Dockerfiles.
 - Keep all persistent development data in named volumes.
 - Provide an optional Dev Container that reuses the Compose environment rather than duplicating it.
@@ -21,4 +21,3 @@ Development and self-hosting must use standard infrastructure without requiring 
 - Native development remains supported and documented.
 - The first dependency download requires network access, but runtime operation does not depend on a package registry or Hortinis service.
 - Production and development containers have separate concerns; development tools are not copied into runtime images.
-

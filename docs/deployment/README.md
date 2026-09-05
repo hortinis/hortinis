@@ -15,4 +15,4 @@ Implementation documentation must cover:
 - storage lifecycle;
 - failure diagnosis and recovery.
 
-Deployment resources live under `infrastructure/docker/`. The default installation uses PostgreSQL and filesystem storage in operator-controlled volumes and does not require a Hortinis-operated service.
+Deployment resources will live under `infrastructure/docker/`. The default installation uses PostgreSQL and filesystem storage in operator-controlled volumes and does not require a Hortinis-operated service.

@@ -29,7 +29,7 @@ Keep this repository sufficient to build, run, synchronize, document, and self-h
 - Define HTTP/JSON contracts with OpenAPI 3.1 before implementing adapters.
 - Use IndexedDB through Dexie for browser persistence.
 - Use PostgreSQL through Spring JDBC and version its schema with Flyway SQL migrations.
-- Use Docker Compose for local orchestration and keep the Dev Container optional.
+- Use Docker Compose for local orchestration and baseline self-hosting deployment; keep the Dev Container optional.
 - Do not add business features until the technical foundation is implemented and validated.
 
 ## Privacy

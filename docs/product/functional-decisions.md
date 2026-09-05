@@ -15,26 +15,7 @@ The [existing ADRs](../architecture/README.md) remain the technical reference. T
 
 ## 2. Consolidated vision and principles
 
-Hortinis is open-source garden-management software primarily intended for amateur, regular, and experienced gardeners. Its ambition is to become **the garden's memory and a decision-support tool**.
-
-The value loop is:
-
-**Understand the garden → Plan → Act → Observe → Remember → Learn → Adapt the next steps.**
-
-This is not a mandatory sequence: observations, interventions, and harvests can be recorded without prior planning.
-
-The following principles from the initial framing are retained:
-
-- core use works offline; the network supplies additional data and synchronization;
-- data entry is quick, contextual, and progressive, with few required fields;
-- unknown information can be represented without inventing values;
-- general horticultural knowledge is distinct from knowledge of the actual garden;
-- recorded facts, inferences, proposals, and gardener decisions remain distinguishable;
-- recommendations are explainable and initially deterministic; users can ignore, postpone, or challenge them;
-- the garden's memory can be preserved and recovered;
-- one application can vary guidance and interface depth without locking features behind an experience level.
-
-These principles do not make every idea in the reports mandatory for the MVP. Proposed personas, priority scores, and metrics are neither validated research findings nor adopted algorithms.
+The durable vision, value loop, and product principles are maintained in the [product direction](product-direction.md). For the MVP, the accepted principles are offline core use, minimal data entry, explicit unknowns, separation of facts and recommendations, explainable deterministic advice, recoverable garden history, and no experience-level feature lockouts. Proposals, personas, priority scores, and metrics from earlier reports are not MVP commitments.
 
 ## 3. MVP decisions
 
@@ -52,13 +33,13 @@ A garden contains spaces with a type. Spaces can contain other spaces without im
 
 A crop can be placed in a space without creating every intermediate level. Specialized business behavior for space types will be added only if needed.
 
-The type list, movement rules, and nesting limits remain open. This decision does not require advanced geometric mapping.
+Initial types, movement rules, and nesting constraints are defined in the [domain specification](domain-model.md). This decision does not require advanced geometric mapping.
 
 ### DF-03 — Crop lots and shared origin
 
 Tracking uses **one crop lot per location**. When a lot is split across locations, the resulting lots retain their shared origin and can then evolve independently.
 
-Shared history must remain accessible without duplicating interventions or harvests. The exact representation of the original lot after splitting and of remaining quantities is still to be specified.
+Shared history must remain accessible without duplicating interventions or harvests. Parent closure, child lineage, and remaining quantities are defined in the [domain specification](domain-model.md).
 
 Perennials and trees are outside the MVP, but future support must remain possible. The model must therefore not permanently equate a crop with a calendar year.
 
@@ -84,7 +65,7 @@ The journal displays the corrected value of an intervention or harvest. Previous
 
 Crops can be archived to leave current views while retaining their history. Selective permanent deletion is deferred beyond the MVP.
 
-This decision concerns crop archiving. It does not implicitly settle undoing erroneous entries, erasing all data, technical logs, or retention policies.
+The domain specification defines correction, voiding, and undo behavior. This decision does not settle erasing all data, technical logs, or retention policies.
 
 ### DF-07 — Initial catalog and free-form entries
 
@@ -179,8 +160,6 @@ Business events, synchronization history, and any usage measurements remain dist
 
 ## 5. Deferred capabilities and future ambition
 
-Explicitly deferred during the decisions: perennials and trees, space specializations if needed, collaboration between gardeners, catalog contributions, notifications outside the application, and selective permanent deletion.
+Perennials and trees, space specializations, collaboration, catalog contributions, outside-application notifications, and selective permanent deletion are deferred. Rotations, companion planting, seasonal reviews, photos, mapping, diagnosis, IoT, and conversational interaction remain exploratory. Social networking, marketplaces, commerce, physical automation, and general-purpose AI are outside the MVP.
 
-The reports also discuss rotations, companion planting, seasonal reviews, historical comparisons, photos, detailed mapping, diagnosis, IoT, and a conversational assistant. These prospects are neither an approved roadmap nor delivery commitments. Social networking, a marketplace, commerce, physical automation, and general-purpose AI were excluded from the initial MVP.
-
-The durable objective is to improve gardener decisions using their history and explainable knowledge. The [product direction](product-direction.md) describes that ambition and exploratory ideas; [open questions](open-questions.md) record the remaining decisions.
+The [product direction](product-direction.md) describes the long-term ambition; [open questions](open-questions.md) records the remaining decisions.

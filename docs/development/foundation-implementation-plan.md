@@ -467,11 +467,11 @@ Later foundation increments must extend this slice to causal operation chains, t
 
 This track may proceed alongside the web, server, contract, and synchronization tracks once its prerequisites exist.
 
-#### F1. Add the minimal development Compose topology
+#### F1. Add the minimal Compose topology
 
 - Initial status: `planned`.
 - Depends on: C5.
-- Scope: provide standard local orchestration without making container development mandatory.
+- Scope: provide standard local and self-hosting orchestration without making container development mandatory.
 - Acceptance: the topology validates and services start, become healthy, and stop predictably.
 
 #### F2. Add development and production container builds
@@ -481,13 +481,20 @@ This track may proceed alongside the web, server, contract, and synchronization 
 - Scope: create separate multi-stage builds whose runtime images exclude development tools.
 - Acceptance: production images build reproducibly and start without package registries or a Hortinis-operated service.
 
-#### F3. Implement the same-origin routing topology
+#### F3. Validate the same-origin routing contract
 
 - Initial status: `planned`.
 - Depends on: B1, C5, and F1.
-- Scope: route `/` to the built Angular application and `/api/*` to Spring according to the approved external contract.
-- Excludes: selecting and documenting the final production reverse proxy and TLS recommendation.
-- Acceptance: a browser uses one origin for the shell and API, and the Spring service is not required to be publicly exposed.
+- Scope: validate `/` and `/api/*` through development or test infrastructure according to the approved external contract.
+- Excludes: implementing or selecting the final production reverse proxy and TLS recommendation.
+- Acceptance: a browser uses one origin for the shell and API in the validation topology, and the Spring service is not required to be publicly exposed.
+
+#### F3b. Implement the production edge routing
+
+- Initial status: `blocked` until the production reverse-proxy and TLS decision is accepted.
+- Depends on: F3, F2, and the production edge decision.
+- Scope: route `/` to the built Angular application and `/api/*` to Spring in the selected production edge implementation.
+- Acceptance: the selected production topology serves the shell and API through one origin without publicly exposing the Spring service.
 
 #### F4. Add incremental GitHub Actions validation
 
@@ -523,11 +530,23 @@ The first technical-foundation milestone is complete only when:
 - one technical record completes local commit, outbox, push, accepted persistence, idempotent retry, pull, cursor persistence, reload recovery, and explicit stale-revision conflict scenarios;
 - synchronization failure does not prevent independent local work;
 - shared fixtures verify the implemented TypeScript and Java protocol behavior;
-- the same-origin topology runs through Compose and production-style images;
+- the same-origin contract is validated through the Compose/test topology and production-style images are buildable;
 - local and CI validation commands pass; and
 - the validation report clearly identifies protocol guarantees not yet implemented.
 
-Completion of this milestone validates a thin vertical foundation slice. It does not validate every guarantee in ADR-0010 and does not authorize garden functionality until the remaining foundation risks required for the first business increment have been explicitly assessed.
+Completion of this milestone validates a thin vertical foundation slice. It does not validate every guarantee in ADR-0010 and does not authorize garden functionality until the Foundation readiness gate below is complete.
+
+### Foundation readiness gate
+
+Business-feature implementation may begin only when:
+
+- the initial foundation milestone is validated;
+- causal operation chains, tombstones, interrupted exchanges, bounded retry behavior, generation rollover, anchored snapshots, full reconciliation, and indeterminate outcomes are implemented and tested;
+- browser schema migration, transaction recovery, server migration, and restart behavior are demonstrated;
+- native, Compose, container-image, and CI validation pass; and
+- the foundation report contains no unresolved blocking foundation risk.
+
+Feature-specific decisions remain additional prerequisites. For example, synchronized garden data requires the accepted access design, and catalog-dependent features require the catalog acquisition design.
 
 ## 7. Deferred and prohibited selections
 

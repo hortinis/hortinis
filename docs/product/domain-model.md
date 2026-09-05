@@ -123,11 +123,11 @@ Abandoning a partially realized plan abandons only its unallocated remainder. It
 | State | Meaning | Allowed next states |
 | --- | --- | --- |
 | `establishing` | Sowing or propagation has begun, and the cycle has not yet been explicitly recorded as established. | `active`, `abandoned` |
-| `active` | At least one leaf lot is active. | `completed`, `abandoned` |
+| `active` | Establishment has been explicitly recorded and at least one leaf lot is active. | `completed`, `abandoned` |
 | `completed` | No active leaf lot remains and at least one leaf lot ended normally. Individual leaf lots may still record loss or abandonment. | No operational transition |
 | `abandoned` | No active leaf lot remains and none ended normally, because establishment, cultivation, or tracking was stopped or lost. | No operational transition |
 
-A cycle is created by an actual establishment event, not merely by publishing a plan. Sowing starts it as `establishing`. Planting, transplanting, an explicit established-stage record, or recording an already-existing crop starts or advances it to `active`; the application does not infer establishment merely from elapsed time.
+A cycle is created by an actual establishment event, not merely by publishing a plan. Sowing starts it as `establishing`. Planting, transplanting, an explicit established-stage record, or recording an already-existing crop starts or advances it to `active`; the application does not infer establishment merely from elapsed time. A root lot can be `active` while its cycle is still `establishing`: lot activity means that the physical group is being tracked, while cycle activity means that establishment has been confirmed.
 
 The terminal cycle state is derived from its current leaf lots. While any leaf lot remains active, an established cycle remains `active`. With no active leaf lots, it becomes `completed` if at least one leaf lot completed normally; otherwise it becomes `abandoned`. Closing a user-facing “crop” means ending all active leaf lots with explicit outcomes; it is not a direct overwrite of the derived cycle state.
 
@@ -153,16 +153,26 @@ Rules for lot changes:
 6. If an exact compatible parent quantity is known, exact compatible child quantities plus an explicit remainder or loss must account for it. A remainder that stays together is a child lot, not an active residue on the parent.
 7. When any needed quantity is unknown or incompatible, the split is allowed with unknown balance. The application states that conservation was not verified.
 8. A lot may temporarily have no known location. Assigning its first known space starts a placement; it is not a move from an invented nursery.
-9. A terminal or split lot cannot receive new interventions, observations, harvests, moves, or quantity changes dated after its end. A delayed record whose business time falls within its active interval is allowed.
+9. A terminal or split lot cannot receive a new event whose possible business time is entirely after its end. A delayed record whose time is valid or indeterminate under the temporal-validity rules below may be retained; a record proven to be outside the active interval is rejected.
 
 Events recorded before a split target the ancestor lot. Descendant histories display those inherited events, clearly marked as occurring before the split. Events after the split target only the applicable child lots or the cycle. A cycle total deduplicates by journal-record identity, so an ancestor event visible under two children contributes once.
+
+#### Temporal validity
+
+For a record targeted at a lot, compare its possible business time with the lot's active interval:
+
+- `valid`: every possible date is within the interval;
+- `invalid`: no possible date is within the interval;
+- `indeterminate`: the date is unknown or the possible range only partly overlaps the interval.
+
+Invalid records are rejected unless the lifecycle history is corrected first. Indeterminate records may be retained when the gardener explicitly identifies the lot, but they do not determine historical placement, lifecycle transitions, or time-window calculations. A historical placement is shown only when every possible date resolves to the same placement; otherwise the placement remains unknown or ambiguous. Later correction can resolve the uncertainty.
 
 ### 3.4 Spaces
 
 - Reparenting a space changes its parent placement from an effective business time. It does not rewrite earlier paths.
 - A space and all of its ancestors belong to the same garden. Parent cycles are invalid.
 - A lot continues to reference the same space identity when that space is renamed or reparented.
-- Historical views resolve the space name, type, and parent path as they were effective at the event time, while also allowing access to the space's current description.
+- Historical views resolve the space name, type, and parent path as they were effective at the event time when that time identifies one placement. Otherwise they show the placement as unknown or ambiguous while also allowing access to the space's current description.
 - Reparenting an occupied space is allowed. Moving the space is not the same as moving each contained crop lot.
 - A space cannot be archived while it or any descendant contains an active crop lot or an unarchived child space. Reparenting or ending those dependants first makes the operation explicit.
 - An archived space cannot receive new current placements or new journal entries. Existing history is retained.
@@ -201,15 +211,13 @@ For synchronized records:
 
 ## 4. Worked example: one tomato cycle
 
-Camille creates a cultivation plan for 12 `Marmande` tomato plants. The intended sowing period is 1–7 March, and final location is unknown. Publishing the plan changes it from `draft` to `planned`; it does not create actual plants.
+Camille plans 12 `Marmande` tomato plants for 1–7 March without a final location. Publishing the plan changes it to `planned` but creates no actual cultivation.
 
-On 3 March, Camille records sowing 12 seeds in the `Porch nursery` space. That establishment event creates one tomato cycle linked to the plan and one active root lot, `L1`. The cycle is `establishing`. The planned period remains 1–7 March, while 3 March is retained as the actual sowing date.
+On 3 March, sowing 12 seeds in `Porch nursery` creates a linked `establishing` cycle and active root lot `L1`; the planned period and actual sowing date remain separate. A later observation records 10 viable plants and two losses without converting seed and plant quantities.
 
-Ten seedlings become viable. Camille records a current quantity observation of 10 plants and a loss of two seeds with reason unknown. No conversion between “seeds” and “plants” is inferred: these are observations at different stages. Before splitting, Camille records watering `L1`; that intervention will later be visible as inherited history for every descendant.
+At transplanting, `L1` is split into four plants in `Greenhouse` (`L2`) and six in `South raised bed` (`L3`). The cycle becomes `active`, and 10 comparable plants are allocated to the plan. Camille abandons the unallocated remainder, leaving the realized cycle and its history intact.
 
-At transplanting, Camille splits all 10 plants atomically. `L1` becomes `split`; active child `L2` contains four plants in `Greenhouse`, and active child `L3` contains six plants in `South raised bed`. Transplanting advances the cycle to `active`. The plan is `partially_realized` with 10 of 12 comparable planned plants allocated to the cycle. Camille explicitly abandons the remaining two planned plants, so the plan becomes `abandoned` with its realized part retained.
-
-Camille records staking only for `L2` and mulching only for `L3`. Each lot shows the earlier watering of `L1` plus its own later intervention. The cycle journal shows the watering once, not once per child.
+Watering before the split is inherited by both descendants but counted once in the cycle journal. Later interventions and harvests target the applicable child. Corrections change current projections while retaining prior revisions; completing all leaf lots completes and permits archiving of the cycle.
 
 Camille records several harvests: 3 kg and 2 kg from `L2`, and an unknown quantity followed by 4 kg from `L3`. The known cycle total is 9 kg and the journal also states that one additional harvest has unknown quantity. The unknown value is not treated as zero.
 
@@ -246,7 +254,7 @@ The scenarios are behavioral contracts for later domain tests and API examples. 
 
 **Given** active lot `L1` contains 10 plants in compatible known units  
 **When** it is split into `L2` with four plants and `L3` with six plants  
-**Then** `L1` becomes `split` and cannot receive later events  
+**Then** `L1` becomes `split` and cannot receive later-dated events
 **And** `L2` and `L3` are active children in the same cycle  
 **And** no active remainder remains on `L1`.
 

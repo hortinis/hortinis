@@ -16,6 +16,6 @@ The foundation technologies are selected in ADR-0007 through ADR-0016. The follo
 - optional OpenTelemetry exporter selection;
 - analytics aggregate schemas, browser-side buckets, dimension combinations, retention periods, bot-verification adapters, trusted proxy boundaries, contribution windows and cadence, sparse-bucket rules, differencing defenses, and any contribution noise or privacy budget required by ADR-0017 before analytics activation.
 
-Do not resolve these implicitly while implementing unrelated work. Each selection must be captured in a decision record with context, alternatives, consequences, migration impact, and validation criteria.
+Do not resolve these implicitly while implementing unrelated work. New selections should capture context, alternatives, consequences, migration impact, and validation criteria where applicable.
 
 See the [functional decisions and MVP scope](../product/functional-decisions.md) for accepted product requirements and the [functional open questions](../product/open-questions.md) for the remaining workflow design. The configurable account requirement is an accepted product decision; its access mechanism still needs an architecture decision before implementation.

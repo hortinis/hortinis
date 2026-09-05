@@ -41,13 +41,13 @@ The intended dependency direction is:
 
 ```text
 Presentation -> Application -> Domain
-Presentation -> Infrastructure adapters -> Application interfaces
+Composition root -> concrete adapters -> Application ports
 ```
 
-- **Presentation** handles user interaction and delivery concerns.
+- **Presentation** handles user interaction and delivery concerns. The composition root wires it to concrete adapters; ordinary presentation code does not depend on adapter implementations.
 - **Application** coordinates use cases, transactions, authorization rules, and ports.
 - **Domain** expresses entities, value objects, invariants, and domain services.
-- **Infrastructure** implements persistence, transport, storage, and provider adapters.
+- **Infrastructure** implements persistence, transport, storage, and provider adapters behind application-owned ports.
 
 Only outer layers know implementation details. Inner layers do not import outer layers.
 

@@ -18,40 +18,13 @@ O-01 through O-03 are now resolved in the domain specification. The next domain-
 
 ## 2. Domain model and workflows
 
-O-01 through O-03 are resolved by the [domain glossary, lifecycle rules, and acceptance scenarios](domain-model.md). The sections below retain the original questions for traceability; the linked specification is authoritative for the accepted answers.
+O-01 through O-03 are resolved by the [domain glossary, lifecycle rules, and acceptance scenarios](domain-model.md), which is authoritative for the details.
 
-### O-01 — Plans, lots, cycles, and time (resolved)
-
-Accepted decisions: DF-03 and DF-04; separate planned and actual information, related lots, and partial execution.
-
-Resolved topics:
-
-- precise vocabulary: cultivation plan, crop lot, cycle, season, and crop;
-- states and transitions: preparation, establishment, active tracking, completion, abandonment, and archiving;
-- tracking sowing before final placement and representing a nursery;
-- complete or partial splitting, the original lot, remaining quantities, losses, and moving a lot;
-- unknown quantities, units, partial harvests, and crop completion;
-- approximate dates, periods, delayed entry, and correction dates;
-- history before and after splitting without duplication in totals;
-- future support for multiple cycles of a perennial without implementing that use now.
-
-Delivered as a glossary, worked example, lifecycle rules, and acceptance scenarios before a physical data model.
-
-### O-02 — Spaces and multiple gardens (resolved)
-
-Accepted decision: DF-02; typed spaces with optional nesting.
-
-Resolved topics include initial types, minimal attributes, nesting and parent cycles, and moving or archiving an occupied space. Historical locations retain their meaning through stable space identities and time-bounded placement history.
-
-Multiple gardens are supported as separate domain boundaries. Active-garden selection and any cross-garden read view remain presentation questions under O-04.
-
-### O-03 — Journal, tasks, and corrections (resolved)
-
-Accepted decisions: DF-05 and DF-06.
-
-Resolved topics include initial action types, required fields, events without a crop target, partial task completion, undoing a completion, accidental or duplicate entries, and effects of corrections on calculated states.
-
-Previous values remain available through append-only revision history, including for synchronized records. Crop archiving is explicitly separate from completion, correction, voiding, and deletion.
+| Question | Accepted decisions | Remaining presentation work |
+| --- | --- | --- |
+| O-01 — Plans, lots, cycles, and time | DF-03 and DF-04; separate plans and actual cycles, lineage, partial execution, precise time uncertainty, and recoverable history | None in the domain model |
+| O-02 — Spaces and multiple gardens | DF-02; typed spaces, optional nesting, stable identities, and separate garden boundaries | Active-garden selection and cross-garden read views under O-04 |
+| O-03 — Journal, tasks, and corrections | DF-05 and DF-06; tasks, interventions, corrections, voiding, undo, and append-only history | None in the domain model |
 
 ### O-04 — UX and preferences
 
