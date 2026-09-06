@@ -12,6 +12,8 @@ The foundation technologies are selected in ADR-0007 through ADR-0016. The follo
 - backup, restore, rollback, and upgrade procedures and their automated verification;
 - the optional S3-compatible storage adapter implementation;
 - plant catalog chunk sizing, signing, key distribution, and update cadence;
+- ownership and pinning of the language-neutral catalog schemas under `contracts/catalog/`, including the upstream catalog version and consumer conformance-fixture process;
+- the web catalog-artifact acquisition adapter boundary, including local import, authenticated HTTPS acquisition, atomic Dexie activation, rollback, quota failure and interrupted-import recovery;
 - default retention periods for each operational and security log category;
 - optional OpenTelemetry exporter selection;
 - analytics aggregate schemas, browser-side buckets, dimension combinations, retention periods, bot-verification adapters, trusted proxy boundaries, contribution windows and cadence, sparse-bucket rules, differencing defenses, and any contribution noise or privacy budget required by ADR-0017 before analytics activation.

@@ -48,6 +48,10 @@ The canonical catalog is external: agree on the minimal reference dataset for va
 
 The distribution format is **already selected in ADR-0014**. Remaining work includes initial acquisition, first-use offline availability, updates, retired references, and linking free-form entries without losing history.
 
+The catalog project has a separate specification for its source register, field mappings, assertion provenance, licence gates and release profiles. Hortinis must agree the consumer boundary before M5.1: the catalog supplies reviewed plant facts and rule parameters; Hortinis evaluates recommendations against garden and weather context.
+
+The following remain blocking for the first content release: the exact France MVP plant list, cultivar depth, licence treatment of ShareAlike sources, catalog stewardship responsibility, and the upstream contract/version coordination process.
+
 ### O-06 — Weather provider and privacy
 
 Accepted decision: approximate position, outdoor growing and unheated shelters, replaceable optional provider.

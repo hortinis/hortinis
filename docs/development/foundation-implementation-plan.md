@@ -48,6 +48,7 @@ packages/
   web-domain/                  Pure TypeScript rules and value types
   web-application/             Offline use cases and ports
   web-adapters-dexie/          IndexedDB persistence adapter
+  web-adapters-catalog-artifact/ Catalog manifest and chunk acquisition adapter
   web-adapters-sync-http/      Synchronization transport adapter
 
 backend/
@@ -65,6 +66,7 @@ services/
 contracts/
   openapi/                     HTTP contracts
   schemas/                     Language-neutral schemas
+  catalog/                     Pinned catalog distribution contracts and fixtures
   sync/
     fixtures/                  Cross-runtime synchronization conformance cases
 

@@ -72,6 +72,9 @@ These items may proceed during foundation implementation. They produce specifica
 
 - Status: `planned`.
 - Scope: initial plant list and provenance, France coverage, catalog quality and update behavior, approximate location, weather fields and freshness, provider boundaries, cold-risk rules, sowing-window rules, abstention, explanation, versions, and recommendation lifecycle.
+- Catalog boundary: the external catalog owns stable plant identity, plant-specific cultivation parameters, applicability, evidence, licence and confidence. Hortinis owns garden context, current weather, rule evaluation, scoring, explanations, user overrides and recommendation lifecycle.
+- Catalog integration: the web application requires a catalog-artifact acquisition adapter separate from the Dexie persistence adapter. It must support operator-selected local artifacts and authenticated HTTPS acquisition, schema and hash validation, atomic activation, rollback, retired references and quota or interrupted-import recovery.
+- Contract location: the pinned consumer copy of the language-neutral manifest and entry contracts belongs under `contracts/catalog/`; the catalog project remains the upstream publisher of the versioned contract and release artifacts.
 - Acceptance: each recommendation has reviewed examples, required factors, thresholds, missing-data behavior, and retained rule/data versions. Provider or transport selections require ADRs where applicable.
 
 ## 3. MVP increment plan
@@ -174,7 +177,8 @@ These items may proceed during foundation implementation. They produce specifica
 #### M5.1 — Minimal offline catalog
 
 - Depends on: P0.7 and M2.1.
-- Scope: ADR-0014 artifact acquisition, validation, activation, offline snapshot, updates, retired references, and free-form fallback.
+- Scope: ADR-0014 artifact acquisition, validation, activation, offline snapshot, updates, retired references, free-form fallback, catalog-artifact adapter, Dexie catalog stores, manifest compatibility, and interrupted-import recovery.
+- Contract prerequisites: `contracts/catalog/` schemas and conformance fixtures must be pinned before adapter implementation. The catalog release must provide stable opaque identifiers and an attribution/licence manifest.
 - Acceptance: catalog acquisition failure never blocks core garden use; activated entries pass schema and integrity validation.
 
 #### M5.2 — Weather context
