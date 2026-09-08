@@ -17,3 +17,7 @@ Thumbs.db
 node_modules/
 .pnpm-store/
 pnpm-debug.log*
+
+# Gradle local state and build outputs
+.gradle/
+**/build/

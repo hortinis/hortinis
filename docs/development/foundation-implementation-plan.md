@@ -211,11 +211,16 @@ This contract does not yet select Nginx, Caddy, Traefik, or another production r
 
 #### A4. Establish the backend multi-project foundation
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: A2.
 - Scope: add the Gradle Wrapper, Kotlin DSL root settings, repository and plugin management, Java 25 requirements, shared build conventions, dependency verification where supported, and attributable backend validation commands.
 - Excludes: Spring Boot, included backend modules, and empty or placeholder subprojects.
+- Artifacts: `settings.gradle.kts`, `build.gradle.kts`, Gradle 9.7.1 Wrapper files and checksums, dependency-verification metadata, backend entries in `.gitignore`, and backend setup and validation instructions in `docs/development/README.md`.
 - Acceptance: wrapper integrity checks and an empty root build succeed with the documented JDK, and future modules can be registered without restructuring the root build.
+- Validation commands: `java --version`, `sha256sum --check gradle/wrapper/gradle-wrapper.jar.sha256`, `./gradlew --version`, `./gradlew projects`, `./gradlew build`, `git diff --check`, `git ls-files -ci --exclude-standard`, and `git ls-files --eol`.
+- Validation evidence: Java reports `25.0.4.1`, Gradle reports `9.7.1`, the Wrapper JAR matches Gradle's published SHA-256 checksum, the checksum-pinned distribution downloads successfully, Gradle reports only the `hortinis` root with no subprojects, the empty root `build` succeeds, no tracked file is ignored, and repository text conventions remain intact.
+- Follow-up: register the first backend projects with C1 by adding project includes and build files only for the modules that increment introduces; add dependency checksums whenever a later increment adds an external artifact.
+- Relevant decisions: ADR-0007, ADR-0011, and ADR-0018.
 
 #### A5. Document executable validation entry points
 
