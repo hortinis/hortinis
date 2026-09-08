@@ -185,10 +185,16 @@ This contract does not yet select Nginx, Caddy, Traefik, or another production r
 
 #### A2. Establish the repository baseline
 
-- Initial status: `planned`.
+- Status: `validated`.
+- Depends on: A1.
 - Scope: add minimal repository-wide editor, text-normalization, and ignore conventions required by both toolchains.
 - Excludes: generated application code, dependency installation, application directories, package directories, and backend modules.
+- Artifacts: `.editorconfig`, `.gitattributes`, and `.gitignore`.
 - Acceptance: conventions do not hide source, contracts, wrappers, lockfiles, or other required reproducibility files, and no placeholder project structure is introduced.
+- Validation commands: `git diff --check`, `git ls-files -ci --exclude-standard`, `git check-attr text eol -- .gitattributes README.md gradlew gradlew.bat`, and `git ls-files --eol`.
+- Validation evidence: repository text is normalized to LF, Windows command scripts are assigned CRLF, no tracked file is ignored, representative future source, contract, wrapper, and lockfile paths remain visible, and no placeholder project structure was introduced.
+- Follow-up: add pnpm and frontend-specific ignore rules with A3 and the relevant Track B increments; add Gradle and backend-specific ignore rules with A4 and the relevant backend increments.
+- Relevant decisions: ADR-0011 and ADR-0018.
 
 #### A3. Establish the frontend workspace foundation
 
