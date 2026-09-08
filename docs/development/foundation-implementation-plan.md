@@ -198,11 +198,16 @@ This contract does not yet select Nginx, Caddy, Traefik, or another production r
 
 #### A3. Establish the frontend workspace foundation
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: A2.
 - Scope: pin Node.js 24 LTS and pnpm, create one root workspace and lockfile, declare workspace patterns for future applications and packages, and expose attributable frontend validation commands.
 - Excludes: Angular generation and empty or placeholder applications and packages.
+- Artifacts: `.nvmrc`, `package.json`, `pnpm-workspace.yaml`, `pnpm-lock.yaml`, frontend entries in `.gitignore`, and frontend setup and validation instructions in `docs/development/README.md`.
 - Acceptance: installation is reproducible, the empty workspace validation commands succeed, and a future project placed under an approved workspace pattern can join the workspace without restructuring the root configuration.
+- Validation commands: `node --version`, `pnpm --version`, `pnpm install --frozen-lockfile`, `pnpm list --recursive --depth -1`, `git diff --check`, `git ls-files -ci --exclude-standard`, and `git ls-files --eol`.
+- Validation evidence: Node.js reports `v24.18.0`, pnpm reports `11.26.0`, the frozen empty-workspace installation succeeds, recursive workspace discovery reports the private `@hortinis/workspace` root, the workspace reserves `apps/*` and `packages/*` for future projects, no tracked file is ignored, and repository text remains normalized to LF.
+- Follow-up: add the first workspace member with B1 without changing the root workspace patterns; add capability-specific frontend validation commands with the increments that introduce those capabilities.
+- Relevant decisions: ADR-0007, ADR-0011, and ADR-0018.
 
 #### A4. Establish the backend multi-project foundation
 

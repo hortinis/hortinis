@@ -12,3 +12,8 @@ Thumbs.db
 # Local environment overrides
 .env
 .env.local
+
+# Frontend dependencies and pnpm local state
+node_modules/
+.pnpm-store/
+pnpm-debug.log*
