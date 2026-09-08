@@ -183,28 +183,28 @@ This contract does not yet select Nginx, Caddy, Traefik, or another production r
 - Excludes: executable code, generated projects, dependency manifests, and CI configuration.
 - Acceptance: the document is internally consistent, written in English, and aligned with accepted architecture decisions.
 
-#### A2. Add repository-wide text and ignore conventions
+#### A2. Establish the repository baseline
 
 - Initial status: `planned`.
-- Scope: add minimal editor and ignore conventions required by both toolchains.
-- Excludes: generated application code and dependency installation.
-- Acceptance: conventions do not hide source, contracts, wrappers, or required reproducibility files.
+- Scope: add minimal repository-wide editor, text-normalization, and ignore conventions required by both toolchains.
+- Excludes: generated application code, dependency installation, application directories, package directories, and backend modules.
+- Acceptance: conventions do not hide source, contracts, wrappers, lockfiles, or other required reproducibility files, and no placeholder project structure is introduced.
 
-#### A3. Initialize the pnpm workspace
-
-- Initial status: `planned`.
-- Depends on: A2.
-- Scope: pin Node.js 24 LTS and pnpm, create one workspace and lockfile, and expose attributable frontend validation commands.
-- Excludes: Angular generation.
-- Acceptance: installation is reproducible and the empty workspace validation commands succeed.
-
-#### A4. Initialize the Gradle multi-project build
+#### A3. Establish the frontend workspace foundation
 
 - Initial status: `planned`.
 - Depends on: A2.
-- Scope: add the Gradle Wrapper, Kotlin DSL settings, Java 25 requirements, dependency verification where supported, and attributable backend validation commands.
-- Excludes: Spring Boot and application modules.
-- Acceptance: wrapper integrity checks and an empty build succeed with the documented JDK.
+- Scope: pin Node.js 24 LTS and pnpm, create one root workspace and lockfile, declare workspace patterns for future applications and packages, and expose attributable frontend validation commands.
+- Excludes: Angular generation and empty or placeholder applications and packages.
+- Acceptance: installation is reproducible, the empty workspace validation commands succeed, and a future project placed under an approved workspace pattern can join the workspace without restructuring the root configuration.
+
+#### A4. Establish the backend multi-project foundation
+
+- Initial status: `planned`.
+- Depends on: A2.
+- Scope: add the Gradle Wrapper, Kotlin DSL root settings, repository and plugin management, Java 25 requirements, shared build conventions, dependency verification where supported, and attributable backend validation commands.
+- Excludes: Spring Boot, included backend modules, and empty or placeholder subprojects.
+- Acceptance: wrapper integrity checks and an empty root build succeed with the documented JDK, and future modules can be registered without restructuring the root build.
 
 #### A5. Document executable validation entry points
 
