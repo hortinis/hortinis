@@ -1,0 +1,17 @@
+# Operating system metadata
+.DS_Store
+Thumbs.db
+
+# Local editor and IDE state
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Local environment overrides
+.env
+.env.local
+
+# Git
+.worktree/
