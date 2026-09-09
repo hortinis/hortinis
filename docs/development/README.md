@@ -26,7 +26,9 @@ Install the workspace from its committed lockfile:
 pnpm install --frozen-lockfile
 ```
 
-Validate the empty workspace foundation independently of the future backend build:
+The workspace explicitly permits install scripts for `@parcel/watcher`, `esbuild`, `lmdb`, and `msgpackr-extract`. These reviewed transitive dependencies provide Angular build, Sass file-watching, and build-cache capabilities. Review and record any future lifecycle-script dependency before allowing it.
+
+Validate the frontend workspace independently of the future backend build:
 
 ```shell
 node --version
@@ -35,7 +37,22 @@ pnpm install --frozen-lockfile
 pnpm list --recursive --depth -1
 ```
 
-The expected versions are Node.js `v24.18.0` and pnpm `11.26.0`. Formatting, linting, type checking, tests, and builds will receive separate commands when their corresponding executable capabilities are introduced; no aggregate command should hide those entry points.
+The expected versions are Node.js `v24.18.0` and pnpm `11.26.0`. Formatting and linting will receive separate commands when B2 introduces their executable validation capabilities; no aggregate command should hide the independent entry points.
+
+### Web application
+
+The standalone Angular application is the `@hortinis/web` workspace member under `apps/web`.
+
+Run its validation entry points independently from the repository root:
+
+```shell
+pnpm --filter @hortinis/web typecheck
+pnpm --filter @hortinis/web test
+pnpm --filter @hortinis/web build:development
+pnpm --filter @hortinis/web build
+```
+
+The type-checking command validates strict TypeScript and Angular templates. The two build commands validate the development and production configurations separately. Browser end-to-end testing is introduced by B3.
 
 ## Backend workspace
 

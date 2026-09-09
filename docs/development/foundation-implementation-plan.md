@@ -213,17 +213,22 @@ This contract does not yet select Nginx, Caddy, Traefik, or another production r
 
 #### B1. Generate an empty standalone Angular application
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: A3.
-- Scope: create `apps/web` with strict TypeScript and a minimal application shell.
-- Excludes: PWA support, Dexie, synchronization, domain behavior, and business UI.
+- Scope: create `apps/web` with strict TypeScript, standalone Angular composition, an empty router configuration, SCSS compilation, and a minimal application shell.
+- Excludes: PWA support, Dexie, synchronization, domain behavior, browser end-to-end testing, a component library, and business UI.
+- Artifacts: the `@hortinis/web` pnpm workspace member, Angular workspace configuration, strict TypeScript configurations, minimal application shell and unit tests, frontend ignore rules, reviewed pnpm lifecycle-script permissions, application documentation, and ADR-0019.
 - Acceptance: development build, production build, strict type checking, and the initial unit-test command succeed.
+- Validation commands: `node --version`, `pnpm --version`, `pnpm install --frozen-lockfile`, `pnpm list --recursive --depth -1`, `pnpm --filter @hortinis/web typecheck`, `pnpm --filter @hortinis/web test`, `pnpm --filter @hortinis/web build:development`, `pnpm --filter @hortinis/web build`, `git diff --check`, `git ls-files -ci --exclude-standard`, `git check-attr text eol -- .gitattributes README.md gradlew gradlew.bat`, and `git ls-files --eol`.
+- Validation evidence: Node.js reports `v24.18.0`, pnpm reports `11.26.0`, frozen installation succeeds, workspace discovery reports `@hortinis/workspace` and `@hortinis/web`, strict TypeScript and Angular template checking succeeds, the initial two-test Vitest suite passes, and both development and production Angular builds succeed. The repository-wide whitespace, ignore, and line-ending checks also succeed.
+- Follow-up: B2 enforces the Angular CLI-generated Prettier baseline and adds Angular ESLint; B3 adds browser smoke testing; B4 replaces the generated favicon while adding PWA assets and application-shell caching. Any component-library selection, including Angular Material, requires its own decision and increment.
+- Relevant decisions: ADR-0007, ADR-0011, ADR-0018, and ADR-0019.
 
 #### B2. Enforce frontend formatting and linting
 
 - Initial status: `planned`.
 - Depends on: B1.
-- Scope: add Prettier, Angular ESLint, and explicit validation commands.
+- Scope: build on the Angular CLI-generated Prettier baseline, add Angular ESLint, and expose explicit formatting and linting commands.
 - Acceptance: formatting and linting are deterministic and independently runnable.
 
 #### B3. Add a browser smoke test

@@ -24,3 +24,9 @@ pnpm-debug.log*
 # Gradle local state and build outputs
 .gradle/
 **/build/
+
+# Angular local state and outputs
+.angular/
+dist/
+coverage/
+.sass-cache/

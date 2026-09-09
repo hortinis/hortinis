@@ -1,6 +1,6 @@
 # Open technical decisions
 
-The foundation technologies are selected in ADR-0007 through ADR-0016. The following narrower choices remain unresolved pending detailed workflow and technical specifications:
+Accepted foundation technologies and policies are recorded in the architecture decision directory. The following narrower choices remain unresolved pending detailed workflow and technical specifications:
 
 - concrete API resources and domain-specific validation rules;
 - authorization roles, permissions, and the authentication implementation library;
@@ -16,7 +16,8 @@ The foundation technologies are selected in ADR-0007 through ADR-0016. The follo
 - the web catalog-artifact acquisition adapter boundary, including local import, authenticated HTTPS acquisition, atomic Dexie activation, rollback, quota failure and interrupted-import recovery;
 - default retention periods for each operational and security log category;
 - optional OpenTelemetry exporter selection;
-- analytics aggregate schemas, browser-side buckets, dimension combinations, retention periods, bot-verification adapters, trusted proxy boundaries, contribution windows and cadence, sparse-bucket rules, differencing defenses, and any contribution noise or privacy budget required by ADR-0017 before analytics activation.
+- analytics aggregate schemas, browser-side buckets, dimension combinations, retention periods, bot-verification adapters, trusted proxy boundaries, contribution windows and cadence, sparse-bucket rules, differencing defenses, and any contribution noise or privacy budget required by ADR-0017 before analytics activation;
+- web component-library and design-system selection, including whether to adopt Angular Material and how to integrate its theming model.
 
 Do not resolve these implicitly while implementing unrelated work. New selections should capture context, alternatives, consequences, migration impact, and validation criteria where applicable.
 

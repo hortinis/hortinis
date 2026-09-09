@@ -65,6 +65,7 @@ Separate packages or modules require demonstrated reuse or a need for independen
 - [ADR-0016: Project name and license](decisions/0016-project-name-and-license.md)
 - [ADR-0017: Privacy-preserving web analytics](decisions/0017-privacy-preserving-web-analytics.md)
 - [ADR-0018: Repository language](decisions/0018-repository-language.md)
+- [ADR-0019: Web styling foundation](decisions/0019-web-styling-foundation.md)
 
 ## Open decisions
 
