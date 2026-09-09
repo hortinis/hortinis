@@ -37,6 +37,29 @@ pnpm list --recursive --depth -1
 
 The expected versions are Node.js `v24.18.0` and pnpm `11.26.0`. Formatting, linting, type checking, tests, and builds will receive separate commands when their corresponding executable capabilities are introduced.
 
+## Backend workspace
+
+The backend workspace requires a Java 25 JDK and uses Gradle 9.7.1 exclusively through the committed Gradle Wrapper. A separate system Gradle installation is neither required nor supported. The root build centralizes plugin and dependency repositories, rejects project-specific repositories, and applies the Java 25 toolchain and compiler release to future Java subprojects.
+
+Validate the Wrapper files before running the build:
+
+```shell
+sha256sum --check gradle/wrapper/gradle-wrapper.jar.sha256
+```
+
+The Wrapper also verifies the downloaded Gradle binary distribution against the SHA-256 checksum recorded in `gradle/wrapper/gradle-wrapper.properties`. The root has no external Java dependencies, so `gradle/verification-metadata.xml` intentionally begins with an empty component list. Each increment that adds a dependency must add and review its verification metadata at the same time.
+
+Validate the empty backend multi-project foundation independently of the frontend workspace:
+
+```shell
+java --version
+./gradlew --version
+./gradlew projects
+./gradlew build
+```
+
+Java must report major version 25 and Gradle must report version 9.7.1. The projects report contains only the root project until backend modules are introduced by C1. Formatting, unit tests, integration tests, architecture tests, and module builds will receive separate commands when their corresponding executable capabilities are introduced.
+
 ## Pre-scaffold checks
 
 For repository areas that do not yet have executable validation, validate every change by:
