@@ -1,8 +1,7 @@
-# Hortisys
+# Hortinis
 
-Hortisys is a self-hostable garden-management application designed to remain useful without a network connection.
+Hortinis is an offline-first, self-hostable garden-management application intended to preserve garden history and provide explainable decision support.
 
+The project is currently in the documentation and technical-foundation stage. The executable application has not been created yet.
 
-## License
-
-The project license has not been selected yet. See [LICENSE](LICENSE).
+Hortinis is licensed under the GNU Affero General Public License version 3 only. See [LICENSE](LICENSE).
