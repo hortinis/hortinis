@@ -239,11 +239,16 @@ This contract does not yet select Nginx, Caddy, Traefik, or another production r
 
 #### B3. Add a browser smoke test
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: B1.
 - Scope: add Playwright and verify that the empty application loads.
 - Excludes: offline, installation, synchronization, and business workflows.
 - Acceptance: the smoke test runs repeatably in the documented environment.
+- Artifacts: the `@playwright/test` and Node.js type dependencies, a Chromium Playwright configuration with managed Angular development-server startup, a minimal application-shell smoke test, strict E2E TypeScript checking, ignored Playwright output directories, and updated frontend validation instructions.
+- Validation commands: `node --version`, `pnpm --version`, `pnpm install --frozen-lockfile`, `pnpm list --recursive --depth -1`, `pnpm --filter @hortinis/web format:check`, `pnpm --filter @hortinis/web lint`, `pnpm --filter @hortinis/web typecheck`, `pnpm --filter @hortinis/web test`, `pnpm --filter @hortinis/web test:e2e`, `pnpm --filter @hortinis/web build:development`, `pnpm --filter @hortinis/web build`, `git diff --check`, `git ls-files -ci --exclude-standard`, `git check-attr text eol -- .gitattributes README.md gradlew gradlew.bat`, and `git ls-files --eol`.
+- Validation evidence: Playwright starts the Angular development server, Chromium loads the root application, the HTTP response succeeds, the document title is `Hortinis`, and the visible level-one `Hortinis` heading is present. Existing B1 and B2 checks remain successful, and repository-wide whitespace, ignore, attribute, and line-ending checks succeed.
+- Follow-up: B4 adds PWA application-shell support. Reassess browser and device coverage when the product quality envelope is defined.
+- Relevant decisions: ADR-0007, ADR-0011, ADR-0018, and ADR-0019.
 
 #### B4. Add PWA application-shell support
 

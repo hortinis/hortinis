@@ -56,6 +56,20 @@ pnpm --filter @hortinis/web build
 
 The formatting check validates the committed web application files against the Angular CLI-generated Prettier configuration. The lint command validates TypeScript, component templates, and accessibility rules with the recommended Angular ESLint flat configuration. The type-checking command validates strict TypeScript and Angular templates. The two build commands validate the development and production configurations separately. Browser end-to-end testing is introduced by B3.
 
+Install the Playwright Chromium binary once before running browser tests:
+
+```shell
+pnpm --filter @hortinis/web exec playwright install chromium
+```
+
+Run the B3 browser smoke test independently:
+
+```shell
+pnpm --filter @hortinis/web test:e2e
+```
+
+Playwright starts the Angular development server on `http://127.0.0.1:4200` for the test and stops it afterward. The test currently covers Chromium only; the supported browser and device matrix remains part of the product quality-envelope work.
+
 Apply supported lint fixes followed by configured formatting with the ordered convenience command:
 
 ```shell

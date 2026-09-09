@@ -38,6 +38,20 @@ pnpm --filter @hortinis/web format
 pnpm --filter @hortinis/web lint:fix
 ```
 
-Browser end-to-end testing, PWA support, application packages, persistence, and synchronization are introduced by later foundation increments.
+### Browser smoke test
+
+Install the Playwright Chromium binary once for the local environment:
+
+```shell
+pnpm --filter @hortinis/web exec playwright install chromium
+```
+
+Run the browser smoke test; Playwright starts and stops the Angular development server automatically:
+
+```shell
+pnpm --filter @hortinis/web test:e2e
+```
+
+The smoke test verifies that the application shell responds and renders the Hortinis heading in Chromium. It does not validate PWA installation, offline behavior, persistence, synchronization, or business workflows.
 
 See the repository [development guide](../../docs/development/README.md) for toolchain requirements and repository-wide validation.

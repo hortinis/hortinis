@@ -30,3 +30,7 @@ pnpm-debug.log*
 dist/
 coverage/
 .sass-cache/
+
+# Playwright test outputs
+playwright-report/
+test-results/
