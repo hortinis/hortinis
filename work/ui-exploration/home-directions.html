@@ -1,0 +1,122 @@
+<div id="hortinis-directions" aria-label="Three Hortinis home screen concepts">
+  <style>
+    #hortinis-directions { color-scheme: light dark; font-family: system-ui, sans-serif; }
+    #hortinis-directions * { box-sizing: border-box; }
+    #hortinis-directions .comparison { margin: 0 auto 32px; max-width: 390px; }
+    #hortinis-directions .caption { color: light-dark(#25392f,#e0ebe4); margin: 0 0 10px; font-size: 16px; font-weight: 500; }
+    #hortinis-directions .phone { --ink: light-dark(#20352b,#e5eee7); --muted: light-dark(#53665a,#b0c4b5); --paper: light-dark(#ffffff,#202e26); --base: light-dark(#f5f7f3,#16221b); --line: light-dark(#d5dfd5,#45594b); --green: light-dark(#265c3d,#a7dbb2); --on-green: light-dark(#ffffff,#153020); --warn: light-dark(#fff0d4,#473720); --warn-ink: light-dark(#694510,#ffe0a4); background: var(--base); color: var(--ink); border: 1px solid var(--line); border-radius: 24px; overflow: hidden; font-size: 15px; line-height: 1.45; }
+    #hortinis-directions button, #hortinis-directions input, #hortinis-directions select { font: inherit; }
+    #hortinis-directions button { cursor: pointer; min-height: 44px; color: inherit; }
+    #hortinis-directions .top { padding: 18px 20px 12px; background: var(--paper); border-bottom: 1px solid var(--line); }
+    #hortinis-directions .brand { display: flex; justify-content: space-between; align-items: center; color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+    #hortinis-directions .brand span:first-child { letter-spacing: .12em; }
+    #hortinis-directions .garden { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    #hortinis-directions select { max-width: 100%; min-width: 0; min-height: 44px; background: var(--paper); color: var(--ink); border: 0; font-size: 20px; font-weight: 500; }
+    #hortinis-directions .other { display: block; color: var(--warn-ink); font-size: 12px; margin-top: 3px; }
+    #hortinis-directions .content { padding: 18px 20px; }
+    #hortinis-directions .date { color: var(--muted); font-size: 12px; }
+    #hortinis-directions h2 { font-size: 27px; font-weight: 500; margin: 2px 0 16px; line-height: 1.2; }
+    #hortinis-directions h3 { font-size: 16px; font-weight: 500; margin: 20px 0 8px; }
+    #hortinis-directions .risk { padding: 13px 14px; border-radius: 10px; background: var(--warn); color: var(--warn-ink); }
+    #hortinis-directions summary { cursor: pointer; min-height: 44px; }
+    #hortinis-directions .risk summary { min-height: 0; }
+    #hortinis-directions .risk small { display: block; margin: 6px 0 0; font-size: 13px; }
+    #hortinis-directions .risk p { font-size: 13px; margin: 10px 0 0; }
+    #hortinis-directions .task { display: flex; align-items: center; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--line); cursor: pointer; min-height: 64px; }
+    #hortinis-directions .task input { accent-color: var(--green); width: 22px; height: 22px; flex: 0 0 22px; margin: 0; }
+    #hortinis-directions .task strong { font-size: 15px; font-weight: 500; display: block; }
+    #hortinis-directions .task small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+    #hortinis-directions .done { color: var(--muted); font-size: 13px; margin-top: 8px; }
+    #hortinis-directions .done .task strong { text-decoration: line-through; }
+    #hortinis-directions .planning { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 14px; }
+    #hortinis-directions .planning summary { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-weight: 500; }
+    #hortinis-directions .planning small { display: block; color: var(--muted); font-size: 13px; font-weight: 400; }
+    #hortinis-directions .planning p { font-size: 13px; color: var(--muted); }
+    #hortinis-directions .record { width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 12px; background: var(--green); color: var(--on-green); padding: 12px; margin-top: 18px; }
+    #hortinis-directions .navigation { display: grid; grid-template-columns: repeat(4,1fr); background: var(--paper); border-top: 1px solid var(--line); padding: 8px 4px; }
+    #hortinis-directions .navigation button { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 12px; background: none; border: 0; border-radius: 8px; padding: 6px 2px; color: var(--muted); }
+    #hortinis-directions .navigation button[aria-current="page"] { color: var(--green); background: var(--base); font-weight: 500; }
+    #hortinis-directions svg { width: 20px; height: 20px; flex-shrink: 0; }
+    #hortinis-directions .visual { --base: light-dark(#f4efe4,#26281e); --paper: light-dark(#fffdf6,#32352a); }
+    #hortinis-directions .visual h2 { font-family: Georgia, serif; font-size: 31px; }
+    #hortinis-directions .visual .top { background: var(--green); color: var(--on-green); }
+    #hortinis-directions .visual .brand, #hortinis-directions .visual .other { color: var(--on-green); }
+    #hortinis-directions .visual select { background: var(--green); color: var(--on-green); }
+    #hortinis-directions .visual .task { border: 1px solid var(--line); background: var(--paper); border-radius: 14px; padding: 16px 12px; margin: 9px 0; }
+    #hortinis-directions .visual .planning { background: var(--paper); padding: 12px; border: 1px solid var(--line); border-radius: 14px; }
+    #hortinis-directions .mixed .tasks { background: var(--paper); padding: 0 12px; border-radius: 12px; border: 1px solid var(--line); }
+    #hortinis-directions .mixed .task:last-child { border-bottom: 0; }
+    #hortinis-directions .mixed .planning { background: var(--paper); padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; }
+    #hortinis-directions .entry { margin-top: 16px; padding: 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 12px; }
+    #hortinis-directions .entry label { display: block; font-size: 13px; margin-bottom: 10px; }
+    #hortinis-directions .entry input, #hortinis-directions .entry select { display: block; width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 8px; background: var(--paper); color: var(--ink); font-size: 16px; min-height: 44px; }
+    #hortinis-directions .feedback { font-size: 13px; color: var(--muted); margin-top: 10px; }
+    #hortinis-directions [hidden] { display: none !important; }
+  </style>
+  <div class="screens"></div>
+  <script>
+    (() => {
+      const root = document.getElementById('hortinis-directions');
+      const variants = [['agenda','A · Clear agenda'],['visual','B · Garden notebook'],['mixed','C · Balanced overview']];
+      variants.forEach(([variant, title], index) => {
+        const section = document.createElement('section');
+        section.className = 'comparison';
+        section.innerHTML = `<h2 class="caption">${title}</h2><div class="phone ${variant}" aria-label="${title}">
+          <header class="top"><div class="brand"><span>HORTINIS</span><span>Offline · Saved on device</span></div>
+          <div class="garden"><select aria-label="Selected garden"><option>Home garden</option><option>Allotment · 1 concern</option></select></div>
+          <span class="other">Allotment · 1 concern needs attention</span></header>
+          <main class="content"><div class="date">SAMPLE DAY · 12 APRIL</div><h2>Your garden today</h2>
+          <details class="risk"><summary><strong>Cold risk tonight</strong><small>Tomatoes · Check their protection</small></summary><p>Sample forecast: 2°C outdoors, saved at 08:00. Shelter temperature is unknown. Check conditions before deciding what protection to use.</p></details>
+          <h3>Things to do <span class="count">· 2</span></h3><div class="tasks">
+          <label class="task"><input type="checkbox" aria-label="Complete watering"><span><strong>Water the vegetable beds</strong><small>Today · All beds except greenhouse</small></span></label>
+          <label class="task"><input type="checkbox" aria-label="Complete harvesting"><span><strong>Harvest the radishes</strong><small>When ready · East bed</small></span></label></div>
+          <details class="done" hidden><summary>Completed today · <span>0</span></summary><div></div></details>
+          <details class="planning"><summary><span>Make room for what comes next<small>Plan the next crop for the East bed</small></span><i data-lucide="arrow-right" aria-hidden="true"></i></summary><p>Choose a crop and an optional period. Its location and dates can stay undecided. No garden drawing is required.</p></details>
+          <button class="record" type="button" aria-expanded="false"><i data-lucide="plus" aria-hidden="true"></i>Record an event</button>
+          <form class="entry" hidden><label>What happened?<select name="action"><option>Watering</option><option>Harvest</option><option>Observation</option><option>Fertilizing</option><option>Soil preparation</option></select></label>
+          <label>Where?<select name="target"><option>Whole garden</option><option>East bed</option><option>Tomatoes · Greenhouse</option><option>Radishes · East bed</option></select></label>
+          <label class="extra">Notes (optional)<input name="detail" placeholder="Add a detail if useful"></label>
+          <button class="record" type="submit">Preview recording</button></form>
+          <div class="feedback" role="status" aria-live="polite"></div></main>
+          <nav class="navigation" aria-label="Main navigation">${[['house','Today'],['sprout','Garden'],['calendar-days','Plan'],['notebook-pen','Journal']].map(([icon,label],i)=>`<button type="button" ${i===0?'aria-current="page"':''}><i data-lucide="${icon}" aria-hidden="true"></i>${label}</button>`).join('')}</nav></div>`;
+        root.querySelector('.screens').append(section);
+        const q = selector => section.querySelector(selector);
+        const tasks = [...section.querySelectorAll('.task')];
+        const feedback = text => q('.feedback').textContent = text;
+        tasks.forEach(task => task.querySelector('input').addEventListener('change', () => {
+          const complete = task.querySelector('input').checked;
+          (complete ? q('.done div') : q('.tasks')).append(task);
+          const n = tasks.filter(t => t.querySelector('input').checked).length;
+          q('.count').textContent = `· ${2-n}`;
+          q('.done').hidden = n === 0;
+          q('.done summary span').textContent = n;
+          feedback(complete ? 'Completion preview. Open “Completed today” to undo.' : 'Task reopened.');
+        }));
+        q('.garden select').addEventListener('change', event => {
+          const other = event.target.selectedIndex === 1;
+          q('.other').textContent = other ? 'Home garden · 2 pending tasks' : 'Allotment · 1 concern needs attention';
+          q('.content').hidden = other;
+        });
+        q('.record').addEventListener('click', () => {
+          q('.entry').hidden = !q('.entry').hidden;
+          q('.record').setAttribute('aria-expanded', String(!q('.entry').hidden));
+        });
+        q('[name="action"]').addEventListener('change', event => {
+          const action = event.target.value;
+          const harvest = action === 'Harvest';
+          q('[name="target"]').innerHTML = (harvest ? ['Radishes · East bed','Tomatoes · Greenhouse'] : ['Whole garden','East bed','Tomatoes · Greenhouse','Radishes · East bed']).map(x=>`<option>${x}</option>`).join('');
+          q('.extra').firstChild.textContent = harvest ? 'Quantity (optional)' : action === 'Observation' ? 'What did you notice?' : 'Notes (optional)';
+          q('[name="detail"]').placeholder = harvest ? 'For example, 6 radishes' : action === 'Observation' ? 'For example, holes in the leaves' : 'Add a detail if useful';
+          q('[name="detail"]').required = action === 'Observation';
+        });
+        q('.entry').addEventListener('submit', event => { event.preventDefault(); feedback(`${q('[name="action"]').value} · ${q('[name="target"]').value}. Discussion preview only; nothing is saved.`); });
+        section.querySelectorAll('.navigation button').forEach(button => button.addEventListener('click', () => feedback(button.textContent.trim() === 'Today' ? 'You are viewing the home-screen concept.' : `${button.textContent.trim()} remains one tap away. Its screen is outside this comparison.`)));
+        if (globalThis.Tweak) {
+          const state = { detail: true };
+          new Tweak({container:q('.phone'),onChange:()=>section.querySelectorAll('.task small').forEach(el=>el.hidden=!state.detail)}).addToggle(state,'detail',{label:'Show task context'});
+        }
+      });
+      if (globalThis.lucide) lucide.createIcons();
+    })();
+  </script>
+</div>
