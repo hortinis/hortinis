@@ -37,7 +37,7 @@ pnpm install --frozen-lockfile
 pnpm list --recursive --depth -1
 ```
 
-The expected versions are Node.js `v24.18.0` and pnpm `11.26.0`. Formatting and linting will receive separate commands when B2 introduces their executable validation capabilities; no aggregate command should hide the independent entry points.
+The expected versions are Node.js `v24.18.0` and pnpm `11.26.0`. No aggregate command hides the independent validation entry points.
 
 ### Web application
 
@@ -46,13 +46,28 @@ The standalone Angular application is the `@hortinis/web` workspace member under
 Run its validation entry points independently from the repository root:
 
 ```shell
+pnpm --filter @hortinis/web format:check
+pnpm --filter @hortinis/web lint
 pnpm --filter @hortinis/web typecheck
 pnpm --filter @hortinis/web test
 pnpm --filter @hortinis/web build:development
 pnpm --filter @hortinis/web build
 ```
 
-The type-checking command validates strict TypeScript and Angular templates. The two build commands validate the development and production configurations separately. Browser end-to-end testing is introduced by B3.
+The formatting check validates the committed web application files against the Angular CLI-generated Prettier configuration. The lint command validates TypeScript, component templates, and accessibility rules with the recommended Angular ESLint flat configuration. The type-checking command validates strict TypeScript and Angular templates. The two build commands validate the development and production configurations separately. Browser end-to-end testing is introduced by B3.
+
+Apply supported lint fixes followed by configured formatting with the ordered convenience command:
+
+```shell
+pnpm --filter @hortinis/web fix
+```
+
+The combined command runs Angular ESLint fixes first and Prettier formatting second. Both mutating steps also remain independently runnable:
+
+```shell
+pnpm --filter @hortinis/web format
+pnpm --filter @hortinis/web lint:fix
+```
 
 ## Backend workspace
 

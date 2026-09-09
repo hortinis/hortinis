@@ -226,10 +226,16 @@ This contract does not yet select Nginx, Caddy, Traefik, or another production r
 
 #### B2. Enforce frontend formatting and linting
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: B1.
 - Scope: build on the Angular CLI-generated Prettier baseline, add Angular ESLint, and expose explicit formatting and linting commands.
+- Excludes: type-aware lint rules, browser end-to-end testing, PWA support, a component library, and business UI.
+- Artifacts: Angular ESLint 22 flat configuration, Angular CLI lint target, web-package formatting and linting scripts, an ordered lint-fix-then-format convenience command, pinned workspace dependencies, and updated frontend validation instructions.
 - Acceptance: formatting and linting are deterministic and independently runnable.
+- Validation commands: `node --version`, `pnpm --version`, `pnpm install --frozen-lockfile`, `pnpm list --recursive --depth -1`, `pnpm --filter @hortinis/web format:check`, `pnpm --filter @hortinis/web lint`, `pnpm --filter @hortinis/web typecheck`, `pnpm --filter @hortinis/web test`, `pnpm --filter @hortinis/web build:development`, `pnpm --filter @hortinis/web build`, `git diff --check`, `git ls-files -ci --exclude-standard`, `git check-attr text eol -- .gitattributes README.md gradlew gradlew.bat`, and `git ls-files --eol`.
+- Validation evidence: Node.js reports `v24.18.0`, pnpm reports `11.26.0`, frozen installation and recursive workspace discovery succeed, Prettier reports all web application files formatted, Angular ESLint reports no TypeScript or template violations, and all B1 type-checking, unit-test, development-build, and production-build checks remain successful. Repository-wide whitespace, ignore, attribute, and line-ending checks also succeed.
+- Follow-up: B3 adds browser smoke testing. Reassess type-aware linting when application code is substantial enough to justify its additional configuration and runtime cost.
+- Relevant decisions: ADR-0007, ADR-0011, ADR-0018, and ADR-0019.
 
 #### B3. Add a browser smoke test
 
