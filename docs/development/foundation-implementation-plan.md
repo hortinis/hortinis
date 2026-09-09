@@ -224,10 +224,16 @@ This contract does not yet select Nginx, Caddy, Traefik, or another production r
 
 #### A5. Document executable validation entry points
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: A3 and A4.
 - Scope: replace the pre-scaffold-only development instructions with exact independent commands as capabilities become runnable.
+- Excludes: adding application capabilities, quality-tool dependencies, CI jobs, or a monorepo task orchestrator.
+- Artifacts: executable validation entry points and repository-wide validation guidance in `docs/development/README.md`.
 - Acceptance: formatting, linting, type checking, tests, architecture checks, and builds remain separately invocable rather than hidden behind a monorepo orchestrator.
+- Validation commands: `node --version`, `pnpm --version`, `pnpm install --frozen-lockfile`, `pnpm list --recursive --depth -1`, `java --version`, `sha256sum --check gradle/wrapper/gradle-wrapper.jar.sha256`, `./gradlew --version`, `./gradlew projects`, `./gradlew build`, `git diff --check`, `git ls-files -ci --exclude-standard`, `git check-attr text eol -- .gitattributes README.md gradlew gradlew.bat`, and `git ls-files --eol`.
+- Validation evidence: frontend and backend foundation commands remain documented in separate sections; repository-wide checks are independently listed; future formatting, linting, type-checking, testing, architecture, and build commands have explicit owning increments; and no aggregate task runner was introduced.
+- Follow-up: add each capability-specific command with B1, B2, B7, C7, D1, and later increments as those capabilities become runnable; keep CI invocation aligned with the same independent local entry points.
+- Relevant decisions: ADR-0007, ADR-0011, ADR-0012, and ADR-0018.
 
 ### Track B: minimal Angular application
 

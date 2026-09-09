@@ -8,7 +8,7 @@ The selected development toolchain is:
 - Docker Compose and an optional Dev Container;
 - ESLint, Prettier, Vitest, Playwright, Checkstyle, Spotless, JUnit, AssertJ, ArchUnit, and Testcontainers for automated quality checks.
 
-Capability-specific setup and automated validation commands are added as each part of the executable foundation is introduced.
+Validation commands are documented at the capability boundary that introduces them. Run each entry point independently so a failure remains attributable to one toolchain or repository check. The repository does not use a separate monorepo task orchestrator.
 
 ## Frontend workspace
 
@@ -35,7 +35,7 @@ pnpm install --frozen-lockfile
 pnpm list --recursive --depth -1
 ```
 
-The expected versions are Node.js `v24.18.0` and pnpm `11.26.0`. Formatting, linting, type checking, tests, and builds will receive separate commands when their corresponding executable capabilities are introduced.
+The expected versions are Node.js `v24.18.0` and pnpm `11.26.0`. Formatting, linting, type checking, tests, and builds will receive separate commands when their corresponding executable capabilities are introduced; no aggregate command should hide those entry points.
 
 ## Backend workspace
 
@@ -58,13 +58,21 @@ java --version
 ./gradlew build
 ```
 
-Java must report major version 25 and Gradle must report version 9.7.1. The projects report contains only the root project until backend modules are introduced by C1. Formatting, unit tests, integration tests, architecture tests, and module builds will receive separate commands when their corresponding executable capabilities are introduced.
+Java must report major version 25 and Gradle must report version 9.7.1. The projects report contains only the root project until backend modules are introduced by C1. Formatting, unit tests, integration tests, architecture tests, and module builds will receive separate commands when their corresponding executable capabilities are introduced; no aggregate command should hide those entry points.
 
-## Pre-scaffold checks
+## Repository-wide validation
 
-For repository areas that do not yet have executable validation, validate every change by:
+Run the checks applicable to every change independently from the repository root:
 
-- running `git diff --check` against the change;
+```shell
+git diff --check
+git ls-files -ci --exclude-standard
+git check-attr text eol -- .gitattributes README.md gradlew gradlew.bat
+git ls-files --eol
+```
+
+These commands cover whitespace, tracked-file ignore rules, and the repository's text and line-ending conventions. For repository areas that do not yet have executable validation, also:
+
 - reviewing all added or modified content and descriptive paths for English language consistency, as required by [ADR-0018](../architecture/decisions/0018-repository-language.md);
 - verifying that every relative documentation link resolves to an existing file and anchor;
 - checking that referenced repository paths agree with the planned layout in the root README and with accepted architecture decisions;
