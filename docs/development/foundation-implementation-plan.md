@@ -38,35 +38,28 @@ The plan may later be represented by GitHub issues. Until then, this document re
 
 ### 3.1 Repository structure
 
-The technical foundation targets the following physical structure:
+The technical foundation targets one application per runtime:
 
 ```text
-apps/
-  web/                         Angular presentation and composition root
+apps/web/                      Angular application
+  src/app/
+    sync/                      Pure protocol rules, coordination, HTTP adapter
+    persistence/               Dexie database, transactions, migrations
+    catalog/                   Catalog acquisition and local use, when needed
+    garden/                    Future feature code, after foundation readiness
 
-packages/
-  web-domain/                  Pure TypeScript rules and value types
-  web-application/             Offline use cases and ports
-  web-adapters-dexie/          IndexedDB persistence adapter
-  web-adapters-catalog-artifact/ Catalog manifest and chunk acquisition adapter
-  web-adapters-sync-http/      Synchronization transport adapter
-
-backend/
-  domain/                      Framework-independent Java domain
-  application/                 Server use cases and ports
-  sync-protocol/               Framework-independent synchronization primitives
-  adapters/
-    postgres/                  PostgreSQL persistence adapter
-    filesystem/                Local filesystem storage adapter
-    catalog/                   Plant catalog acquisition adapter
-
-services/
-  sync/                        Spring Boot composition and HTTP delivery
+services/sync/                 Single Spring Boot Gradle application project
+  src/main/java/com/hortinis/
+    sync/                      Pure protocol rules, coordination, HTTP delivery
+    persistence/               JDBC queries and transaction operations
+    catalog/                   Catalog integration, when needed
+    storage/                   File/object storage, when needed
+    garden/                    Future feature code, after foundation readiness
 
 contracts/
   openapi/                     HTTP contracts
   schemas/                     Language-neutral schemas
-  catalog/                     Pinned catalog distribution contracts and fixtures
+  catalog/                     Pinned catalog contracts and fixtures
   sync/
     fixtures/                  Cross-runtime synchronization conformance cases
 
@@ -74,43 +67,24 @@ infrastructure/
   docker/                      Development and production container resources
 
 tooling/                       Shared tooling configuration
-tests/                         Cross-component, architecture, deployment, and end-to-end tests
+tests/                         Cross-runtime, deployment, and end-to-end tests
 ```
 
-Unit tests remain beside their corresponding modules. The root `tests/` directory is reserved for tests that cross module, runtime, process, or deployment boundaries.
+Unit and integration tests remain within their owning application using its test conventions. The root `tests/` directory is reserved for tests crossing runtime, process, or deployment boundaries.
 
-The directories may be introduced only when their first planned increment requires them. The intended final structure is not authorization to generate every empty directory during the first change.
+Introduce directories only when behavior needs them. Do not create empty feature folders, separate layer packages, or a parallel `backend` module tree. The existing root Gradle build can register `services/sync` as its single application subproject. The existing pnpm workspace can retain its reserved package pattern without creating packages.
 
-### 3.2 Web dependency boundaries
+### 3.2 Internal dependency boundaries
 
-The web application must enforce the same inward dependency rule as the rest of the architecture:
+- Keep business invariants and synchronization decisions in plain TypeScript or Java files without framework, transport, database, filesystem, or vendor imports.
+- Components and controllers delegate meaningful workflows to services. Services may use Angular or Spring dependency injection and concrete persistence components.
+- Dedicated components own SQL, Dexie, filesystem, and provider operations. Components and controllers do not access persistence directly.
+- Keep feature entry points small and avoid dependency cycles. Add internal rules, services, and persistence files as needed rather than requiring a fixed layer hierarchy.
+- Use narrow interfaces for synchronization transport, replaceable external providers, and file/object storage. Introduce persistence interfaces when orchestration testing or an actual alternative implementation justifies them.
+- Preserve explicit transaction boundaries and validate public wire contracts. Separate models and mappings are needed when semantics, lifecycle, or invariants differ, not merely because a call crosses an internal boundary.
+- Use focused ESLint and ArchUnit checks for pure-rule isolation, dependency cycles, and direct persistence access. Extract build packages only for demonstrated reuse or independent enforcement needs.
 
-```text
-apps/web
-    |
-    v
-@hortinis/web-application
-    |
-    v
-@hortinis/web-domain
-
-@hortinis/web-adapters-dexie ------> web-application ports
-@hortinis/web-adapters-sync-http --> web-application ports
-```
-
-The packages provide build-visible boundaries rather than relying only on folders inside the Angular application. This separation is required because it:
-
-- prevents domain code from importing Angular, Dexie, browser storage, or HTTP concerns;
-- permits domain and application tests without starting Angular or IndexedDB;
-- isolates core behavior from Angular upgrades and presentation changes;
-- allows persistence and synchronization adapters to be replaced;
-- identifies the Angular application as the outer composition root;
-- lets CI detect dependency violations;
-- makes equivalent browser and server behavior testable with shared conformance fixtures.
-
-The additional package configuration and boundary mappings are accepted costs of treating the offline browser as an application runtime rather than a thin user interface.
-
-The packages are introduced incrementally. The empty Angular application precedes the domain, application, and adapter packages.
+Plain rule tests run without starting Angular, Spring, or a database. Real persistence integration tests establish transaction and recovery behavior. Shared fixtures establish equivalent browser and server protocol behavior.
 
 ### 3.3 Browser and server rule consistency
 
@@ -162,8 +136,8 @@ This contract does not yet select Nginx, Caddy, Traefik, or another production r
 - Keep every completed increment buildable and independently reviewable.
 - Add no garden-management business feature during foundation work.
 - Define public HTTP contracts before implementing their adapters.
-- Keep Angular and Spring at composition and delivery boundaries.
-- Keep infrastructure behind ports owned by inner layers.
+- Keep business and synchronization rules framework-independent; allow framework-aware coordinating services.
+- Keep persistence in dedicated components and introduce interfaces selectively as described in section 3.2.
 - Validate offline behavior from the first local-persistence increment onward.
 - Validate synchronization progressively rather than postponing it until the rest of the application exists.
 - Pin exact tool and dependency versions when each toolchain is introduced.
@@ -219,7 +193,7 @@ This contract does not yet select Nginx, Caddy, Traefik, or another production r
 - Acceptance: wrapper integrity checks and an empty root build succeed with the documented JDK, and future modules can be registered without restructuring the root build.
 - Validation commands: `java --version`, `sha256sum --check gradle/wrapper/gradle-wrapper.jar.sha256`, `./gradlew --version`, `./gradlew projects`, `./gradlew build`, `git diff --check`, `git ls-files -ci --exclude-standard`, and `git ls-files --eol`.
 - Validation evidence: Java reports `25.0.4.1`, Gradle reports `9.7.1`, the Wrapper JAR matches Gradle's published SHA-256 checksum, the checksum-pinned distribution downloads successfully, Gradle reports only the `hortinis` root with no subprojects, the empty root `build` succeeds, no tracked file is ignored, and repository text conventions remain intact.
-- Follow-up: register the first backend projects with C1 by adding project includes and build files only for the modules that increment introduces; add dependency checksums whenever a later increment adds an external artifact.
+- Follow-up: register only the Spring Boot application project at `services/sync` with C5; add dependency checksums whenever a later increment adds an external artifact. The validated root build remains usable without separate layer modules.
 - Relevant decisions: ADR-0007, ADR-0011, and ADR-0018.
 
 #### A5. Document executable validation entry points
@@ -268,82 +242,39 @@ This contract does not yet select Nginx, Caddy, Traefik, or another production r
 - Excludes: background data synchronization and analytics queues.
 - Acceptance: the production application is installable where supported and reloads its shell while offline after a successful initial load.
 
-#### B5. Create the TypeScript domain package
-
-- Initial status: `planned`.
-- Depends on: B2.
-- Scope: create `@hortinis/web-domain` as a pure strict-TypeScript package.
-- Excludes: Angular, browser APIs, Dexie, HTTP, technical sync storage, and garden behavior.
-- Acceptance: forbidden dependencies are absent and pure unit tests can run independently.
-
-#### B6. Create the TypeScript application package
-
-- Initial status: `planned`.
-- Depends on: B5.
-- Scope: create `@hortinis/web-application`, depending only on the web domain, and establish port conventions.
-- Excludes: concrete adapters and business use cases.
-- Acceptance: dependency checks prevent imports from presentation and infrastructure packages.
+B5 and B6, formerly separate domain and application package setup, are folded into B8, B9, and Track E. Introduce pure rules and coordinating services with their first behavior inside `apps/web`; no empty package increments remain. These identifiers are retained here only to explain the tracker revision.
 
 #### B7. Add automated web boundary checks
 
 - Initial status: `planned`.
-- Depends on: B5 and B6.
-- Scope: enforce the approved package dependency direction during local validation and CI.
+- Depends on: B2 and B8; extend the checks when B9 and Track E introduce synchronization code.
+- Scope: use internal import checks to protect pure rules, detect dependency cycles, and prevent Angular components from accessing persistence directly. Add rules as the corresponding code appears.
 - Acceptance: representative forbidden imports cause the check to fail.
 
 #### B8. Create the Dexie adapter
 
 - Initial status: `planned`.
-- Depends on: B6.
-- Scope: create `@hortinis/web-adapters-dexie`, an initial empty versioned IndexedDB schema, and migration test infrastructure.
+- Depends on: B2.
+- Scope: implement dedicated persistence components under `apps/web/src/app/persistence`, an initial versioned IndexedDB schema, and migration test infrastructure. Keep transaction ownership explicit without requiring a persistence interface or separate package.
 - Excludes: garden records and synchronization behavior.
 - Acceptance: database creation, version discovery, migration execution, transaction rollback, and test isolation are demonstrated.
 
 #### B9. Create the HTTP synchronization adapter boundary
 
 - Initial status: `planned`.
-- Depends on: B6 and the technical synchronization contracts in D2.
-- Scope: create `@hortinis/web-adapters-sync-http` and map generated or validated boundary shapes without connecting business behavior.
-- Acceptance: the adapter depends on application ports and contract boundary types without leaking transport shapes inward.
+- Depends on: B2 and the technical synchronization contracts in D2.
+- Scope: implement an HTTP adapter and narrow transport interface inside `apps/web/src/app/sync`; validate contract boundary shapes and map them only where internal semantics differ.
+- Acceptance: transport failure behavior is testable through the interface, invalid boundary data is rejected, and pure protocol rules remain independent of HTTP.
 
 ### Track C: minimal Spring application
 
-#### C1. Declare backend modules
-
-- Initial status: `planned`.
-- Depends on: A4.
-- Scope: declare `backend/domain`, `backend/application`, and `backend/sync-protocol` as initially empty Gradle projects.
-- Acceptance: Gradle project dependencies reflect the approved inward direction.
-
-#### C2. Establish the Java domain boundary
-
-- Initial status: `planned`.
-- Depends on: C1.
-- Scope: configure `backend/domain` under `com.hortinis` without framework dependencies.
-- Excludes: garden behavior, persistence annotations, Spring, and transport types.
-- Acceptance: the module compiles and dependency inspection proves that no forbidden framework is present.
-
-#### C3. Establish the Java application boundary
-
-- Initial status: `planned`.
-- Depends on: C2.
-- Scope: configure `backend/application`, depending only on permitted inner modules, and establish port conventions.
-- Excludes: concrete adapters and business use cases.
-- Acceptance: forbidden outer-layer dependencies fail an automated architecture check.
-
-#### C4. Establish the synchronization protocol module
-
-- Initial status: `planned`.
-- Depends on: C1.
-- Scope: configure `backend/sync-protocol` for framework-independent protocol primitives.
-- Excludes: HTTP controllers, JDBC, and resource-specific domain rules.
-- Acceptance: it compiles without Spring or persistence dependencies.
+C1 through C4, formerly separate backend layer and protocol module setup, are folded into C5, D2, and Track E. Introduce internal pure rules and coordinating services with their first behavior in `services/sync`. These identifiers are retained here only to explain the tracker revision; they are not prerequisites or empty-module work.
 
 #### C5. Create the empty Spring Boot synchronization service
 
 - Initial status: `planned`.
-- Depends on: C1 through C4.
-- Scope: create `services/sync` as the Spring Boot composition and HTTP-delivery boundary.
+- Depends on: A4.
+- Scope: register and create `services/sync` as the single Spring Boot application project under the existing root Gradle build. Introduce internal packages only as behavior needs them.
 - Excludes: PostgreSQL, authentication, synchronization endpoints, and business behavior.
 - Acceptance: the service starts and stops cleanly without a database.
 
@@ -358,9 +289,9 @@ This contract does not yet select Nginx, Caddy, Traefik, or another production r
 #### C7. Add backend quality enforcement
 
 - Initial status: `planned`.
-- Depends on: C1.
+- Depends on: C5.
 - Scope: configure the Java compiler, JUnit 5, AssertJ, Checkstyle, Spotless, and ArchUnit with independent commands.
-- Acceptance: formatting, unit tests, and architecture tests are deterministic; representative boundary violations fail.
+- Acceptance: formatting, unit tests, and architecture tests are deterministic. As code appears, focused checks reject framework or infrastructure imports in pure rules, dependency cycles, and controller access to persistence; representative violations fail.
 
 ### Track D: contracts and PostgreSQL
 
@@ -375,18 +306,18 @@ This contract does not yet select Nginx, Caddy, Traefik, or another production r
 #### D2. Define technical service and synchronization envelopes
 
 - Initial status: `planned`.
-- Depends on: D1 and C4.
+- Depends on: D1 and C5.
 - Scope: specify only the technical endpoints and protocol envelopes needed by the walking skeleton.
 - Excludes: garden resources, final reconciliation formats, authentication, analytics, backup, and catalog distribution.
 - Acceptance: contracts describe versioning, identifiers, idempotency, revisions, sequences, cursors, and explicit protocol errors required by the selected slice.
 
-#### D3. Create the PostgreSQL adapter module
+#### D3. Create PostgreSQL persistence components
 
 - Initial status: `planned`.
-- Depends on: C3 and D2.
-- Scope: create the explicit-SQL Spring JDBC adapter boundary.
+- Depends on: C5 and D2.
+- Scope: create explicit-SQL Spring JDBC persistence components inside `services/sync`, with explicit transaction ownership. Services may depend on these concrete components; no separate adapter module is required.
 - Excludes: JPA and garden persistence.
-- Acceptance: application and domain modules remain independent of Spring JDBC and PostgreSQL.
+- Acceptance: pure business and synchronization rules remain independent of Spring JDBC and PostgreSQL, and controllers do not access persistence directly.
 
 #### D4. Add PostgreSQL to the development topology
 
@@ -547,8 +478,8 @@ This track may proceed alongside the web, server, contract, and synchronization 
 The first technical-foundation milestone is complete only when:
 
 - the Angular application builds, installs where supported, and reloads its shell offline;
-- the TypeScript domain, application, Dexie adapter, and HTTP adapter boundaries are enforced;
-- the Spring service builds, exposes safe health information, and preserves Java module boundaries;
+- focused internal checks protect pure TypeScript rules, detect cycles, and prevent component access to persistence;
+- the Spring service builds, exposes safe health information, and enforces equivalent internal Java dependency checks;
 - PostgreSQL migrations and explicit persistence operations pass isolated integration tests;
 - the OpenAPI and schema contracts validate before their adapters;
 - one technical record completes local commit, outbox, push, accepted persistence, idempotent retry, pull, cursor persistence, reload recovery, and explicit stale-revision conflict scenarios;
@@ -593,7 +524,7 @@ If an increment requires one of these choices, mark it `blocked`, create or upda
 
 Every foundation change must be reviewed for:
 
-- dependency direction and composition boundaries;
+- pure-rule isolation, feature dependencies, dedicated persistence, and justified interfaces or model mappings;
 - offline-first behavior and preservation of accepted local work;
 - deterministic, observable, recoverable synchronization;
 - contract-first adapter implementation;

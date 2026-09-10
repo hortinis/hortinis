@@ -8,7 +8,7 @@ Offline-first clients need a way to exchange changes across installations after 
 
 ## Decision
 
-Provide a separately deployable synchronization service under `services/sync`. Shared backend synchronization concepts belong in the framework-independent `backend/sync-protocol` Gradle module. Language-neutral wire contracts and conformance fixtures belong under `contracts/sync`. Application use cases depend on synchronization ports; transport and persistence details remain adapters.
+Provide a separately deployable Spring Boot application under `services/sync`. Backend synchronization rules belong in plain Java code within its internal `sync` package, without a separate Gradle module. Browser synchronization rules and coordination belong under `apps/web/src/app/sync`. Language-neutral synchronization schemas and conformance fixtures belong under `contracts/sync`, and HTTP contracts belong under `contracts/openapi`. A narrow browser transport interface isolates network behavior; dedicated persistence components own transactions. Coordination services may use frameworks and concrete persistence, while protocol decisions remain independent of both.
 
 Every synchronized record must have an identity stable across replicas. The eventual protocol must define change ordering, idempotency, retry, conflict detection, conflict resolution, deletion propagation, schema compatibility, and recovery from interrupted exchange or compacted server history.
 

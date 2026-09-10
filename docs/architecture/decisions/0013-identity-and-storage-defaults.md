@@ -12,7 +12,7 @@ A default self-hosted installation must provide identity and file storage withou
 - Use secure, HTTP-only, same-site session cookies for browser sessions.
 - Represent federation as an optional OIDC adapter.
 - Defer the authentication library selection until the security implementation is designed.
-- Define a narrow `StorageProvider` port in the application layer.
+- Define a narrow `StorageProvider` interface within the backend storage capability when file storage is implemented; it does not require a separate build module.
 - Use a local filesystem adapter and persistent volume by default.
 - Allow an optional S3-compatible adapter without requiring MinIO.
 

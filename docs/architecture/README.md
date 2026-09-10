@@ -35,26 +35,20 @@ All repository content must be written in English, as established by [ADR-0018](
 
 The diagram is conceptual. It does not prescribe protocols, storage engines, frameworks, or deployment platforms.
 
-## Layering
+## Internal boundaries
 
-The intended dependency direction is:
+Hortinis starts with one Angular application in `apps/web` and one Spring Boot application project in `services/sync`. Each is organized by feature and supporting capability, with no mandatory build package per layer.
 
-```text
-Presentation -> Application -> Domain
-Composition root -> concrete adapters -> Application ports
-```
+Business invariants and synchronization decisions remain plain TypeScript or Java, independent of frameworks and infrastructure. Components and controllers delegate workflows to services. Services may use framework dependency injection and concrete persistence components; dedicated components own SQL, Dexie, filesystem, and provider calls.
 
-- **Presentation** handles user interaction and delivery concerns. The composition root wires it to concrete adapters; ordinary presentation code does not depend on adapter implementations.
-- **Application** coordinates use cases, transactions, authorization rules, and ports.
-- **Domain** expresses entities, value objects, invariants, and domain services.
-- **Infrastructure** implements persistence, transport, storage, and provider adapters behind application-owned ports.
+Narrow interfaces protect replaceable providers, synchronization transport, and file/object storage. Other interfaces and separate model representations require a concrete behavioral or testing benefit. Transaction boundaries stay explicit. Small dependency checks protect pure rules, prevent cycles, and keep components and controllers from accessing persistence directly.
 
-Only outer layers know implementation details. Inner layers do not import outer layers.
+Separate packages or modules require demonstrated reuse or a need for independent enforcement. Shared HTTP contracts, schemas, and cross-runtime fixtures remain under `contracts`. See ADR-0002 for the rationale and the foundation plan for the physical layout.
 
 ## Initial records
 
 - [ADR-0001: Offline-first operation](decisions/0001-offline-first.md)
-- [ADR-0002: Layered dependency rule](decisions/0002-layered-dependencies.md)
+- [ADR-0002: Lightweight dependency boundaries](decisions/0002-layered-dependencies.md)
 - [ADR-0003: Synchronization boundary](decisions/0003-synchronization-boundary.md)
 - [ADR-0004: External provider ports](decisions/0004-external-provider-ports.md)
 - [ADR-0005: External plant catalog](decisions/0005-external-plant-catalog.md)

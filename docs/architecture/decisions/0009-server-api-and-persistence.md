@@ -17,8 +17,10 @@ The synchronization service requires a browser-compatible protocol, explicit tra
 
 ## Consequences
 
-- Transport models are mapped to application commands and results.
-- Database records are mapped to domain and application models by infrastructure adapters.
+- Use one Spring Boot application project under `services/sync`, with internal feature and supporting-capability packages.
+- Controllers delegate workflows to services; services may use Spring dependency injection, transaction management, and concrete JDBC persistence components.
+- Validate transport models at the HTTP boundary. Map transport or database representations when their semantics, lifecycle, or invariants differ from internal models; do not duplicate identical shapes mechanically.
+- Business and synchronization rules remain independent of Spring and JDBC. Dedicated persistence components own SQL and explicit atomic operations.
 - Integration tests run against PostgreSQL rather than substituting a database with different semantics.
 - Introducing an ORM requires a later decision record and demonstrated need.
 

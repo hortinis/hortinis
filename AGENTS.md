@@ -13,9 +13,12 @@ Keep this repository sufficient to build, run, synchronize, document, and self-h
 
 ## Architecture
 
-- Preserve the dependency direction `Presentation -> Application -> Domain`.
-- Keep infrastructure behind interfaces defined by inner layers.
-- Keep domain code independent of frameworks, transports, databases, storage engines, and vendors.
+- Start with one Angular application and one Spring Boot application project, organized internally by feature and supporting capability; extract build packages only for demonstrated reuse or independent enforcement needs.
+- Keep business invariants and synchronization decisions independent of frameworks, transports, databases, storage engines, and vendors.
+- Components and controllers delegate workflows to services; services may use framework dependency injection and concrete persistence components.
+- Keep persistence and provider calls in dedicated components, expose small feature entry points, and avoid dependency cycles.
+- Use narrow interfaces for replaceable providers, synchronization transport, and file/object storage; introduce other interfaces and separate models only when behavior or testing justifies them.
+- Preserve explicit transaction boundaries and validate public wire contracts.
 - Treat offline operation as the default application state.
 - Make synchronization explicit, deterministic, observable, and recoverable.
 - Access external providers only through replaceable adapters.

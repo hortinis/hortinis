@@ -1,27 +1,28 @@
-# ADR-0002: Layered dependency rule
+# ADR-0002: Lightweight dependency boundaries
 
 - Status: Accepted
 
 ## Context
 
-Core garden-management rules must remain testable and independent of changing delivery and infrastructure mechanisms.
+Hortinis is expected to remain a modest application maintained by one developer. Its selected frameworks and database are long-term choices. Offline synchronization and business invariants need independent tests, but hypothetical technology replacement does not justify separate build packages for every responsibility.
 
 ## Decision
 
-Use four conceptual layers with dependencies directed inward:
-
-```text
-Presentation -> Application -> Domain
-Infrastructure -> Application and Domain interfaces
-```
-
-The domain contains business concepts and invariants. The application layer coordinates use cases and defines the ports it requires. Presentation invokes application use cases. Infrastructure supplies adapters for those ports.
+- Start with one Angular application in `apps/web` and one Spring Boot application project in `services/sync`, organized internally by feature and supporting capability.
+- Keep business invariants and synchronization decisions in plain TypeScript or Java code without framework, transport, database, filesystem, or vendor dependencies.
+- Components and controllers delegate meaningful workflows to services. Services may use Angular or Spring dependency injection and concrete persistence components.
+- Keep SQL, Dexie operations, filesystem access, and provider-specific calls in dedicated components. UI components and HTTP controllers do not access persistence directly.
+- Expose small feature entry points and avoid dependency cycles. Introduce internal rules, services, and persistence files only when behavior needs them; no feature must contain a fixed set of layers.
+- Introduce narrow interfaces for replaceable external providers, synchronization transport, and file/object storage. Persistence interfaces are optional when orchestration tests or an actual alternative implementation justify them; ordinary services do not require interface/implementation pairs.
+- Keep transaction boundaries explicit, including atomic local state and outbox writes and atomic server acceptance.
+- Validate public wire contracts. Create separate internal or persistence representations when their semantics, lifecycle, or invariants differ; identical shapes do not require mechanical mapping through multiple models.
+- Extract a build package or module only when demonstrated reuse or independent dependency enforcement warrants its maintenance cost.
 
 ## Consequences
 
-- Domain code cannot depend on presentation, database, transport, filesystem, or provider libraries.
-- Application code cannot depend on concrete infrastructure adapters.
-- Wiring happens at an outer composition boundary.
-- Data-transfer shapes at system boundaries are mapped to internal models.
-
-The physical package layout may evolve, but it must preserve these dependency constraints.
+- Pure rules can be tested without Angular, Spring, HTTP, or a database.
+- Framework-aware orchestration and concrete persistence are permitted without weakening rule isolation.
+- A small set of import and architecture checks protects pure rules, detects cycles, and prevents direct persistence access from components and controllers.
+- Integration tests verify real storage and transaction semantics; interfaces and mocks do not establish those guarantees.
+- Provider replacement remains isolated through focused adapters. PostgreSQL is a deliberate dependency, not a lowest-common-denominator storage abstraction.
+- Feature code stays within each application initially, avoiding mandatory layer packages, duplicate models, and empty scaffolding.

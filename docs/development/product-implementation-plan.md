@@ -14,10 +14,10 @@ Product specifications can progress while the technical foundation is being buil
 The delivery unit is a vertical slice. Each product increment includes, as applicable:
 
 - accepted workflow and acceptance scenarios;
-- TypeScript domain and application behavior;
+- TypeScript rules and coordinating services inside the Angular application;
 - Dexie persistence, migration, and atomic local outbox recording;
 - OpenAPI and schema changes before adapter implementation;
-- Java domain/application behavior and PostgreSQL persistence;
+- Java rules and coordinating services inside the Spring Boot application, with PostgreSQL persistence;
 - synchronization, retry, and conflict behavior;
 - Angular interaction and accessibility behavior;
 - shared TypeScript/Java conformance fixtures;
@@ -73,7 +73,7 @@ These items may proceed during foundation implementation. They produce specifica
 - Status: `planned`.
 - Scope: initial plant list and provenance, France coverage, catalog quality and update behavior, approximate location, weather fields and freshness, provider boundaries, cold-risk rules, sowing-window rules, abstention, explanation, versions, and recommendation lifecycle.
 - Catalog boundary: the external catalog owns stable plant identity, plant-specific cultivation parameters, applicability, evidence, licence and confidence. Hortinis owns garden context, current weather, rule evaluation, scoring, explanations, user overrides and recommendation lifecycle.
-- Catalog integration: the web application requires a catalog-artifact acquisition adapter separate from the Dexie persistence adapter. It must support operator-selected local artifacts and authenticated HTTPS acquisition, schema and hash validation, atomic activation, rollback, retired references and quota or interrupted-import recovery.
+- Catalog integration: the web application requires a catalog-artifact acquisition adapter separate from the Dexie persistence component in responsibility, within the same Angular application. It must support operator-selected local artifacts and authenticated HTTPS acquisition, schema and hash validation, atomic activation, rollback, retired references and quota or interrupted-import recovery.
 - Contract location: the pinned consumer copy of the language-neutral manifest and entry contracts belongs under `contracts/catalog/`; the catalog project remains the upstream publisher of the versioned contract and release artifacts.
 - Acceptance: each recommendation has reviewed examples, required factors, thresholds, missing-data behavior, and retained rule/data versions. Provider or transport selections require ADRs where applicable.
 

@@ -39,7 +39,7 @@ The expected versions are Node.js `v24.18.0` and pnpm `11.26.0`. Formatting, lin
 
 ## Backend workspace
 
-The backend workspace requires a Java 25 JDK and uses Gradle 9.7.1 exclusively through the committed Gradle Wrapper. A separate system Gradle installation is neither required nor supported. The root build centralizes plugin and dependency repositories, rejects project-specific repositories, and applies the Java 25 toolchain and compiler release to future Java subprojects.
+The backend workspace requires a Java 25 JDK and uses Gradle 9.7.1 exclusively through the committed Gradle Wrapper. A separate system Gradle installation is neither required nor supported. The root build centralizes plugin and dependency repositories, rejects project-specific repositories, and applies the Java 25 toolchain and compiler release to the future Spring Boot application project.
 
 Validate the Wrapper files before running the build:
 
@@ -49,7 +49,7 @@ sha256sum --check gradle/wrapper/gradle-wrapper.jar.sha256
 
 The Wrapper also verifies the downloaded Gradle binary distribution against the SHA-256 checksum recorded in `gradle/wrapper/gradle-wrapper.properties`. The root has no external Java dependencies, so `gradle/verification-metadata.xml` intentionally begins with an empty component list. Each increment that adds a dependency must add and review its verification metadata at the same time.
 
-Validate the empty backend multi-project foundation independently of the frontend workspace:
+Validate the existing empty backend root build independently of the frontend workspace:
 
 ```shell
 java --version
@@ -58,7 +58,7 @@ java --version
 ./gradlew build
 ```
 
-Java must report major version 25 and Gradle must report version 9.7.1. The projects report contains only the root project until backend modules are introduced by C1. Formatting, unit tests, integration tests, architecture tests, and module builds will receive separate commands when their corresponding executable capabilities are introduced; no aggregate command should hide those entry points.
+Java must report major version 25 and Gradle must report version 9.7.1. The projects report contains only the root project until the single Spring Boot application project at `services/sync` is introduced by C5. Formatting, unit tests, integration tests, architecture tests, and application builds will receive separate commands when their corresponding executable capabilities are introduced; no aggregate command should hide those entry points.
 
 ## Repository-wide validation
 
