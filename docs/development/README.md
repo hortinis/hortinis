@@ -10,6 +10,9 @@ The selected development toolchain is:
 
 Capability-specific setup and automated validation commands are added as each part of the executable foundation is introduced.
 
+The [P0.7a local catalog validation contract](catalog-validation-contract.md) defines the non-production
+catalog profile and cross-repository handoff required before local catalog acquisition is implemented.
+
 ## Frontend workspace
 
 The frontend workspace requires Node.js 24.18.0 and pnpm 11.26.0. The Node.js version is recorded in `.nvmrc`; the root package manifest enforces both tool versions.

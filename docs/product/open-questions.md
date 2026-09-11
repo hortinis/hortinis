@@ -44,13 +44,18 @@ Determine the initial plant list, necessary species/cultivar data, provenance, d
 
 Specify what France covers in initial validation, including territories, climate contexts, and local limitations. Support for different climates is desired, but no zoning scheme is selected.
 
-The canonical catalog is external: agree on the minimal reference dataset for validating Hortinis with the catalog project, without duplicating catalog maintenance in the user domain.
+The canonical catalog is external. P0.7a defines the smaller, non-publishable `dev-validation` profile,
+the representative tomato planning case, required provenance and licence fields, and the consumer fixture
+classes without duplicating catalog maintenance in the user domain.
 
 The distribution format is **already selected in ADR-0014**. Remaining work includes initial acquisition, first-use offline availability, updates, retired references, and linking free-form entries without losing history.
 
-The catalog project has a separate specification for its source register, field mappings, assertion provenance, licence gates and release profiles. Hortinis must agree the consumer boundary before M5.1: the catalog supplies reviewed plant facts and rule parameters; Hortinis evaluates recommendations against garden and weather context.
+The catalog project has a separate specification for its source register, field mappings, assertion
+provenance, licence gates and release profiles. The consumer boundary is now recorded in [P0.7a](../development/catalog-validation-contract.md): the catalog supplies reviewed plant facts and rule parameters; Hortinis evaluates recommendations against garden and weather context.
 
-The following remain blocking for the first content release: the exact France MVP plant list, cultivar depth, licence treatment of ShareAlike sources, catalog stewardship responsibility, and the upstream contract/version coordination process.
+The following remain outside P0.7a and continue to block the production content release: the exact France
+MVP plant list, production cultivar depth, licence treatment of ShareAlike sources, catalog stewardship
+responsibility, the pinned upstream catalog version, and production acquisition/update behavior.
 
 ### O-06 — Weather provider and privacy
 

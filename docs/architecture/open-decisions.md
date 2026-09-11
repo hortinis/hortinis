@@ -11,8 +11,7 @@ The foundation technologies are selected in ADR-0007 through ADR-0016. The follo
 - production reverse proxy and TLS examples;
 - backup, restore, rollback, and upgrade procedures and their automated verification;
 - the optional S3-compatible storage adapter implementation;
-- plant catalog chunk sizing, signing, key distribution, and update cadence;
-- ownership and pinning of the language-neutral catalog schemas under `contracts/catalog/`, including the upstream catalog version and consumer conformance-fixture process;
+- the exact upstream catalog version pinned under `contracts/catalog/` and the consumer conformance-fixture update process; schema ownership, local-validation profile and source-independent acquisition boundary are resolved by P0.7a and ADR-0020;
 - the web catalog-artifact acquisition adapter boundary, including local import, authenticated HTTPS acquisition, atomic Dexie activation, rollback, quota failure and interrupted-import recovery;
 - default retention periods for each operational and security log category;
 - optional OpenTelemetry exporter selection;

@@ -77,6 +77,22 @@ These items may proceed during foundation implementation. They produce specifica
 - Contract location: the pinned consumer copy of the language-neutral manifest and entry contracts belongs under `contracts/catalog/`; the catalog project remains the upstream publisher of the versioned contract and release artifacts.
 - Acceptance: each recommendation has reviewed examples, required factors, thresholds, missing-data behavior, and retained rule/data versions. Provider or transport selections require ADRs where applicable.
 
+#### P0.7a — Local catalog validation contract
+
+- Status: `validated`.
+- Depends on: P0.1.
+- Deliverable: [local catalog validation contract](catalog-validation-contract.md).
+- Scope: define the local-validation artifact profile, representative plants and rules, provenance and
+  licence expectations, missing and retired reference behavior, catalog and rule version retention, and
+  expected recommendation, limitation and abstention examples.
+- Excludes: HTTPS acquisition, release discovery, update polling, weather-provider selection and the
+  complete recommendation lifecycle.
+- Acceptance: the local artifact and its consumer fixtures specify the fields Hortinis requires and the
+  same verification and activation path can later accept an HTTPS artifact.
+
+P0.7a is the prerequisite for the local-validation slice. The remainder of P0.7 remains required for
+production catalog and recommendation behavior.
+
 ## 3. MVP increment plan
 
 ### M1 — Garden and space memory
