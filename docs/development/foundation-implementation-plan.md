@@ -1,14 +1,19 @@
 # Technical foundation implementation plan
 
 - Status: approved implementation specification; implementation not started.
-- Scope: executable technical foundation only, without garden-management business features.
+- Scope: executable technical foundation and the readiness gates that control when the limited V0 and
+  production garden-management slices may begin.
 - Tracking: this file is the repository source of truth until the work is optionally transferred to GitHub issues.
 
 ## 1. Purpose
 
 This document divides the Hortinis technical foundation into small, independently reviewable increments. Every increment must leave the repository in a valid state and provide explicit evidence for its acceptance criteria.
 
-The foundation must demonstrate that the selected architecture can build, run, operate offline, synchronize, recover, and remain self-hostable before business features are introduced. Technical test records may be used to validate infrastructure and synchronization behavior; they must not become an accidental business model.
+The foundation must demonstrate that the selected architecture can build, run, operate offline,
+synchronize, recover, and remain self-hostable before production business features are introduced.
+Technical test records validate infrastructure and synchronization behavior first. A deliberately limited
+V0 business slice may follow the smaller V0 technical readiness gate defined below, without claiming the
+complete foundation or MVP ready.
 
 This plan implements the accepted architecture decisions. It does not reopen their selected technologies or implicitly resolve decisions that remain open.
 
@@ -134,7 +139,8 @@ This contract does not yet select Nginx, Caddy, Traefik, or another production r
 
 - Introduce one coherent capability per increment whenever practical.
 - Keep every completed increment buildable and independently reviewable.
-- Add no garden-management business feature during foundation work.
+- Add no garden-management business feature during foundation work. The V0 product-validation slice
+  starts only after its technical readiness gate and is tracked in the product implementation plan.
 - Define public HTTP contracts before implementing their adapters.
 - Keep business and synchronization rules framework-independent; allow framework-aware coordinating services.
 - Keep persistence in dedicated components and introduce interfaces selectively as described in section 3.2.
@@ -389,6 +395,16 @@ The first slice uses a deliberately technical record. It validates the mechanism
 - Scope: retry an identical stable operation and reject reuse of its idempotency identifier with a different canonical request.
 - Acceptance: identical retries return the stable result without duplicate effects; mismatched reuse returns the specified error.
 
+#### E4a. Prove one dependent operation chain
+
+- Initial status: `planned`.
+- Depends on: E4.
+- Scope: persist and submit two causally dependent operations in order, deriving the successor's expected
+  revision from its predecessor's stable result before first submission.
+- Excludes: atomic multi-operation batches and arbitrary dependency graphs.
+- Acceptance: the successor is never submitted before the predecessor has a stable result, and retries do
+  not change either operation's identifier, canonical request or expected revision.
+
 #### E5. Pull changes through an opaque cursor
 
 - Initial status: `planned`.
@@ -432,7 +448,11 @@ The first slice uses a deliberately technical record. It validates the mechanism
 - Scope: record commands, environments, evidence, limitations, failures found, and remaining protocol risks.
 - Acceptance: the report distinguishes demonstrated behavior from planned behavior and does not authorize business features while blocking foundation risks remain.
 
-Later foundation increments must extend this slice to causal operation chains, tombstones, interrupted exchanges, bounded retry behavior, generation rollover, anchored snapshots, full reconciliation, and indeterminate outcomes before those guarantees are claimed as validated. Their precise wire formats and retention choices require the follow-up decisions identified by the existing architecture documentation.
+Later foundation increments must extend this slice beyond the demonstrated dependent-operation chain to
+tombstones, interrupted exchanges, bounded background retry behavior, generation rollover, anchored
+snapshots, full reconciliation, and indeterminate outcomes before those guarantees are claimed as
+validated. Their precise wire formats and retention choices require the follow-up decisions identified by
+the existing architecture documentation.
 
 ### Track F: packaging and continuous integration
 
@@ -489,7 +509,38 @@ This track may proceed alongside the web, server, contract, and synchronization 
 - Scope: prove that an installed deployment runs without a package registry, Hortinis-operated service, analytics provider, plant provider, or optional external adapter.
 - Acceptance: the validation records all attempted outbound runtime dependencies and demonstrates that none is required for the implemented foundation slice.
 
-## 6. Initial milestone boundary
+## 6. Readiness gates and milestone boundaries
+
+### V0 technical readiness gate
+
+The first synchronized product test may begin only when the following smaller foundation slice is
+validated:
+
+- the Angular shell builds, has PWA application-shell support and reloads offline;
+- Dexie schema versioning, migrations, transaction rollback and test isolation are demonstrated;
+- the browser synchronization transport boundary rejects invalid data and exposes failures;
+- the Spring service, safe diagnostics and backend architecture checks pass;
+- the OpenAPI and JSON Schema synchronization contracts validate before their adapters;
+- PostgreSQL, Flyway, explicit acceptance transactions and restart behavior pass integration tests;
+- one technical record completes atomic local state and outbox commit, push, atomic acceptance,
+  idempotent retry, one dependent operation chain, pull, cursor persistence and reload recovery;
+- an expected-revision conflict is represented explicitly without implementing domain conflict resolution;
+- synchronization failure does not prevent independent local work;
+- shared TypeScript and Java fixtures agree for the implemented protocol slice; and
+- one documented native or Compose test topology exercises the browser, service and PostgreSQL together;
+  and
+- a focused V0 readiness report records commands, evidence, limitations and deferred protocol behavior.
+
+This gate does not require production container images, complete CI, production authentication, catalog
+HTTPS acquisition, tombstones, compaction, generation rollover, full reconciliation, indeterminate-outcome
+recovery or domain conflict-resolution UI. While those mechanisms are absent, V0 must expose no hard
+deletion, must not compact synchronization history or idempotency receipts, and must use explicit manual
+retry rather than claiming complete background recovery.
+
+Passing this gate authorizes only the V0 increments in the product implementation plan. It does not
+authorize the production MVP increments.
+
+### Initial foundation milestone
 
 The first technical-foundation milestone is complete only when:
 
@@ -505,11 +556,14 @@ The first technical-foundation milestone is complete only when:
 - local and CI validation commands pass; and
 - the validation report clearly identifies protocol guarantees not yet implemented.
 
-Completion of this milestone validates a thin vertical foundation slice. It does not validate every guarantee in ADR-0010 and does not authorize garden functionality until the Foundation readiness gate below is complete.
+Completion of this milestone validates a thin vertical foundation slice. It does not validate every
+guarantee in ADR-0010 and does not authorize production garden functionality until the Foundation
+readiness gate below is complete. The limited V0 slice is governed separately by the V0 technical
+readiness gate above.
 
 ### Foundation readiness gate
 
-Business-feature implementation may begin only when:
+Production business-feature implementation may begin only when:
 
 - the initial foundation milestone is validated;
 - causal operation chains, tombstones, interrupted exchanges, bounded retry behavior, generation rollover, anchored snapshots, full reconciliation, and indeterminate outcomes are implemented and tested;
@@ -518,6 +572,26 @@ Business-feature implementation may begin only when:
 - the foundation report contains no unresolved blocking foundation risk.
 
 Feature-specific decisions remain additional prerequisites. For example, synchronized garden data requires the accepted access design, and catalog-dependent features require the catalog acquisition design.
+
+### Synchronized V0 product-validation authorization
+
+The complete gate above remains mandatory for production business features. After the V0 technical
+readiness gate passes, the product plan may introduce its limited V0 slice under these constraints:
+
+- every user-owned mutation commits local state and its outbox operation atomically;
+- V0 uses the same synchronization transport, operation, idempotency, revision, sequence and cursor
+  boundaries intended for production;
+- a minimal dependent operation chain is supported rather than bypassing ordering requirements;
+- protocol conflicts are detected and preserved explicitly, while domain merge, presentation and
+  resolution remain deferred;
+- catalog artifacts are acquired independently on each client and are not synchronized as user data;
+- the slice is explicitly non-production and uses disposable or migration-safe validation data; and
+- it is excluded from MVP release claims until the complete foundation gate passes.
+
+For automated and developer-run V0 validation, a test-only single synchronization scope may be used
+without selecting the production access mechanism. It must be unavailable in production builds and must
+not be exposed as a remotely reachable unauthenticated deployment. Any external user test requires the
+P0.5 access design and its necessary architecture decision first.
 
 ## 7. Deferred and prohibited selections
 
@@ -528,7 +602,7 @@ The following must not be resolved accidentally while executing this plan:
 - production reverse proxy and TLS product selection;
 - final backup, restoration, rollback, and upgrade formats and procedures;
 - optional S3-compatible adapter implementation;
-- plant catalog chunk sizing, signing, key distribution, and cadence;
+- the exact catalog version pin, consumer-fixture update procedure, and production HTTPS/update details;
 - synchronization retention periods, compaction thresholds, generation rollover details, final snapshot continuation, indeterminate-outcome representation, and full-reconciliation wire format;
 - domain-specific merge, conflict presentation, and conflict-resolution rules;
 - analytics schemas, retention, trust boundaries, visitor controls, contribution, or activation;

@@ -20,11 +20,11 @@ O-01 through O-03 are now resolved in the domain specification. The next domain-
 
 O-01 through O-03 are resolved by the [domain glossary, lifecycle rules, and acceptance scenarios](domain-model.md), which is authoritative for the details.
 
-| Question | Accepted decisions | Remaining presentation work |
-| --- | --- | --- |
-| O-01 — Plans, lots, cycles, and time | DF-03 and DF-04; separate plans and actual cycles, lineage, partial execution, precise time uncertainty, and recoverable history | None in the domain model |
-| O-02 — Spaces and multiple gardens | DF-02; typed spaces, optional nesting, stable identities, and separate garden boundaries | Active-garden selection and cross-garden read views under O-04 |
-| O-03 — Journal, tasks, and corrections | DF-05 and DF-06; tasks, interventions, corrections, voiding, undo, and append-only history | None in the domain model |
+| Question                               | Accepted decisions                                                                                                               | Remaining presentation work                                    |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| O-01 — Plans, lots, cycles, and time   | DF-03 and DF-04; separate plans and actual cycles, lineage, partial execution, precise time uncertainty, and recoverable history | None in the domain model                                       |
+| O-02 — Spaces and multiple gardens     | DF-02; typed spaces, optional nesting, stable identities, and separate garden boundaries                                         | Active-garden selection and cross-garden read views under O-04 |
+| O-03 — Journal, tasks, and corrections | DF-05 and DF-06; tasks, interventions, corrections, voiding, undo, and append-only history                                       | None in the domain model                                       |
 
 ### O-04 — UX and preferences
 
@@ -44,13 +44,21 @@ Determine the initial plant list, necessary species/cultivar data, provenance, d
 
 Specify what France covers in initial validation, including territories, climate contexts, and local limitations. Support for different climates is desired, but no zoning scheme is selected.
 
-The canonical catalog is external: agree on the minimal reference dataset for validating Hortinis with the catalog project, without duplicating catalog maintenance in the user domain.
+The canonical catalog is external. The catalog project has selected the 33 generic plant concepts, two
+optional tomato cultivar exemplars, metropolitan-France scope, licence policy, schema ownership and
+release coordination in its ADR-0004 through ADR-0006. Hortinis must now agree the smaller
+`dev-validation` subset and consumer fixtures without duplicating catalog maintenance in the user domain.
 
 The distribution format is **already selected in ADR-0014**. Remaining work includes initial acquisition, first-use offline availability, updates, retired references, and linking free-form entries without losing history.
 
-The catalog project has a separate specification for its source register, field mappings, assertion provenance, licence gates and release profiles. Hortinis must agree the consumer boundary before M5.1: the catalog supplies reviewed plant facts and rule parameters; Hortinis evaluates recommendations against garden and weather context.
+The catalog project has a separate specification for its source register, field mappings, assertion
+provenance, licence gates and release profiles. Hortinis must complete P0.7a before V0.1 and the complete
+consumer specification before M5.1: the catalog supplies reviewed plant facts and rule parameters;
+Hortinis evaluates recommendations against garden and weather context.
 
-The following remain blocking for the first content release: the exact France MVP plant list, cultivar depth, licence treatment of ShareAlike sources, catalog stewardship responsibility, and the upstream contract/version coordination process.
+The upstream choices above no longer block the first local validation artifact. Remaining consumer work is
+the exact `dev-validation` subset, pinned contract version, local file-selection behavior, recommendation
+fixtures, missing and retired reference presentation, and later HTTPS/update behavior.
 
 ### O-06 — Weather provider and privacy
 
@@ -92,6 +100,10 @@ Determine how local data connects to an empty or already-used server, adding dev
 
 Establish business compatibility rules, the visible state during a conflict, offered choices, and conflicts involving relationships, corrections, or archiving. Two different fields can form an invalid combination.
 
+V0 retains expected-revision conflict detection and both competing values, but defers business merge
+rules, gardener-facing comparison and conflict resolution to M4.2. A V0 conflict must remain explicit and
+must not be silently converted into last-write-wins behavior.
+
 The [ADR-0010 protocol](../architecture/decisions/0010-synchronization-protocol-model.md) is already selected, including UUIDv7, idempotency, revisions, and recovery after compaction. Do not return to UUIDv4 or an open protocol choice based on the older reports. Automatic reconciliation must respect those guarantees and explicit conflicts.
 
 ### O-10 — Backup, restoration, and archiving
@@ -110,7 +122,9 @@ Deferring selective deletion does not settle erroneous entries, complete local e
 
 Define measurable criteria for field workflows, accessibility, supported data volumes, target browsers/devices, and behavior when local storage fails or is lost.
 
-Distinguish three stages: current pre-scaffold documentation checks; technical foundation validation without business features; progressive business validation after the foundation is validated.
+Distinguish four stages: repository and scaffold checks; V0 synchronization-foundation validation with
+technical records; the limited synchronized V0 product test; and progressive production business
+validation after the complete foundation readiness gate passes.
 
 Proposed cross-cutting scenarios for future specifications:
 

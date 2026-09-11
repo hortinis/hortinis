@@ -42,11 +42,11 @@ Users can enter the loop at any point. A harvest or observation should not requi
 
 ## Three product pillars
 
-| Pillar | Role | Example of value |
-| --- | --- | --- |
-| Memory | Preserve places, intentions, actual work, observations, and results | Retrieve what happened to a crop before and after its lot was split |
-| Context | Connect that history to versioned horticultural knowledge and available environmental data | Explain what a forecast means for a known crop and its recorded protection |
-| Decision support | Offer understandable options and help the gardener act on them | Suggest checking cold protection or choosing a sowing period, while exposing uncertainty |
+| Pillar           | Role                                                                                       | Example of value                                                                         |
+| ---------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| Memory           | Preserve places, intentions, actual work, observations, and results                        | Retrieve what happened to a crop before and after its lot was split                      |
+| Context          | Connect that history to versioned horticultural knowledge and available environmental data | Explain what a forecast means for a known crop and its recorded protection               |
+| Decision support | Offer understandable options and help the gardener act on them                             | Suggest checking cold protection or choosing a sowing period, while exposing uncertainty |
 
 Deterministic rules can deliver these capabilities. Learning from the garden means making better use of its history; it does not imply that machine learning is required.
 
@@ -87,28 +87,31 @@ The exact outcomes and evidence expected after two or three seasons remain to be
 
 ## Exploratory horizons
 
-| Horizon | Intended user outcome | Candidate capabilities | Evidence to seek before expanding |
-| --- | --- | --- | --- |
-| Reliable memory and first advice | Retrieve work and understand the two MVP recommendations | Fast recording, history, synchronization, restoration, targeted weather context | Usable field workflows, demonstrated recovery, understandable advice |
-| Continuity between seasons | Use previous experience to prepare a better-informed next plan | Seasonal reviews, planned/actual comparison, reusable plans, rotation checks | Gardeners can point to history that changed a planning decision |
-| More diverse gardens and richer context | Follow a wider range of real growing situations over time | Perennials, trees, contextual rules, richer reference data | Demonstrated needs and adequate knowledge for each extension |
-| Selected extensions | Address a validated need beyond individual use | Collaboration, catalog contributions, optional integrations | User value and sustainable maintenance and operation |
+| Horizon                                 | Intended user outcome                                          | Candidate capabilities                                                          | Evidence to seek before expanding                                    |
+| --------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Reliable memory and first advice        | Retrieve work and understand the two MVP recommendations       | Fast recording, history, synchronization, restoration, targeted weather context | Usable field workflows, demonstrated recovery, understandable advice |
+| Continuity between seasons              | Use previous experience to prepare a better-informed next plan | Seasonal reviews, planned/actual comparison, reusable plans, rotation checks    | Gardeners can point to history that changed a planning decision      |
+| More diverse gardens and richer context | Follow a wider range of real growing situations over time      | Perennials, trees, contextual rules, richer reference data                      | Demonstrated needs and adequate knowledge for each extension         |
+| Selected extensions                     | Address a validated need beyond individual use                 | Collaboration, catalog contributions, optional integrations                     | User value and sustainable maintenance and operation                 |
 
-These horizons have no dates or fixed delivery order. Perennials, rotations, or collaboration may be prioritized differently as evidence develops. Foundation validation remains a prerequisite for business-feature implementation.
+These horizons have no dates or fixed delivery order. Perennials, rotations, or collaboration may be
+prioritized differently as evidence develops. The V0 technical readiness gate is a prerequisite for the
+limited first product-validation slice; complete foundation validation remains a prerequisite for
+production business-feature implementation.
 
 ## Candidate ideas and questions
 
-| Idea to explore | Gardening need | Main question before commitment |
-| --- | --- | --- |
-| Reuse a previous season's plan | Start from experience rather than a blank page | How can intentions be copied without copying past actual events? |
-| Rotation and succession guidance | Compare possible locations and crop sequences | Is space history sufficient, and which documented rules apply? |
-| Staggered sowing | Plan several growing batches over time | Can timing and quantity help without pretending to predict harvest precisely? |
-| Seasonal reviews | Find observations and differences worth acting on | How can the product distinguish patterns from unsupported causal explanations? |
-| Perennials and trees | Preserve history beyond annual cycles | Which lifecycle and repeated-harvest concepts are needed? |
-| More contextual advice | Make suggestions fit the actual garden | Which additional data improves decisions enough to justify entry effort? |
-| Photos and richer observations | Capture change or a problem quickly | What storage, synchronization, and privacy costs are acceptable? |
-| Catalog contributions | Improve shared reference coverage | How are provenance, licensing, review, and stable identifiers governed? |
-| Collaborative gardens | Coordinate work between people | Which permissions, attribution, and conflict behaviors are required? |
+| Idea to explore                  | Gardening need                                    | Main question before commitment                                                |
+| -------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------ |
+| Reuse a previous season's plan   | Start from experience rather than a blank page    | How can intentions be copied without copying past actual events?               |
+| Rotation and succession guidance | Compare possible locations and crop sequences     | Is space history sufficient, and which documented rules apply?                 |
+| Staggered sowing                 | Plan several growing batches over time            | Can timing and quantity help without pretending to predict harvest precisely?  |
+| Seasonal reviews                 | Find observations and differences worth acting on | How can the product distinguish patterns from unsupported causal explanations? |
+| Perennials and trees             | Preserve history beyond annual cycles             | Which lifecycle and repeated-harvest concepts are needed?                      |
+| More contextual advice           | Make suggestions fit the actual garden            | Which additional data improves decisions enough to justify entry effort?       |
+| Photos and richer observations   | Capture change or a problem quickly               | What storage, synchronization, and privacy costs are acceptable?               |
+| Catalog contributions            | Improve shared reference coverage                 | How are provenance, licensing, review, and stable identifiers governed?        |
+| Collaborative gardens            | Coordinate work between people                    | Which permissions, attribution, and conflict behaviors are required?           |
 
 Detailed maps, diagnosis assistance, sensors, and conversational interaction also appeared in the initial analysis. They remain lower-definition possibilities and need a concrete user problem before further design. A conversational interface must not replace traceable knowledge or turn uncertain advice into authoritative claims.
 

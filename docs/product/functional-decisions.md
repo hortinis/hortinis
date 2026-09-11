@@ -79,10 +79,10 @@ A way to contribute to catalog enrichment is desired later. A personal entry doe
 
 ### DF-08 — Two complementary recommendations
 
-| Selected case | Subject | Expected result |
-| --- | --- | --- |
-| Forecast cold risk | Existing crops | Indicate and explain the risk and invite the gardener to check protection |
-| Sowing or planting window | Already selected crops | Help choose a period using the catalog and available weather conditions |
+| Selected case             | Subject                | Expected result                                                           |
+| ------------------------- | ---------------------- | ------------------------------------------------------------------------- |
+| Forecast cold risk        | Existing crops         | Indicate and explain the risk and invite the gardener to check protection |
+| Sowing or planting window | Already selected crops | Help choose a period using the catalog and available weather conditions   |
 
 The second case must work even when location or date is unspecified, with explicit limitations. Automatically selecting new crops from the catalog is not included in the MVP.
 
@@ -118,15 +118,18 @@ It concerns the devices of one gardener. Sharing a garden between several people
 
 Business operations are recorded locally without waiting for the server. Connectivity returning allows configured synchronization to resume. Errors or conflicts must not block independent local use.
 
-This progression respects the repository rule: validate the technical foundation before adding business features. Initial protocol validation can use technical test data.
+This progression respects the repository rule: validate the synchronization foundation before adding
+business features. Initial protocol validation uses technical test data. A limited synchronized V0 product
+slice may begin after its smaller technical readiness gate; production business features still require the
+complete foundation readiness gate.
 
 ### DF-12 — Configurable server access
 
-| Situation | Access decision |
-| --- | --- |
-| Standalone local use | Start without an account |
+| Situation                             | Access decision                                    |
+| ------------------------------------- | -------------------------------------------------- |
+| Standalone local use                  | Start without an account                           |
 | Self-hosted server for individual use | Account optional according to server configuration |
-| Instance shared by multiple users | Accounts required |
+| Instance shared by multiple users     | Accounts required                                  |
 
 Connecting to a server later must retain and incorporate data already created locally. Local identity therefore does not necessarily depend on a server account.
 

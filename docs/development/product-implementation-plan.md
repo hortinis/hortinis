@@ -3,13 +3,16 @@
 - Status: proposed; product implementation not started.
 - Scope: product capabilities from the validated technical foundation through the MVP and evidence-gated post-MVP work.
 - Authority: [functional decisions and MVP scope](../product/functional-decisions.md), [domain model](../product/domain-model.md), and [product direction](../product/product-direction.md).
-- Technical prerequisite: the [foundation readiness gate](foundation-implementation-plan.md#foundation-readiness-gate) must pass before business-feature implementation begins.
+- Technical prerequisite: the [foundation readiness gate](foundation-implementation-plan.md#foundation-readiness-gate) must pass before production business-feature implementation begins. The limited V0 track may begin after the [V0 technical readiness gate](foundation-implementation-plan.md#v0-technical-readiness-gate).
 
 ## 1. Purpose and delivery model
 
 This plan translates the accepted product decisions into independently reviewable product increments. It does not reopen accepted decisions and does not turn exploratory ideas into release commitments.
 
-Product specifications can progress while the technical foundation is being built. Product code starts only after the foundation readiness gate is validated and the feature-specific decisions required by an increment are accepted.
+Product specifications can progress while the technical foundation is being built. V0 product code starts
+only after the V0 technical readiness gate and its reduced product specifications are accepted. Production
+product code starts only after the complete foundation readiness gate and the feature-specific decisions
+required by an increment are accepted.
 
 The delivery unit is a vertical slice. Each product increment includes, as applicable:
 
@@ -44,6 +47,14 @@ These items may proceed during foundation implementation. They produce specifica
 - Excludes: opaque experience-level feature locking and menus copied from earlier proposals.
 - Acceptance: the primary MVP journeys are reviewable without implementation-specific assumptions.
 
+#### P0.2a — Define the first-test journey
+
+- Status: `planned`.
+- Scope: define the minimum screens and states for local catalog import, garden creation, plant selection,
+  cultivation planning, synchronization and one recommendation result.
+- Acceptance: the V0 journey exposes local, pending, synchronized, failed and protocol-conflict states
+  without implying that complete MVP navigation or preferences are settled.
+
 ### P0.3 — Define the product quality envelope (O-11)
 
 - Status: `planned`.
@@ -56,11 +67,32 @@ These items may proceed during foundation implementation. They produce specifica
 - Scope: implementation-neutral records, commands, revisions, current projections, ownership scope, business-time precision, quantities and unknowns, placements, lineage, allocations, voids, and terminal states.
 - Acceptance: the physical model and contracts preserve the distinctions in the domain specification and support AC-DM-01 through AC-DM-22 without a generic mutable `crop` record.
 
+#### P0.4a — Define the V0 business contract subset
+
+- Status: `planned`.
+- Scope: define only the garden, plant-selection and cultivation-plan records, their stable identifiers,
+  revisions, commands, current projections, ownership scope and synchronization operations.
+- Acceptance: the subset preserves historical plant labels, optional catalog references, unknown plan
+  context and append-only revisions without introducing a generic mutable `crop` record.
+
 ### P0.5 — Resolve access and business synchronization (O-08 and O-09)
 
 - Status: `planned`.
 - Scope: standalone use, individual-server connection, shared-instance accounts, local-to-server transition, device enrollment and revocation, ownership/isolation, compatible merges, contradictory conflicts, and conflict resolution for relationships, corrections, and archiving.
-- Acceptance: the access behavior is documented and any required technical selection is recorded in an ADR before synchronized garden data is implemented.
+- Acceptance: the access behavior is documented and any required technical selection is recorded in an
+  ADR before production synchronized garden data is implemented. V0 may use only the constrained
+  test-only profile defined by P0.5a.
+
+#### P0.5a — Define the V0 synchronization scope
+
+- Status: `planned`.
+- Scope: map the P0.4a commands to the accepted operation-journal protocol; define one synchronization
+  scope, dependent-operation ordering, expected-revision failures and the test-only access profile used by
+  automated and developer-run validation.
+- Excludes: production authentication, connecting existing populated servers, domain merge rules,
+  conflict-resolution UI, compaction and full reconciliation.
+- Acceptance: V0 uses the production outbox and wire boundaries, never silently applies last-write-wins,
+  and the test-only access profile cannot be enabled in a production build.
 
 ### P0.6 — Specify backup and restoration (O-10)
 
@@ -77,7 +109,65 @@ These items may proceed during foundation implementation. They produce specifica
 - Contract location: the pinned consumer copy of the language-neutral manifest and entry contracts belongs under `contracts/catalog/`; the catalog project remains the upstream publisher of the versioned contract and release artifacts.
 - Acceptance: each recommendation has reviewed examples, required factors, thresholds, missing-data behavior, and retained rule/data versions. Provider or transport selections require ADRs where applicable.
 
-## 3. MVP increment plan
+#### P0.7a — Local catalog validation contract
+
+- Status: `planned`.
+- Scope: define the local-validation artifact profile, representative plants and rules, provenance and
+  licence expectations, missing and retired reference behavior, catalog and rule version retention, and
+  expected recommendation, limitation and abstention examples.
+- Excludes: HTTPS acquisition, release discovery, update polling, weather-provider selection and the
+  complete recommendation lifecycle.
+- Acceptance: the local artifact and its consumer fixtures specify the fields Hortinis requires and the
+  same verification and activation path can later accept an HTTPS artifact.
+
+P0.7a is the prerequisite for the local-validation slice. The remainder of P0.7 remains required for
+production catalog and recommendation behavior.
+
+## 3. V0 product-validation track
+
+V0 is a synchronized, non-production vertical slice for testing the first Hortinis value path before the
+complete foundation and MVP are ready. It uses real domain records and synchronization boundaries, not a
+temporary CRUD model.
+
+### V0.1 — Local catalog acquisition
+
+- Status: `planned`.
+- Depends on: the V0 technical readiness gate and P0.7a.
+- Scope: accept an explicitly selected flat set of ADR-0014 artifact files; validate the pinned manifest
+  and entry schemas, compatibility, chunk hashes, sizes and entry counts; stage and atomically activate the
+  catalog in Dexie; support offline lookup and one missing or retired-reference fixture.
+- Excludes: HTTPS, release discovery, updates, download resumption, incremental replacement, advanced
+  rollback and quota recovery.
+- Acceptance: invalid or incomplete artifacts never replace the active catalog, and acquisition provides
+  artifact bytes through the same source boundary later used by HTTPS.
+
+### V0.2 — First synchronized business records
+
+- Status: `planned`.
+- Depends on: the V0 technical readiness gate, P0.2a, P0.4a and P0.5a.
+- Scope: create one garden, select a plant and create a simple cultivation plan locally; atomically enqueue
+  their operations; push and accept them through Spring and PostgreSQL; pull them into a second browser;
+  expose pending, synchronized, failed and protocol-conflict states.
+- Excludes: deletion, archival, complete conflict handling, multi-account access and connection to an
+  already populated server.
+- Acceptance: a second browser retrieves the same stable garden, plan and catalog reference without
+  duplicates; service unavailability does not block new local work; reload preserves pending work.
+
+### V0.3 — First integrated product test
+
+- Status: `planned`.
+- Depends on: V0.1 and V0.2.
+- Scope: exercise the first-test journey in two browser contexts, with the local catalog acquired
+  independently by each client and one reviewed sowing or planting-window rule evaluated from explicit
+  local context.
+- Acceptance: a gardener can create and synchronize a plan, see the referenced plant when the catalog is
+  installed, retain the historical label when it is absent, and receive an explainable recommendation,
+  limitation or abstention after offline reload.
+
+V0 completion validates product and domain assumptions only. It does not complete M1, M2 or M5, satisfy
+the full foundation readiness gate, or authorize an MVP release.
+
+## 4. MVP increment plan
 
 ### M1 — Garden and space memory
 
@@ -94,10 +184,10 @@ These items may proceed during foundation implementation. They produce specifica
 - Excludes: geometry and automatic type-derived climate, capacity, or protection rules.
 - Acceptance: AC-DM-16 and AC-DM-17 pass locally and through synchronized operations.
 
-#### M1.3 — First synchronized business slice
+#### M1.3 — Expanded garden and space synchronization
 
 - Depends on: M1.1, M1.2, and the validated synchronization foundation.
-- Scope: synchronize gardens and spaces with local-first writes, retries, reload recovery, second-device retrieval, and explicit simple-record conflicts.
+- Scope: extend the synchronized V0 behavior to complete garden and space workflows with local-first writes, retries, reload recovery, second-device retrieval, and explicit simple-record conflicts.
 - Acceptance: local work remains usable while the server is unavailable; repeated synchronization creates no duplicates.
 
 ### M2 — Planning and actual cultivation
@@ -174,12 +264,17 @@ These items may proceed during foundation implementation. They produce specifica
 
 ### M5 — Catalog and decision support
 
-#### M5.1 — Minimal offline catalog
+#### M5.1 — Production catalog acquisition and lifecycle
 
-- Depends on: P0.7 and M2.1.
-- Scope: ADR-0014 artifact acquisition, validation, activation, offline snapshot, updates, retired references, free-form fallback, catalog-artifact adapter, Dexie catalog stores, manifest compatibility, and interrupted-import recovery.
-- Contract prerequisites: `contracts/catalog/` schemas and conformance fixtures must be pinned before adapter implementation. The catalog release must provide stable opaque identifiers and an attribution/licence manifest.
-- Acceptance: catalog acquisition failure never blocks core garden use; activated entries pass schema and integrity validation.
+- Depends on: P0.7, M2.1, V0.1 and the foundation readiness gate.
+- Scope: complete ADR-0014 acquisition through operator-selected local artifacts and authenticated HTTPS;
+  add release discovery, updates, interrupted-import recovery, quota failure, retired references across
+  versions, incremental replacement and production rollback behavior.
+- Contract prerequisites: `contracts/catalog/` schemas and conformance fixtures must be pinned before
+  adapter implementation. The catalog release must provide stable opaque identifiers and attribution/
+  licence metadata.
+- Acceptance: catalog acquisition failure never blocks core garden use; only schema- and integrity-valid
+  entries activate; local and HTTPS sources use the same verification and activation pipeline.
 
 #### M5.2 — Weather context
 
@@ -218,7 +313,7 @@ These items may proceed during foundation implementation. They produce specifica
 
 Analytics are not an MVP dependency. Collection or contribution remains disabled until the separate ADR-0017 finalization gates are satisfied.
 
-## 4. Beyond-MVP plan
+## 5. Beyond-MVP plan
 
 Post-MVP work is outcome-gated. The following is a proposed sequence of candidate horizons, not a release commitment.
 
@@ -244,7 +339,7 @@ Collaboration, catalog contributions, outside-application notifications, and opt
 
 Social networking, marketplaces, commerce, physical automation, and general-purpose AI remain outside this plan unless product positioning is explicitly reconsidered.
 
-## 5. Cross-cutting definition of done
+## 6. Cross-cutting definition of done
 
 Every product increment must:
 

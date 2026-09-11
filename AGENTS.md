@@ -33,7 +33,10 @@ Keep this repository sufficient to build, run, synchronize, document, and self-h
 - Use IndexedDB through Dexie for browser persistence.
 - Use PostgreSQL through Spring JDBC and version its schema with Flyway SQL migrations.
 - Use Docker Compose for local orchestration and baseline self-hosting deployment; keep the Dev Container optional.
-- Do not add business features until the technical foundation is implemented and validated.
+- Do not add production business features until the complete technical foundation is implemented and
+  validated. A deliberately limited V0 product-validation slice may begin after the V0 technical
+  readiness gate in `docs/development/foundation-implementation-plan.md`; it must use the real
+  outbox-based synchronization boundaries and must not be presented as MVP or production readiness.
 
 ## Privacy
 

@@ -11,9 +11,8 @@ Accepted foundation technologies and policies are recorded in the architecture d
 - production reverse proxy and TLS examples;
 - backup, restore, rollback, and upgrade procedures and their automated verification;
 - the optional S3-compatible storage adapter implementation;
-- plant catalog chunk sizing, signing, key distribution, and update cadence;
-- ownership and pinning of the language-neutral catalog schemas under `contracts/catalog/`, including the upstream catalog version and consumer conformance-fixture process;
-- the web catalog-artifact acquisition adapter boundary, including local import, authenticated HTTPS acquisition, atomic Dexie activation, rollback, quota failure and interrupted-import recovery;
+- the exact upstream catalog version pinned under `contracts/catalog/` and the consumer conformance-fixture update process; schema ownership, chunk sizing, first-release signing policy and publication cadence are resolved by ADR-0020;
+- production details of the web catalog-artifact acquisition source boundary, including authenticated HTTPS, update discovery, rollback, quota failure and interrupted-import recovery; V0 uses explicitly selected local files and the common verification/activation pipeline;
 - default retention periods for each operational and security log category;
 - optional OpenTelemetry exporter selection;
 - analytics aggregate schemas, browser-side buckets, dimension combinations, retention periods, bot-verification adapters, trusted proxy boundaries, contribution windows and cadence, sparse-bucket rules, differencing defenses, and any contribution noise or privacy budget required by ADR-0017 before analytics activation;
