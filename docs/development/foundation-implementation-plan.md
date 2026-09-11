@@ -441,18 +441,14 @@ The first slice uses a deliberately technical record. It validates the mechanism
 - Scope: execute shared fixtures against TypeScript and Java interpretations of the implemented protocol slice.
 - Acceptance: canonicalization, validation, identifiers, revisions, results, and error classifications agree.
 
-#### E10. Publish the first foundation validation report
+#### E10. Publish the V0 technical readiness report
 
 - Initial status: `planned`.
-- Depends on: E1 through E9 and the applicable packaging and CI increments.
-- Scope: record commands, environments, evidence, limitations, failures found, and remaining protocol risks.
-- Acceptance: the report distinguishes demonstrated behavior from planned behavior and does not authorize business features while blocking foundation risks remain.
-
-Later foundation increments must extend this slice beyond the demonstrated dependent-operation chain to
-tombstones, interrupted exchanges, bounded background retry behavior, generation rollover, anchored
-snapshots, full reconciliation, and indeterminate outcomes before those guarantees are claimed as
-validated. Their precise wire formats and retention choices require the follow-up decisions identified by
-the existing architecture documentation.
+- Depends on: B4, B7 through B9, C6, C7, D1 through D6, E1 through E9, F1, and F3.
+- Scope: run the integrated browser, service, and PostgreSQL V0 topology and record commands,
+  environments, evidence, limitations, failures found, and remaining protocol risks.
+- Acceptance: every item in the V0 technical readiness gate is traced to passing evidence; the report
+  distinguishes demonstrated behavior from planned behavior and authorizes only the V0 product track.
 
 ### Track F: packaging and continuous integration
 
@@ -480,17 +476,29 @@ This track may proceed alongside the web, server, contract, and synchronization 
 - Excludes: implementing or selecting the final production reverse proxy and TLS recommendation.
 - Acceptance: a browser uses one origin for the shell and API in the validation topology, and the Spring service is not required to be publicly exposed.
 
+#### F3a. Resolve the production edge and TLS design
+
+- Initial status: `planned`.
+- Depends on: F2 and F3.
+- Scope: select and document the supported production reverse proxy, certificate provisioning and renewal,
+  trusted-proxy handling, security headers, forwarded metadata, and operator configuration in an accepted
+  architecture decision.
+- Excludes: implementing automated deployment or selecting an optional hosting provider.
+- Acceptance: F3b has a testable production topology and security contract, with no implicit CORS or
+  public Spring-service dependency.
+
 #### F3b. Implement the production edge routing
 
-- Initial status: `blocked` until the production reverse-proxy and TLS decision is accepted.
-- Depends on: F3, F2, and the production edge decision.
+- Initial status: `planned`.
+- Depends on: F3a.
 - Scope: route `/` to the built Angular application and `/api/*` to Spring in the selected production edge implementation.
 - Acceptance: the selected production topology serves the shell and API through one origin without publicly exposing the Spring service.
 
 #### F4. Add incremental GitHub Actions validation
 
 - Initial status: `planned`.
-- Depends on: the corresponding local command from each earlier increment.
+- Depends on: the corresponding local command from each implemented increment. Its final acceptance for
+  G6 includes the checks introduced by Track G.
 - Scope: add jobs progressively for documentation, formatting, linting, type checking, tests, architecture checks, builds, image builds, and Compose validation.
 - Excludes: automated deployment.
 - Acceptance: CI invokes pnpm and Gradle explicitly, reports failures by toolchain, and reproduces documented local checks.
@@ -498,7 +506,8 @@ This track may proceed alongside the web, server, contract, and synchronization 
 #### F5. Validate native and container development paths
 
 - Initial status: `planned`.
-- Depends on: F1 through F4.
+- Depends on: F1, F2, F3, and F4. The production-edge design and implementation in F3a and F3b are MVP
+  release prerequisites, not prerequisites for validating development paths.
 - Scope: document and verify native development and the optional container-assisted path.
 - Acceptance: the Dev Container, when added, reuses the Compose environment and does not define a competing topology.
 
@@ -509,12 +518,78 @@ This track may proceed alongside the web, server, contract, and synchronization 
 - Scope: prove that an installed deployment runs without a package registry, Hortinis-operated service, analytics provider, plant provider, or optional external adapter.
 - Acceptance: the validation records all attempted outbound runtime dependencies and demonstrates that none is required for the implemented foundation slice.
 
+### Track G: production synchronization completion
+
+Track G turns the guarantees that are deliberately deferred from V0 into numbered prerequisites for
+production product work. It starts after E10 and may proceed alongside eligible Track F work. G1 must
+resolve the open protocol policies before an implementation task relies on them.
+
+#### G1. Resolve production synchronization policies
+
+- Initial status: `planned`.
+- Depends on: E10.
+- Scope: accept the remaining retention, compaction, synchronization-generation, tombstone, anchored
+  snapshot, continuation, indeterminate-outcome, and full-reconciliation wire decisions identified in
+  `docs/architecture/open-decisions.md`.
+- Excludes: domain-specific merge and conflict-resolution rules.
+- Acceptance: one or more accepted architecture decisions define testable policies and wire behavior
+  without weakening ADR-0010's preservation of pending local intent.
+
+#### G2. Implement tombstones and interrupted-exchange recovery
+
+- Initial status: `planned`.
+- Depends on: G1.
+- Scope: add technical tombstones, resumable exchanges, bounded background retry, retry exhaustion, and
+  observable manual recovery across Dexie, HTTP contracts, Spring, and PostgreSQL.
+- Acceptance: deletion propagates without resurrection, interrupted exchanges resume safely, and retry
+  scheduling neither blocks local work nor hides permanent failure.
+
+#### G3. Implement generation rollover and indeterminate outcomes
+
+- Initial status: `planned`.
+- Depends on: G2.
+- Scope: associate client state and operations with a synchronization generation, reject expired
+  incremental histories, and preserve operations whose acceptance can no longer be proven as explicit
+  indeterminate local work.
+- Acceptance: a lost acknowledgement followed by receipt compaction and generation rollover cannot
+  duplicate, discard, or silently accept the pending intent.
+
+#### G4. Implement anchored snapshots and full reconciliation
+
+- Initial status: `planned`.
+- Depends on: G3.
+- Scope: transfer an internally consistent snapshot anchored to a server sequence, continue strictly after
+  that sequence, and reconcile it with the client's last-synchronized base and pending operation journal.
+- Excludes: domain-specific automatic merges beyond the protocol's safe generic cases.
+- Acceptance: concurrent writes during a paginated snapshot are not missed; non-overlapping state is
+  retained and contradictions remain explicit without overwriting pending local work.
+
+#### G5. Validate synchronization retention and recovery
+
+- Initial status: `planned`.
+- Depends on: G4, B8, and D6.
+- Scope: exercise compaction, tombstone retention, browser migrations, transaction recovery, server
+  migrations, restart recovery, reconciliation repetition, and the ADR-0010 failure scenarios.
+- Acceptance: shared fixtures, browser tests, PostgreSQL integration tests, and end-to-end tests prove the
+  complete technical protocol guarantees across supported recovery paths.
+
+#### G6. Publish the foundation readiness report
+
+- Initial status: `planned`.
+- Depends on: G1 through G5, F2, F3, F4, F5, and F6.
+- Scope: run the complete native, Compose, container-image, CI, migration, restart, synchronization, and
+  autonomous-runtime validation matrix and record remaining risks.
+- Acceptance: every item in the foundation readiness gate is traced to passing evidence, no blocking
+  foundation risk remains, and the report identifies feature-specific product decisions that remain
+  prerequisites rather than treating them as foundation completion work.
+
 ## 6. Readiness gates and milestone boundaries
 
 ### V0 technical readiness gate
 
-The first synchronized product test may begin only when the following smaller foundation slice is
-validated:
+The first synchronized product test may begin only when E10 is validated. E10 has exact dependencies on
+B4, B7 through B9, C6, C7, D1 through D6, E1 through E9, F1, and F3; their transitive dependencies are
+therefore required as well. Together they must demonstrate that:
 
 - the Angular shell builds, has PWA application-shell support and reloads offline;
 - Dexie schema versioning, migrations, transaction rollback and test isolation are demonstrated;
@@ -526,7 +601,7 @@ validated:
   idempotent retry, one dependent operation chain, pull, cursor persistence and reload recovery;
 - an expected-revision conflict is represented explicitly without implementing domain conflict resolution;
 - synchronization failure does not prevent independent local work;
-- shared TypeScript and Java fixtures agree for the implemented protocol slice; and
+- shared TypeScript and Java fixtures agree for the implemented protocol slice;
 - one documented native or Compose test topology exercises the browser, service and PostgreSQL together;
   and
 - a focused V0 readiness report records commands, evidence, limitations and deferred protocol behavior.
@@ -563,7 +638,9 @@ readiness gate above.
 
 ### Foundation readiness gate
 
-Production business-feature implementation may begin only when:
+Production business-feature implementation may begin only when G6 is validated. G6 depends on G1 through
+G5 and on F2, F3, F4, F5, and F6; their transitive dependencies include the initial foundation milestone.
+Together they must demonstrate that:
 
 - the initial foundation milestone is validated;
 - causal operation chains, tombstones, interrupted exchanges, bounded retry behavior, generation rollover, anchored snapshots, full reconciliation, and indeterminate outcomes are implemented and tested;
@@ -592,6 +669,16 @@ For automated and developer-run V0 validation, a test-only single synchronizatio
 without selecting the production access mechanism. It must be unavailable in production builds and must
 not be exposed as a remotely reachable unauthenticated deployment. Any external user test requires the
 P0.5 access design and its necessary architecture decision first.
+
+### Gate-to-product handoff
+
+- E10 authorizes only V0.1 through V0.3 in the product implementation plan.
+- G6 authorizes production product increments only when each increment's P0 and domain prerequisites are
+  also complete.
+- V0 completion is evidence and a product prerequisite for later work, but it does not replace G1 through
+  G6 or authorize production implementation by itself.
+- Foundation identifiers define technical ordering; product identifiers define domain and experience
+  ordering. A product increment must list both kinds when both are direct prerequisites.
 
 ## 7. Deferred and prohibited selections
 
