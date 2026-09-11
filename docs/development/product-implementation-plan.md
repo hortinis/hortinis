@@ -56,9 +56,10 @@ These items may proceed during foundation implementation. They produce specifica
 
 ### P0.1 — Establish the product tracker
 
-- Status: `planned`.
+- Status: `validated`.
+- Deliverable: [product tracker](product-tracker.md).
 - Scope: record dependencies, exclusions, acceptance criteria, decision references, and validation evidence for every product increment.
-- Acceptance: every MVP decision and domain acceptance scenario maps to one or more increments; exploratory capabilities are visibly excluded from the MVP.
+- Acceptance: every MVP decision and domain acceptance scenario maps to one or more increments; exploratory capabilities are visibly excluded from the MVP. Evidence is maintained in the product tracker.
 
 ### P0.2 — Resolve the MVP experience (O-04)
 
