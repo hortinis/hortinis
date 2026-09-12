@@ -1,6 +1,6 @@
 # Hortinis — Open questions and design handoff
 
-- Consolidated on: 2026-09-05.
+- Consolidated on: 2026-09-12.
 - Status: unresolved questions, specification work, and proposed next steps.
 - Accepted requirements: [functional decisions and MVP scope](functional-decisions.md).
 - Long-term context: [product direction](product-direction.md).
@@ -14,7 +14,7 @@ The repository is at the documentation stage: foundation technologies are select
 
 Do not treat the proposed scenarios or horizons as approved decisions. Record the rationale and scope impact of each new decision. New technical selections require an ADR. Write all repository content in English, as required by [ADR-0018](../architecture/decisions/0018-repository-language.md).
 
-O-01 through O-03 are now resolved in the domain specification. The next domain-design conversation can derive the physical data model or API contracts from it; the next unresolved product topic is O-04. For long-term strategy, start with the product direction and section 5 below. Avoid opening every topic at once.
+O-01 through O-03 are resolved in the domain specification. The initial UI discussion is documented in the [UI guidelines](ui-guidelines.md) and [home-screen specification](home-screen-specification.md), with a link to provisional rendering O. This advances O-04 but does not resolve it: quick recording, journal and plan presentation, preference defaults, and several home-screen rules remain open. Product specifications may progress before the technical foundation, but product code remains gated. For long-term strategy, start with the product direction and section 5 below. Avoid opening every topic at once.
 
 ## 2. Domain model and workflows
 
@@ -28,9 +28,13 @@ O-01 through O-03 are resolved by the [domain glossary, lifecycle rules, and acc
 
 ### O-04 — UX and preferences
 
-Determine final navigation, home-view content, quick access to observations/interventions/harvests, journal filters, and presentation of planned versus actual information.
+**Progress:** The accepted directions and provisional home interaction are recorded in the [UI guidelines](ui-guidelines.md) and [home-screen specification](home-screen-specification.md). The accepted starting layout is M. O is retained provisionally for completion: completed task rows and controls remain in place, with compact floating Details/Undo feedback and persistent access to details. The prototype is linked from the home-screen specification.
+
+Decisions still needed: quick-recording sequence and minimum inputs; journal destinations and filters; presentation of plans, tasks, and actual work; period boundaries and task ordering; completed-row visibility over time and after navigation/reload/synchronization; other-garden indicator and garden switching; weather fields and warning behavior; planning prompts; and any MVP mapping views.
 
 Define MVP scope for the four preference dimensions, unknown experience, defaults, explicit settings, and their scope per device or gardener. Future estimates must not trigger opaque interface changes.
+
+P0.2 is **in progress, not complete**. O-11/P0.3 remains open for measurable accessibility, browser/device, field-use, data-volume, latency, and failure-recovery targets. P0.1 is also not complete until MVP decisions and domain scenarios map to implementation increments. Product and UI specification work does not authorize feature implementation before the [foundation readiness gate](../development/foundation-implementation-plan.md#foundation-readiness-gate).
 
 Do not automatically adopt the menus, enums, or class models quoted in older reports.
 
@@ -148,4 +152,4 @@ After each decision, update the direction where necessary and record any release
 
 ## 6. Suggested handoff prompt
 
-> We are continuing the design of Hortinis. Read AGENTS.md, docs/product/product-direction.md, docs/product/functional-decisions.md, docs/product/domain-model.md, docs/product/open-questions.md, and the relevant ADRs. Functional and domain decisions are accepted; do not reopen them based on older reports. The executable scaffold does not yet exist. Start by summarizing the topic, then ask a small group of focused questions. Derive the physical data model or API contracts from the domain specification, address O-04 or a later open question, or use section 5 and the product direction for long-term strategy. Distinguish decisions, proposals, and open questions. Keep all repository content in English. Do not implement features or modify documents without an explicit request in this new conversation.
+> We are continuing Hortinis product and UI design. Read AGENTS.md, docs/product/ui-guidelines.md, docs/product/home-screen-specification.md, docs/product/product-direction.md, docs/product/functional-decisions.md, docs/product/domain-model.md, docs/product/open-questions.md, and the relevant ADRs. M is the accepted home-layout starting point; O is the provisional completion interaction reference. O-04 remains in progress: continue with the remaining quick-recording, journal, planned-versus-actual, period, garden switching, preferences, and planning decisions listed in the home-screen specification. P0.3/O-11 quality targets and P0.1 decision-to-increment traceability also remain. Distinguish accepted decisions, provisional interactions, proposals, and open questions. Product specifications may progress before foundation validation, but no business-feature implementation may start before the foundation readiness gate. Keep repository content in English; French is only for requested discussion mockups. Preserve the earlier prototypes and do not start a local server unless requested.

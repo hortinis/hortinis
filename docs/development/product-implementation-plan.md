@@ -38,11 +38,14 @@ These items may proceed during foundation implementation. They produce specifica
 
 ### P0.2 — Resolve the MVP experience (O-04)
 
-- Status: `planned`.
+- Status: `in progress` (specification work only; product code remains gated).
 - Scope: define navigation, active-garden selection, home view, quick recording, journal filters, planned-versus-actual presentation, history access, and offline/pending/synchronized/conflict states.
 - Also define the MVP preference dimensions, defaults, explicit settings, and whether each setting is per device or per gardener.
+- Current product artifacts: [UI guidelines](../product/ui-guidelines.md) and [home-screen specification](../product/home-screen-specification.md), including provisional mockup O and the remaining O-04 questions.
+- Completed in discussion so far: selected-garden overview; place-grouped tasks, including overdue work in its original group and date; distinct recommendations with explicit conversion; discreet period/weather controls; labeled bottom Record action; optional completion details; and provisional stable task rows with compact floating completion feedback.
+- Still needed before P0.2 acceptance: quick-recording journeys and minimum fields; final navigation and journal/history filters; planned/task/actual presentation; period rules; completed-row lifecycle; garden switching and attention indicator; weather/warning behavior; planning prompts; mapping boundary; MVP preference defaults/scope; and offline/sync/conflict presentation.
 - Excludes: opaque experience-level feature locking and menus copied from earlier proposals.
-- Acceptance: the primary MVP journeys are reviewable without implementation-specific assumptions.
+- Acceptance: the primary MVP journeys and settings are reviewable without implementation-specific assumptions; open interaction questions that block them are resolved or explicitly excluded from MVP. Prototype review alone does not satisfy acceptance.
 
 ### P0.3 — Define the product quality envelope (O-11)
 
