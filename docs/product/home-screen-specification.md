@@ -14,6 +14,7 @@ On opening Hortinis, a gardener should understand what needs attention in the se
 **M** is the accepted starting layout: garden and attention context, grouped place sections, compact weather and period controls, and labeled Record in the bottom navigation. **O** explores what happens after a task is completed: its row remains in place, and a compact floating confirmation offers Details and Undo.
 
 - [Open mockup O: stable task rows and floating completion feedback](</home/julien/.codex/visualizations/2026/09/08/01a08211-6f83-75b0-9f59-4eb6d04cff03/stable-completion-fr.html>) — interactive discussion prototype; French sample UI, temporary in-memory data.
+- [Open the quick-recording discussion prototype](../../work/ui-exploration/quick-recording.html) — retained repository prototype for the type-first flow; English sample UI, temporary in-memory data.
 - Mockups A–M and O are design explorations, not production UI. The French copy is only for the requested prototype; repository specifications remain English.
 
 The functional outline is:
@@ -69,7 +70,7 @@ The following choices advance the direct **Record** journey but do not complete 
 | Layout independence | Recording against a garden, crop, empty space, or occupied space does not require a drawn or dimensioned plan. A future plan may record space dimensions without creating the space's identity. | Accepted. |
 | Post-record feedback | Reuse O's compact **Details** and **Undo** pattern as a candidate for direct recording. | Provisional; retain only after interaction, accessibility, and device testing. |
 
-This work remains **in progress**. The retained discussion prototype exercises the choices above but is not a repository artifact, a final interaction, or implementation authorization.
+This work remains **in progress**. The retained repository discussion prototype exercises the choices above but is not a final interaction or implementation authorization.
 
 ## Questions remaining for O-04
 

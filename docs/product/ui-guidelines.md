@@ -55,4 +55,4 @@ Mapping is an important future capability, not a settled MVP requirement. It sho
 
 ## Reference concepts
 
-The accepted starting layout is mockup M; completion feedback and stable task rows use provisional mockup O. The detailed decision record and links to the renderings are in the [home-screen specification](home-screen-specification.md). Earlier directions are retained in the UI exploration directory for comparison. These are design prototypes, not implemented screens or approval to begin business-feature development.
+The accepted starting layout is mockup M; completion feedback and stable task rows use provisional mockup O. The type-first quick-recording flow is retained as a separate discussion prototype. The detailed decision record and links to the renderings are in the [home-screen specification](home-screen-specification.md). Earlier directions are retained in the UI exploration directory for comparison. These are design prototypes, not implemented screens or approval to begin business-feature development.
