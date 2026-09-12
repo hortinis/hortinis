@@ -27,15 +27,22 @@ Phone is the primary device for everyday use, including offline garden work. The
 | UI-10 | Support quick task completion with optional detail entry. | A gardener can record completion without a mandatory follow-up question; details, correction, and undo remain accessible. |
 | UI-11 | Keep a completed task and its completion control in the same place during consecutive actions. | Stable positions reduce repeated aiming and prevent list movement under the user's finger. The retained prototype marks completion without removing or reordering that row. |
 | UI-12 | Use compact, dismissible floating feedback after completion, with **Details** and **Undo**. | The confirmation should not expand the list or obscure its completion controls. Details also remain accessible from the completed row and journal. This interaction is provisional pending accessibility and device validation. |
-| UI-13 | Let quick recording grow into action-specific detail without blocking a simple entry. | Start with a suitable action and target; provide optional fields when wanted. Minimum valid content and recovery behavior need specification before implementation. |
+| UI-13 | Let quick recording grow into action-specific detail without blocking a simple entry. | Start with an action; allow an optional target and provide optional fields when wanted. Type-specific validation and recovery behavior need specification before implementation. |
 | UI-14 | Plan for garden history through time and seasonal reuse. | Past, current, and planned placements have distinct meanings. The detailed map and its release scope remain open; history should remain usable without a map. |
+| UI-15 | Start direct recording with the record or action type and keep every available type visible from the same entry point. | The gardener should not need prior context, an inferred experience level, or a different access path to find a type. The exact labels, grouping, and responsive presentation still require testing. |
+| UI-16 | Make a more specific target optional; omitting it targets the selected garden. | “No target” is not an unowned or cross-garden record. Crop- and space-specific choices refine the selected-garden target when useful. Harvest semantics still need reconciliation with the current domain requirement for a crop target. |
+| UI-17 | Let a crop target cover the whole selected crop or be narrowed by space. | Without a space refinement, the entry applies to the whole selected crop subject. Selecting a space limits it to the applicable lot portion in that space. User-facing crop selection and multi-lot resolution require further specification. |
+| UI-18 | Default direct-record business time to today while keeping it editable and allowing unknown time. | A common same-day entry should not require a date question, but Hortinis must preserve delayed entry and uncertainty rather than inventing a date. |
+| UI-19 | Discard an unsubmitted direct-record draft when its recording surface is closed. | The quick path does not retain a hidden draft after explicit closure. Navigation, garden switching, accidental dismissal, and assistive-technology behavior still need scenario testing. |
+| UI-20 | Keep direct recording at the minimum content required by the selected record type. | Quantity and diagnostic detail remain optional. Observation remains one general type for now and requires only its domain-defined free-form account in addition to the common minimum. |
+| UI-21 | Defer broad-action exclusions beyond the MVP without closing the future path. | MVP recording does not need an exclusion editor. Later coverage and exclusion semantics must remain possible without duplicating work across garden, space, and crop histories. |
 
 ## Interaction and information principles
 
 - Keep one selected garden clear. Garden identity must not be lost when switching to another garden or inspecting its attention indicator.
 - Preserve original dates and uncertainty. An overdue task keeps its due date and appears within its place group with clear text emphasis.
 - Show recommendations separately from tasks. Conversion is an explicit user action; viewing or converting advice does not create a journal event.
-- Let users record work against a crop, a space, or the whole garden. Broad work may include exclusions, such as watering everywhere except a greenhouse; coverage, history, and duplicate prevention require further specification.
+- Let users record work against a crop, a space, or the whole selected garden. Omitting a more specific target means the selected garden. Broad-action exclusions are deferred beyond the MVP; future coverage, history, and duplicate prevention still require specification.
 - Let the user record garden- or space-level work such as soil preparation or fertilizing an empty bed.
 - Keep a quick path for harvests, watering, observations, and other work. A user may add optional details after choosing to record; do not require quantity when it is unknown or a diagnosis for an observation.
 - Weather, time-period selection, and planning indicators are supporting controls. Do not let them crowd out the garden's work.
@@ -44,7 +51,7 @@ Phone is the primary device for everyday use, including offline garden work. The
 
 ## Mapping direction
 
-Mapping is an important future capability, not a settled MVP requirement. It should support a garden through time: crop positions in the past, present, and future; work associated with locations; an eventual sense of capacity; and later exploration of rotation and companion planting. Both a simple approach for beginners and precise editing for experienced users should coexist. The application must remain complete without a map. No geometry, capacity calculation, or horticultural suitability rule is selected here.
+Mapping is an important future capability, not a settled MVP requirement. It should support a garden through time: crop positions in the past, present, and future; work associated with locations; space dimensions when the gardener wants to record them; an eventual sense of capacity; and later exploration of rotation and companion planting. Spaces exist independently of a drawn or dimensioned plan, and the application must remain complete without a map. Both a simple approach for beginners and precise editing for experienced users should coexist. No geometry, capacity calculation, or horticultural suitability rule is selected here.
 
 ## Reference concepts
 
