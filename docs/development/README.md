@@ -62,13 +62,13 @@ Install the Playwright Chromium binary once before running browser tests:
 pnpm --filter @hortinis/web exec playwright install chromium
 ```
 
-Run the B3 browser smoke test independently:
+Run the browser smoke and offline application-shell tests independently:
 
 ```shell
 pnpm --filter @hortinis/web test:e2e
 ```
 
-Playwright starts the Angular development server on `http://127.0.0.1:4200` for the test and stops it afterward. The test currently covers Chromium only; the supported browser and device matrix remains part of the product quality-envelope work.
+Playwright builds the production bundle, serves its static output on `http://127.0.0.1:4200`, and stops the server afterward. The PWA test waits until the service worker has cached the application shell, enables browser offline mode, and verifies that reloading returns the cached shell from the service worker. Tests currently cover Chromium only; the supported browser and device matrix remains part of the product quality-envelope work.
 
 Apply supported lint fixes followed by configured formatting with the ordered convenience command:
 

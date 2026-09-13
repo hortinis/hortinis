@@ -14,7 +14,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm exec ng serve --host 127.0.0.1 --port 4200',
+    command: 'pnpm exec ng build --configuration=production && node e2e/production-server.mjs',
     url: 'http://127.0.0.1:4200',
     reuseExistingServer: false,
   },

@@ -227,7 +227,7 @@ This contract does not yet select Nginx, Caddy, Traefik, or another production r
 - Acceptance: development build, production build, strict type checking, and the initial unit-test command succeed.
 - Validation commands: `node --version`, `pnpm --version`, `pnpm install --frozen-lockfile`, `pnpm list --recursive --depth -1`, `pnpm --filter @hortinis/web typecheck`, `pnpm --filter @hortinis/web test`, `pnpm --filter @hortinis/web build:development`, `pnpm --filter @hortinis/web build`, `git diff --check`, `git ls-files -ci --exclude-standard`, `git check-attr text eol -- .gitattributes README.md gradlew gradlew.bat`, and `git ls-files --eol`.
 - Validation evidence: Node.js reports `v24.18.0`, pnpm reports `11.26.0`, frozen installation succeeds, workspace discovery reports `@hortinis/workspace` and `@hortinis/web`, strict TypeScript and Angular template checking succeeds, the initial two-test Vitest suite passes, and both development and production Angular builds succeed. The repository-wide whitespace, ignore, and line-ending checks also succeed.
-- Follow-up: B2 enforces the Angular CLI-generated Prettier baseline and adds Angular ESLint; B3 adds browser smoke testing; B4 replaces the generated favicon while adding PWA assets and application-shell caching. Any component-library selection, including Angular Material, requires its own decision and increment.
+- Follow-up: B2 enforces the Angular CLI-generated Prettier baseline and adds Angular ESLint; B3 adds browser smoke testing; B4 adds PWA assets and application-shell caching. Replace the generated favicon after the visual identity is selected. Any component-library selection, including Angular Material, requires its own decision and increment.
 - Relevant decisions: ADR-0007, ADR-0011, ADR-0018, and ADR-0019.
 
 #### B2. Enforce frontend formatting and linting
@@ -258,11 +258,12 @@ This contract does not yet select Nginx, Caddy, Traefik, or another production r
 
 #### B4. Add PWA application-shell support
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: B1 through B3.
 - Scope: add the Angular service worker, web manifest, icons or placeholders suitable for foundation validation, and versioned application-shell caching.
 - Excludes: background data synchronization and analytics queues.
 - Acceptance: the production application is installable where supported and reloads its shell while offline after a successful initial load.
+- Validation evidence: the Chromium Playwright test serves the production build as static files, waits for the service worker to cache the application shell and control the page, enables browser offline mode, and verifies that reloading renders the cached shell from the service worker.
 
 B5 and B6, formerly separate domain and application package setup, are folded into B8, B9, and Track E. Introduce pure rules and coordinating services with their first behavior inside `apps/web`; no empty package increments remain. These identifiers are retained here only to explain the tracker revision.
 
