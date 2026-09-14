@@ -207,11 +207,11 @@ This contract does not yet select Nginx, Caddy, Traefik, or another production r
 - Status: `validated`.
 - Depends on: A3 and A4.
 - Scope: replace the pre-scaffold-only development instructions with exact independent commands as capabilities become runnable.
-- Excludes: adding application capabilities, quality-tool dependencies, CI jobs, or a monorepo task orchestrator.
-- Artifacts: executable validation entry points and repository-wide validation guidance in `docs/development/README.md`.
-- Acceptance: formatting, linting, type checking, tests, architecture checks, and builds remain separately invocable rather than hidden behind a monorepo orchestrator.
+- Excludes: adding application capabilities, quality-tool dependencies, CI jobs, or a third-party monorepo task orchestrator.
+- Artifacts: executable validation entry points, an optional sequential root `pnpm validate` wrapper, and repository-wide validation guidance in `docs/development/README.md`.
+- Acceptance: formatting, linting, type checking, tests, architecture checks, and builds remain separately invocable, and the root command runs them in a documented sequence and stops at the first failure.
 - Validation commands: `node --version`, `pnpm --version`, `pnpm install --frozen-lockfile`, `pnpm list --recursive --depth -1`, `java --version`, `sha256sum --check gradle/wrapper/gradle-wrapper.jar.sha256`, `./gradlew --version`, `./gradlew projects`, `./gradlew build`, `git diff --check`, `git ls-files -ci --exclude-standard`, `git check-attr text eol -- .gitattributes README.md gradlew gradlew.bat`, and `git ls-files --eol`.
-- Validation evidence: frontend and backend foundation commands remain documented in separate sections; repository-wide checks are independently listed; future formatting, linting, type-checking, testing, architecture, and build commands have explicit owning increments; and no aggregate task runner was introduced.
+- Validation evidence: frontend and backend foundation commands remain documented in separate sections; repository-wide checks are independently listed; future formatting, linting, type-checking, testing, architecture, and build commands have explicit owning increments; and the root wrapper invokes those entry points without adding a task-runner dependency.
 - Follow-up: add each capability-specific command with B1, B2, B7, C7, D1, and later increments as those capabilities become runnable; keep CI invocation aligned with the same independent local entry points.
 - Relevant decisions: ADR-0007, ADR-0011, ADR-0012, and ADR-0018.
 
@@ -269,10 +269,13 @@ B5 and B6, formerly separate domain and application package setup, are folded in
 
 #### B7. Add automated web boundary checks
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: B2 and B8; extend the checks when B9 and Track E introduce synchronization code.
 - Scope: use internal import checks to protect pure rules, detect dependency cycles, and prevent Angular components from accessing persistence directly. Add rules as the corresponding code appears.
 - Acceptance: representative forbidden imports cause the check to fail.
+- Artifacts: the independent `architecture:check` command; ESLint restrictions for Angular component persistence imports and pure-rule external packages, framework, transport, persistence, filesystem, provider, and browser-global dependencies; a TypeScript import-graph cycle check; and isolated negative fixtures with automated tests.
+- Validation commands: `pnpm --filter @hortinis/web architecture:check`, `pnpm --filter @hortinis/web test:architecture`, `pnpm --filter @hortinis/web format:check`, `pnpm --filter @hortinis/web lint`, `pnpm --filter @hortinis/web typecheck`, `pnpm --filter @hortinis/web test`, `pnpm --filter @hortinis/web build:development`, `pnpm --filter @hortinis/web build`, `git diff --check`, `git ls-files -ci --exclude-standard`, `git check-attr text eol -- .gitattributes README.md gradlew gradlew.bat`, and `git ls-files --eol`.
+- Validation evidence: the application source passes the architecture check; separate fixtures prove that direct component-to-persistence imports, framework or external-package imports from pure-rule files, and internal TypeScript cycles each fail it.
 
 #### B8. Create the Dexie adapter
 

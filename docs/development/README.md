@@ -8,7 +8,13 @@ The selected development toolchain is:
 - Docker Compose and an optional Dev Container;
 - ESLint, Prettier, Vitest, Playwright, Checkstyle, Spotless, JUnit, AssertJ, ArchUnit, and Testcontainers for automated quality checks.
 
-Validation commands are documented at the capability boundary that introduces them. Run each entry point independently so a failure remains attributable to one toolchain or repository check. The repository does not use a separate monorepo task orchestrator.
+Validation commands are documented at the capability boundary that introduces them. Run each entry point independently when focusing on one toolchain or repository check, or run the full sequential suite from the repository root:
+
+```shell
+pnpm validate
+```
+
+The root command stops at the first failure and runs the existing checks without hiding their independent entry points. Browser validation requires the Playwright Chromium binary to be installed once as described below.
 
 ## Frontend workspace
 
@@ -37,7 +43,7 @@ pnpm install --frozen-lockfile
 pnpm list --recursive --depth -1
 ```
 
-The expected versions are Node.js `v24.18.0` and pnpm `11.26.0`. No aggregate command hides the independent validation entry points.
+The expected versions are Node.js `v24.18.0` and pnpm `11.26.0`. The root `pnpm validate` command checks these versions and runs workspace discovery before application validation.
 
 ### Web application
 
@@ -48,6 +54,8 @@ Run its validation entry points independently from the repository root:
 ```shell
 pnpm --filter @hortinis/web format:check
 pnpm --filter @hortinis/web lint
+pnpm --filter @hortinis/web architecture:check
+pnpm --filter @hortinis/web test:architecture
 pnpm --filter @hortinis/web typecheck
 pnpm --filter @hortinis/web test
 pnpm --filter @hortinis/web build:development
