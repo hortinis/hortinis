@@ -276,11 +276,16 @@ B5 and B6, formerly separate domain and application package setup, are folded in
 
 #### B8. Create the Dexie adapter
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: B2.
-- Scope: implement dedicated persistence components under `apps/web/src/app/persistence`, an initial versioned IndexedDB schema, and migration test infrastructure. Keep transaction ownership explicit without requiring a persistence interface or separate package.
+- Scope: implement dedicated persistence components under `apps/web/src/app/persistence`, an initial versioned IndexedDB schema, and migration test infrastructure. Keep transaction ownership explicit without requiring a persistence interface or separate package. The shipped initial schema intentionally contains no application stores; a test-only fixture demonstrates version upgrades without introducing placeholder production data.
 - Excludes: garden records and synchronization behavior.
+- Artifacts: the Angular-injectable `HortinisDatabase` Dexie adapter, an empty version-one application schema, test-only versioned migration fixtures, isolated IndexedDB unit tests, and the `fake-indexeddb` test dependency.
 - Acceptance: database creation, version discovery, migration execution, transaction rollback, and test isolation are demonstrated.
+- Validation commands: `pnpm install --frozen-lockfile`, `pnpm --filter @hortinis/web format:check`, `pnpm --filter @hortinis/web lint`, `pnpm --filter @hortinis/web typecheck`, `pnpm --filter @hortinis/web test`, `pnpm --filter @hortinis/web build:development`, `pnpm --filter @hortinis/web build`, `git diff --check`, `git ls-files -ci --exclude-standard`, `git check-attr text eol -- .gitattributes README.md gradlew gradlew.bat`, and `git ls-files --eol`.
+- Validation evidence: the six-test Vitest suite opens the empty version-one application database and reports its version, upgrades a separate version-one fixture database through a version-two data migration, rolls back a failed Dexie read-write transaction, and proves separately named databases are isolated and deleted after each test. Formatting, linting, strict type checking, development and production builds, and repository-wide whitespace, ignore, attribute, and line-ending checks succeed.
+- Follow-up: introduce real feature-owned stores and their migrations only with the relevant product increments; E2 defines the first atomic local state and outbox transaction.
+- Relevant decisions: ADR-0002, ADR-0008, and ADR-0018.
 
 #### B9. Create the HTTP synchronization adapter boundary
 
