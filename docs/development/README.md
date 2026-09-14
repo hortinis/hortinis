@@ -6,6 +6,7 @@ The selected development toolchain is:
 - Java 25 LTS, Spring Boot 4, and the Gradle Wrapper with Kotlin DSL for the backend;
 - PostgreSQL 18 and Flyway migrations;
 - Docker Compose and an optional Dev Container;
+- TypeSpec for language-neutral HTTP and JSON contracts, with generated OpenAPI 3.1 and JSON Schema Draft 2020-12;
 - ESLint, Prettier, Vitest, Playwright, Checkstyle, Spotless, JUnit, AssertJ, ArchUnit, and Testcontainers for automated quality checks.
 
 Validation commands are documented at the capability boundary that introduces them. Run each entry point independently when focusing on one toolchain or repository check, or run the full sequential suite from the repository root:
@@ -44,6 +45,28 @@ pnpm list --recursive --depth -1
 ```
 
 The expected versions are Node.js `v24.18.0` and pnpm `11.26.0`. The root `pnpm validate` command checks these versions and runs workspace discovery before application validation.
+
+### Contracts
+
+TypeSpec sources under `contracts/typespec` are the authority for HTTP and language-neutral JSON
+contracts. OpenAPI documents and standalone JSON Schemas are generated artifacts. The D1 source has no
+operations or payload models; the emitter compatibility fixture exercises representative wire shapes.
+
+Run contract checks independently from the repository root:
+
+```shell
+pnpm contracts:format:check
+pnpm contracts:check-generated
+pnpm contracts:lint
+pnpm contracts:test
+pnpm contracts:validate
+```
+
+After editing TypeSpec, regenerate the committed OpenAPI with `pnpm contracts:generate`, then review the
+source and generated diff. Generated files must not be edited manually. Validation rejects external
+references and validates local references without contacting remote hosts. The Redocly launcher disables
+telemetry and update notices. D2 adds the first production JSON Schemas; the standalone schema validator
+is already exercised against the generated compatibility fixture.
 
 ### Web application
 

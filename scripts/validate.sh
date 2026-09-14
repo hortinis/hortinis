@@ -16,6 +16,7 @@ run_check pnpm --version
 run_check pnpm list --recursive --depth -1
 
 printf '\n%s\n' 'Frontend validation'
+run_check pnpm contracts:validate
 run_check pnpm --filter @hortinis/web format:check
 run_check pnpm --filter @hortinis/web lint
 run_check pnpm --filter @hortinis/web architecture:check

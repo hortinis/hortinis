@@ -67,6 +67,7 @@ Separate packages or modules require demonstrated reuse or a need for independen
 - [ADR-0018: Repository language](decisions/0018-repository-language.md)
 - [ADR-0019: Web styling foundation](decisions/0019-web-styling-foundation.md)
 - [ADR-0020: Catalog release coordination](decisions/0020-catalog-release-coordination.md)
+- [ADR-0021: TypeSpec contract source](decisions/0021-typespec-contract-source.md)
 
 ## Open decisions
 

@@ -1,0 +1,5 @@
+namespace Hortinis.Invalid;
+
+model InvalidContract {
+  value: ;
+}

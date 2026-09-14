@@ -8,6 +8,24 @@
     "pnpm": "11.26.0"
   },
   "scripts": {
-    "validate": "bash scripts/validate.sh"
+    "validate": "bash scripts/validate.sh",
+    "contracts:format": "tsp format \"contracts/typespec/**/*.tsp\" \"tooling/contracts/fixtures/**/*.tsp\"",
+    "contracts:format:check": "tsp format --check \"contracts/typespec/**/*.tsp\" \"tooling/contracts/fixtures/**/*.tsp\"",
+    "contracts:generate": "node scripts/contracts/generate.mjs",
+    "contracts:check-generated": "node scripts/contracts/check-generated.mjs",
+    "contracts:lint": "node scripts/contracts/lint-local.mjs && bash scripts/contracts/lint-openapi.sh",
+    "contracts:test": "node --test scripts/contracts/*.test.mjs && bash scripts/contracts/test-openapi.sh",
+    "contracts:validate": "pnpm contracts:format:check && pnpm contracts:check-generated && pnpm contracts:lint && pnpm contracts:test"
+  },
+  "devDependencies": {
+    "@redocly/cli": "2.52.0",
+    "@typespec/compiler": "1.16.0",
+    "@typespec/http": "1.16.0",
+    "@typespec/json-schema": "1.16.0",
+    "@typespec/openapi": "1.16.0",
+    "@typespec/openapi3": "1.16.0",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "yaml": "2.8.1"
   }
 }

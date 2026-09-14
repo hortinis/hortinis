@@ -1,0 +1,8 @@
+openapi: 3.1.0
+info:
+  title: Hortinis Synchronization API
+  version: 0.0.0
+  description: The contract-first HTTP API for the Hortinis synchronization service.
+tags: []
+paths: {}
+components: {}

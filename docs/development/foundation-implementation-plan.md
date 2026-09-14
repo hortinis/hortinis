@@ -1,6 +1,6 @@
 # Technical foundation implementation plan
 
-- Status: approved implementation specification; implementation not started.
+- Status: approved implementation specification; incremental implementation is underway.
 - Scope: executable technical foundation and the readiness gates that control when the limited V0 and
   production garden-management slices may begin.
 - Tracking: this file is the repository source of truth until the work is optionally transferred to GitHub issues.
@@ -334,11 +334,16 @@ C1 through C4, formerly separate backend layer and protocol module setup, are fo
 
 #### D1. Establish contract structure and validation
 
-- Initial status: `planned`.
-- Depends on: A3 or A4 as required by the selected validator.
-- Scope: create OpenAPI 3.1, JSON Schema, and synchronization fixture locations with validation commands.
-- Excludes: garden resources and unresolved authentication contracts.
-- Acceptance: valid minimal contracts pass and deliberately invalid fixtures fail.
+- Status: `validated`.
+- Depends on: A3.
+- Scope: author contracts in TypeSpec; generate OpenAPI 3.1 and JSON Schema Draft 2020-12; establish the contract and synchronization-fixture locations; and provide independent formatting, generation, drift, specification, schema, and negative-fixture checks.
+- Excludes: synchronization envelopes, garden resources, authentication and authorization, generated Java or TypeScript boundary code, runtime request validation, controllers, adapters, and business behavior.
+- Artifacts: ADR-0021; a pinned TypeSpec compiler and compatible HTTP, OpenAPI, and JSON Schema libraries; `contracts/typespec/`; generated `contracts/openapi/openapi.yaml`; the reserved `contracts/schemas/` and `contracts/sync/fixtures/` locations; contract validation scripts and fixtures; and updated API, architecture, and development documentation.
+- Acceptance: the production TypeSpec source compiles without warnings and emits an endpoint-free OpenAPI 3.1 document; a synthetic compatibility fixture emits matching OpenAPI and JSON Schema representations for required, optional, nullable, constrained, closed-object, and literal-union shapes; generated output is byte-for-byte reproducible; independent validators accept valid contracts and reject deliberately invalid TypeSpec, OpenAPI, schemas, instances, unresolved references, and external references; and validation requires no network after frozen dependency installation.
+- Validation commands: `pnpm install --frozen-lockfile`, `pnpm contracts:format:check`, `pnpm contracts:check-generated`, `pnpm contracts:lint`, `pnpm contracts:test`, `pnpm contracts:validate`, `git diff --check`, `git ls-files -ci --exclude-standard`, `git check-attr text eol -- .gitattributes README.md gradlew gradlew.bat`, and `git ls-files --eol`.
+- Validation evidence: on 2026-09-14, `pnpm install --frozen-lockfile`, `pnpm contracts:validate`, all five contract tests, `git diff --check`, `git ls-files -ci --exclude-standard`, `git check-attr text eol -- .gitattributes README.md gradlew gradlew.bat`, and `git ls-files --eol` passed. Contract generation reproduced the committed OpenAPI byte-for-byte; Redocly accepted the production document and rejected the invalid OpenAPI fixture. Ajv accepted the valid instance and rejected missing-required, constrained, invalid-union, and extra-property payloads against both generated representations; the invalid schema was also rejected. The full `pnpm validate` run passed contract and frontend checks, including Playwright and both builds, but stopped at the unrelated Gradle root-build configuration error in `:spotlessJavaCheck` (`target` must be specified or the Java plugin applied); backend quality work remains tracked under C7.
+- Follow-up: D2 adds the technical service and synchronization models and operations in TypeSpec; D2 and E1 add production schemas and protocol conformance fixtures. Choose TypeScript and Java code generators only when their respective adapter increments establish a need and can verify generated output quality.
+- Relevant decisions: ADR-0003, ADR-0007, ADR-0009, ADR-0011, ADR-0018, and ADR-0021.
 
 #### D2. Define technical service and synchronization envelopes
 
