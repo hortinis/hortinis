@@ -109,12 +109,15 @@ Validate the backend workspace independently of the frontend workspace:
 java --version
 ./gradlew --version
 ./gradlew projects
+./gradlew :services:sync:spotlessCheck
+./gradlew :services:sync:checkstyleMain :services:sync:checkstyleTest
+./gradlew :services:sync:pmdMain :services:sync:pmdTest
 ./gradlew --dependency-verification=strict :services:sync:test
 ./gradlew :services:sync:build
 ./gradlew :services:sync:bootRun
 ```
 
-Java must report major version 25 and Gradle must report version 9.7.1. The projects report includes the single Spring Boot application project at `:services:sync`. The C5 application-context test verifies that the empty service starts without a database; `bootRun` starts and returns normally because the empty application does not yet include a web server or other non-daemon work. Formatting, integration tests, and architecture tests will receive separate commands when their corresponding executable capabilities are introduced; no aggregate command should hide those entry points.
+Java must report major version 25 and Gradle must report version 9.7.1. The projects report includes the single Spring Boot application project at `:services:sync`. `spotlessCheck` validates Java formatting with Google Java Format and Gradle Kotlin script formatting with ktlint. Checkstyle and PMD run independently through their source-set tasks. JUnit 5 is executed through Gradle's `test` task; Spring Boot's test starter provides AssertJ. The C5 application-context test verifies that the empty service starts without a database; `bootRun` starts and returns normally because the empty application does not yet include a web server or other non-daemon work. ArchUnit architecture checks will receive a separate command when internal package boundaries exist; no aggregate command should hide that entry point.
 
 ## Repository-wide validation
 

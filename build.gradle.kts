@@ -1,8 +1,10 @@
 import org.gradle.api.plugins.JavaPluginExtension
+import org.gradle.api.plugins.quality.CheckstyleExtension
 import org.gradle.api.tasks.compile.JavaCompile
 
 plugins {
     base
+    id("com.diffplug.spotless") version "8.10.2" apply false
 }
 
 require(JavaVersion.current() == JavaVersion.VERSION_25) {
@@ -11,6 +13,25 @@ require(JavaVersion.current() == JavaVersion.VERSION_25) {
 
 allprojects {
     group = "com.hortinis"
+
+    apply(plugin = "com.diffplug.spotless")
+    apply(plugin = "pmd")
+    apply(plugin = "checkstyle")
+
+    extensions.configure<CheckstyleExtension> {
+        toolVersion = "14.1.0"
+    }
+
+    pluginManager.withPlugin("com.diffplug.spotless") {
+        configure<com.diffplug.gradle.spotless.SpotlessExtension> {
+            java {
+                googleJavaFormat("1.30.0")
+            }
+            kotlinGradle {
+                ktlint()
+            }
+        }
+    }
 }
 
 subprojects {
@@ -21,12 +42,15 @@ subprojects {
     tasks.register("resolveAndLockAll") {
         notCompatibleWithConfigurationCache("Filters configurations at execution time")
         doFirst {
-            require(gradle.startParameter.isWriteDependencyLocks) { "$path must be run from the command line with the `--write-locks` flag" }
+            require(
+                gradle.startParameter.isWriteDependencyLocks,
+            ) { "$path must be run from the command line with the `--write-locks` flag" }
         }
         doLast {
-            configurations.filter {
-                it.isCanBeResolved
-            }.forEach { it.resolve() }
+            configurations
+                .filter {
+                    it.isCanBeResolved
+                }.forEach { it.resolve() }
         }
     }
     pluginManager.withPlugin("java-base") {

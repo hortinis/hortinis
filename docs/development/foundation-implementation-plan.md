@@ -324,10 +324,11 @@ C1 through C4, formerly separate backend layer and protocol module setup, are fo
 
 #### C7. Add backend quality enforcement
 
-- Initial status: `planned`.
+- Status: `in progress`.
 - Depends on: C5.
 - Scope: configure the Java compiler, JUnit 5, AssertJ, Checkstyle, Spotless, and ArchUnit with independent commands.
 - Acceptance: formatting, unit tests, and architecture tests are deterministic. As code appears, focused checks reject framework or infrastructure imports in pure rules, dependency cycles, and controller access to persistence; representative violations fail.
+- Current implementation: Checkstyle, PMD, and Spotless are configured. Spotless applies Google Java Format to Java sources and ktlint to Gradle Kotlin scripts. JUnit 5 is enabled through the JUnit Platform, and AssertJ is provided by Spring Boot's test starter. ArchUnit and executable architecture rules remain deferred until internal package boundaries exist.
 
 ### Track D: contracts and PostgreSQL
 
