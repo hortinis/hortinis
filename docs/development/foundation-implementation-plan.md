@@ -303,11 +303,16 @@ C1 through C4, formerly separate backend layer and protocol module setup, are fo
 
 #### C5. Create the empty Spring Boot synchronization service
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: A4.
 - Scope: register and create `services/sync` as the single Spring Boot application project under the existing root Gradle build. Introduce internal packages only as behavior needs them.
 - Excludes: PostgreSQL, authentication, synchronization endpoints, and business behavior.
+- Artifacts: the registered `:services:sync` Gradle application project; the `com.hortinis.sync.HortinisSyncApplication` Spring Boot entry point; a minimal application name configuration; application-context startup coverage; dependency locking; and reviewed Gradle dependency-verification metadata for the introduced Spring Boot artifacts.
 - Acceptance: the service starts and stops cleanly without a database.
+- Validation commands: `sha256sum --check gradle/wrapper/gradle-wrapper.jar.sha256`, `java --version`, `./gradlew --version`, `./gradlew projects`, `./gradlew --dependency-verification=strict :services:sync:clean :services:sync:test --rerun-tasks`, `./gradlew :services:sync:build`, `./gradlew :services:sync:bootRun`, `git diff --check`, `git ls-files -ci --exclude-standard`, `git check-attr text eol -- .gitattributes README.md gradlew gradlew.bat`, and `git ls-files --eol`.
+- Validation evidence: on 2026-09-14, strict dependency verification, a clean rerun of the application-context test, the service build, Gradle project discovery, and repository whitespace, ignore, attribute, and line-ending checks succeeded. `bootRun` started the application with Java 25 without configuring a database and returned normally because this empty application deliberately does not yet include a web server or other non-daemon work.
+- Follow-up: C6 adds observable health/readiness behavior and safe structured logging; D1 introduces HTTP contract structure. Add dedicated lifecycle coverage only when the service owns resources whose shutdown behavior requires application-specific verification.
+- Relevant decisions: ADR-0003, ADR-0007, ADR-0009, ADR-0011, ADR-0015, and ADR-0018.
 
 #### C6. Add health, readiness, and safe structured logging
 

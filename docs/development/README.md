@@ -93,7 +93,7 @@ pnpm --filter @hortinis/web lint:fix
 
 ## Backend workspace
 
-The backend workspace requires a Java 25 JDK and uses Gradle 9.7.1 exclusively through the committed Gradle Wrapper. A separate system Gradle installation is neither required nor supported. The root build centralizes plugin and dependency repositories, rejects project-specific repositories, and applies the Java 25 toolchain and compiler release to the future Spring Boot application project.
+The backend workspace requires a Java 25 JDK and uses Gradle 9.7.1 exclusively through the committed Gradle Wrapper. A separate system Gradle installation is neither required nor supported. The root build centralizes plugin and dependency repositories, rejects project-specific repositories, and applies the Java 25 toolchain and compiler release to the Spring Boot application project at `services/sync`.
 
 Validate the Wrapper files before running the build:
 
@@ -101,18 +101,20 @@ Validate the Wrapper files before running the build:
 sha256sum --check gradle/wrapper/gradle-wrapper.jar.sha256
 ```
 
-The Wrapper also verifies the downloaded Gradle binary distribution against the SHA-256 checksum recorded in `gradle/wrapper/gradle-wrapper.properties`. The root has no external Java dependencies, so `gradle/verification-metadata.xml` intentionally begins with an empty component list. Each increment that adds a dependency must add and review its verification metadata at the same time.
+The Wrapper also verifies the downloaded Gradle binary distribution against the SHA-256 checksum recorded in `gradle/wrapper/gradle-wrapper.properties`. The root has no external Java dependencies; the C5 Spring Boot application has reviewed dependency-verification metadata and committed dependency locks. Each later increment that adds a dependency must update and review both at the same time.
 
-Validate the existing empty backend root build independently of the frontend workspace:
+Validate the backend workspace independently of the frontend workspace:
 
 ```shell
 java --version
 ./gradlew --version
 ./gradlew projects
-./gradlew build
+./gradlew --dependency-verification=strict :services:sync:test
+./gradlew :services:sync:build
+./gradlew :services:sync:bootRun
 ```
 
-Java must report major version 25 and Gradle must report version 9.7.1. The projects report contains only the root project until the single Spring Boot application project at `services/sync` is introduced by C5. Formatting, unit tests, integration tests, architecture tests, and application builds will receive separate commands when their corresponding executable capabilities are introduced; no aggregate command should hide those entry points.
+Java must report major version 25 and Gradle must report version 9.7.1. The projects report includes the single Spring Boot application project at `:services:sync`. The C5 application-context test verifies that the empty service starts without a database; `bootRun` starts and returns normally because the empty application does not yet include a web server or other non-daemon work. Formatting, integration tests, and architecture tests will receive separate commands when their corresponding executable capabilities are introduced; no aggregate command should hide those entry points.
 
 ## Repository-wide validation
 
