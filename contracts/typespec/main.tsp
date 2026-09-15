@@ -5,7 +5,6 @@ import "@typespec/json-schema";
 import "./sync-models.tsp";
 import "./sync-operations.tsp";
 
-using TypeSpec;
 using TypeSpec.OpenAPI;
 
 @TypeSpec.service(#{ title: "Hortinis Synchronization API" })
