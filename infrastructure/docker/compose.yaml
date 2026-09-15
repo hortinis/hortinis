@@ -1,0 +1,36 @@
+name: hortinis
+
+services:
+  sync:
+    image: gradle:9.7.1-jdk25
+    entrypoint: []
+    init: true
+    working_dir: /workspace
+    command:
+      - ./gradlew
+      - :services:sync:bootRun
+      - --no-daemon
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ../..:/workspace
+      - gradle-cache:/home/gradle/.gradle
+    healthcheck:
+      test:
+        - CMD
+        - bash
+        - -ec
+        - |
+          exec 3<>/dev/tcp/127.0.0.1/8080
+          printf 'GET /actuator/health/readiness HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3
+          response="$$(cat <&3)"
+          grep -q '^HTTP/1.1 200 ' <<<"$$response"
+          grep -q '"status":"UP"' <<<"$$response"
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 20s
+    stop_grace_period: 10s
+
+volumes:
+  gradle-cache:

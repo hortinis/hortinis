@@ -17,6 +17,32 @@ pnpm validate
 
 The root command stops at the first failure and runs the existing checks without hiding their independent entry points. Browser validation requires the Playwright Chromium binary to be installed once as described below.
 
+### Container topology
+
+The minimal Docker Compose topology runs the synchronization service from the repository checkout and
+uses the service readiness probe to determine when it is healthy. Validate the Compose document
+independently from the repository root:
+
+```shell
+pnpm compose:validate
+```
+
+With Docker available, start the topology and wait for the readiness probe:
+
+```shell
+docker compose --file infrastructure/docker/compose.yaml up --wait
+```
+
+The sync service is available on `http://127.0.0.1:8080`; inspect its status with
+`docker compose --file infrastructure/docker/compose.yaml ps`. Stop the topology predictably with:
+
+```shell
+docker compose --file infrastructure/docker/compose.yaml down --remove-orphans
+```
+
+This increment intentionally does not add PostgreSQL, Angular static-file serving, same-origin edge
+routing, or production image builds. Those capabilities belong to D4, F3, and F2 respectively.
+
 ## Frontend workspace
 
 The frontend workspace requires Node.js 24.18.0 and pnpm 11.26.0. The Node.js version is recorded in `.nvmrc`; the root package manifest enforces both tool versions.

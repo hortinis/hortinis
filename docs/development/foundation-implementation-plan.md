@@ -530,10 +530,21 @@ This track may proceed alongside the web, server, contract, and synchronization 
 
 #### F1. Add the minimal Compose topology
 
-- Initial status: `planned`.
+- Status: `in progress`.
 - Depends on: C5.
 - Scope: provide standard local and self-hosting orchestration without making container development mandatory.
-- Acceptance: the topology validates and services start, become healthy, and stop predictably.
+- Artifacts: the sync-only Docker Compose topology under `infrastructure/docker/compose.yaml`, a named
+  Gradle cache volume, an HTTP readiness health check against `/actuator/health/readiness`, an
+  independently runnable Compose validation command, and documented startup, inspection, and shutdown
+  commands.
+- Acceptance: the topology validates and the sync service starts, becomes healthy through its readiness
+  endpoint, and stops predictably.
+- Validation commands: `pnpm compose:validate`, `docker compose --file infrastructure/docker/compose.yaml up --wait`, `docker compose --file infrastructure/docker/compose.yaml ps`, `docker compose --file infrastructure/docker/compose.yaml down --remove-orphans`, `git diff --check`, `git ls-files -ci --exclude-standard`, `git check-attr text eol -- .gitattributes README.md gradlew gradlew.bat`, and `git ls-files --eol`.
+- Validation evidence: on 2026-09-15, the Compose document passed Docker Compose config validation and
+  repository-level checks passed. Runtime startup and shutdown validation remains to be run on a host
+  with a running Docker daemon and the pinned Gradle/JDK image available.
+- Follow-up: F2 adds separate development and production multi-stage container builds; D4 adds PostgreSQL
+  and persistent database storage; F3 validates same-origin shell and API routing.
 
 #### F2. Add development and production container builds
 
