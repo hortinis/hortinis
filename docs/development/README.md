@@ -118,7 +118,7 @@ pnpm --filter @hortinis/web lint:fix
 
 ## Backend workspace
 
-The backend workspace requires a Java 25 JDK and uses Gradle 9.7.1 exclusively through the committed Gradle Wrapper. A separate system Gradle installation is neither required nor supported. The root build centralizes plugin and dependency repositories, rejects project-specific repositories, and applies the Java 25 toolchain and compiler release to the Spring Boot application project at `services/sync`.
+The backend workspace requires a Java 25 JDK and uses Gradle 9.7.1 exclusively through the committed Gradle Wrapper. A separate system Gradle installation is neither required nor supported. The root build centralizes plugin and dependency repositories, rejects project-specific repositories, and applies the Java 25 toolchain and compiler release to the Spring Boot application project at `services/sync`. The service exposes status-only health, liveness, and readiness probes under `/actuator` and emits minimized structured JSON logs to stdout; deployment-specific log collection and rotation are defined separately.
 
 Validate the Wrapper files before running the build:
 
@@ -126,7 +126,7 @@ Validate the Wrapper files before running the build:
 sha256sum --check gradle/wrapper/gradle-wrapper.jar.sha256
 ```
 
-The Wrapper also verifies the downloaded Gradle binary distribution against the SHA-256 checksum recorded in `gradle/wrapper/gradle-wrapper.properties`. The root has no external Java dependencies; the C5 Spring Boot application has reviewed dependency-verification metadata and committed dependency locks. Each later increment that adds a dependency must update and review both at the same time.
+The Wrapper also verifies the downloaded Gradle binary distribution against the SHA-256 checksum recorded in `gradle/wrapper/gradle-wrapper.properties`. The root has no external Java dependencies; the C6 Spring Boot application has reviewed dependency-verification metadata and committed dependency locks. Each later increment that adds a dependency must update and review both at the same time.
 
 Validate the backend workspace independently of the frontend workspace:
 
@@ -142,7 +142,7 @@ java --version
 ./gradlew :services:sync:bootRun
 ```
 
-Java must report major version 25 and Gradle must report version 9.7.1. The projects report includes the single Spring Boot application project at `:services:sync`. `spotlessCheck` validates Java formatting with Google Java Format and Gradle Kotlin script formatting with ktlint. Checkstyle and PMD run independently through their source-set tasks. JUnit 5 is executed through Gradle's `test` task; Spring Boot's test starter provides AssertJ. The C5 application-context test verifies that the empty service starts without a database; `bootRun` starts and returns normally because the empty application does not yet include a web server or other non-daemon work. ArchUnit architecture checks will receive a separate command when internal package boundaries exist; no aggregate command should hide that entry point.
+Java must report major version 25 and Gradle must report version 9.7.1. The projects report includes the single Spring Boot application project at `:services:sync`. `spotlessCheck` validates Java formatting with Google Java Format and Gradle Kotlin script formatting with ktlint. Checkstyle and PMD run independently through their source-set tasks. JUnit 5 is executed through Gradle's `test` task; Spring Boot's test starter provides AssertJ. The C5 application-context test verifies that the service starts without a database, while the C6 tests verify status-only health probes and privacy-safe structured request logs. `bootRun` starts the web server and remains active while the service is running; stop it with `Ctrl+C` after checking the probes. ArchUnit architecture checks will receive a separate command when internal package boundaries exist; no aggregate command should hide that entry point.
 
 ## Repository-wide validation
 

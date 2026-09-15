@@ -316,11 +316,34 @@ C1 through C4, formerly separate backend layer and protocol module setup, are fo
 
 #### C6. Add health, readiness, and safe structured logging
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: C5.
 - Scope: provide health and readiness endpoints and minimized structured JSON logs consistent with ADR-0015.
 - Excludes: request or response bodies and user-provided content.
-- Acceptance: endpoint tests pass and log tests demonstrate that prohibited fields are absent.
+- Artifacts: the Spring Boot Actuator dependency; status-only health, liveness, and readiness endpoint
+  configuration; the privacy-safe request correlation and completion-event filter; structured JSON console
+  logging configuration; focused endpoint and log-safety tests; updated dependency locks; and reviewed
+  Gradle dependency-verification metadata.
+- Acceptance: `/actuator/health`, `/actuator/health/liveness`, and `/actuator/health/readiness` return
+  status-only JSON (the global response may list the liveness and readiness group names); only the
+  health endpoint is exposed over HTTP; request and trace identifiers are
+  generated server-side and cleared after each request; request completion events contain only the
+  reviewed operational fields; and tests demonstrate that query parameters, headers, request content,
+  and prohibited fields are absent from captured JSON logs.
+- Validation commands: `./gradlew --dependency-verification=strict :services:sync:spotlessCheck
+  :services:sync:test --rerun-tasks`, `./gradlew :services:sync:checkstyleMain
+  :services:sync:checkstyleTest`, `./gradlew :services:sync:pmdMain :services:sync:pmdTest`,
+  `./gradlew :services:sync:build`, `git diff --check`, `git ls-files -ci --exclude-standard`,
+  `git check-attr text eol -- .gitattributes README.md gradlew gradlew.bat`, and `git ls-files --eol`.
+- Validation evidence: on 2026-09-15, strict dependency verification, Spotless, the three endpoint
+  assertions, the structured-log JSON and sensitive-canary assertions, PMD, Checkstyle, and the service
+  build passed. Checkstyle reports the two existing Javadoc warnings on the C5 application entry point;
+  they do not fail the configured task. Repository whitespace, ignore, attribute, and line-ending checks
+  remain required for the final change validation.
+- Follow-up: F1/F2 define container log rotation and the operator-selected local log consumer; later
+  endpoint increments must extend the reviewed route-template allowlist. Synchronization operation IDs
+  may be added to relevant events only when the D2/E3 protocol handling exists.
+- Relevant decisions: ADR-0002, ADR-0006, ADR-0015, and ADR-0018.
 
 #### C7. Add backend quality enforcement
 
