@@ -1,0 +1,13 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "TechnicalRecordOperation.json",
+    "oneOf": [
+        {
+            "$ref": "CreateTechnicalRecordOperation.json"
+        },
+        {
+            "$ref": "ReplaceTechnicalRecordOperation.json"
+        }
+    ],
+    "description": "One stable technical-record operation submitted for synchronization."
+}

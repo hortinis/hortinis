@@ -1,8 +1,375 @@
 openapi: 3.1.0
 info:
   title: Hortinis Synchronization API
-  version: 0.0.0
+  version: 1.0.0
   description: The contract-first HTTP API for the Hortinis synchronization service.
 tags: []
-paths: {}
-components: {}
+paths:
+  /api/v1/sync/changes:
+    get:
+      operationId: pullTechnicalRecordChanges
+      summary: Pull accepted technical-record changes
+      description: Read accepted changes after an optional opaque cursor.
+      parameters:
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/Models.SyncCursor'
+          explode: false
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.ChangePage'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+  /api/v1/sync/operations:
+    post:
+      operationId: submitTechnicalRecordOperation
+      summary: Submit one technical-record operation
+      description: Accept or identically replay one technical-record operation.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.OperationResult'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '404':
+          description: The server cannot find the requested resource.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.RecordNotFoundError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.ConflictError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Models.TechnicalRecordOperation'
+components:
+  schemas:
+    Models.ChangePage:
+      type: object
+      required:
+        - protocolVersion
+        - changes
+        - nextCursor
+        - hasMore
+      properties:
+        protocolVersion:
+          type: number
+          enum:
+            - 1
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Models.TechnicalChange'
+        nextCursor:
+          $ref: '#/components/schemas/Models.SyncCursor'
+        hasMore:
+          type: boolean
+      unevaluatedProperties:
+        not: {}
+      description: A page of accepted changes and the opaque cursor following the complete page.
+    Models.ConflictError:
+      type: object
+      oneOf:
+        - $ref: '#/components/schemas/Models.OperationIdReusedError'
+        - $ref: '#/components/schemas/Models.RecordAlreadyExistsError'
+        - $ref: '#/components/schemas/Models.RevisionConflictError'
+      discriminator:
+        propertyName: code
+        mapping:
+          OPERATION_ID_REUSED: '#/components/schemas/Models.OperationIdReusedError'
+          RECORD_ALREADY_EXISTS: '#/components/schemas/Models.RecordAlreadyExistsError'
+          REVISION_CONFLICT: '#/components/schemas/Models.RevisionConflictError'
+    Models.CreateTechnicalRecordOperation:
+      type: object
+      required:
+        - protocolVersion
+        - operationId
+        - recordId
+        - value
+        - kind
+      properties:
+        protocolVersion:
+          type: number
+          enum:
+            - 1
+          description: The version of the persisted synchronization envelope.
+        operationId:
+          $ref: '#/components/schemas/Models.UuidV7'
+          description: The stable operation and idempotency identifier.
+        recordId:
+          $ref: '#/components/schemas/Models.UuidV7'
+        value:
+          type: string
+        kind:
+          type: string
+          enum:
+            - create
+      unevaluatedProperties:
+        not: {}
+      description: Create a technical record that does not yet exist.
+    Models.InvalidRequestError:
+      type: object
+      required:
+        - protocolVersion
+        - code
+        - message
+      properties:
+        protocolVersion:
+          type: number
+          enum:
+            - 1
+        code:
+          type: string
+          enum:
+            - INVALID_REQUEST
+        message:
+          type: string
+          minLength: 1
+      unevaluatedProperties:
+        not: {}
+      description: The request does not satisfy the synchronization contract.
+    Models.OperationIdReusedError:
+      type: object
+      required:
+        - protocolVersion
+        - code
+        - message
+        - operationId
+      properties:
+        protocolVersion:
+          type: number
+          enum:
+            - 1
+        code:
+          type: string
+          enum:
+            - OPERATION_ID_REUSED
+        message:
+          type: string
+          minLength: 1
+        operationId:
+          $ref: '#/components/schemas/Models.UuidV7'
+      unevaluatedProperties:
+        not: {}
+      description: The operation identifier was already used with a different canonical request.
+    Models.OperationResult:
+      type: object
+      required:
+        - protocolVersion
+        - outcome
+        - operationId
+        - record
+        - sequence
+      properties:
+        protocolVersion:
+          type: number
+          enum:
+            - 1
+        outcome:
+          type: string
+          enum:
+            - accepted
+        operationId:
+          $ref: '#/components/schemas/Models.UuidV7'
+        record:
+          $ref: '#/components/schemas/Models.TechnicalRecord'
+        sequence:
+          $ref: '#/components/schemas/Models.PositiveDecimal'
+      unevaluatedProperties:
+        not: {}
+      description: The stable result returned when an operation is accepted or replayed identically.
+    Models.PositiveDecimal:
+      type: string
+      pattern: ^[1-9][0-9]*$
+      description: A positive integer encoded as a decimal string for cross-runtime precision.
+    Models.RecordAlreadyExistsError:
+      type: object
+      required:
+        - protocolVersion
+        - code
+        - message
+        - operationId
+        - currentRecord
+      properties:
+        protocolVersion:
+          type: number
+          enum:
+            - 1
+        code:
+          type: string
+          enum:
+            - RECORD_ALREADY_EXISTS
+        message:
+          type: string
+          minLength: 1
+        operationId:
+          $ref: '#/components/schemas/Models.UuidV7'
+        currentRecord:
+          $ref: '#/components/schemas/Models.TechnicalRecord'
+      unevaluatedProperties:
+        not: {}
+      description: Creation failed because the technical record already exists.
+    Models.RecordNotFoundError:
+      type: object
+      required:
+        - protocolVersion
+        - code
+        - message
+        - operationId
+        - recordId
+      properties:
+        protocolVersion:
+          type: number
+          enum:
+            - 1
+        code:
+          type: string
+          enum:
+            - RECORD_NOT_FOUND
+        message:
+          type: string
+          minLength: 1
+        operationId:
+          $ref: '#/components/schemas/Models.UuidV7'
+        recordId:
+          $ref: '#/components/schemas/Models.UuidV7'
+      unevaluatedProperties:
+        not: {}
+      description: The operation targets a technical record that does not exist.
+    Models.ReplaceTechnicalRecordOperation:
+      type: object
+      required:
+        - protocolVersion
+        - operationId
+        - recordId
+        - value
+        - kind
+        - expectedRevision
+      properties:
+        protocolVersion:
+          type: number
+          enum:
+            - 1
+          description: The version of the persisted synchronization envelope.
+        operationId:
+          $ref: '#/components/schemas/Models.UuidV7'
+          description: The stable operation and idempotency identifier.
+        recordId:
+          $ref: '#/components/schemas/Models.UuidV7'
+        value:
+          type: string
+        kind:
+          type: string
+          enum:
+            - replace
+        expectedRevision:
+          $ref: '#/components/schemas/Models.PositiveDecimal'
+      unevaluatedProperties:
+        not: {}
+      description: Replace a technical record at its expected server revision.
+    Models.RevisionConflictError:
+      type: object
+      required:
+        - protocolVersion
+        - code
+        - message
+        - operationId
+        - expectedRevision
+        - currentRecord
+      properties:
+        protocolVersion:
+          type: number
+          enum:
+            - 1
+        code:
+          type: string
+          enum:
+            - REVISION_CONFLICT
+        message:
+          type: string
+          minLength: 1
+        operationId:
+          $ref: '#/components/schemas/Models.UuidV7'
+        expectedRevision:
+          $ref: '#/components/schemas/Models.PositiveDecimal'
+        currentRecord:
+          $ref: '#/components/schemas/Models.TechnicalRecord'
+      unevaluatedProperties:
+        not: {}
+      description: Replacement failed because the expected and current revisions differ.
+    Models.SyncCursor:
+      type: string
+      minLength: 1
+      description: An opaque, non-empty incremental synchronization cursor.
+    Models.TechnicalChange:
+      type: object
+      required:
+        - operationId
+        - record
+        - sequence
+      properties:
+        operationId:
+          $ref: '#/components/schemas/Models.UuidV7'
+        record:
+          $ref: '#/components/schemas/Models.TechnicalRecord'
+        sequence:
+          $ref: '#/components/schemas/Models.PositiveDecimal'
+      unevaluatedProperties:
+        not: {}
+      description: One accepted server change in monotonic server-sequence order.
+    Models.TechnicalRecord:
+      type: object
+      required:
+        - recordId
+        - revision
+        - value
+      properties:
+        recordId:
+          $ref: '#/components/schemas/Models.UuidV7'
+        revision:
+          $ref: '#/components/schemas/Models.PositiveDecimal'
+        value:
+          type: string
+      unevaluatedProperties:
+        not: {}
+      description: The deliberately technical record used to validate the synchronization mechanism.
+    Models.TechnicalRecordOperation:
+      type: object
+      oneOf:
+        - $ref: '#/components/schemas/Models.CreateTechnicalRecordOperation'
+        - $ref: '#/components/schemas/Models.ReplaceTechnicalRecordOperation'
+      discriminator:
+        propertyName: kind
+        mapping:
+          create: '#/components/schemas/Models.CreateTechnicalRecordOperation'
+          replace: '#/components/schemas/Models.ReplaceTechnicalRecordOperation'
+      description: One stable technical-record operation submitted for synchronization.
+    Models.UuidV7:
+      type: string
+      pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+      description: A canonical lowercase UUID version 7 identifier.

@@ -1,0 +1,35 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "OperationResult.json",
+    "type": "object",
+    "properties": {
+        "protocolVersion": {
+            "type": "number",
+            "const": 1
+        },
+        "outcome": {
+            "type": "string",
+            "const": "accepted"
+        },
+        "operationId": {
+            "$ref": "UuidV7.json"
+        },
+        "record": {
+            "$ref": "TechnicalRecord.json"
+        },
+        "sequence": {
+            "$ref": "PositiveDecimal.json"
+        }
+    },
+    "required": [
+        "protocolVersion",
+        "outcome",
+        "operationId",
+        "record",
+        "sequence"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "The stable result returned when an operation is accepted or replayed identically."
+}

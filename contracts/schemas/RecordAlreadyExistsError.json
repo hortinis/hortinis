@@ -1,0 +1,36 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "RecordAlreadyExistsError.json",
+    "type": "object",
+    "properties": {
+        "protocolVersion": {
+            "type": "number",
+            "const": 1
+        },
+        "code": {
+            "type": "string",
+            "const": "RECORD_ALREADY_EXISTS"
+        },
+        "message": {
+            "type": "string",
+            "minLength": 1
+        },
+        "operationId": {
+            "$ref": "UuidV7.json"
+        },
+        "currentRecord": {
+            "$ref": "TechnicalRecord.json"
+        }
+    },
+    "required": [
+        "protocolVersion",
+        "code",
+        "message",
+        "operationId",
+        "currentRecord"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "Creation failed because the technical record already exists."
+}

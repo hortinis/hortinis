@@ -1,0 +1,32 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "OperationIdReusedError.json",
+    "type": "object",
+    "properties": {
+        "protocolVersion": {
+            "type": "number",
+            "const": 1
+        },
+        "code": {
+            "type": "string",
+            "const": "OPERATION_ID_REUSED"
+        },
+        "message": {
+            "type": "string",
+            "minLength": 1
+        },
+        "operationId": {
+            "$ref": "UuidV7.json"
+        }
+    },
+    "required": [
+        "protocolVersion",
+        "code",
+        "message",
+        "operationId"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "The operation identifier was already used with a different canonical request."
+}

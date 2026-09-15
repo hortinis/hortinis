@@ -1,0 +1,25 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "TechnicalChange.json",
+    "type": "object",
+    "properties": {
+        "operationId": {
+            "$ref": "UuidV7.json"
+        },
+        "record": {
+            "$ref": "TechnicalRecord.json"
+        },
+        "sequence": {
+            "$ref": "PositiveDecimal.json"
+        }
+    },
+    "required": [
+        "operationId",
+        "record",
+        "sequence"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "One accepted server change in monotonic server-sequence order."
+}

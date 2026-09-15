@@ -1,0 +1,37 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "CreateTechnicalRecordOperation.json",
+    "type": "object",
+    "properties": {
+        "protocolVersion": {
+            "type": "number",
+            "const": 1,
+            "description": "The version of the persisted synchronization envelope."
+        },
+        "operationId": {
+            "$ref": "UuidV7.json",
+            "description": "The stable operation and idempotency identifier."
+        },
+        "recordId": {
+            "$ref": "UuidV7.json"
+        },
+        "value": {
+            "type": "string"
+        },
+        "kind": {
+            "type": "string",
+            "const": "create"
+        }
+    },
+    "required": [
+        "protocolVersion",
+        "operationId",
+        "recordId",
+        "value",
+        "kind"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "Create a technical record that does not yet exist."
+}

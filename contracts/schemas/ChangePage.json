@@ -1,0 +1,33 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "ChangePage.json",
+    "type": "object",
+    "properties": {
+        "protocolVersion": {
+            "type": "number",
+            "const": 1
+        },
+        "changes": {
+            "type": "array",
+            "items": {
+                "$ref": "TechnicalChange.json"
+            }
+        },
+        "nextCursor": {
+            "$ref": "SyncCursor.json"
+        },
+        "hasMore": {
+            "type": "boolean"
+        }
+    },
+    "required": [
+        "protocolVersion",
+        "changes",
+        "nextCursor",
+        "hasMore"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "A page of accepted changes and the opaque cursor following the complete page."
+}

@@ -1,0 +1,28 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "InvalidRequestError.json",
+    "type": "object",
+    "properties": {
+        "protocolVersion": {
+            "type": "number",
+            "const": 1
+        },
+        "code": {
+            "type": "string",
+            "const": "INVALID_REQUEST"
+        },
+        "message": {
+            "type": "string",
+            "minLength": 1
+        }
+    },
+    "required": [
+        "protocolVersion",
+        "code",
+        "message"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "The request does not satisfy the synchronization contract."
+}

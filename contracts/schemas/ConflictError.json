@@ -1,0 +1,15 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "ConflictError.json",
+    "oneOf": [
+        {
+            "$ref": "OperationIdReusedError.json"
+        },
+        {
+            "$ref": "RecordAlreadyExistsError.json"
+        },
+        {
+            "$ref": "RevisionConflictError.json"
+        }
+    ]
+}

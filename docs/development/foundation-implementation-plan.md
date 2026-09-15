@@ -347,11 +347,42 @@ C1 through C4, formerly separate backend layer and protocol module setup, are fo
 
 #### D2. Define technical service and synchronization envelopes
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: D1 and C5.
-- Scope: specify only the technical endpoints and protocol envelopes needed by the walking skeleton.
+- Scope: specify only the versioned technical push and pull endpoints and protocol envelopes needed by
+  the walking skeleton. Use one deliberately technical record, single-operation submission, stable
+  UUIDv7 record and operation identifiers, operation-level idempotency, expected revisions, monotonic
+  server sequences, and opaque incremental cursors.
 - Excludes: garden resources, final reconciliation formats, authentication, analytics, backup, and catalog distribution.
-- Acceptance: contracts describe versioning, identifiers, idempotency, revisions, sequences, cursors, and explicit protocol errors required by the selected slice.
+- Artifacts: technical TypeSpec models and operations; generated OpenAPI 3.1 and JSON Schema Draft
+  2020-12 artifacts; closed create, replace, result, change-page, and explicit error envelopes; generated
+  artifact synchronization and drift checks; production-schema validation and focused constraint tests;
+  and updated API and contract documentation.
+- Acceptance: contracts describe path and envelope versioning; canonical lowercase UUIDv7 identifiers;
+  an operation identifier that is also its idempotency identifier; create and expected-revision replace
+  operations; precision-safe revision and sequence strings; opaque cursors; ordered change pages; and
+  explicit invalid-request, missing-record, identifier-reuse, existing-record, and revision-conflict
+  errors. Generated objects are closed, local references resolve without network access, committed
+  artifacts reproduce byte-for-byte, and the selected slice does not define deferred production
+  synchronization policy.
+- Validation commands: `pnpm install --frozen-lockfile`, `pnpm contracts:format:check`,
+  `pnpm contracts:check-generated`, `pnpm contracts:lint`, `pnpm contracts:test`,
+  `pnpm contracts:validate`, `git diff --check`, `git ls-files -ci --exclude-standard`,
+  `git check-attr text eol -- .gitattributes README.md gradlew gradlew.bat`, and `git ls-files --eol`.
+- Validation evidence: on 2026-09-14, frozen installation and all seven contract tests passed. TypeSpec
+  compiled without diagnostics; generated OpenAPI and 16 standalone schemas reproduced byte-for-byte;
+  Redocly accepted the OpenAPI contract without warnings; Ajv compiled every production schema together
+  with local-only references; and focused tests rejected wrong UUID versions, uppercase identifiers,
+  invalid revision and sequence representations, incorrect operation variants, empty cursors, unknown
+  properties, and incomplete or unknown conflicts. Repository whitespace, ignore, attribute, and
+  line-ending checks also passed. The full `pnpm validate` run passed the contract and frontend checks,
+  including Playwright and both Angular builds, then stopped at the pre-existing C7 root Spotless
+  configuration error; that independently tracked backend-quality failure is outside D2.
+- Follow-up: B9 implements the browser HTTP boundary against these contracts; D3 adds the server
+  persistence components; E1 adds canonical cross-runtime protocol examples without redefining the D2
+  wire shapes. G1 through G4 add the deliberately deferred production synchronization policies and wire
+  formats.
+- Relevant decisions: ADR-0003, ADR-0009, ADR-0010, ADR-0018, and ADR-0021.
 
 #### D3. Create PostgreSQL persistence components
 

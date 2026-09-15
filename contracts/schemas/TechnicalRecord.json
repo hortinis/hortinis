@@ -1,0 +1,25 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "TechnicalRecord.json",
+    "type": "object",
+    "properties": {
+        "recordId": {
+            "$ref": "UuidV7.json"
+        },
+        "revision": {
+            "$ref": "PositiveDecimal.json"
+        },
+        "value": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "recordId",
+        "revision",
+        "value"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "The deliberately technical record used to validate the synchronization mechanism."
+}

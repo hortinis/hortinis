@@ -49,8 +49,9 @@ The expected versions are Node.js `v24.18.0` and pnpm `11.26.0`. The root `pnpm 
 ### Contracts
 
 TypeSpec sources under `contracts/typespec` are the authority for HTTP and language-neutral JSON
-contracts. OpenAPI documents and standalone JSON Schemas are generated artifacts. The D1 source has no
-operations or payload models; the emitter compatibility fixture exercises representative wire shapes.
+contracts. OpenAPI documents and standalone JSON Schemas are generated artifacts. The current contract
+defines the versioned technical synchronization push and pull operations; the emitter compatibility
+fixture separately exercises representative wire shapes.
 
 Run contract checks independently from the repository root:
 
@@ -62,11 +63,12 @@ pnpm contracts:test
 pnpm contracts:validate
 ```
 
-After editing TypeSpec, regenerate the committed OpenAPI with `pnpm contracts:generate`, then review the
-source and generated diff. Generated files must not be edited manually. Validation rejects external
-references and validates local references without contacting remote hosts. The Redocly launcher disables
-telemetry and update notices. D2 adds the first production JSON Schemas; the standalone schema validator
-is already exercised against the generated compatibility fixture.
+After editing TypeSpec, regenerate the committed artifacts with `pnpm contracts:generate`, then review
+the source and generated diff. Generation also removes obsolete generated contract files while
+preserving the directory documentation. Generated files must not be edited manually. Validation rejects
+external references and validates local references without contacting remote hosts. The Redocly launcher
+disables telemetry and update notices. Standalone production schemas are compiled together so their
+local references and the technical protocol constraints are validated.
 
 ### Web application
 

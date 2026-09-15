@@ -8,6 +8,6 @@ Run `pnpm contracts:generate` after editing `.tsp` files. Run `pnpm contracts:va
 formatting, generated-file consistency, OpenAPI and schema validity, and the positive and negative
 contract fixtures.
 
-Keep authentication, authorization, resource behavior, and protocol choices within their approved
-implementation increments. The D1 source intentionally defines service metadata but no operations or
-payload models.
+The version-one source defines only the technical synchronization operations and envelopes required by
+the walking skeleton. Keep authentication, authorization, garden resources, deletion, compaction,
+generation rollover, and reconciliation within their approved implementation increments.

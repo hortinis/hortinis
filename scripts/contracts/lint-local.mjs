@@ -38,14 +38,22 @@ for (const openApiPath of openApiPaths) {
 }
 
 if (schemaPaths.length === 0) {
-  process.stdout.write("No standalone JSON Schemas are defined yet; D2 introduces the first protocol schemas.\n");
+  throw new Error("No standalone JSON Schemas were found under contracts/schemas.");
 } else {
   const ajv = new Ajv2020({ allErrors: true, strict: true, validateFormats: true });
   addFormats(ajv);
+  const schemas = schemaPaths.map((schemaPath) => ({
+    path: schemaPath,
+    schema: parseContract(schemaPath),
+  }));
 
-  for (const schemaPath of schemaPaths) {
-    const schema = parseContract(schemaPath);
-    ajv.compile(schema);
-    process.stdout.write(`Valid JSON Schema: ${schemaPath}\n`);
+  for (const { schema } of schemas) {
+    ajv.addSchema(schema);
+  }
+  for (const { path, schema } of schemas) {
+    if (typeof schema.$id !== "string" || ajv.getSchema(schema.$id) === undefined) {
+      throw new Error(`${path}: schema could not be compiled by its $id.`);
+    }
+    process.stdout.write(`Valid JSON Schema: ${path}\n`);
   }
 }
