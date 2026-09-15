@@ -2,6 +2,7 @@
   "name": "@hortinis/web",
   "version": "0.0.0",
   "scripts": {
+    "ng": "ng",
     "start": "ng serve",
     "build": "ng build --configuration production",
     "build:development": "ng build --configuration development",
@@ -19,10 +20,12 @@
   "private": true,
   "packageManager": "pnpm@11.26.0",
   "dependencies": {
+    "@angular/cdk": "^22.1.6",
     "@angular/common": "^22.1.0",
     "@angular/compiler": "^22.1.0",
     "@angular/core": "^22.1.0",
     "@angular/forms": "^22.1.0",
+    "@angular/material": "^22.1.6",
     "@angular/platform-browser": "^22.1.0",
     "@angular/router": "^22.1.0",
     "@angular/service-worker": "^22.1.5",
