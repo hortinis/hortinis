@@ -1,0 +1,13 @@
+{
+  "id": "invalid-change-cursor",
+  "description": "An empty cursor is invalid; clients must treat cursors as opaque non-empty values.",
+  "request": { "cursor": "" },
+  "expected": {
+    "valid": false,
+    "errorCode": "INVALID_REQUEST",
+    "response": {
+      "code": "INVALID_REQUEST",
+      "message": "The request is invalid."
+    }
+  }
+}

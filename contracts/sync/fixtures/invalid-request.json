@@ -1,0 +1,13 @@
+{
+  "id": "invalid-request",
+  "description": "A null operation body is invalid at the protocol boundary.",
+  "request": null,
+  "expected": {
+    "valid": false,
+    "errorCode": "INVALID_REQUEST",
+    "response": {
+      "code": "INVALID_REQUEST",
+      "message": "The request is invalid."
+    }
+  }
+}

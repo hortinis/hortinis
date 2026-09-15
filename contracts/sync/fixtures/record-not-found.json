@@ -1,0 +1,22 @@
+{
+  "id": "record-not-found",
+  "description": "A replacement of an absent record returns an explicit not-found error.",
+  "request": {
+    "operationId": "01890f3e-7c5a-7b14-8abc-0123456789ab",
+    "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab",
+    "value": "replacement value",
+    "kind": "replace",
+    "expectedRevision": "1"
+  },
+  "state": { "records": [] },
+  "expected": {
+    "valid": true,
+    "canonicalRequest": "{\"expectedRevision\":\"1\",\"kind\":\"replace\",\"operationId\":\"01890f3e-7c5a-7b14-8abc-0123456789ab\",\"recordId\":\"01890f3e-7c5a-7b13-8abc-0123456789ab\",\"value\":\"replacement value\"}",
+    "response": {
+      "code": "RECORD_NOT_FOUND",
+      "message": "The record does not exist.",
+      "operationId": "01890f3e-7c5a-7b14-8abc-0123456789ab",
+      "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab"
+    }
+  }
+}

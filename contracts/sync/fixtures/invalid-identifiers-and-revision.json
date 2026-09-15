@@ -1,0 +1,19 @@
+{
+  "id": "invalid-identifiers-and-revision",
+  "description": "Identifiers must be lowercase UUIDv7 strings and revisions positive decimal strings.",
+  "request": {
+    "operationId": "01890f3e-7c5a-4b12-8abc-0123456789ab",
+    "recordId": "01890F3E-7C5A-7B13-8ABC-0123456789AB",
+    "value": "replacement value",
+    "kind": "replace",
+    "expectedRevision": "0"
+  },
+  "expected": {
+    "valid": false,
+    "errorCode": "INVALID_REQUEST",
+    "response": {
+      "code": "INVALID_REQUEST",
+      "message": "The request is invalid."
+    }
+  }
+}

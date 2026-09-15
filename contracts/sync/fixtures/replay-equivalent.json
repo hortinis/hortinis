@@ -1,0 +1,21 @@
+{
+  "id": "replay-equivalent",
+  "description": "Whitespace and property order do not change an operation's typed identity.",
+  "request": {
+    "value": "first value",
+    "kind": "create",
+    "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab",
+    "operationId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+  },
+  "equivalentRequest": {
+    "operationId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+    "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab",
+    "value": "first value",
+    "kind": "create"
+  },
+  "state": { "records": [] },
+  "expected": {
+    "valid": true,
+    "equivalent": true
+  }
+}

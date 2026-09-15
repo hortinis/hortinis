@@ -488,10 +488,21 @@ The first slice uses a deliberately technical record. It validates the mechanism
 
 #### E1. Define technical record conformance fixtures
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: D2.
-- Scope: define canonical technical records, operations, results, errors, and language-neutral fixtures.
-- Acceptance: TypeScript and Java consume the same valid and invalid examples.
+- Scope: define technical records, operations, results, errors, and language-neutral fixtures; compare
+  validated operation requests structurally by their typed fields; and consume the shared corpus from
+  the TypeScript and Java test runtimes.
+- Artifacts: declarative valid and invalid JSON scenarios under `contracts/sync/fixtures/`; pure
+  TypeScript protocol validation and typed comparison checks; a Java fixture consumer; and updated
+  synchronization protocol and API documentation.
+- Acceptance: TypeScript and Java consume the same valid and invalid examples, agree on operation
+  validity and operation comparisons, and cover accepted operations, pull pages, explicit
+  errors, server-state preconditions, invalid identifiers/revisions, closed operation variants, and
+  opaque cursor validation.
+- Validation evidence: the shared eleven-scenario corpus passes the TypeScript unit suite and the Java
+  JUnit suite. TypeScript strict checking, linting, and formatting also pass; the Java synchronization
+  tests compile and pass with the Gradle wrapper.
 
 #### E2. Commit local state and an outbox operation atomically
 
@@ -511,7 +522,7 @@ The first slice uses a deliberately technical record. It validates the mechanism
 
 - Initial status: `planned`.
 - Depends on: E3.
-- Scope: retry an identical stable operation and reject reuse of its idempotency identifier with a different canonical request.
+- Scope: retry an identical stable operation and reject reuse of its idempotency identifier with different validated request fields.
 - Acceptance: identical retries return the stable result without duplicate effects; mismatched reuse returns the specified error.
 
 #### E4a. Prove one dependent operation chain
@@ -522,7 +533,7 @@ The first slice uses a deliberately technical record. It validates the mechanism
   revision from its predecessor's stable result before first submission.
 - Excludes: atomic multi-operation batches and arbitrary dependency graphs.
 - Acceptance: the successor is never submitted before the predecessor has a stable result, and retries do
-  not change either operation's identifier, canonical request or expected revision.
+  not change either operation's identifier, request fields or expected revision.
 
 #### E5. Pull changes through an opaque cursor
 
@@ -558,7 +569,7 @@ The first slice uses a deliberately technical record. It validates the mechanism
 - Initial status: `planned`.
 - Depends on: E1 through E8.
 - Scope: execute shared fixtures against TypeScript and Java interpretations of the implemented protocol slice.
-- Acceptance: canonicalization, validation, identifiers, revisions, results, and error classifications agree.
+- Acceptance: typed comparison, validation, identifiers, revisions, results, and error classifications agree.
 
 #### E10. Publish the V0 technical readiness report
 

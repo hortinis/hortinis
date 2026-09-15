@@ -1,0 +1,34 @@
+{
+  "id": "replace-accepted",
+  "description": "A replacement at the current revision is accepted at the successor revision.",
+  "request": {
+    "operationId": "01890f3e-7c5a-7b14-8abc-0123456789ab",
+    "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab",
+    "value": "replacement value",
+    "kind": "replace",
+    "expectedRevision": "1"
+  },
+  "state": {
+    "records": [
+      {
+        "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab",
+        "revision": "1",
+        "value": "first value"
+      }
+    ]
+  },
+  "expected": {
+    "valid": true,
+    "canonicalRequest": "{\"expectedRevision\":\"1\",\"kind\":\"replace\",\"operationId\":\"01890f3e-7c5a-7b14-8abc-0123456789ab\",\"recordId\":\"01890f3e-7c5a-7b13-8abc-0123456789ab\",\"value\":\"replacement value\"}",
+    "response": {
+      "outcome": "accepted",
+      "operationId": "01890f3e-7c5a-7b14-8abc-0123456789ab",
+      "record": {
+        "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab",
+        "revision": "2",
+        "value": "replacement value"
+      },
+      "sequence": "2"
+    }
+  }
+}

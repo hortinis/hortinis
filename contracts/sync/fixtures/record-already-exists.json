@@ -1,0 +1,33 @@
+{
+  "id": "record-already-exists",
+  "description": "A creation of an existing record returns the current accepted record.",
+  "request": {
+    "operationId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+    "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab",
+    "value": "new value",
+    "kind": "create"
+  },
+  "state": {
+    "records": [
+      {
+        "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab",
+        "revision": "1",
+        "value": "first value"
+      }
+    ]
+  },
+  "expected": {
+    "valid": true,
+    "canonicalRequest": "{\"kind\":\"create\",\"operationId\":\"01890f3e-7c5a-7b12-8abc-0123456789ab\",\"recordId\":\"01890f3e-7c5a-7b13-8abc-0123456789ab\",\"value\":\"new value\"}",
+    "response": {
+      "code": "RECORD_ALREADY_EXISTS",
+      "message": "The record already exists.",
+      "operationId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+      "currentRecord": {
+        "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab",
+        "revision": "1",
+        "value": "first value"
+      }
+    }
+  }
+}

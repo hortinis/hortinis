@@ -16,6 +16,12 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
+sourceSets {
+    test {
+        resources.srcDir(rootProject.file("contracts/sync/fixtures"))
+    }
+}
+
 tasks.withType<Test> {
     useJUnitPlatform()
 }

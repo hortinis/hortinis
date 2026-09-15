@@ -1,0 +1,29 @@
+{
+  "id": "change-page",
+  "description": "A pull page preserves ascending server sequence order and returns an opaque cursor.",
+  "response": {
+    "changes": [
+      {
+        "operationId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+        "record": {
+          "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab",
+          "revision": "1",
+          "value": "first value"
+        },
+        "sequence": "9007199254740993"
+      },
+      {
+        "operationId": "01890f3e-7c5a-7b14-8abc-0123456789ab",
+        "record": {
+          "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab",
+          "revision": "2",
+          "value": "replacement value"
+        },
+        "sequence": "9007199254740994"
+      }
+    ],
+    "nextCursor": "cursor-after-sequence-9007199254740994",
+    "hasMore": false
+  },
+  "expected": { "valid": true }
+}

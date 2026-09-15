@@ -1,0 +1,33 @@
+{
+  "id": "operation-id-reused",
+  "description": "Reusing an operation identifier with a different request is rejected.",
+  "request": {
+    "operationId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+    "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab",
+    "value": "different value",
+    "kind": "create"
+  },
+  "state": {
+    "records": [],
+    "acceptedOperations": [
+      {
+        "operationId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+        "request": {
+          "operationId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+          "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab",
+          "value": "first value",
+          "kind": "create"
+        }
+      }
+    ]
+  },
+  "expected": {
+    "valid": true,
+    "canonicalRequest": "{\"kind\":\"create\",\"operationId\":\"01890f3e-7c5a-7b12-8abc-0123456789ab\",\"recordId\":\"01890f3e-7c5a-7b13-8abc-0123456789ab\",\"value\":\"different value\"}",
+    "response": {
+      "code": "OPERATION_ID_REUSED",
+      "message": "The operation identifier was reused.",
+      "operationId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+    }
+  }
+}

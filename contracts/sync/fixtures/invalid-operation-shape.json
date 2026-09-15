@@ -1,0 +1,19 @@
+{
+  "id": "invalid-operation-shape",
+  "description": "Create operations cannot carry expectedRevision and replace operations must carry it.",
+  "request": {
+    "operationId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+    "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab",
+    "value": "first value",
+    "kind": "create",
+    "expectedRevision": "1"
+  },
+  "expected": {
+    "valid": false,
+    "errorCode": "INVALID_REQUEST",
+    "response": {
+      "code": "INVALID_REQUEST",
+      "message": "The request is invalid."
+    }
+  }
+}

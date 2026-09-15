@@ -1,0 +1,35 @@
+{
+  "id": "revision-conflict",
+  "description": "A stale replacement returns the current record and preserves the competing proposal.",
+  "request": {
+    "operationId": "01890f3e-7c5a-7b14-8abc-0123456789ab",
+    "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab",
+    "value": "stale replacement",
+    "kind": "replace",
+    "expectedRevision": "1"
+  },
+  "state": {
+    "records": [
+      {
+        "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab",
+        "revision": "2",
+        "value": "server value"
+      }
+    ]
+  },
+  "expected": {
+    "valid": true,
+    "canonicalRequest": "{\"expectedRevision\":\"1\",\"kind\":\"replace\",\"operationId\":\"01890f3e-7c5a-7b14-8abc-0123456789ab\",\"recordId\":\"01890f3e-7c5a-7b13-8abc-0123456789ab\",\"value\":\"stale replacement\"}",
+    "response": {
+      "code": "REVISION_CONFLICT",
+      "message": "The expected revision does not match the current revision.",
+      "operationId": "01890f3e-7c5a-7b14-8abc-0123456789ab",
+      "expectedRevision": "1",
+      "currentRecord": {
+        "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab",
+        "revision": "2",
+        "value": "server value"
+      }
+    }
+  }
+}

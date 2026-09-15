@@ -1,0 +1,25 @@
+{
+  "id": "create-accepted",
+  "description": "A new technical record is accepted at revision one.",
+  "request": {
+    "operationId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+    "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab",
+    "value": "first value",
+    "kind": "create"
+  },
+  "state": { "records": [] },
+  "expected": {
+    "valid": true,
+    "canonicalRequest": "{\"kind\":\"create\",\"operationId\":\"01890f3e-7c5a-7b12-8abc-0123456789ab\",\"recordId\":\"01890f3e-7c5a-7b13-8abc-0123456789ab\",\"value\":\"first value\"}",
+    "response": {
+      "outcome": "accepted",
+      "operationId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+      "record": {
+        "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab",
+        "revision": "1",
+        "value": "first value"
+      },
+      "sequence": "1"
+    }
+  }
+}

@@ -30,8 +30,9 @@ Record and operation identifiers are canonical lowercase UUIDv7 strings. The `op
 idempotency identifier. Retrying the same complete validated operation returns the stable result without
 another state change, revision, or sequence. Reusing that identifier with a different validated operation
 returns `OPERATION_ID_REUSED`. JSON whitespace and object-property order are not part of operation
-identity. E1 and E9 provide the shared examples and cross-runtime canonicalization evidence used by the
-adapters.
+identity. Valid operation requests are compared structurally by their typed fields, so whitespace and
+object-property order remain insignificant. E1 and E9 provide the shared examples and cross-runtime
+comparison evidence used by the adapters.
 
 Revisions and sequences are positive integers encoded as decimal strings so browser and server runtimes
 do not lose integer precision. A successful creation produces the first record revision; each successful
