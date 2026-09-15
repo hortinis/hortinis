@@ -413,12 +413,12 @@ C1 through C4, formerly separate backend layer and protocol module setup, are fo
 - Depends on: C5 and D2.
 - Scope: establish the Spring JDBC/PostgreSQL runtime and the persistence package boundary inside
   `services/sync`. Concrete technical-record SQL and transaction-owning acceptance methods remain
-  deferred until D5 and E3; no placeholder persistence package is introduced.
+  deferred until D5a and E3; no placeholder persistence package is introduced.
 - Excludes: JPA and garden persistence.
 - Artifacts: Spring JDBC and PostgreSQL runtime dependencies, reviewed dependency locks and verification
   metadata, and datasource configuration consumed by the development topology.
 - Acceptance: the service can create its JDBC runtime against PostgreSQL without JPA or an embedded
-  database, and the deferred SQL boundary is documented for D5/E3.
+  database, and the deferred SQL boundary is documented for D5a/E3.
 - Validation commands: `./gradlew --dependency-verification=strict :services:sync:spotlessCheck
   :services:sync:test --rerun-tasks`, `./gradlew --dependency-verification=strict
   :services:sync:build --rerun-tasks`, `HORTINIS_POSTGRES_PASSWORD=validation-only pnpm compose:validate`,
@@ -427,7 +427,7 @@ C1 through C4, formerly separate backend layer and protocol module setup, are fo
   Spring test suite, and the complete sync-service build passed. The Fedora Compose run subsequently
   started the service against PostgreSQL after the cold Gradle cache completed, confirming datasource
   runtime initialization. No JPA or embedded database was introduced. Concrete SQL remains deferred to
-  D5/E3.
+  D5a/E3.
 
 #### D4. Add PostgreSQL to the development topology
 
@@ -451,20 +451,34 @@ C1 through C4, formerly separate backend layer and protocol module setup, are fo
   the ignored local `.env` file. The initial health timeout and Gradle cache contention were resolved by
   using the image-installed Gradle binary and the extended startup grace period.
 
-#### D5. Add Flyway and the first technical migration
+#### D5. Establish the Flyway lifecycle
+
+- Status: `validated`.
+- Depends on: D3 and D4.
+- Scope: establish the Flyway lifecycle and configuration without selecting or creating application tables.
+- Excludes: application schema design, technical-record tables, persistence queries, garden tables, and
+  unresolved long-term retention policy.
+- Acceptance: Flyway is enabled for the service, an empty database can start cleanly without an
+  application migration, and repeat startup remains idempotent.
+- Follow-up from D3+D4: define the first application migration only after E1 establishes canonical
+  conformance fixtures and the E3 transaction cases establish the minimum persistence requirements.
+
+#### D5a. Define the first technical migration
 
 - Initial status: `planned`.
-- Depends on: D3 and D4.
-- Scope: create an additive technical schema sufficient for the synchronization walking skeleton.
-- Excludes: garden tables and unresolved long-term retention policy.
-- Acceptance: migration from an empty database succeeds and repeat startup is idempotent.
-- Follow-up from D3+D4: this task owns the first application schema and Flyway lifecycle. E3 remains the
-  owner of concrete technical-record SQL and the atomic server-acceptance transaction that uses it.
+- Depends on: D5 and E1.
+- Scope: derive and implement the smallest additive PostgreSQL schema required by the synchronization
+  walking skeleton and its E3 transaction cases.
+- Excludes: garden tables, tombstones, retention or compaction policy, synchronization generations,
+  reconciliation snapshots, and other unresolved production synchronization details.
+- Acceptance: the migration is traceable to the accepted fixtures and transaction cases, succeeds against
+  an empty database, is idempotent across service restart, and introduces no unused placeholder tables.
+- Follow-up: E3 owns the concrete JDBC SQL and atomic server-acceptance transaction that uses this schema.
 
 #### D6. Add PostgreSQL integration tests
 
 - Initial status: `planned`.
-- Depends on: D5.
+- Depends on: D5a.
 - Scope: use Testcontainers to validate explicit SQL, transactions, migrations, and service restart behavior.
 - Acceptance: tests run from a clean environment and prove rollback and atomicity assumptions used by synchronization.
 
@@ -489,7 +503,7 @@ The first slice uses a deliberately technical record. It validates the mechanism
 #### E3. Push and atomically accept one operation
 
 - Initial status: `planned`.
-- Depends on: B9, D5, D6, and E2.
+- Depends on: B9, D5a, D6, and E2.
 - Scope: send one operation and atomically persist idempotency, accepted state, revision, server sequence, and change journal.
 - Acceptance: partial database state cannot remain after a failed acceptance transaction.
 

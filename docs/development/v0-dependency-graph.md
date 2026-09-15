@@ -107,9 +107,11 @@ C5 + D2
        |
        +--> D4 PostgreSQL development topology <-- F1
              |
-             +--> D5 Flyway technical migration
+             +--> D5 Flyway lifecycle
                    |
-                   +--> D6 PostgreSQL integration tests
+                   +--> D5a Technical migration
+                         |
+                         +--> D6 PostgreSQL integration tests
 ```
 
 ### 3.4 Synchronization lane
@@ -120,7 +122,7 @@ D2
        |
        +--> E2 Atomic local state and outbox
              |
-             +--> E3 Push and atomic server acceptance <-- B9 + D5 + D6
+             +--> E3 Push and atomic server acceptance <-- B9 + D5a + D6
                    |
                    +--> E4 Idempotent retry
                    |     |
