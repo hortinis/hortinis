@@ -24,11 +24,16 @@ allprojects {
 
     pluginManager.withPlugin("com.diffplug.spotless") {
         configure<com.diffplug.gradle.spotless.SpotlessExtension> {
-            java {
-                googleJavaFormat("1.30.0")
-            }
             kotlinGradle {
                 ktlint()
+            }
+        }
+    }
+
+    pluginManager.withPlugin("java") {
+        configure<com.diffplug.gradle.spotless.SpotlessExtension> {
+            java {
+                googleJavaFormat("1.30.0")
             }
         }
     }
