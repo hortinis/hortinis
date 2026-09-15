@@ -1,6 +1,7 @@
 @TypeSpec.JsonSchema.jsonSchema
 namespace Hortinis.Sync.Models {
   @doc("A canonical lowercase UUID version 7 identifier.")
+  @format("uuid")
   @pattern("^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
   scalar UuidV7 extends string;
 
