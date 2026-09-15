@@ -4,13 +4,23 @@ export interface TechnicalRecord {
   value: string;
 }
 
-export interface TechnicalRecordOperation {
+export interface CreateTechnicalRecordOperation {
   operationId: string;
   recordId: string;
   value: string;
-  kind: 'create' | 'replace';
-  expectedRevision?: string;
+  kind: 'create';
 }
+
+export interface ReplaceTechnicalRecordOperation {
+  operationId: string;
+  recordId: string;
+  value: string;
+  kind: 'replace';
+  expectedRevision: string;
+}
+
+export type TechnicalRecordOperation =
+  CreateTechnicalRecordOperation | ReplaceTechnicalRecordOperation;
 
 const uuidV7Pattern = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const positiveDecimalPattern = /^[1-9][0-9]*$/;
@@ -53,7 +63,8 @@ export function equalTechnicalRecordOperations(left: unknown, right: unknown): b
     left.recordId === right.recordId &&
     left.value === right.value &&
     left.kind === right.kind &&
-    left.expectedRevision === right.expectedRevision
+    (left.kind === 'replace' ? left.expectedRevision : undefined) ===
+      (right.kind === 'replace' ? right.expectedRevision : undefined)
   );
 }
 

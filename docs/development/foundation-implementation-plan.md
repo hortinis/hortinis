@@ -281,9 +281,9 @@ B5 and B6, formerly separate domain and application package setup, are folded in
 
 - Status: `validated`.
 - Depends on: B2.
-- Scope: implement dedicated persistence components under `apps/web/src/app/persistence`, an initial versioned IndexedDB schema, and migration test infrastructure. Keep transaction ownership explicit without requiring a persistence interface or separate package. The shipped initial schema intentionally contains no application stores; a test-only fixture demonstrates version upgrades without introducing placeholder production data.
+- Scope: implement dedicated persistence components under `apps/web/src/app/persistence`, an initial versioned IndexedDB schema, and migration test infrastructure. Keep transaction ownership explicit without requiring a persistence interface or separate package. B8 established the empty version-one baseline; E2 replaces that pre-release baseline with the first real application stores. A test-only fixture demonstrates version upgrades without introducing placeholder production data.
 - Excludes: garden records and synchronization behavior.
-- Artifacts: the Angular-injectable `HortinisDatabase` Dexie adapter, an empty version-one application schema, test-only versioned migration fixtures, isolated IndexedDB unit tests, and the `fake-indexeddb` test dependency.
+- Artifacts: the Angular-injectable `HortinisDatabase` Dexie adapter, the empty version-one application-schema baseline later replaced by E2, test-only versioned migration fixtures, isolated IndexedDB unit tests, and the `fake-indexeddb` test dependency.
 - Acceptance: database creation, version discovery, migration execution, transaction rollback, and test isolation are demonstrated.
 - Validation commands: `pnpm install --frozen-lockfile`, `pnpm --filter @hortinis/web format:check`, `pnpm --filter @hortinis/web lint`, `pnpm --filter @hortinis/web typecheck`, `pnpm --filter @hortinis/web test`, `pnpm --filter @hortinis/web build:development`, `pnpm --filter @hortinis/web build`, `git diff --check`, `git ls-files -ci --exclude-standard`, `git check-attr text eol -- .gitattributes README.md gradlew gradlew.bat`, and `git ls-files --eol`.
 - Validation evidence: the six-test Vitest suite opens the empty version-one application database and reports its version, upgrades a separate version-one fixture database through a version-two data migration, rolls back a failed Dexie read-write transaction, and proves separately named databases are isolated and deleted after each test. Formatting, linting, strict type checking, development and production builds, and repository-wide whitespace, ignore, attribute, and line-ending checks succeed.
@@ -506,10 +506,15 @@ The first slice uses a deliberately technical record. It validates the mechanism
 
 #### E2. Commit local state and an outbox operation atomically
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: B8 and E1.
 - Scope: persist one technical local change and its stable outbox operation in one Dexie transaction.
 - Acceptance: success persists both, failure persists neither, and reload retains the pending operation.
+- Artifacts: the version-one technical-record and outbox schema in `apps/web/src/app/persistence/database-schema.ts`; typed local projection and persistence components; a create-only local coordination service using the pinned `uuid` UUIDv7 generator; the UUIDv7 dependency decision in ADR-0022; and isolated IndexedDB transaction, rollback, reload, and identifier tests.
+- Excludes: replace workflow submission, server acceptance and stable-result persistence, cursors, conflict handling, retry policy, and user-facing synchronization state.
+- Validation commands: `pnpm --filter @hortinis/web format:check`, `pnpm --filter @hortinis/web lint`, `pnpm --filter @hortinis/web architecture:check`, `pnpm --filter @hortinis/web typecheck`, `pnpm --filter @hortinis/web test`, `pnpm --filter @hortinis/web build:development`, `pnpm --filter @hortinis/web build`, and the repository-wide Git checks.
+- Validation evidence: on 2026-09-15, the Angular/Vitest suite passed 13 tests across four files, including atomic success, rollback at either write, pending-operation retention after close/reopen, and canonical UUIDv7 generation. Prettier, Angular ESLint, the web architecture check, strict Angular/TypeScript checks, development build, and production build all passed. The schema is version one with `technicalRecords` and `outboxOperations` stores; the former empty B8 version-one baseline is intentionally not migrated because the application is pre-release.
+- Relevant decisions: ADR-0002, ADR-0008, ADR-0010, ADR-0018, and ADR-0022.
 
 #### E3. Push and atomically accept one operation
 

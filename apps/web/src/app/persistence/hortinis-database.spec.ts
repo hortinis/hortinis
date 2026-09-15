@@ -20,13 +20,16 @@ describe('HortinisDatabase', () => {
   });
 
   it('creates the empty initial application database', async () => {
-    const database = track(new HortinisDatabase());
+    const database = track(new HortinisDatabase(databaseName()));
 
     await database.open();
 
     expect(database.isOpen()).toBe(true);
     expect(database.verno).toBe(1);
-    expect(database.tables).toEqual([]);
+    expect(database.tables.map((table) => table.name)).toEqual([
+      'technicalRecords',
+      'outboxOperations',
+    ]);
   });
 
   it('runs a migration when upgrading an older database', async () => {
