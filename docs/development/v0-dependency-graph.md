@@ -103,7 +103,7 @@ A4
        +--> D2 Technical synchronization envelopes <-- D1 Contract validation
 
 C5 + D2
- +--> D3 PostgreSQL persistence
+ +--> D3 PostgreSQL JDBC runtime
        |
        +--> D4 PostgreSQL development topology <-- F1
              |

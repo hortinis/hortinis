@@ -19,29 +19,40 @@ The root command stops at the first failure and runs the existing checks without
 
 ### Container topology
 
-The minimal Docker Compose topology runs the synchronization service from the repository checkout and
-uses the service readiness probe to determine when it is healthy. Validate the Compose document
-independently from the repository root:
+The Docker Compose development topology runs PostgreSQL 18 and the synchronization service from the
+repository checkout. The pinned Gradle image supplies Gradle directly, so the container does not need to
+download a second Gradle distribution through the wrapper. PostgreSQL readiness gates service startup,
+and the service readiness probe then determines when the topology is healthy. Validate the Compose
+document independently from the repository root:
 
 ```shell
 pnpm compose:validate
 ```
 
-With Docker available, start the topology and wait for the readiness probe:
+With Docker available, export a local database password and start the topology:
 
 ```shell
+export HORTINIS_POSTGRES_PASSWORD='choose-a-local-password'
 docker compose --file infrastructure/docker/compose.yaml up --wait
 ```
 
-The sync service is available on `http://127.0.0.1:8080`; inspect its status with
-`docker compose --file infrastructure/docker/compose.yaml ps`. Stop the topology predictably with:
+The sync service is available on `http://127.0.0.1:8080`; PostgreSQL remains private to the Compose
+network. Inspect service status with `docker compose --file infrastructure/docker/compose.yaml ps`.
+The named `postgres-data` volume preserves database files across normal shutdown. Stop the topology
+predictably with:
 
 ```shell
 docker compose --file infrastructure/docker/compose.yaml down --remove-orphans
 ```
 
-This increment intentionally does not add PostgreSQL, Angular static-file serving, same-origin edge
-routing, or production image builds. Those capabilities belong to D4, F3, and F2 respectively.
+The first startup can take several minutes while Gradle and the application dependencies populate the
+named `gradle-cache` volume. Do not start a second Gradle command using the same Compose service while
+that build is running; it will contend for Gradle's cache lock. Follow the existing service instead with
+`docker compose --file infrastructure/docker/compose.yaml logs --follow sync`.
+
+This increment intentionally does not add Flyway, application schema migrations, Angular static-file
+serving, same-origin edge routing, or production image builds. Those capabilities belong to D5, F3, and
+F2 respectively.
 
 ## Frontend workspace
 
@@ -152,7 +163,12 @@ Validate the Wrapper files before running the build:
 sha256sum --check gradle/wrapper/gradle-wrapper.jar.sha256
 ```
 
-The Wrapper also verifies the downloaded Gradle binary distribution against the SHA-256 checksum recorded in `gradle/wrapper/gradle-wrapper.properties`. The root has no external Java dependencies; the C6 Spring Boot application has reviewed dependency-verification metadata and committed dependency locks. Each later increment that adds a dependency must update and review both at the same time.
+The Wrapper also verifies the downloaded Gradle binary distribution against the SHA-256 checksum recorded in `gradle/wrapper/gradle-wrapper.properties`. The C6 and D3 Spring Boot application dependencies have reviewed dependency-verification metadata and committed dependency locks. The application uses PostgreSQL through Spring JDBC; native `bootRun` therefore requires datasource variables (the Compose topology supplies them). Each later increment that adds a dependency must update and review the lockfile and verification metadata together.
+
+Update metadata:
+```shell
+./gradlew --write-verification-metadata sha256
+```
 
 Validate the backend workspace independently of the frontend workspace:
 
@@ -168,7 +184,7 @@ java --version
 ./gradlew :services:sync:bootRun
 ```
 
-Java must report major version 25 and Gradle must report version 9.7.1. The projects report includes the single Spring Boot application project at `:services:sync`. `spotlessCheck` validates Java formatting with Google Java Format and Gradle Kotlin script formatting with ktlint. Checkstyle and PMD run independently through their source-set tasks. JUnit 5 is executed through Gradle's `test` task; Spring Boot's test starter provides AssertJ. The C5 application-context test verifies that the service starts without a database, while the C6 tests verify status-only health probes and privacy-safe structured request logs. `bootRun` starts the web server and remains active while the service is running; stop it with `Ctrl+C` after checking the probes. ArchUnit architecture checks will receive a separate command when internal package boundaries exist; no aggregate command should hide that entry point.
+Java must report major version 25 and Gradle must report version 9.7.1. The projects report includes the single Spring Boot application project at `:services:sync`. `spotlessCheck` validates Java formatting with Google Java Format and Gradle Kotlin script formatting with ktlint. Checkstyle and PMD run independently through their source-set tasks. JUnit 5 is executed through Gradle's `test` task; Spring Boot's test starter provides AssertJ. The application-context tests explicitly exclude datasource auto-configuration so they remain database-independent; Compose startup validates the real JDBC connection. `bootRun` starts the web server and remains active while the service is running when datasource variables are configured; stop it with `Ctrl+C` after checking the probes. ArchUnit architecture checks remain outside D3+D4 and will receive a separate command when C7 establishes the internal package boundaries.
 
 ## Repository-wide validation
 

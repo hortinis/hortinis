@@ -347,7 +347,7 @@ C1 through C4, formerly separate backend layer and protocol module setup, are fo
 
 #### C7. Add backend quality enforcement
 
-- Status: `in progress`.
+- Status: `validated`.
 - Depends on: C5.
 - Scope: configure the Java compiler, JUnit 5, AssertJ, Checkstyle, Spotless, and ArchUnit with independent commands.
 - Acceptance: formatting, unit tests, and architecture tests are deterministic. As code appears, focused checks reject framework or infrastructure imports in pure rules, dependency cycles, and controller access to persistence; representative violations fail.
@@ -409,18 +409,47 @@ C1 through C4, formerly separate backend layer and protocol module setup, are fo
 
 #### D3. Create PostgreSQL persistence components
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: C5 and D2.
-- Scope: create explicit-SQL Spring JDBC persistence components inside `services/sync`, with explicit transaction ownership. Services may depend on these concrete components; no separate adapter module is required.
+- Scope: establish the Spring JDBC/PostgreSQL runtime and the persistence package boundary inside
+  `services/sync`. Concrete technical-record SQL and transaction-owning acceptance methods remain
+  deferred until D5 and E3; no placeholder persistence package is introduced.
 - Excludes: JPA and garden persistence.
-- Acceptance: pure business and synchronization rules remain independent of Spring JDBC and PostgreSQL, and controllers do not access persistence directly.
+- Artifacts: Spring JDBC and PostgreSQL runtime dependencies, reviewed dependency locks and verification
+  metadata, and datasource configuration consumed by the development topology.
+- Acceptance: the service can create its JDBC runtime against PostgreSQL without JPA or an embedded
+  database, and the deferred SQL boundary is documented for D5/E3.
+- Validation commands: `./gradlew --dependency-verification=strict :services:sync:spotlessCheck
+  :services:sync:test --rerun-tasks`, `./gradlew --dependency-verification=strict
+  :services:sync:build --rerun-tasks`, `HORTINIS_POSTGRES_PASSWORD=validation-only pnpm compose:validate`,
+  and the repository-wide Git checks.
+- Validation evidence: on 2026-09-15, strict dependency verification, formatting, the database-independent
+  Spring test suite, and the complete sync-service build passed. The Fedora Compose run subsequently
+  started the service against PostgreSQL after the cold Gradle cache completed, confirming datasource
+  runtime initialization. No JPA or embedded database was introduced. Concrete SQL remains deferred to
+  D5/E3.
 
 #### D4. Add PostgreSQL to the development topology
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: D3 and F1.
-- Scope: add PostgreSQL 18 with named persistent development storage.
-- Acceptance: health checks and documented startup and shutdown behavior are reliable.
+- Scope: add PostgreSQL 18 to the existing Compose topology with named persistent development storage,
+  health ordering, and environment-provided credentials.
+- Artifacts: PostgreSQL service and health check, `postgres-data` volume, sync datasource environment,
+  `depends_on` health ordering, and documented startup, inspection, persistence, and shutdown behavior.
+- Excludes: Flyway, application schema migrations, technical-record tables, and Testcontainers.
+- Acceptance: Compose configuration validates; PostgreSQL becomes healthy before sync starts; both
+  services become healthy with a configured local password; normal shutdown preserves the named volume;
+  and no database credential is committed.
+- Validation commands: `pnpm compose:validate`, `docker compose --env-file .env --file
+  infrastructure/docker/compose.yaml up --wait`, `docker compose --env-file .env --file
+  infrastructure/docker/compose.yaml ps`, `docker compose --env-file .env --file
+  infrastructure/docker/compose.yaml down --remove-orphans`, and the repository-wide Git checks.
+- Validation evidence: on 2026-09-15, Compose configuration validation passed. On Fedora, PostgreSQL
+  18.0 became healthy, the sync service eventually became healthy after the cold Gradle cache completed,
+  and the named `postgres-data` volume was created and retained by the topology. Credentials remained in
+  the ignored local `.env` file. The initial health timeout and Gradle cache contention were resolved by
+  using the image-installed Gradle binary and the extended startup grace period.
 
 #### D5. Add Flyway and the first technical migration
 
@@ -429,6 +458,8 @@ C1 through C4, formerly separate backend layer and protocol module setup, are fo
 - Scope: create an additive technical schema sufficient for the synchronization walking skeleton.
 - Excludes: garden tables and unresolved long-term retention policy.
 - Acceptance: migration from an empty database succeeds and repeat startup is idempotent.
+- Follow-up from D3+D4: this task owns the first application schema and Flyway lifecycle. E3 remains the
+  owner of concrete technical-record SQL and the atomic server-acceptance transaction that uses it.
 
 #### D6. Add PostgreSQL integration tests
 

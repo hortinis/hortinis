@@ -1,15 +1,40 @@
 name: hortinis
 
 services:
+  postgres:
+    image: postgres:18.0
+    environment:
+      POSTGRES_DB: hortinis
+      POSTGRES_USER: hortinis
+      POSTGRES_PASSWORD: ${HORTINIS_POSTGRES_PASSWORD:?Set HORTINIS_POSTGRES_PASSWORD before starting Compose}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U hortinis -d hortinis
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    stop_grace_period: 10s
+
   sync:
     image: gradle:9.7.1-jdk25
     entrypoint: []
     init: true
     working_dir: /workspace
     command:
-      - ./gradlew
+      - gradle
       - :services:sync:bootRun
       - --no-daemon
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/hortinis
+      SPRING_DATASOURCE_USERNAME: hortinis
+      SPRING_DATASOURCE_PASSWORD: ${HORTINIS_POSTGRES_PASSWORD:?Set HORTINIS_POSTGRES_PASSWORD before starting Compose}
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
@@ -29,8 +54,9 @@ services:
       interval: 5s
       timeout: 3s
       retries: 30
-      start_period: 20s
+      start_period: 180s
     stop_grace_period: 10s
 
 volumes:
   gradle-cache:
+  postgres-data:
