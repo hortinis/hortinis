@@ -119,7 +119,6 @@ test("production schemas enforce technical operations, identifiers, revisions, a
   const operationId = "01890f3e-7c5a-7b12-8abc-0123456789ab";
   const recordId = "01890f3e-7c5a-7b13-8abc-0123456789ab";
   const create = {
-    protocolVersion: 1,
     operationId,
     recordId,
     value: "first value",
@@ -144,7 +143,6 @@ test("production schemas enforce technical operations, identifiers, revisions, a
   assert.equal(validateOperation({ ...create, recordId: recordId.toUpperCase() }), false);
 
   const result = {
-    protocolVersion: 1,
     outcome: "accepted",
     operationId,
     record: { recordId, revision: "1", value: "first value" },
@@ -169,7 +167,6 @@ test("production schemas enforce opaque cursors and explicit protocol errors", (
     value: "accepted value",
   };
   const page = {
-    protocolVersion: 1,
     changes: [{ operationId, record, sequence: "2" }],
     nextCursor: "opaque-cursor-value",
     hasMore: false,
@@ -178,7 +175,6 @@ test("production schemas enforce opaque cursors and explicit protocol errors", (
   assert.equal(validatePage({ ...page, nextCursor: "" }), false);
 
   const revisionConflict = {
-    protocolVersion: 1,
     code: "REVISION_CONFLICT",
     message: "The expected revision does not match the current revision.",
     operationId,
@@ -188,12 +184,11 @@ test("production schemas enforce opaque cursors and explicit protocol errors", (
   const explicitErrors = [
     {
       schema: "InvalidRequestError.json",
-      value: { protocolVersion: 1, code: "INVALID_REQUEST", message: "The request is invalid." },
+      value: { code: "INVALID_REQUEST", message: "The request is invalid." },
     },
     {
       schema: "RecordNotFoundError.json",
       value: {
-        protocolVersion: 1,
         code: "RECORD_NOT_FOUND",
         message: "The record does not exist.",
         operationId,
@@ -203,7 +198,6 @@ test("production schemas enforce opaque cursors and explicit protocol errors", (
     {
       schema: "OperationIdReusedError.json",
       value: {
-        protocolVersion: 1,
         code: "OPERATION_ID_REUSED",
         message: "The operation identifier was reused.",
         operationId,
@@ -212,7 +206,6 @@ test("production schemas enforce opaque cursors and explicit protocol errors", (
     {
       schema: "RecordAlreadyExistsError.json",
       value: {
-        protocolVersion: 1,
         code: "RECORD_ALREADY_EXISTS",
         message: "The record already exists.",
         operationId,

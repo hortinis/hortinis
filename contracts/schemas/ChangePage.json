@@ -3,10 +3,6 @@
     "$id": "ChangePage.json",
     "type": "object",
     "properties": {
-        "protocolVersion": {
-            "type": "number",
-            "const": 1
-        },
         "changes": {
             "type": "array",
             "items": {
@@ -21,7 +17,6 @@
         }
     },
     "required": [
-        "protocolVersion",
         "changes",
         "nextCursor",
         "hasMore"

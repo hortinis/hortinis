@@ -3,10 +3,6 @@
     "$id": "InvalidRequestError.json",
     "type": "object",
     "properties": {
-        "protocolVersion": {
-            "type": "number",
-            "const": 1
-        },
         "code": {
             "type": "string",
             "const": "INVALID_REQUEST"
@@ -17,7 +13,6 @@
         }
     },
     "required": [
-        "protocolVersion",
         "code",
         "message"
     ],

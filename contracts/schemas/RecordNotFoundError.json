@@ -3,10 +3,6 @@
     "$id": "RecordNotFoundError.json",
     "type": "object",
     "properties": {
-        "protocolVersion": {
-            "type": "number",
-            "const": 1
-        },
         "code": {
             "type": "string",
             "const": "RECORD_NOT_FOUND"
@@ -23,7 +19,6 @@
         }
     },
     "required": [
-        "protocolVersion",
         "code",
         "message",
         "operationId",

@@ -21,9 +21,6 @@ namespace Hortinis.Sync.Models {
 
   @doc("Create a technical record that does not yet exist.")
   model CreateTechnicalRecordOperation {
-    @doc("The version of the persisted synchronization envelope.")
-    protocolVersion: 1;
-
     @doc("The stable operation and idempotency identifier.")
     operationId: UuidV7;
 
@@ -34,9 +31,6 @@ namespace Hortinis.Sync.Models {
 
   @doc("Replace a technical record at its expected server revision.")
   model ReplaceTechnicalRecordOperation {
-    @doc("The version of the persisted synchronization envelope.")
-    protocolVersion: 1;
-
     @doc("The stable operation and idempotency identifier.")
     operationId: UuidV7;
 
@@ -56,7 +50,6 @@ namespace Hortinis.Sync.Models {
 
   @doc("The stable result returned when an operation is accepted or replayed identically.")
   model OperationResult {
-    protocolVersion: 1;
     outcome: "accepted";
     operationId: UuidV7;
     record: TechnicalRecord;
@@ -72,7 +65,6 @@ namespace Hortinis.Sync.Models {
 
   @doc("A page of accepted changes and the opaque cursor following the complete page.")
   model ChangePage {
-    protocolVersion: 1;
     changes: TechnicalChange[];
     nextCursor: SyncCursor;
     hasMore: boolean;
@@ -80,7 +72,6 @@ namespace Hortinis.Sync.Models {
 
   @doc("The request does not satisfy the synchronization contract.")
   model InvalidRequestError {
-    protocolVersion: 1;
     code: "INVALID_REQUEST";
 
     @minLength(1)
@@ -89,7 +80,6 @@ namespace Hortinis.Sync.Models {
 
   @doc("The operation targets a technical record that does not exist.")
   model RecordNotFoundError {
-    protocolVersion: 1;
     code: "RECORD_NOT_FOUND";
 
     @minLength(1)
@@ -101,7 +91,6 @@ namespace Hortinis.Sync.Models {
 
   @doc("The operation identifier was already used with a different canonical request.")
   model OperationIdReusedError {
-    protocolVersion: 1;
     code: "OPERATION_ID_REUSED";
 
     @minLength(1)
@@ -112,7 +101,6 @@ namespace Hortinis.Sync.Models {
 
   @doc("Creation failed because the technical record already exists.")
   model RecordAlreadyExistsError {
-    protocolVersion: 1;
     code: "RECORD_ALREADY_EXISTS";
 
     @minLength(1)
@@ -124,7 +112,6 @@ namespace Hortinis.Sync.Models {
 
   @doc("Replacement failed because the expected and current revisions differ.")
   model RevisionConflictError {
-    protocolVersion: 1;
     code: "REVISION_CONFLICT";
 
     @minLength(1)

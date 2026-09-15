@@ -3,10 +3,6 @@
     "$id": "OperationResult.json",
     "type": "object",
     "properties": {
-        "protocolVersion": {
-            "type": "number",
-            "const": 1
-        },
         "outcome": {
             "type": "string",
             "const": "accepted"
@@ -22,7 +18,6 @@
         }
     },
     "required": [
-        "protocolVersion",
         "outcome",
         "operationId",
         "record",

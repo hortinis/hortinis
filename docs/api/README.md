@@ -15,9 +15,8 @@ The version-one walking-skeleton contract exposes only these operations:
 - `POST /api/v1/sync/operations` accepts or identically replays one technical-record operation;
 - `GET /api/v1/sync/changes` pulls accepted changes after an optional opaque `cursor` query parameter.
 
-Every top-level persisted envelope carries the numeric literal `protocolVersion: 1`. The versioned path
-and envelope version are separate from record revisions and server sequences. All contract objects are
-closed: unknown properties are invalid.
+The versioned path is the synchronization compatibility boundary. All contract objects are closed:
+unknown properties are invalid.
 
 The walking skeleton uses one deliberately technical record with a stable `recordId`, a server
 `revision`, and a string `value`. It is not a garden resource and does not imply a future garden model.

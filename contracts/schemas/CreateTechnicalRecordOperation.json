@@ -3,11 +3,6 @@
     "$id": "CreateTechnicalRecordOperation.json",
     "type": "object",
     "properties": {
-        "protocolVersion": {
-            "type": "number",
-            "const": 1,
-            "description": "The version of the persisted synchronization envelope."
-        },
         "operationId": {
             "$ref": "UuidV7.json",
             "description": "The stable operation and idempotency identifier."
@@ -24,7 +19,6 @@
         }
     },
     "required": [
-        "protocolVersion",
         "operationId",
         "recordId",
         "value",

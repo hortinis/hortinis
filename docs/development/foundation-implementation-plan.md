@@ -358,8 +358,8 @@ C1 through C4, formerly separate backend layer and protocol module setup, are fo
   2020-12 artifacts; closed create, replace, result, change-page, and explicit error envelopes; generated
   artifact synchronization and drift checks; production-schema validation and focused constraint tests;
   and updated API and contract documentation.
-- Acceptance: contracts describe path and envelope versioning; canonical lowercase UUIDv7 identifiers;
-  an operation identifier that is also its idempotency identifier; create and expected-revision replace
+- Acceptance: contracts describe path versioning; canonical lowercase UUIDv7 identifiers; an operation
+  identifier that is also its idempotency identifier; create and expected-revision replace
   operations; precision-safe revision and sequence strings; opaque cursors; ordered change pages; and
   explicit invalid-request, missing-record, identifier-reuse, existing-record, and revision-conflict
   errors. Generated objects are closed, local references resolve without network access, committed

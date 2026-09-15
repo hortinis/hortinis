@@ -3,10 +3,6 @@
     "$id": "RevisionConflictError.json",
     "type": "object",
     "properties": {
-        "protocolVersion": {
-            "type": "number",
-            "const": 1
-        },
         "code": {
             "type": "string",
             "const": "REVISION_CONFLICT"
@@ -26,7 +22,6 @@
         }
     },
     "required": [
-        "protocolVersion",
         "code",
         "message",
         "operationId",
