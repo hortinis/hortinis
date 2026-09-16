@@ -178,14 +178,15 @@ java --version
 ./gradlew --version
 ./gradlew projects
 ./gradlew :services:sync:spotlessCheck
-./gradlew :services:sync:checkstyleMain :services:sync:checkstyleTest
-./gradlew :services:sync:pmdMain :services:sync:pmdTest
+./gradlew :services:sync:checkstyleMain :services:sync:checkstyleTest :services:sync:checkstyleIntegrationTest
+./gradlew :services:sync:pmdMain :services:sync:pmdTest :services:sync:pmdIntegrationTest
 ./gradlew --dependency-verification=strict :services:sync:test
+./gradlew --dependency-verification=strict :services:sync:integrationTest
 ./gradlew :services:sync:build
 ./gradlew :services:sync:bootRun
 ```
 
-Java must report major version 25 and Gradle must report version 9.7.1. The projects report includes the single Spring Boot application project at `:services:sync`. `spotlessCheck` validates Java formatting with Google Java Format and Gradle Kotlin script formatting with ktlint. Checkstyle and PMD run independently through their source-set tasks. JUnit 5 is executed through Gradle's `test` task; Spring Boot's test starter provides AssertJ. The application-context tests explicitly exclude datasource auto-configuration so they remain database-independent; Compose startup validates the real JDBC connection. `bootRun` starts the web server and remains active while the service is running when datasource variables are configured; stop it with `Ctrl+C` after checking the probes. ArchUnit architecture checks remain outside D3+D4 and will receive a separate command when C7 establishes the internal package boundaries.
+Java must report major version 25 and Gradle must report version 9.7.1. The projects report includes the single Spring Boot application project at `:services:sync`. `spotlessCheck` validates Java formatting with Google Java Format and Gradle Kotlin script formatting with ktlint. Checkstyle and PMD run independently through their source-set tasks. JUnit 5 is executed through the database-independent `test` task and the PostgreSQL-backed `integrationTest` task; the latter requires access to a Docker-compatible daemon and starts a clean PostgreSQL 18 Testcontainers instance. The application-context tests explicitly exclude datasource auto-configuration so they remain database-independent; Compose startup validates the real JDBC connection. `bootRun` starts the web server and remains active while the service is running when datasource variables are configured; stop it with `Ctrl+C` after checking the probes. ArchUnit architecture checks remain outside D3+D4 and will receive a separate command when C7 establishes the internal package boundaries.
 
 ## Repository-wide validation
 

@@ -495,10 +495,25 @@ C1 through C4, formerly separate backend layer and protocol module setup, are fo
 
 #### D6. Add PostgreSQL integration tests
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: D5a.
 - Scope: use Testcontainers to validate explicit SQL, transactions, migrations, and service restart behavior.
 - Acceptance: tests run from a clean environment and prove rollback and atomicity assumptions used by synchronization.
+- Artifacts: an independent Gradle `integrationTest` source set and task; pinned PostgreSQL 18
+  Testcontainers dependencies with reviewed locks and verification metadata; schema and constraint tests;
+  transaction rollback tests; and application-context restart coverage proving Flyway idempotence and data
+  retention.
+- Validation commands: `./gradlew --dependency-verification=strict :services:sync:test`,
+  `./gradlew --dependency-verification=strict :services:sync:integrationTest`,
+  `./gradlew :services:sync:spotlessCheck`, `./gradlew :services:sync:checkstyleMain
+  :services:sync:checkstyleTest :services:sync:checkstyleIntegrationTest`,
+  `./gradlew :services:sync:pmdMain :services:sync:pmdTest :services:sync:pmdIntegrationTest`, and
+  the repository-wide Git checks.
+- Validation evidence: on 2026-09-16, the integration-test task passed against disposable PostgreSQL 18
+  Testcontainers. Tests verified Flyway version-one application and schema shape, valid three-row acceptance
+  writes, generated and increasing server sequences, schema constraint enforcement, rollback after a
+  constraint failure, rollback after an application failure, and data retention plus single-entry Flyway
+  history across two application-context starts. Production acceptance SQL remains owned by E3.
 
 ### Track E: first synchronization walking skeleton
 
