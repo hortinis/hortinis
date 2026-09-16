@@ -50,10 +50,10 @@ named `gradle-cache` volume. Do not start a second Gradle command using the same
 that build is running; it will contend for Gradle's cache lock. Follow the existing service instead with
 `docker compose --file infrastructure/docker/compose.yaml logs --follow sync`.
 
-This topology does not yet add application schema migrations or application tables. Flyway lifecycle
-configuration belongs to D5; the first application migration is deferred to D5a after the synchronization
-fixtures and transaction cases establish its contents. Angular static-file serving, same-origin edge
-routing, and production image builds belong to F3 and F2 respectively.
+The topology now applies the first technical Flyway migration at sync-service startup. It creates only the
+walking-skeleton technical-record projection, accepted-operation receipts, and immutable change journal;
+JDBC acceptance SQL and PostgreSQL integration tests remain owned by E3 and D6. Angular static-file
+serving, same-origin edge routing, and production image builds belong to F3 and F2 respectively.
 
 ## Frontend workspace
 

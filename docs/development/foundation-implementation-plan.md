@@ -471,7 +471,7 @@ C1 through C4, formerly separate backend layer and protocol module setup, are fo
 
 #### D5a. Define the first technical migration
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: D5 and E1.
 - Scope: derive and implement the smallest additive PostgreSQL schema required by the synchronization
   walking skeleton and its E3 transaction cases.
@@ -479,6 +479,18 @@ C1 through C4, formerly separate backend layer and protocol module setup, are fo
   reconciliation snapshots, and other unresolved production synchronization details.
 - Acceptance: the migration is traceable to the accepted fixtures and transaction cases, succeeds against
   an empty database, is idempotent across service restart, and introduces no unused placeholder tables.
+- Artifacts: Flyway migration `V1__create_technical_sync_schema.sql` defining the current technical-record
+  projection, accepted-operation idempotency receipts, and immutable technical-record change journal;
+  the Spring Boot Flyway starter and PostgreSQL database module; and migration validation evidence.
+- Validation commands: `./gradlew --write-verification-metadata sha256 :services:sync:dependencies
+  --write-locks`, `./gradlew --dependency-verification=strict :services:sync:spotlessCheck
+  :services:sync:test`, `HORTINIS_POSTGRES_PASSWORD=validation-only pnpm compose:validate`, and a
+  disposable PostgreSQL 18 Compose startup, schema inspection, service restart, and Flyway-history check.
+- Validation evidence: on 2026-09-16, a clean disposable PostgreSQL 18 volume applied Flyway version 1
+  successfully and created only the three application tables plus `flyway_schema_history`. The sync
+  service became healthy, and after service restart the migration history still contained exactly one
+  successful version-one entry. Backend formatting and tests, dependency metadata generation, Compose
+  validation, and repository whitespace checks passed.
 - Follow-up: E3 owns the concrete JDBC SQL and atomic server-acceptance transaction that uses this schema.
 
 #### D6. Add PostgreSQL integration tests
