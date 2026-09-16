@@ -33,6 +33,7 @@ const fixtureNames = [
   'record-not-found.json',
   'replay-equivalent.json',
   'replace-accepted.json',
+  'revision-conflict.json',
 ];
 
 describe('technical synchronization conformance fixtures', () => {

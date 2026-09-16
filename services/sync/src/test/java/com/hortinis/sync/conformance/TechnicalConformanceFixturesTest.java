@@ -30,7 +30,8 @@ class TechnicalConformanceFixturesTest {
           "record-already-exists.json",
           "record-not-found.json",
           "replay-equivalent.json",
-          "replace-accepted.json");
+          "replace-accepted.json",
+          "revision-conflict.json");
 
   @Test
   void consumesEverySharedScenarioAndAgreesWithExpectedValidity() throws IOException {

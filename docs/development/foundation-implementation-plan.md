@@ -506,7 +506,7 @@ The first slice uses a deliberately technical record. It validates the mechanism
   validity and operation comparisons, and cover accepted operations, pull pages, explicit
   errors, server-state preconditions, invalid identifiers/revisions, closed operation variants, and
   opaque cursor validation.
-- Validation evidence: the shared eleven-scenario corpus passes the TypeScript unit suite and the Java
+- Validation evidence: the shared twelve-scenario corpus passes the TypeScript unit suite and the Java
   JUnit suite. TypeScript strict checking, linting, and formatting also pass; the Java synchronization
   tests compile and pass with the Gradle wrapper.
 
