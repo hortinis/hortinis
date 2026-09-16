@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto';
 
+import { TestBed } from '@angular/core/testing';
 import Dexie from 'dexie';
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { HortinisDatabase } from '../persistence/hortinis-database';
@@ -8,11 +9,14 @@ import { TechnicalRecordSynchronizationService } from './technical-record-synchr
 import type { OperationResult, TechnicalRecordOperation } from './conformance';
 import type { SynchronizationTransport } from './synchronization-transport';
 import type { NetworkStatus } from './network-status';
+import { SYNCHRONIZATION_TRANSPORT } from './synchronization-transport.token';
+import { NETWORK_STATUS } from './network-status';
 
 describe('TechnicalRecordSynchronizationService', () => {
   const databases: Dexie[] = [];
 
   afterEach(async () => {
+    TestBed.resetTestingModule();
     await Promise.all(
       databases.splice(0).map(async (database) => {
         database.close();
@@ -23,19 +27,14 @@ describe('TechnicalRecordSynchronizationService', () => {
 
   it('pushes one pending operation and commits its stable result', async () => {
     const database = openDatabase();
-    const persistence = new TechnicalRecordPersistence(database);
     const operation = createOperation();
-    await persistence.commitCreate(operation);
     const result = acceptedResult(operation);
     const transport: SynchronizationTransport = {
       submitOperation: vi.fn(async () => result),
       pullChanges: vi.fn(),
     };
-    const service = new TechnicalRecordSynchronizationService(
-      persistence,
-      transport,
-      onlineStatus(true),
-    );
+    const { persistence, service } = services(database, transport, onlineStatus(true));
+    await persistence.commitCreate(operation);
 
     await expect(service.pushOnePendingOperation()).resolves.toMatchObject({ status: 'accepted' });
     expect(transport.submitOperation).toHaveBeenCalledOnce();
@@ -47,18 +46,13 @@ describe('TechnicalRecordSynchronizationService', () => {
 
   it('skips the request while offline and retains pending work', async () => {
     const database = openDatabase();
-    const persistence = new TechnicalRecordPersistence(database);
     const operation = createOperation();
-    await persistence.commitCreate(operation);
     const transport: SynchronizationTransport = {
       submitOperation: vi.fn(),
       pullChanges: vi.fn(),
     };
-    const service = new TechnicalRecordSynchronizationService(
-      persistence,
-      transport,
-      onlineStatus(false),
-    );
+    const { persistence, service } = services(database, transport, onlineStatus(false));
+    await persistence.commitCreate(operation);
 
     await expect(service.pushOnePendingOperation()).resolves.toEqual({ status: 'offline' });
     expect(transport.submitOperation).not.toHaveBeenCalled();
@@ -67,20 +61,15 @@ describe('TechnicalRecordSynchronizationService', () => {
 
   it('retains pending work when transport or result persistence fails', async () => {
     const database = openDatabase();
-    const persistence = new TechnicalRecordPersistence(database);
     const operation = createOperation();
-    await persistence.commitCreate(operation);
     const transport: SynchronizationTransport = {
       submitOperation: vi.fn(async () => {
         throw new Error('service unavailable');
       }),
       pullChanges: vi.fn(),
     };
-    const service = new TechnicalRecordSynchronizationService(
-      persistence,
-      transport,
-      onlineStatus(true),
-    );
+    const { persistence, service } = services(database, transport, onlineStatus(true));
+    await persistence.commitCreate(operation);
 
     await expect(service.pushOnePendingOperation()).resolves.toMatchObject({ status: 'failed' });
     await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
@@ -90,6 +79,24 @@ describe('TechnicalRecordSynchronizationService', () => {
     const database = new HortinisDatabase(`hortinis-e3-${crypto.randomUUID()}`);
     databases.push(database);
     return database;
+  }
+
+  function services(
+    database: HortinisDatabase,
+    transport: SynchronizationTransport,
+    network: NetworkStatus,
+  ): { persistence: TechnicalRecordPersistence; service: TechnicalRecordSynchronizationService } {
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: HortinisDatabase, useValue: database },
+        { provide: SYNCHRONIZATION_TRANSPORT, useValue: transport },
+        { provide: NETWORK_STATUS, useValue: network },
+      ],
+    });
+    return {
+      persistence: TestBed.inject(TechnicalRecordPersistence),
+      service: TestBed.inject(TechnicalRecordSynchronizationService),
+    };
   }
 });
 

@@ -1,9 +1,8 @@
-import { inject, Injectable, Inject } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import type { OperationResult, TechnicalRecordOperation } from './conformance';
-import type { SynchronizationTransport } from './synchronization-transport';
 import { SYNCHRONIZATION_TRANSPORT } from './synchronization-transport.token';
 import { TechnicalRecordPersistence } from '../persistence/technical-record-persistence';
-import { NETWORK_STATUS, type NetworkStatus } from './network-status';
+import { NETWORK_STATUS } from './network-status';
 
 export type PushOutcome =
   | { status: 'empty' }
@@ -13,23 +12,10 @@ export type PushOutcome =
 
 @Injectable({ providedIn: 'root' })
 export class TechnicalRecordSynchronizationService {
-  private readonly persistence: TechnicalRecordPersistence;
-  private readonly transport: SynchronizationTransport;
-  private readonly network: NetworkStatus;
+  private readonly persistence = inject(TechnicalRecordPersistence);
+  private readonly transport = inject(SYNCHRONIZATION_TRANSPORT);
+  private readonly network = inject(NETWORK_STATUS);
   private pushInProgress = false;
-
-  constructor(
-    // eslint-disable-next-line @angular-eslint/prefer-inject
-    persistence?: TechnicalRecordPersistence,
-    // eslint-disable-next-line @angular-eslint/prefer-inject
-    @Inject(SYNCHRONIZATION_TRANSPORT) transport?: SynchronizationTransport,
-    // eslint-disable-next-line @angular-eslint/prefer-inject
-    @Inject(NETWORK_STATUS) network?: NetworkStatus,
-  ) {
-    this.persistence = persistence ?? inject(TechnicalRecordPersistence);
-    this.transport = transport ?? inject(SYNCHRONIZATION_TRANSPORT);
-    this.network = network ?? inject(NETWORK_STATUS);
-  }
 
   async pushOnePendingOperation(): Promise<PushOutcome> {
     if (this.pushInProgress) {

@@ -12,19 +12,8 @@ export interface LocalTechnicalRecordCreate {
 
 @Injectable({ providedIn: 'root' })
 export class TechnicalRecordLocalService {
-  private readonly persistence: TechnicalRecordPersistence;
-  private readonly synchronization?: TechnicalRecordSynchronizationService;
-
-  constructor(
-    // eslint-disable-next-line @angular-eslint/prefer-inject
-    persistence?: TechnicalRecordPersistence,
-    // eslint-disable-next-line @angular-eslint/prefer-inject
-    synchronization?: TechnicalRecordSynchronizationService,
-  ) {
-    this.persistence = persistence ?? inject(TechnicalRecordPersistence);
-    this.synchronization =
-      synchronization ?? (persistence ? undefined : inject(TechnicalRecordSynchronizationService));
-  }
+  private readonly persistence = inject(TechnicalRecordPersistence);
+  private readonly synchronization = inject(TechnicalRecordSynchronizationService);
 
   async create(value: string): Promise<LocalTechnicalRecordCreate> {
     const operation: CreateTechnicalRecordOperation = {
@@ -35,7 +24,7 @@ export class TechnicalRecordLocalService {
     };
 
     const record = await this.persistence.commitCreate(operation);
-    void this.synchronization?.pushOnePendingOperation();
+    void this.synchronization.pushOnePendingOperation();
     return { record, operation };
   }
 }

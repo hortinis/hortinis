@@ -9,13 +9,7 @@ import type { LocalTechnicalRecord } from './local-technical-record';
 
 @Injectable({ providedIn: 'root' })
 export class TechnicalRecordPersistence {
-  private readonly database: HortinisDatabase;
-
-  // The optional argument provides a test seam while production uses Angular's inject() function.
-  // eslint-disable-next-line @angular-eslint/prefer-inject
-  constructor(database?: HortinisDatabase) {
-    this.database = database ?? inject(HortinisDatabase);
-  }
+  private readonly database = inject(HortinisDatabase);
 
   async commitCreate(operation: CreateTechnicalRecordOperation): Promise<LocalTechnicalRecord> {
     const localRecord: LocalTechnicalRecord = {
