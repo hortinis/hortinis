@@ -4,12 +4,12 @@
   "request": {
     "value": "first value",
     "kind": "create",
-    "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab",
-    "operationId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+    "recordId": "01890f3e-7c5a-4b13-8abc-0123456789ab",
+    "operationId": "01890f3e-7c5a-4b12-8abc-0123456789ab"
   },
   "equivalentRequest": {
-    "operationId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
-    "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab",
+    "operationId": "01890f3e-7c5a-4b12-8abc-0123456789ab",
+    "recordId": "01890f3e-7c5a-4b13-8abc-0123456789ab",
     "value": "first value",
     "kind": "create"
   },

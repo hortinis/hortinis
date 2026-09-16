@@ -52,7 +52,7 @@ that build is running; it will contend for Gradle's cache lock. Follow the exist
 
 The topology now applies the first technical Flyway migration at sync-service startup. It creates only the
 walking-skeleton technical-record projection, accepted-operation receipts, and immutable change journal;
-JDBC acceptance SQL and PostgreSQL integration tests remain owned by E3 and D6. Angular static-file
+JDBC acceptance SQL is implemented in E3 and PostgreSQL integration tests remain owned by E3 and D6. Angular static-file
 serving, same-origin edge routing, and production image builds belong to F3 and F2 respectively.
 
 ## Frontend workspace

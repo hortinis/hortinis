@@ -9,7 +9,8 @@ Offline clients must retry safely, exchange locally retained changes after an un
 ## Decision
 
 - Use an application-level operation journal rather than introducing a generic CRDT engine.
-- Generate stable UUIDv7 record and operation identifiers on clients.
+- Generate stable UUID record and operation identifiers on clients. The current web implementation uses
+  UUIDv7, but UUID version is not a protocol validity requirement.
 - Commit a local state change and its outbox operation atomically.
 - Retain each pending operation locally until the client receives and persists its stable server result.
 - Order operations from the same replica that affect the same record as a causal chain. Do not submit a dependent operation until its predecessor has a stable result, unless the protocol submits the chain as one atomic ordered batch.

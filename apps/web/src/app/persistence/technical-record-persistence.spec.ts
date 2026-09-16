@@ -4,7 +4,9 @@ import Dexie from 'dexie';
 import { HortinisDatabase } from './hortinis-database';
 import { TechnicalRecordPersistence } from './technical-record-persistence';
 import { TechnicalRecordLocalService } from '../sync/technical-record-local-service';
+import { TechnicalRecordSynchronizationService } from '../sync/technical-record-synchronization-service';
 import type { CreateTechnicalRecordOperation } from '../sync/conformance';
+import { vi } from 'vitest';
 
 describe('technical record local persistence', () => {
   const databases: Dexie[] = [];
@@ -28,6 +30,20 @@ describe('technical record local persistence', () => {
     await expect(database.outboxOperations.toArray()).resolves.toEqual([result.operation]);
     expect(result.record.lastAcceptedRevision).toBeNull();
     expect(result.operation.kind).toBe('create');
+  });
+
+  it('starts one synchronization push after a successful local commit', async () => {
+    const database = openDatabase();
+    const synchronization = {
+      pushOnePendingOperation: vi.fn(async () => ({ status: 'empty' as const })),
+    } as unknown as TechnicalRecordSynchronizationService;
+    const service = new TechnicalRecordLocalService(
+      new TechnicalRecordPersistence(database),
+      synchronization,
+    );
+
+    await service.create('first value');
+    await vi.waitFor(() => expect(synchronization.pushOnePendingOperation).toHaveBeenCalledOnce());
   });
 
   it('rolls back the local projection when the outbox write fails', async () => {
@@ -81,6 +97,47 @@ describe('technical record local persistence', () => {
     expect(result.operation.operationId).not.toBe(result.operation.recordId);
   });
 
+  it('stores an accepted result before removing its pending operation', async () => {
+    const database = openDatabase();
+    const persistence = new TechnicalRecordPersistence(database);
+    const operation = operationWithIds('accepted-record', 'accepted-operation');
+    await persistence.commitCreate(operation);
+    const result = {
+      outcome: 'accepted' as const,
+      operationId: operation.operationId,
+      record: { recordId: operation.recordId, revision: '1', value: operation.value },
+      sequence: '1',
+    };
+
+    await persistence.commitAcceptedResult(operation, result);
+
+    await expect(database.outboxOperations.count()).resolves.toBe(0);
+    await expect(database.acceptedOperationResults.toArray()).resolves.toEqual([result]);
+    await expect(database.technicalRecords.toArray()).resolves.toEqual([
+      { recordId: operation.recordId, value: operation.value, lastAcceptedRevision: '1' },
+    ]);
+  });
+
+  it('rolls back the accepted result when local accepted-state persistence fails', async () => {
+    const database = openDatabase();
+    const persistence = new TechnicalRecordPersistence(database);
+    const operation = operationWithIds('missing-record', 'failed-acceptance');
+    await persistence.commitCreate(operation);
+    await database.technicalRecords.delete(operation.recordId);
+    const result = {
+      outcome: 'accepted' as const,
+      operationId: operation.operationId,
+      record: { recordId: operation.recordId, revision: '1', value: operation.value },
+      sequence: '1',
+    };
+
+    await expect(persistence.commitAcceptedResult(operation, result)).rejects.toThrow(
+      'local record',
+    );
+    await expect(database.acceptedOperationResults.count()).resolves.toBe(0);
+    await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
+  });
+
   function openDatabase(name = databaseName()): HortinisDatabase {
     const database = new HortinisDatabase(name);
     databases.push(database);
@@ -90,6 +147,10 @@ describe('technical record local persistence', () => {
 
 function operation(recordId: string, operationId: string): CreateTechnicalRecordOperation {
   return { operationId, recordId, value: `${recordId}-value`, kind: 'create' };
+}
+
+function operationWithIds(recordId: string, operationId: string): CreateTechnicalRecordOperation {
+  return operation(recordId, operationId);
 }
 
 function databaseName(): string {

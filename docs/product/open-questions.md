@@ -104,7 +104,7 @@ V0 retains expected-revision conflict detection and both competing values, but d
 rules, gardener-facing comparison and conflict resolution to M4.2. A V0 conflict must remain explicit and
 must not be silently converted into last-write-wins behavior.
 
-The [ADR-0010 protocol](../architecture/decisions/0010-synchronization-protocol-model.md) is already selected, including UUIDv7, idempotency, revisions, and recovery after compaction. Do not return to UUIDv4 or an open protocol choice based on the older reports. Automatic reconciliation must respect those guarantees and explicit conflicts.
+The [ADR-0010 protocol](../architecture/decisions/0010-synchronization-protocol-model.md) is already selected, including stable client-generated identifiers, idempotency, revisions, and recovery after compaction. The current web implementation generates UUIDv7 identifiers, but the protocol does not require a specific UUID version. Automatic reconciliation must respect those guarantees and explicit conflicts.
 
 ### O-10 — Backup, restoration, and archiving
 

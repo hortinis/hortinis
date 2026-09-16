@@ -4,7 +4,7 @@
     "type": "object",
     "properties": {
         "operationId": {
-            "$ref": "UuidV7.json"
+            "$ref": "Uuid.json"
         },
         "record": {
             "$ref": "TechnicalRecord.json"

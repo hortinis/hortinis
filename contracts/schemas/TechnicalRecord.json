@@ -4,7 +4,7 @@
     "type": "object",
     "properties": {
         "recordId": {
-            "$ref": "UuidV7.json"
+            "$ref": "Uuid.json"
         },
         "revision": {
             "$ref": "PositiveDecimal.json"

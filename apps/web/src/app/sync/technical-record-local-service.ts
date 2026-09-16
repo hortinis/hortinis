@@ -3,6 +3,7 @@ import type { CreateTechnicalRecordOperation } from './conformance';
 import { generateUuidV7 } from './uuid-v7';
 import { TechnicalRecordPersistence } from '../persistence/technical-record-persistence';
 import type { LocalTechnicalRecord } from '../persistence/local-technical-record';
+import { TechnicalRecordSynchronizationService } from './technical-record-synchronization-service';
 
 export interface LocalTechnicalRecordCreate {
   record: LocalTechnicalRecord;
@@ -12,11 +13,17 @@ export interface LocalTechnicalRecordCreate {
 @Injectable({ providedIn: 'root' })
 export class TechnicalRecordLocalService {
   private readonly persistence: TechnicalRecordPersistence;
+  private readonly synchronization?: TechnicalRecordSynchronizationService;
 
-  // The optional argument provides a test seam while production uses Angular's inject() function.
-  // eslint-disable-next-line @angular-eslint/prefer-inject
-  constructor(persistence?: TechnicalRecordPersistence) {
+  constructor(
+    // eslint-disable-next-line @angular-eslint/prefer-inject
+    persistence?: TechnicalRecordPersistence,
+    // eslint-disable-next-line @angular-eslint/prefer-inject
+    synchronization?: TechnicalRecordSynchronizationService,
+  ) {
     this.persistence = persistence ?? inject(TechnicalRecordPersistence);
+    this.synchronization =
+      synchronization ?? (persistence ? undefined : inject(TechnicalRecordSynchronizationService));
   }
 
   async create(value: string): Promise<LocalTechnicalRecordCreate> {
@@ -28,6 +35,7 @@ export class TechnicalRecordLocalService {
     };
 
     const record = await this.persistence.commitCreate(operation);
+    void this.synchronization?.pushOnePendingOperation();
     return { record, operation };
   }
 }

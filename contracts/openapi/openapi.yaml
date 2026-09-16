@@ -108,10 +108,10 @@ components:
         - kind
       properties:
         operationId:
-          $ref: '#/components/schemas/Models.UuidV7'
+          $ref: '#/components/schemas/Models.Uuid'
           description: The stable operation and idempotency identifier.
         recordId:
-          $ref: '#/components/schemas/Models.UuidV7'
+          $ref: '#/components/schemas/Models.Uuid'
         value:
           type: string
         kind:
@@ -152,7 +152,7 @@ components:
           type: string
           minLength: 1
         operationId:
-          $ref: '#/components/schemas/Models.UuidV7'
+          $ref: '#/components/schemas/Models.Uuid'
       unevaluatedProperties:
         not: {}
       description: The operation identifier was already used with a different canonical request.
@@ -169,7 +169,7 @@ components:
           enum:
             - accepted
         operationId:
-          $ref: '#/components/schemas/Models.UuidV7'
+          $ref: '#/components/schemas/Models.Uuid'
         record:
           $ref: '#/components/schemas/Models.TechnicalRecord'
         sequence:
@@ -197,7 +197,7 @@ components:
           type: string
           minLength: 1
         operationId:
-          $ref: '#/components/schemas/Models.UuidV7'
+          $ref: '#/components/schemas/Models.Uuid'
         currentRecord:
           $ref: '#/components/schemas/Models.TechnicalRecord'
       unevaluatedProperties:
@@ -219,9 +219,9 @@ components:
           type: string
           minLength: 1
         operationId:
-          $ref: '#/components/schemas/Models.UuidV7'
+          $ref: '#/components/schemas/Models.Uuid'
         recordId:
-          $ref: '#/components/schemas/Models.UuidV7'
+          $ref: '#/components/schemas/Models.Uuid'
       unevaluatedProperties:
         not: {}
       description: The operation targets a technical record that does not exist.
@@ -235,10 +235,10 @@ components:
         - expectedRevision
       properties:
         operationId:
-          $ref: '#/components/schemas/Models.UuidV7'
+          $ref: '#/components/schemas/Models.Uuid'
           description: The stable operation and idempotency identifier.
         recordId:
-          $ref: '#/components/schemas/Models.UuidV7'
+          $ref: '#/components/schemas/Models.Uuid'
         value:
           type: string
         kind:
@@ -267,7 +267,7 @@ components:
           type: string
           minLength: 1
         operationId:
-          $ref: '#/components/schemas/Models.UuidV7'
+          $ref: '#/components/schemas/Models.Uuid'
         expectedRevision:
           $ref: '#/components/schemas/Models.PositiveDecimal'
         currentRecord:
@@ -287,7 +287,7 @@ components:
         - sequence
       properties:
         operationId:
-          $ref: '#/components/schemas/Models.UuidV7'
+          $ref: '#/components/schemas/Models.Uuid'
         record:
           $ref: '#/components/schemas/Models.TechnicalRecord'
         sequence:
@@ -303,7 +303,7 @@ components:
         - value
       properties:
         recordId:
-          $ref: '#/components/schemas/Models.UuidV7'
+          $ref: '#/components/schemas/Models.Uuid'
         revision:
           $ref: '#/components/schemas/Models.PositiveDecimal'
         value:
@@ -322,8 +322,8 @@ components:
           create: '#/components/schemas/Models.CreateTechnicalRecordOperation'
           replace: '#/components/schemas/Models.ReplaceTechnicalRecordOperation'
       description: One stable technical-record operation submitted for synchronization.
-    Models.UuidV7:
+    Models.Uuid:
       type: string
-      pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+      pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       format: uuid
-      description: A canonical lowercase UUID version 7 identifier.
+      description: A canonical lowercase UUID identifier.

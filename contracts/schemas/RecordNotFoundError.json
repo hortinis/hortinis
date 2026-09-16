@@ -12,10 +12,10 @@
             "minLength": 1
         },
         "operationId": {
-            "$ref": "UuidV7.json"
+            "$ref": "Uuid.json"
         },
         "recordId": {
-            "$ref": "UuidV7.json"
+            "$ref": "Uuid.json"
         }
     },
     "required": [

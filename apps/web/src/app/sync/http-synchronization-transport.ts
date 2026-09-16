@@ -95,6 +95,9 @@ export class HttpSynchronizationTransport implements SynchronizationTransport {
     if (error.status === 0) {
       return new SynchronizationUnavailableError(error);
     }
+    if (error.status === 502 || error.status === 503 || error.status === 504) {
+      return new SynchronizationUnavailableError(error);
+    }
 
     const protocolError = this.readProtocolError(error.status, error.error);
     if (protocolError) {

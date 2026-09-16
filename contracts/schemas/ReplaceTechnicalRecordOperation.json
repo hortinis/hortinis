@@ -4,11 +4,11 @@
     "type": "object",
     "properties": {
         "operationId": {
-            "$ref": "UuidV7.json",
+            "$ref": "Uuid.json",
             "description": "The stable operation and idempotency identifier."
         },
         "recordId": {
-            "$ref": "UuidV7.json"
+            "$ref": "Uuid.json"
         },
         "value": {
             "type": "string"

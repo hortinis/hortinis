@@ -26,7 +26,8 @@ The accepted operations are:
 - `replace`, which requires `expectedRevision` and fails when the record is absent or the current
   revision differs.
 
-Record and operation identifiers are canonical lowercase UUIDv7 strings. The `operationId` is also the
+Record and operation identifiers are canonical lowercase UUID strings. The current browser generates
+UUIDv7 values, but UUID version is not part of protocol validity. The `operationId` is also the
 idempotency identifier. Retrying the same complete validated operation returns the stable result without
 another state change, revision, or sequence. Reusing that identifier with a different validated operation
 returns `OPERATION_ID_REUSED`. JSON whitespace and object-property order are not part of operation

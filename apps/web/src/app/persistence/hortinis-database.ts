@@ -2,7 +2,7 @@ import { Inject, Injectable, InjectionToken } from '@angular/core';
 import Dexie, { Table } from 'dexie';
 import { HORTINIS_DATABASE_SCHEMA } from './database-schema';
 import type { LocalTechnicalRecord } from './local-technical-record';
-import type { TechnicalRecordOperation } from '../sync/conformance';
+import type { OperationResult, TechnicalRecordOperation } from '../sync/conformance';
 
 export const HORTINIS_DATABASE_NAME = new InjectionToken<string>('Hortinis database name', {
   providedIn: 'root',
@@ -13,6 +13,7 @@ export const HORTINIS_DATABASE_NAME = new InjectionToken<string>('Hortinis datab
 export class HortinisDatabase extends Dexie {
   readonly technicalRecords!: Table<LocalTechnicalRecord, string>;
   readonly outboxOperations!: Table<TechnicalRecordOperation, string>;
+  readonly acceptedOperationResults!: Table<OperationResult, string>;
 
   // The constructor must pass the injected name to Dexie before the database is initialized.
   // eslint-disable-next-line @angular-eslint/prefer-inject

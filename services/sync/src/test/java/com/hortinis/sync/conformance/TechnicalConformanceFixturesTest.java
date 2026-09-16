@@ -22,7 +22,7 @@ class TechnicalConformanceFixturesTest {
   private static final String EXPECTED_REVISION = "expectedRevision";
   private static final String CREATE = "create";
   private static final Pattern UUID_V7 =
-      Pattern.compile("^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$");
+      Pattern.compile("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$");
   private static final Pattern POSITIVE_DECIMAL = Pattern.compile("^[1-9][0-9]*$");
   private static final List<String> FIXTURES =
       List.of(

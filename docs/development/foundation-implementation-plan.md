@@ -380,14 +380,14 @@ C1 through C4, formerly separate backend layer and protocol module setup, are fo
 - Depends on: D1 and C5.
 - Scope: specify only the versioned technical push and pull endpoints and protocol envelopes needed by
   the walking skeleton. Use one deliberately technical record, single-operation submission, stable
-  UUIDv7 record and operation identifiers, operation-level idempotency, expected revisions, monotonic
+  stable client-generated UUID record and operation identifiers, operation-level idempotency, expected revisions, monotonic
   server sequences, and opaque incremental cursors.
 - Excludes: garden resources, final reconciliation formats, authentication, analytics, backup, and catalog distribution.
 - Artifacts: technical TypeSpec models and operations; generated OpenAPI 3.1 and JSON Schema Draft
   2020-12 artifacts; closed create, replace, result, change-page, and explicit error envelopes; generated
   artifact synchronization and drift checks; production-schema validation and focused constraint tests;
   and updated API and contract documentation.
-- Acceptance: contracts describe path versioning; canonical lowercase UUIDv7 identifiers; an operation
+- Acceptance: contracts describe path versioning; canonical lowercase UUID identifiers; an operation
   identifier that is also its idempotency identifier; create and expected-revision replace
   operations; precision-safe revision and sequence strings; opaque cursors; ordered change pages; and
   explicit invalid-request, missing-record, identifier-reuse, existing-record, and revision-conflict
@@ -513,7 +513,8 @@ C1 through C4, formerly separate backend layer and protocol module setup, are fo
   Testcontainers. Tests verified Flyway version-one application and schema shape, valid three-row acceptance
   writes, generated and increasing server sequences, schema constraint enforcement, rollback after a
   constraint failure, rollback after an application failure, and data retention plus single-entry Flyway
-  history across two application-context starts. Production acceptance SQL remains owned by E3.
+  history across two application-context starts. E3 now owns the production acceptance SQL exercised by
+  these integration tests.
 
 ### Track E: first synchronization walking skeleton
 
@@ -543,18 +544,43 @@ The first slice uses a deliberately technical record. It validates the mechanism
 - Depends on: B8 and E1.
 - Scope: persist one technical local change and its stable outbox operation in one Dexie transaction.
 - Acceptance: success persists both, failure persists neither, and reload retains the pending operation.
-- Artifacts: the version-one technical-record and outbox schema in `apps/web/src/app/persistence/database-schema.ts`; typed local projection and persistence components; a create-only local coordination service using the pinned `uuid` UUIDv7 generator; the UUIDv7 dependency decision in ADR-0022; and isolated IndexedDB transaction, rollback, reload, and identifier tests.
+- Artifacts: the version-one technical-record, outbox, and accepted-result schema in `apps/web/src/app/persistence/database-schema.ts`; typed local projection and persistence components; a create-only local coordination service using the pinned `uuid` UUIDv7 generator; the UUID generation decision in ADR-0022; and isolated IndexedDB transaction, rollback, reload, and identifier tests.
 - Excludes: replace workflow submission, server acceptance and stable-result persistence, cursors, conflict handling, retry policy, and user-facing synchronization state.
 - Validation commands: `pnpm --filter @hortinis/web format:check`, `pnpm --filter @hortinis/web lint`, `pnpm --filter @hortinis/web architecture:check`, `pnpm --filter @hortinis/web typecheck`, `pnpm --filter @hortinis/web test`, `pnpm --filter @hortinis/web build:development`, `pnpm --filter @hortinis/web build`, and the repository-wide Git checks.
-- Validation evidence: on 2026-09-15, the Angular/Vitest suite passed 13 tests across four files, including atomic success, rollback at either write, pending-operation retention after close/reopen, and canonical UUIDv7 generation. Prettier, Angular ESLint, the web architecture check, strict Angular/TypeScript checks, development build, and production build all passed. The schema is version one with `technicalRecords` and `outboxOperations` stores; the former empty B8 version-one baseline is intentionally not migrated because the application is pre-release.
+- Validation evidence: on 2026-09-15, the Angular/Vitest suite passed 13 tests across four files, including atomic success, rollback at either write, pending-operation retention after close/reopen, and canonical UUIDv7 generation. Prettier, Angular ESLint, the web architecture check, strict Angular/TypeScript checks, development build, and production build all passed. E2 established the version-one `technicalRecords` and `outboxOperations` stores; E3 extended that same pre-release version directly with `acceptedOperationResults`, without a migration.
 - Relevant decisions: ADR-0002, ADR-0008, ADR-0010, ADR-0018, and ADR-0022.
 
 #### E3. Push and atomically accept one operation
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: B9, D5a, D6, and E2.
-- Scope: send one operation and atomically persist idempotency, accepted state, revision, server sequence, and change journal.
-- Acceptance: partial database state cannot remain after a failed acceptance transaction.
+- Scope: submit one operation per explicit HTTP request and atomically persist its idempotency receipt,
+  accepted state, revision, server sequence, and immutable change journal. The browser uses a best-effort
+  online hint before submitting, keeps the outbox row on offline or transport failure, and commits the
+  accepted result back to IndexedDB only after a successful response. UUIDv7 remains the browser's
+  generation choice, while the protocol validates canonical lowercase UUIDs without requiring a UUID
+  version.
+- Acceptance: create and replace operations are validated and accepted; malformed and non-canonical
+  requests are rejected; idempotency receipts, accepted state, and the journal are written together;
+  a failed journal write leaves no partial server state; and a failed browser push leaves the pending
+  outbox operation intact. Calls are serialized one at a time; retry replay proof, batching, backoff,
+  pull cursors, and user-facing conflict resolution remain outside E3.
+- Artifacts: the typed Spring protocol, request parser, controller and error mapping; JDBC acceptance
+  persistence and transactional synchronization service; the Angular network-status seam, one-operation
+  synchronization service, and atomic accepted-result persistence; and PostgreSQL/Testcontainers plus
+  browser unit coverage.
+- Validation commands: `pnpm contracts:validate`, `pnpm --filter @hortinis/web format:check`,
+  `pnpm --filter @hortinis/web lint`, `pnpm --filter @hortinis/web architecture:check`,
+  `pnpm --filter @hortinis/web typecheck`, `pnpm --filter @hortinis/web test`,
+  `./gradlew --dependency-verification=strict :services:sync:test :services:sync:integrationTest
+  --rerun-tasks`, and the backend Spotless, Checkstyle, and PMD tasks.
+- Validation evidence: on 2026-09-16, contracts validation passed; all six web test files and 29 tests
+  passed with strict typecheck, lint, architecture, and formatting checks; backend unit and PostgreSQL
+  integration tests passed (5 and 12 tests respectively); and Spotless, Checkstyle, and PMD completed
+  successfully. Integration coverage proves exact accepted results, version-independent UUID acceptance,
+  malformed request rejection, and rollback of all acceptance writes on journal failure. Browser coverage
+  proves offline skip, transport-failure retention, accepted-result commit, and single-flight submission.
+- Relevant decisions: ADR-0002, ADR-0008, ADR-0010, ADR-0018, and ADR-0022.
 
 #### E4. Prove idempotent retry
 

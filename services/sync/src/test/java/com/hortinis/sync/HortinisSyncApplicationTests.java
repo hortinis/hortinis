@@ -18,7 +18,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-@SpringBootTest(properties = HortinisSyncApplicationTests.DATABASE_AUTOCONFIGURATION_EXCLUSION)
+@SpringBootTest(
+    properties = {
+      HortinisSyncApplicationTests.DATABASE_AUTOCONFIGURATION_EXCLUSION,
+      HortinisSyncApplicationTests.PERSISTENCE_DISABLED
+    })
 @AutoConfigureMockMvc
 @ExtendWith(OutputCaptureExtension.class)
 class HortinisSyncApplicationTests {
@@ -26,6 +30,7 @@ class HortinisSyncApplicationTests {
   static final String DATABASE_AUTOCONFIGURATION_EXCLUSION =
       "spring.autoconfigure.exclude="
           + "org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration";
+  static final String PERSISTENCE_DISABLED = "hortinis.sync.persistence.enabled=false";
 
   @Autowired private MockMvc mockMvc;
 

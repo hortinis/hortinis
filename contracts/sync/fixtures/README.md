@@ -24,6 +24,9 @@ Each JSON file is one scenario with this shape:
 a database fixture. Invalid cases set `expected.valid` to `false` and identify the expected protocol
 error with `expected.errorCode`.
 
+Identifiers are canonical UUID strings; UUID version is not part of protocol validity. The browser
+currently generates UUIDv7 identifiers, but consumers must accept other valid UUID versions as well.
+
 For operation-id retries, consumers validate both requests and compare their typed operation fields.
 Clients may submit ordinary JSON: whitespace and object-property order remain insignificant. A reused
 operation ID with a different field value is a distinct request and must be rejected.

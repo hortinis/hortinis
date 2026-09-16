@@ -1,9 +1,9 @@
 @TypeSpec.JsonSchema.jsonSchema
 namespace Hortinis.Sync.Models {
-  @doc("A canonical lowercase UUID version 7 identifier.")
+  @doc("A canonical lowercase UUID identifier.")
   @format("uuid")
-  @pattern("^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
-  scalar UuidV7 extends string;
+  @pattern("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
+  scalar Uuid extends string;
 
   @doc("A positive integer encoded as a decimal string for cross-runtime precision.")
   @pattern("^[1-9][0-9]*$")
@@ -15,7 +15,7 @@ namespace Hortinis.Sync.Models {
 
   @doc("The deliberately technical record used to validate the synchronization mechanism.")
   model TechnicalRecord {
-    recordId: UuidV7;
+    recordId: Uuid;
     revision: PositiveDecimal;
     value: string;
   }
@@ -23,9 +23,9 @@ namespace Hortinis.Sync.Models {
   @doc("Create a technical record that does not yet exist.")
   model CreateTechnicalRecordOperation {
     @doc("The stable operation and idempotency identifier.")
-    operationId: UuidV7;
+    operationId: Uuid;
 
-    recordId: UuidV7;
+    recordId: Uuid;
     value: string;
     kind: "create";
   }
@@ -33,9 +33,9 @@ namespace Hortinis.Sync.Models {
   @doc("Replace a technical record at its expected server revision.")
   model ReplaceTechnicalRecordOperation {
     @doc("The stable operation and idempotency identifier.")
-    operationId: UuidV7;
+    operationId: Uuid;
 
-    recordId: UuidV7;
+    recordId: Uuid;
     value: string;
     kind: "replace";
     expectedRevision: PositiveDecimal;
@@ -52,14 +52,14 @@ namespace Hortinis.Sync.Models {
   @doc("The stable result returned when an operation is accepted or replayed identically.")
   model OperationResult {
     outcome: "accepted";
-    operationId: UuidV7;
+    operationId: Uuid;
     record: TechnicalRecord;
     sequence: PositiveDecimal;
   }
 
   @doc("One accepted server change in monotonic server-sequence order.")
   model TechnicalChange {
-    operationId: UuidV7;
+    operationId: Uuid;
     record: TechnicalRecord;
     sequence: PositiveDecimal;
   }
@@ -86,8 +86,8 @@ namespace Hortinis.Sync.Models {
     @minLength(1)
     message: string;
 
-    operationId: UuidV7;
-    recordId: UuidV7;
+    operationId: Uuid;
+    recordId: Uuid;
   }
 
   @doc("The operation identifier was already used with a different canonical request.")
@@ -97,7 +97,7 @@ namespace Hortinis.Sync.Models {
     @minLength(1)
     message: string;
 
-    operationId: UuidV7;
+    operationId: Uuid;
   }
 
   @doc("Creation failed because the technical record already exists.")
@@ -107,7 +107,7 @@ namespace Hortinis.Sync.Models {
     @minLength(1)
     message: string;
 
-    operationId: UuidV7;
+    operationId: Uuid;
     currentRecord: TechnicalRecord;
   }
 
@@ -118,7 +118,7 @@ namespace Hortinis.Sync.Models {
     @minLength(1)
     message: string;
 
-    operationId: UuidV7;
+    operationId: Uuid;
     expectedRevision: PositiveDecimal;
     currentRecord: TechnicalRecord;
   }

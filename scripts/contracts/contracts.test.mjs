@@ -139,7 +139,8 @@ test("production schemas enforce technical operations, identifiers, revisions, a
   delete replaceWithoutRevision.expectedRevision;
   assert.equal(validateOperation(replaceWithoutRevision), false);
   assert.equal(validateOperation({ ...create, unexpected: true }), false);
-  assert.equal(validateOperation({ ...create, operationId: "01890f3e-7c5a-4b12-8abc-0123456789ab" }), false);
+  assert.equal(validateOperation({ ...create, operationId: "01890f3e-7c5a-4b12-8abc-0123456789ab" }), true);
+  assert.equal(validateOperation({ ...create, operationId: "01890f3e-7c5a-7b1g-8abc-0123456789ab" }), false);
   assert.equal(validateOperation({ ...create, recordId: recordId.toUpperCase() }), false);
 
   const result = {

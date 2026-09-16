@@ -12,7 +12,7 @@
             "minLength": 1
         },
         "operationId": {
-            "$ref": "UuidV7.json"
+            "$ref": "Uuid.json"
         },
         "expectedRevision": {
             "$ref": "PositiveDecimal.json"

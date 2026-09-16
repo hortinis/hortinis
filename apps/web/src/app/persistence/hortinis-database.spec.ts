@@ -29,6 +29,7 @@ describe('HortinisDatabase', () => {
     expect(database.tables.map((table) => table.name)).toEqual([
       'technicalRecords',
       'outboxOperations',
+      'acceptedOperationResults',
     ]);
   });
 

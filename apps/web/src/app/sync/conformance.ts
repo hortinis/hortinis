@@ -79,7 +79,7 @@ export interface ReplaceTechnicalRecordOperation {
 export type TechnicalRecordOperation =
   CreateTechnicalRecordOperation | ReplaceTechnicalRecordOperation;
 
-const uuidV7Pattern = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const canonicalUuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const positiveDecimalPattern = /^[1-9][0-9]*$/;
 
 export function isTechnicalRecordOperation(value: unknown): value is TechnicalRecordOperation {
@@ -90,9 +90,9 @@ export function isTechnicalRecordOperation(value: unknown): value is TechnicalRe
   const commonKeys = ['kind', 'operationId', 'recordId', 'value'];
   if (
     typeof value['operationId'] !== 'string' ||
-    !uuidV7Pattern.test(value['operationId']) ||
+    !canonicalUuidPattern.test(value['operationId']) ||
     typeof value['recordId'] !== 'string' ||
-    !uuidV7Pattern.test(value['recordId']) ||
+    !canonicalUuidPattern.test(value['recordId']) ||
     typeof value['value'] !== 'string' ||
     typeof value['kind'] !== 'string'
   ) {
@@ -116,7 +116,7 @@ export function isTechnicalRecord(value: unknown): value is TechnicalRecord {
     isRecord(value) &&
     hasExactlyKeys(value, ['recordId', 'revision', 'value']) &&
     typeof value['recordId'] === 'string' &&
-    uuidV7Pattern.test(value['recordId']) &&
+    canonicalUuidPattern.test(value['recordId']) &&
     typeof value['revision'] === 'string' &&
     positiveDecimalPattern.test(value['revision']) &&
     typeof value['value'] === 'string'
@@ -129,7 +129,7 @@ export function isOperationResult(value: unknown): value is OperationResult {
     hasExactlyKeys(value, ['outcome', 'operationId', 'record', 'sequence']) &&
     value['outcome'] === 'accepted' &&
     typeof value['operationId'] === 'string' &&
-    uuidV7Pattern.test(value['operationId']) &&
+    canonicalUuidPattern.test(value['operationId']) &&
     isTechnicalRecord(value['record']) &&
     typeof value['sequence'] === 'string' &&
     positiveDecimalPattern.test(value['sequence'])
@@ -141,7 +141,7 @@ export function isTechnicalChange(value: unknown): value is TechnicalChange {
     isRecord(value) &&
     hasExactlyKeys(value, ['operationId', 'record', 'sequence']) &&
     typeof value['operationId'] === 'string' &&
-    uuidV7Pattern.test(value['operationId']) &&
+    canonicalUuidPattern.test(value['operationId']) &&
     isTechnicalRecord(value['record']) &&
     typeof value['sequence'] === 'string' &&
     positiveDecimalPattern.test(value['sequence'])
@@ -176,9 +176,9 @@ export function isRecordNotFoundError(value: unknown): value is RecordNotFoundEr
     value['code'] === 'RECORD_NOT_FOUND' &&
     isNonEmptyString(value['message']) &&
     typeof value['operationId'] === 'string' &&
-    uuidV7Pattern.test(value['operationId']) &&
+    canonicalUuidPattern.test(value['operationId']) &&
     typeof value['recordId'] === 'string' &&
-    uuidV7Pattern.test(value['recordId'])
+    canonicalUuidPattern.test(value['recordId'])
   );
 }
 
@@ -190,7 +190,7 @@ export function isConflictError(value: unknown): value is ConflictError {
       hasExactlyKeys(value, ['code', 'message', 'operationId']) &&
       isNonEmptyString(value['message']) &&
       typeof value['operationId'] === 'string' &&
-      uuidV7Pattern.test(value['operationId'])
+      canonicalUuidPattern.test(value['operationId'])
     );
   }
 
@@ -199,7 +199,7 @@ export function isConflictError(value: unknown): value is ConflictError {
       hasExactlyKeys(value, ['code', 'message', 'operationId', 'currentRecord']) &&
       isNonEmptyString(value['message']) &&
       typeof value['operationId'] === 'string' &&
-      uuidV7Pattern.test(value['operationId']) &&
+      canonicalUuidPattern.test(value['operationId']) &&
       isTechnicalRecord(value['currentRecord'])
     );
   }
@@ -215,7 +215,7 @@ export function isConflictError(value: unknown): value is ConflictError {
     ]) &&
     isNonEmptyString(value['message']) &&
     typeof value['operationId'] === 'string' &&
-    uuidV7Pattern.test(value['operationId']) &&
+    canonicalUuidPattern.test(value['operationId']) &&
     typeof value['expectedRevision'] === 'string' &&
     positiveDecimalPattern.test(value['expectedRevision']) &&
     isTechnicalRecord(value['currentRecord'])
