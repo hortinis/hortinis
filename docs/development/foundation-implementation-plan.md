@@ -584,10 +584,25 @@ The first slice uses a deliberately technical record. It validates the mechanism
 
 #### E4. Prove idempotent retry
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: E3.
 - Scope: retry an identical stable operation and reject reuse of its idempotency identifier with different validated request fields.
 - Acceptance: identical retries return the stable result without duplicate effects; mismatched reuse returns the specified error.
+- Artifacts: PostgreSQL-backed HTTP integration coverage for create and replace replay, validated
+  identifier reuse, and concurrent identical submissions; browser coverage for a lost acknowledgement
+  followed by retry of the unchanged outbox operation. No schema, contract, or dependency changes are
+  required.
+- Validation commands: `pnpm --filter @hortinis/web format:check`, `pnpm --filter @hortinis/web lint`,
+  `pnpm --filter @hortinis/web architecture:check`, `pnpm --filter @hortinis/web typecheck`,
+  `pnpm --filter @hortinis/web test`, `./gradlew --dependency-verification=strict
+  :services:sync:test :services:sync:integrationTest`, and the backend Spotless, Checkstyle, and PMD
+  tasks, followed by the repository-wide Git checks.
+- Validation evidence: identical create and replace retries returned their original revision and server
+  sequence without additional records, receipts, or journal entries; validated identifier reuse returned
+  `OPERATION_ID_REUSED` without changing accepted state; concurrent identical submissions produced one
+  acceptance bundle; and browser retry reused the exact persisted operation after a lost acknowledgement.
+- Excludes: automatic retry scheduling or backoff, batching, dependent operation chains, pull cursors,
+  conflict presentation, and idempotency-receipt compaction.
 
 #### E4a. Prove one dependent operation chain
 

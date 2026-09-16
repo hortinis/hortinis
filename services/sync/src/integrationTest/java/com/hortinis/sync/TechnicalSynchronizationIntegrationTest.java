@@ -5,6 +5,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +31,9 @@ class TechnicalSynchronizationIntegrationTest {
   private static final String TECHNICAL_RECORD_TABLE = "technical_record";
   private static final String ACCEPTED_OPERATION_TABLE = "accepted_technical_record_operation";
   private static final String CHANGE_TABLE = "technical_record_change";
+  private static final String FIRST_VALUE = "first value";
+  private static final String CLOSE_OBJECT = "}";
+  private static final String CLOSE_QUOTE_AND_OBJECT = "\"}";
   private static final String OPERATION_ID = "01890f3e-7c5a-7b12-8abc-0123456789ab";
   private static final String RECORD_ID = "01890f3e-7c5a-7b13-8abc-0123456789ab";
   private static final String REPLACE_OPERATION_ID = "01890f3e-7c5a-7b14-8abc-0123456789ab";
@@ -55,11 +61,145 @@ class TechnicalSynchronizationIntegrationTest {
         .perform(
             post(OPERATIONS_PATH)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(createRequest("first value")))
+                .content(createRequest(FIRST_VALUE)))
         .andExpect(status().isOk())
         .andExpect(
+            content().json(acceptedResponse(OPERATION_ID, RECORD_ID, "1", FIRST_VALUE, "1"), true));
+
+    assertThat(count(TECHNICAL_RECORD_TABLE)).isEqualTo(1);
+    assertThat(count(ACCEPTED_OPERATION_TABLE)).isEqualTo(1);
+    assertThat(count(CHANGE_TABLE)).isEqualTo(1);
+  }
+
+  @Test
+  void identicallyRetriesCreateWithStableResultAndNoDuplicateEffects() throws Exception {
+    String firstResponse =
+        mockMvc
+            .perform(
+                post(OPERATIONS_PATH)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(createRequest(FIRST_VALUE)))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    String replayResponse =
+        mockMvc
+            .perform(
+                post(OPERATIONS_PATH)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        "{ \"value\": \""
+                            + FIRST_VALUE
+                            + "\", \"kind\": \"create\", "
+                            + "\"recordId\": \""
+                            + RECORD_ID
+                            + "\", \"operationId\": \""
+                            + OPERATION_ID
+                            + "\" }"))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    assertThat(replayResponse).isEqualTo(firstResponse);
+    assertThat(count(TECHNICAL_RECORD_TABLE)).isEqualTo(1);
+    assertThat(count(ACCEPTED_OPERATION_TABLE)).isEqualTo(1);
+    assertThat(count(CHANGE_TABLE)).isEqualTo(1);
+  }
+
+  @Test
+  void identicallyRetriesReplaceWithStableResultAndNoAdditionalRevision() throws Exception {
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createRequest(FIRST_VALUE)))
+        .andExpect(status().isOk());
+
+    String firstResponse =
+        mockMvc
+            .perform(
+                post(OPERATIONS_PATH)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(replaceRequest("replacement value", "1")))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    String replayResponse =
+        mockMvc
+            .perform(
+                post(OPERATIONS_PATH)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        "{\"expectedRevision\":\"1\",\"kind\":\"replace\","
+                            + "\"value\":\"replacement value\",\"recordId\":\""
+                            + RECORD_ID
+                            + "\",\"operationId\":\""
+                            + REPLACE_OPERATION_ID
+                            + CLOSE_QUOTE_AND_OBJECT))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+    assertThat(replayResponse).isEqualTo(firstResponse);
+    assertThat(count(TECHNICAL_RECORD_TABLE)).isEqualTo(1);
+    assertThat(count(ACCEPTED_OPERATION_TABLE)).isEqualTo(2);
+    assertThat(count(CHANGE_TABLE)).isEqualTo(2);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT revision FROM technical_record WHERE record_id = ?",
+                Long.class,
+                java.util.UUID.fromString(RECORD_ID)))
+        .isEqualTo(2);
+  }
+
+  @Test
+  void rejectsValidatedReuseWithoutChangingTheOriginalAcceptance() throws Exception {
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createRequest(FIRST_VALUE)))
+        .andExpect(status().isOk());
+
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createRequest("different value")))
+        .andExpect(status().isConflict())
+        .andExpect(
             content()
-                .json(acceptedResponse(OPERATION_ID, RECORD_ID, "1", "first value", "1"), true));
+                .json(
+                    "{\"code\":\"OPERATION_ID_REUSED\",\"message\":"
+                        + "\"The operation identifier was reused.\",\"operationId\":\""
+                        + OPERATION_ID
+                        + CLOSE_QUOTE_AND_OBJECT));
+
+    assertThat(count(TECHNICAL_RECORD_TABLE)).isEqualTo(1);
+    assertThat(count(ACCEPTED_OPERATION_TABLE)).isEqualTo(1);
+    assertThat(count(CHANGE_TABLE)).isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT value FROM technical_record WHERE record_id = ?",
+                String.class,
+                java.util.UUID.fromString(RECORD_ID)))
+        .isEqualTo(FIRST_VALUE);
+  }
+
+  @Test
+  void concurrentIdenticalSubmissionsProduceOneStableAcceptance() throws Exception {
+    try (ExecutorService executor = Executors.newFixedThreadPool(2)) {
+      Future<String> first = executor.submit(() -> submitCreateAndReadResponse());
+      Future<String> second = executor.submit(() -> submitCreateAndReadResponse());
+
+      assertThat(first.get()).isEqualTo(second.get());
+    }
 
     assertThat(count(TECHNICAL_RECORD_TABLE)).isEqualTo(1);
     assertThat(count(ACCEPTED_OPERATION_TABLE)).isEqualTo(1);
@@ -72,7 +212,7 @@ class TechnicalSynchronizationIntegrationTest {
         .perform(
             post(OPERATIONS_PATH)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(createRequest("first value")))
+                .content(createRequest(FIRST_VALUE)))
         .andExpect(status().isOk());
 
     mockMvc
@@ -165,11 +305,24 @@ class TechnicalSynchronizationIntegrationTest {
         + recordId
         + "\",\"value\":\""
         + value
-        + "\",\"kind\":\"create\"}";
+        + "\",\"kind\":\"create\""
+        + CLOSE_OBJECT;
   }
 
   private String createRequestWithExtraField() {
     return createRequest("invalid").replace("}", ",\"extra\":true}");
+  }
+
+  private String submitCreateAndReadResponse() throws Exception {
+    return mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createRequest(FIRST_VALUE)))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
   }
 
   private String replaceRequest(String value, String expectedRevision) {
@@ -181,7 +334,7 @@ class TechnicalSynchronizationIntegrationTest {
         + value
         + "\",\"kind\":\"replace\",\"expectedRevision\":\""
         + expectedRevision
-        + "\"}";
+        + CLOSE_QUOTE_AND_OBJECT;
   }
 
   private String acceptedResponse(
@@ -196,7 +349,7 @@ class TechnicalSynchronizationIntegrationTest {
         + value
         + "\"},\"sequence\":\""
         + sequence
-        + "\"}";
+        + CLOSE_QUOTE_AND_OBJECT;
   }
 
   private int count(String table) {

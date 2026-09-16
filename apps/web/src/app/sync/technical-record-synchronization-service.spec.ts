@@ -75,6 +75,39 @@ describe('TechnicalRecordSynchronizationService', () => {
     await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
   });
 
+  it('retries the same operation after a lost acknowledgement', async () => {
+    const database = openDatabase();
+    const operation = createOperation();
+    const result = acceptedResult(operation);
+    let attempts = 0;
+    const transport: SynchronizationTransport = {
+      submitOperation: vi.fn(async (submitted) => {
+        attempts += 1;
+        expect(submitted).toEqual(operation);
+        if (attempts === 1) {
+          throw new Error('acknowledgement lost');
+        }
+        return result;
+      }),
+      pullChanges: vi.fn(),
+    };
+    const { persistence, service } = services(database, transport, onlineStatus(true));
+    await persistence.commitCreate(operation);
+
+    await expect(service.pushOnePendingOperation()).resolves.toMatchObject({ status: 'failed' });
+    await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
+
+    await expect(service.pushOnePendingOperation()).resolves.toMatchObject({
+      status: 'accepted',
+      result,
+    });
+    expect(transport.submitOperation).toHaveBeenCalledTimes(2);
+    await expect(database.outboxOperations.count()).resolves.toBe(0);
+    await expect(database.acceptedOperationResults.get(operation.operationId)).resolves.toEqual(
+      result,
+    );
+  });
+
   function openDatabase(): HortinisDatabase {
     const database = new HortinisDatabase(`hortinis-e3-${crypto.randomUUID()}`);
     databases.push(database);
