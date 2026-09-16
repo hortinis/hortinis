@@ -1,6 +1,6 @@
 # Hortinis — Functional decisions and MVP scope
 
-- Consolidated on: 2026-09-05.
+- Consolidated on: 2026-09-16.
 - Status: product framing based on the supplied reports and explicit decisions made during the discussion.
 - Purpose: support continuation without rereading the conversation; this is not yet a detailed specification or a delivery schedule.
 - Related documents: [product direction](product-direction.md), [domain glossary and lifecycle rules](domain-model.md), and [open questions and design handoff](open-questions.md).
@@ -149,6 +149,24 @@ A manually exportable complete backup and its restoration are part of the MVP. A
 A backup must recover business history: free-form entries, links between plans and lots, interventions, and correction history. The exact format, included references, and handling of synchronization state remain to be defined.
 
 Backup restoration is distinct from importing data from another application, which is not committed for the MVP. Server-installation backup procedures also remain to be specified.
+
+### DF-15 — Application entry, gardens, and server connection
+
+First opening offers three explicit paths: start locally, connect to an existing server, or restore a complete backup. Starting locally is the primary path. It establishes a stable active garden without requiring a gardener-supplied name, an account, connectivity, synchronization, location, spaces, or a drawn plan. The interface shows a non-blocking incomplete-configuration state until the gardener chooses to add relevant garden details.
+
+One synchronization connection applies to the local profile and all of its gardens. One server is active at a time. Connection starts with its address; Hortinis verifies compatibility and discovers whether that server permits account-free access, requires its built-in account, or offers optional federation before presenting the applicable access step.
+
+Connecting local data to a server that already contains data unites the local and remote garden sets. The gardener is asked to intervene only for an actual contradiction that cannot be merged under an accepted business rule. Changing server is an explicit transition: when both sides contain data, the gardener chooses the remote set, the local set, or a merge. Disconnecting, signing out, or choosing another server does not remove data already retained locally; local-only use can continue.
+
+The application provides an all-gardens read overview while keeping one garden selected for ordinary work and recording. Profile-wide synchronization, conflict, backup, and restoration state is presented globally, with garden attribution only when a particular item belongs to a garden. Switching gardens abandons an unsubmitted direct-record entry after a visible warning and never retargets it implicitly.
+
+### DF-16 — Broad-action coverage and exclusions
+
+An intervention or observation with a garden or space target may optionally exclude spaces, nested spaces, crop cycles represented to the gardener as crops, or crop lots within that target. Excluding a space excludes the space, its nested spaces, and their contents. An action on a space may therefore exclude a nested space, a crop, or a lot. Exclusion entry remains outside the mandatory quick-recording path and does not require map geometry.
+
+Coverage uses containment and placement at the record's business date when it is known. When business time is unknown, Hortinis captures the current containment and placement basis when it accepts the record locally. Later garden reorganization or lot movement does not rewrite that captured basis. Correcting business time reevaluates coverage through a new revision rather than silently changing history.
+
+A broad record retains one stable identity even when it is visible through several included garden, space, crop-cycle, or lot histories. Excluded histories do not show it as applicable, and overlapping exclusions do not duplicate or multiply the factual work.
 
 ## 4. UX preferences: retained direction, open details
 

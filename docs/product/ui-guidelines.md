@@ -1,6 +1,6 @@
 # Hortinis UI guidelines
 
-- Updated on: 2026-09-12.
+- Updated on: 2026-09-16.
 - Status: draft product direction; accepted interaction choices are distinguished from unresolved details.
 - Related documents: [home-screen specification](home-screen-specification.md), [functional decisions](functional-decisions.md), and [domain model](domain-model.md).
 - These documents define user experience, not implementation technology. Product implementation remains gated by the [foundation readiness plan](../development/foundation-implementation-plan.md#foundation-readiness-gate).
@@ -35,19 +35,28 @@ Phone is the primary device for everyday use, including offline garden work. The
 | UI-18 | Default direct-record business time to today while keeping it editable and allowing unknown time. | A common same-day entry should not require a date question, but Hortinis must preserve delayed entry and uncertainty rather than inventing a date. |
 | UI-19 | Discard an unsubmitted direct-record draft when its recording surface is closed. | The quick path does not retain a hidden draft after explicit closure. Navigation, garden switching, accidental dismissal, and assistive-technology behavior still need scenario testing. |
 | UI-20 | Keep direct recording at the minimum content required by the selected record type. | Quantity and diagnostic detail remain optional. Observation remains one general type for now and requires only its domain-defined free-form account in addition to the common minimum. |
-| UI-21 | Defer broad-action exclusions beyond the MVP without closing the future path. | MVP recording does not need an exclusion editor. Later coverage and exclusion semantics must remain possible without duplicating work across garden, space, and crop histories. |
+| UI-21 | Keep broad-action exclusions available but outside the mandatory quick-recording path. | A common entry remains immediate. Gardeners who need a more precise extent can open an optional exclusion step without duplicating work across garden, space, and crop histories. |
+| UI-22 | Offer three paths on first opening: start locally, connect to a server, or restore a backup. Emphasize local start. | Account, connectivity, synchronization, and restoration must not delay a gardener who wants to begin locally. |
+| UI-23 | Let local start create an active provisional garden without requiring a name. | The gardener can record immediately. A visible, non-blocking indicator shows that garden configuration remains incomplete. The provisional display label is not a gardener-supplied name. |
+| UI-24 | Configure synchronization once for the local profile and all of its gardens, with one active server. | Start with the server address, discover its access capabilities, and request authentication only when the server requires or offers it. |
+| UI-25 | Treat a server-address change as an explicit data transition. | When local and remote data both exist, offer remote, local, or merge as explicit choices. Merging unites both garden sets and asks for intervention only for actual contradictions. Disconnecting or choosing another server does not remove the locally retained data. |
+| UI-26 | Provide an **All gardens** read overview while keeping synchronization and conflict management global. | The overview summarizes garden-specific work and attention without mixing write contexts. Profile-wide connection state and conflicts belong in a global data and synchronization area, with garden attribution where relevant. |
+| UI-27 | Abandon an unsubmitted direct-record entry when the gardener confirms a switch to another garden. | Never retarget the draft implicitly. Make the loss visible before switching and return to the destination garden with no retained hidden draft. |
+| UI-28 | Allow optional exclusions from a broad garden or space target in the MVP. | Exclusions may identify spaces, nested spaces, user-facing crops, or lots. Excluding a space includes the space and its contents. Resolve containment at the business date, or against the recorded current state when the date is unknown. A drawn plan is never required. |
 
 ## Interaction and information principles
 
 - Keep one selected garden clear. Garden identity must not be lost when switching to another garden or inspecting its attention indicator.
 - Preserve original dates and uncertainty. An overdue task keeps its due date and appears within its place group with clear text emphasis.
 - Show recommendations separately from tasks. Conversion is an explicit user action; viewing or converting advice does not create a journal event.
-- Let users record work against a crop, a space, or the whole selected garden. Omitting a more specific target means the selected garden. Broad-action exclusions are deferred beyond the MVP; future coverage, history, and duplicate prevention still require specification.
+- Let users record work against a crop, a space, or the whole selected garden. Omitting a more specific target means the selected garden. A broad garden or space action may exclude spaces, nested spaces, crops, or lots without requiring a drawn plan. Keep exclusion entry optional and preserve one journal-record identity across every relevant history view.
 - Let the user record garden- or space-level work such as soil preparation or fertilizing an empty bed.
 - Keep a quick path for harvests, watering, observations, and other work. A user may add optional details after choosing to record; do not require quantity when it is unknown or a diagnosis for an observation.
 - Weather, time-period selection, and planning indicators are supporting controls. Do not let them crowd out the garden's work.
 - Use text labels alongside color and icons for task state, alerts, and uncertainty.
 - Keep all functions available across experience levels. Preferences may change explanation depth and visible detail; their defaults, scope, and storage are undecided.
+- Keep the local path primary on first opening. Garden naming and further setup remain optional, with an incomplete-configuration indicator rather than a blocking wizard.
+- Keep global data state outside garden navigation. Server connection, profile-wide synchronization, unresolved conflicts, backup, and restoration remain reachable even when no named garden exists.
 
 ## Mapping direction
 
@@ -55,4 +64,4 @@ Mapping is an important future capability, not a settled MVP requirement. It sho
 
 ## Reference concepts
 
-The accepted starting layout is mockup M; completion feedback and stable task rows use provisional mockup O. The type-first quick-recording flow is retained as a separate discussion prototype. The detailed decision record and links to the renderings are in the [home-screen specification](home-screen-specification.md). Earlier directions are retained in the UI exploration directory for comparison. These are design prototypes, not implemented screens or approval to begin business-feature development.
+The accepted starting layout is mockup M; completion feedback and stable task rows use provisional mockup O. The type-first quick-recording flow and the global application journey are retained as separate discussion prototypes. The detailed decision record and links to the renderings are in the [home-screen specification](home-screen-specification.md). Earlier directions are retained for comparison. These are design prototypes, not implemented screens or approval to begin business-feature development.

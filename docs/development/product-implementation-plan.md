@@ -42,8 +42,8 @@ These items may proceed during foundation implementation. They produce specifica
 - Scope: define navigation, active-garden selection, home view, quick recording, journal filters, planned-versus-actual presentation, history access, and offline/pending/synchronized/conflict states.
 - Also define the MVP preference dimensions, defaults, explicit settings, and whether each setting is per device or per gardener.
 - Current product artifacts: [UI guidelines](../product/ui-guidelines.md) and [home-screen specification](../product/home-screen-specification.md), including provisional mockup O and the remaining O-04 questions.
-- Completed in discussion so far: selected-garden overview; place-grouped tasks, including overdue work in its original group and date; distinct recommendations with explicit conversion; discreet period/weather controls; labeled bottom Record action; optional completion details; provisional stable task rows with compact floating completion feedback; and the initial direct-recording direction covering type-first entry, equal type access, selected-garden default targeting, crop/space refinement, today's editable default date, minimal type-specific content, discarded closed drafts, and deferred MVP exclusions.
-- Still needed before P0.2 acceptance: quick-recording type taxonomy, presentation density, target-resolution scenarios, garden-level harvest domain reconciliation, and direct-recording feedback validation; final navigation and journal/history filters; planned/task/actual presentation; period rules; completed-row lifecycle; garden switching and attention indicator; weather/warning behavior; planning prompts; mapping boundary; MVP preference defaults/scope; and offline/sync/conflict presentation.
+- Completed in discussion so far: selected-garden overview; place-grouped tasks, including overdue work in its original group and date; distinct recommendations with explicit conversion; discreet period/weather controls; labeled bottom Record action; optional completion details; provisional stable task rows with compact floating completion feedback; the initial direct-recording direction covering type-first entry, equal type access, selected-garden default targeting, crop/space refinement, today's editable default date, minimal type-specific content, and discarded closed drafts; optional broad-action exclusions resolved from dated or captured-current containment; three-path first opening with unnamed provisional local gardens; one profile-wide active server discovered from its address; all-gardens read overview; global synchronization/conflict state; explicit remote/local/merge choices when changing server; retained local use after disconnection; and draft abandonment when switching gardens.
+- Still needed before P0.2 acceptance: quick-recording type taxonomy, presentation density, target-resolution and exclusion-label scenarios, garden-level harvest domain reconciliation, and direct-recording feedback validation; final navigation and journal/history filters; planned/task/actual presentation; period rules; completed-row lifecycle; exact garden-attention rules; weather/warning behavior; planning prompts; mapping boundary; MVP preference defaults/scope; and the detailed offline/pending/synchronized/failed/conflicted status presentation.
 - Excludes: opaque experience-level feature locking and menus copied from earlier proposals.
 - Acceptance: the primary MVP journeys and settings are reviewable without implementation-specific assumptions; open interaction questions that block them are resolved or explicitly excluded from MVP. Prototype review alone does not satisfy acceptance.
 
@@ -56,13 +56,14 @@ These items may proceed during foundation implementation. They produce specifica
 ### P0.4 — Derive the business record and operation specification
 
 - Status: `planned`.
-- Scope: implementation-neutral records, commands, revisions, current projections, ownership scope, business-time precision, quantities and unknowns, placements, lineage, allocations, voids, and terminal states.
-- Acceptance: the physical model and contracts preserve the distinctions in the domain specification and support AC-DM-01 through AC-DM-22 without a generic mutable `crop` record.
+- Scope: implementation-neutral records, commands, revisions, current projections, ownership scope, business-time precision, quantities and unknowns, placements, lineage, allocations, broad-target coverage and exclusions, captured-current coverage when business time is unknown, voids, and terminal states.
+- Acceptance: the physical model and contracts preserve the distinctions in the domain specification and support AC-DM-01 through AC-DM-23 without a generic mutable `crop` record.
 
 ### P0.5 — Resolve access and business synchronization (O-08 and O-09)
 
 - Status: `planned`.
 - Scope: standalone use, individual-server connection, shared-instance accounts, local-to-server transition, device enrollment and revocation, ownership/isolation, compatible merges, contradictory conflicts, and conflict resolution for relationships, corrections, and archiving.
+- Accepted journey constraints: one connection covers the local profile and all gardens; one server is active; address and compatibility discovery precede any applicable authentication; local and remote garden sets are united automatically; changing server offers remote, local, or merge; and data retained locally remains available after disconnection.
 - Acceptance: the access behavior is documented and any required technical selection is recorded in an ADR before synchronized garden data is implemented.
 
 ### P0.6 — Specify backup and restoration (O-10)
@@ -103,7 +104,7 @@ production catalog and recommendation behavior.
 #### M1.1 — Garden creation and selection
 
 - Depends on: foundation readiness, P0.2, P0.4, and P0.5.
-- Scope: account-free local garden creation, multiple gardens, active-garden selection, stable identity, rename, and archive visibility.
+- Scope: account-free local garden creation without a required gardener-supplied name, incomplete-configuration state, multiple gardens, active-garden selection, stable identity, rename, and archive visibility.
 - Acceptance: a garden can be created, reopened, and queried entirely offline; records cannot cross garden boundaries.
 
 #### M1.2 — Typed spaces
@@ -150,8 +151,8 @@ production catalog and recommendation behavior.
 #### M3.1 — Journal and fast recording
 
 - Depends on: M1.2 and M2.4.
-- Scope: interventions, observations, harvests, losses, garden/space/cycle/lot targets, unknown quantities, inherited ancestor history, and current journal projections.
-- Acceptance: AC-DM-07 and AC-DM-10 pass; inherited records are displayed clearly and counted once by stable identity.
+- Scope: interventions, observations, harvests, losses, garden/space/cycle/lot targets, optional garden/space coverage exclusions, dated or captured-current containment, unknown quantities, inherited ancestor history, and current journal projections.
+- Acceptance: AC-DM-07, AC-DM-10, and AC-DM-23 pass; inherited and broadly covered records are displayed clearly and counted once by stable identity.
 
 #### M3.2 — Tasks and fulfillment
 
@@ -176,7 +177,7 @@ production catalog and recommendation behavior.
 #### M4.1 — Server connection and additional devices
 
 - Depends on: M1.3, P0.5, and M3.4.
-- Scope: accepted access modes, local-to-server connection, populated-server connection, second-device bootstrap, sign-out, session behavior, and device revocation.
+- Scope: accepted access modes, address-first capability discovery, local-to-server connection, populated-server connection, remote/local/merge server-change choices, second-device bootstrap, retained local-only use after disconnection or sign-out, session behavior, and device revocation.
 - Acceptance: a garden created without an account can be connected and retrieved on another device without loss or duplication.
 
 #### M4.2 — Domain conflict resolution
@@ -224,8 +225,8 @@ production catalog and recommendation behavior.
 - Depends on: M1 through M5 and the foundation validation report.
 - Scope: integrated product hardening, accessibility, target-browser/device testing, storage failure and migration recovery, performance at the agreed data volume, deployment documentation, and field-trial preparation.
 - Acceptance:
-  - DF-01 through DF-14 are implemented.
-  - AC-DM-01 through AC-DM-22 pass at the appropriate domain, integration, and end-to-end levels.
+  - DF-01 through DF-16 are implemented.
+  - AC-DM-01 through AC-DM-23 pass at the appropriate domain, integration, and end-to-end levels.
   - The seven cross-cutting O-11 scenarios pass.
   - Core writes work offline and survive reload.
   - Synchronization preserves local intent and exposes contradictions.

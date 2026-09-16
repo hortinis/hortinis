@@ -1,6 +1,6 @@
 # Hortinis — Open questions and design handoff
 
-- Consolidated on: 2026-09-12.
+- Consolidated on: 2026-09-16.
 - Status: unresolved questions, specification work, and proposed next steps.
 - Accepted requirements: [functional decisions and MVP scope](functional-decisions.md).
 - Long-term context: [product direction](product-direction.md).
@@ -30,9 +30,11 @@ O-01 through O-03 are resolved by the [domain glossary, lifecycle rules, and acc
 
 **Progress:** The accepted directions and provisional home interaction are recorded in the [UI guidelines](ui-guidelines.md) and [home-screen specification](home-screen-specification.md). The accepted starting layout is M. O is retained provisionally for completion: completed task rows and controls remain in place, with compact floating Details/Undo feedback and persistent access to details. The prototype is linked from the home-screen specification.
 
-The direct-recording discussion now selects type-first entry, equal access to all available types, selected-garden targeting when no more specific target is chosen, optional crop or space targeting, optional space refinement of a whole-crop target, today as the editable default date, minimal type-specific content, general Observation rather than a pest-specific entry, draft discard on explicit closure, and no MVP exclusion editor. Spaces continue to exist without a drawn or dimensioned plan. O's Details/Undo feedback is only a test candidate for direct recording.
+The direct-recording discussion now selects type-first entry, equal access to all available types, selected-garden targeting when no more specific target is chosen, optional crop or space targeting, optional space refinement of a whole-crop target, today as the editable default date, minimal type-specific content, general Observation rather than a pest-specific entry, draft discard on explicit closure, and an optional exclusion step for broad garden or space actions. Exclusions may identify spaces, nested spaces, crops, or lots; excluding a space includes its contents. Coverage uses the business date or a captured current basis when business time is unknown. Spaces continue to exist without a drawn or dimensioned plan. O's Details/Undo feedback is only a test candidate for direct recording.
 
-Decisions still needed: the exact quick-recording type set, labels, grouping, ordering, responsive density, target resolution, and garden-level harvest domain reconciliation; journal destinations and filters; presentation of plans, tasks, and actual work; period boundaries and task ordering; completed-row visibility over time and after navigation/reload/synchronization; other-garden indicator and garden switching; weather fields and warning behavior; planning prompts; and any MVP mapping views.
+The global journey now selects three first-opening paths with local start emphasized; a stable unnamed provisional garden and non-blocking configuration indicator; one profile-wide active synchronization server; address-first compatibility and access-mode discovery; automatic union of local and remote garden sets except for actual contradictions; explicit remote, local, or merge choices when changing server; continued local access after disconnection; an all-gardens read overview; global synchronization and conflict management; and warned draft abandonment when switching gardens.
+
+Decisions still needed: the exact quick-recording type set, labels, grouping, ordering, responsive density, target and exclusion labels, and garden-level harvest domain reconciliation; journal destinations and filters; presentation of plans, tasks, and actual work; period boundaries and task ordering; completed-row visibility over time and after navigation/reload/synchronization; garden-attention qualification; detailed global synchronization and conflict-state presentation; weather fields and warning behavior; planning prompts; and any MVP mapping views.
 
 Define MVP scope for the four preference dimensions, unknown experience, defaults, explicit settings, and their scope per device or gardener. Future estimates must not trigger opaque interface changes.
 
@@ -87,11 +89,11 @@ Recommendations must be able to request an observation. An absent recorded event
 
 ### O-08 — Configurable access and ADR-0013
 
-Accepted decision: account-free application use, optional accounts on individual servers, required accounts on shared instances; collaborative gardens deferred.
+Accepted decisions: account-free application use, optional accounts on individual servers, required accounts on shared instances, one profile-wide active server, address-first capability discovery, retained local data after disconnection, and continued local-only use; collaborative gardens remain deferred.
 
 [ADR-0013](../architecture/decisions/0013-identity-and-storage-defaults.md) provides built-in local accounts, cookie sessions, and optional federation. An addition or revision must formalize individual mode without an account, its access control, data scope, and possible transition to an instance with accounts. Authentication-library selection remains open.
 
-This work reconciles an accepted product decision with the architecture; it does not ask again whether accounts must be mandatory everywhere. The server's default setting has not been selected.
+This work reconciles accepted product decisions with the architecture; it does not ask again whether accounts must be mandatory everywhere. The server's default setting, shared-device protection, credential recovery, and exact sign-out behavior have not been selected.
 
 Also specify session expiry, offline local access, sign-out, device revocation, and consequences for local data, consistently with existing technical questions.
 
@@ -99,7 +101,7 @@ Also specify session expiry, offline local access, sign-out, device revocation, 
 
 Accepted decisions: DF-11 through DF-13.
 
-Determine how local data connects to an empty or already-used server, adding devices, changing servers, ownership identity, and isolation between accounts on a shared instance.
+Accepted journey: local and remote garden sets are united automatically, with intervention only for actual contradictions. Changing server offers explicit remote, local, or merge choices; none silently deletes locally retained data. Determine the exact effects and safeguards of each choice, adding devices, ownership identity, and isolation between accounts on a shared instance.
 
 Establish business compatibility rules, the visible state during a conflict, offered choices, and conflicts involving relationships, corrections, or archiving. Two different fields can form an invalid combination.
 

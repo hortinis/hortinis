@@ -1,7 +1,7 @@
 # Hortinis domain glossary, lifecycle rules, and acceptance scenarios
 
-- Decided on: 2026-09-05.
-- Status: accepted product-domain specification for O-01 through O-03.
+- Decided on: 2026-09-16.
+- Status: accepted product-domain specification for O-01 through O-03, extended with the accepted broad-coverage rules from O-04.
 - Scope: conceptual domain model for planning, crop tracking, spaces, journal entries, tasks, and corrections. This document does not prescribe database tables, classes, endpoints, or interface layouts.
 - Builds on: [functional decisions and MVP scope](functional-decisions.md).
 
@@ -85,6 +85,7 @@ Quantity conservation is enforced only when all quantities involved are known, h
 | **Observation** | A journal entry stating what the gardener noticed, without requiring a diagnosis. | An observation does not assert a cause unless the gardener explicitly records one. |
 | **Journal** | A chronological projection of current, non-voided establishment events, movements, lifecycle events, interventions, observations, harvests, losses, and corrections relevant to a selected context. | The journal is a view, not a separate source of truth. Correction history and voided records remain accessible. |
 | **Target** | The garden, a space, a crop cycle, or one or more crop lots to which a task or journal entry applies. | A crop target is optional: general garden and space work can be recorded without a crop. |
+| **Coverage exclusion** | A stable reference that removes a space, nested space, crop cycle, or crop lot from the extent of a broader garden or space target. | Excluding a space includes the space and its contents. Exclusions refine one record; they do not create or copy several interventions. |
 | **Correction** | An append-only revision that supersedes the current values of a correctable record and identifies the revision it corrects. | The stable record identity remains unchanged, and previous values remain accessible. |
 | **Void** | A correction state saying that a record should no longer contribute to current views or calculations because it was accidental or duplicative. | Voiding is not physical deletion. A duplicate may reference the retained canonical record. |
 
@@ -95,12 +96,18 @@ Minimum business content remains deliberately small:
 | Record | Required business content | Optional content |
 | --- | --- | --- |
 | Task | Garden, action kind or free-form action, and status | Specific target, due time, extent, notes |
-| Intervention | Garden, action kind, target, and business time (which may be unknown) | Quantity, method, materials, notes, task fulfillment |
-| Observation | Garden, target, business time (which may be unknown), and a free-form observation | Category, structured measurements, suspected diagnosis, notes |
+| Intervention | Garden, action kind, target, and business time (which may be unknown) | Coverage exclusions, quantity, method, materials, notes, task fulfillment |
+| Observation | Garden, target, business time (which may be unknown), and a free-form observation | Coverage exclusions, category, structured measurements, suspected diagnosis, notes |
 | Harvest | Garden, crop-cycle or crop-lot target, and business time (which may be unknown) | Quantity, unit, produce description, notes |
 | Loss | Garden, crop-lot target, and business time (which may be unknown) | Quantity, unit, reason, notes |
 
 The target of an intervention or observation may be the garden itself, so no crop or space is required. Establishment, movement, split, and lifecycle records have operation-specific required relationships described in the lifecycle rules below.
+
+A garden-targeted intervention or observation may exclude any space, crop cycle, or crop lot belonging to that garden. A space-targeted record may exclude a descendant space, a crop cycle with an applicable lot in that space, or an applicable lot. Excluding a space also excludes every descendant space and every crop lot contained within that subtree for the record's coverage reference. A user-facing crop exclusion resolves to the applicable crop cycle and lots; `crop` does not become a new domain entity.
+
+When business time identifies a date, containment and lot placement at that date determine coverage. When business time is unknown, the accepting device captures the current containment and placement basis at recorded time. This fallback does not invent a business date. Later moves, splits, or space reorganization do not retroactively change the captured basis. Correcting business time creates a new revision and reevaluates coverage against the corrected possible time.
+
+Overlapping exclusions are semantically idempotent: excluding a space and a lot already excluded through that space does not change the factual extent or create another journal record. The same broad record may appear in several included histories, but all projections deduplicate it by its stable journal-record identity.
 
 ## 3. Lifecycle rules
 
@@ -399,8 +406,19 @@ The scenarios are behavioral contracts for later domain tests and API examples. 
 **And** a six-plant child remains active  
 **And** the cycle remains `active`.
 
+### AC-DM-23 — Broad work preserves dated exclusions without duplication
+
+**Given** a garden contains a greenhouse with tomato lot `L2`, an east bed with radish lot `L3`, and no drawn plan
+**When** the gardener records one garden-wide watering on 12 April and excludes the greenhouse
+**Then** the watering applies to the garden extent outside the greenhouse at that date
+**And** the greenhouse, its descendant spaces, and `L2` are excluded
+**And** the watering may appear in the east-bed and `L3` histories but contributes once by its stable journal-record identity
+**And when** the business time is unknown
+**Then** Hortinis captures the current containment and placement basis without inventing a business date
+**And** a later move or reorganization does not rewrite that captured coverage.
+
 ## 6. Consequences for later design
 
-The physical data model and HTTP/JSON contracts must preserve stable identities, revision chains, lot lineage, time-bounded placements, plan allocations, business-time precision, unknown quantities, void states, task-to-intervention fulfillment, and idempotent domain operations. They must not flatten these distinctions into one mutable “crop” record or duplicate ancestor events onto descendant lots.
+The physical data model and HTTP/JSON contracts must preserve stable identities, revision chains, lot lineage, time-bounded placements, plan allocations, business-time precision, captured coverage bases, coverage exclusions, unknown quantities, void states, task-to-intervention fulfillment, and idempotent domain operations. They must not flatten these distinctions into one mutable “crop” record or duplicate ancestor events onto descendant lots.
 
 API resource shapes, persistence layout, conflict-presentation details, and retention periods remain later technical design work. They must implement these behaviors and the synchronization guarantees in [ADR-0010](../architecture/decisions/0010-synchronization-protocol-model.md) without introducing transport or persistence concerns into the domain.
