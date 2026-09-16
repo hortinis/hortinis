@@ -44,3 +44,12 @@ test('an internal import cycle fails', async () => {
   const result = await checkArchitecture('scripts/architecture-fixtures/import-cycle');
   assert.notDeepEqual(result.cycles, []);
 });
+
+test('a synchronization rule importing HTTP fails', async () => {
+  const result = await checkArchitecture('scripts/architecture-fixtures/sync/http-leak');
+  assert.ok(
+    result.lintResults.some((lintResult) =>
+      lintResult.messages.some((message) => message.messageId === 'forbidden'),
+    ),
+  );
+});

@@ -292,10 +292,16 @@ B5 and B6, formerly separate domain and application package setup, are folded in
 
 #### B9. Create the HTTP synchronization adapter boundary
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: B2 and the technical synchronization contracts in D2.
 - Scope: implement an HTTP adapter and narrow transport interface inside `apps/web/src/app/sync`; validate contract boundary shapes and map them only where internal semantics differ.
-- Acceptance: transport failure behavior is testable through the interface, invalid boundary data is rejected, and pure protocol rules remain independent of HTTP.
+- Excludes: retry and backoff policy, outbox coordination, accepted-result persistence, conflict resolution, authentication, and server integration tests.
+- Artifacts: framework-free D2 request/response and error guards; the `SynchronizationTransport` interface; typed protocol, unavailable, boundary, and unexpected-response errors; an Angular `HttpClient` adapter for submit and pull; an overridable same-origin API base URL; HTTP provider registration; adapter unit tests using `HttpTestingController`; and an architecture rule preventing HTTP imports from other synchronization modules.
+- Acceptance: transport failure behavior is testable through the interface, invalid request and response boundary data is rejected, documented `400`, `404`, and `409` responses are exposed as typed protocol errors, and pure protocol rules remain independent of HTTP.
+- Validation commands: `pnpm install --frozen-lockfile`, `pnpm contracts:validate`, `pnpm --filter @hortinis/web format:check`, `pnpm --filter @hortinis/web lint`, `pnpm --filter @hortinis/web architecture:check`, `pnpm --filter @hortinis/web test:architecture`, `pnpm --filter @hortinis/web typecheck`, `pnpm --filter @hortinis/web test`, `pnpm --filter @hortinis/web build:development`, `pnpm --filter @hortinis/web build`, `git diff --check`, `git ls-files -ci --exclude-standard`, `git check-attr text eol -- .gitattributes README.md gradlew gradlew.bat`, and `git ls-files --eol`.
+- Validation evidence: on 2026-09-15, the Angular/Vitest suite passed 23 tests across five files, including both HTTP endpoints, opaque cursor handling, all documented protocol-error variants, malformed boundary data, pre-request validation, network failure classification, and no retry. Strict Angular/TypeScript checks, Angular ESLint, the web architecture check and negative HTTP-import fixture, the development build, contract validation, and repository-wide whitespace, ignore, attribute, and line-ending checks passed. The standard production build was attempted but remains blocked by the pre-existing external Google Fonts inlining request (`fonts.googleapis.com` DNS failure); this is unrelated to B9.
+- Follow-up: E3 consumes this boundary to submit and persist one operation atomically; E5 consumes pull behavior for cursor-backed change application. Retry/backoff remains governed by ADR-0010 and later synchronization increments.
+- Relevant decisions: ADR-0003, ADR-0007, ADR-0009, ADR-0010, ADR-0011, ADR-0018, and ADR-0021.
 
 ### Track C: minimal Spring application
 

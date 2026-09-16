@@ -93,5 +93,34 @@ module.exports = {
         };
       },
     },
+    'no-sync-http-import': {
+      meta: {
+        type: 'problem',
+        docs: { description: 'Keep synchronization rules independent of the HTTP adapter' },
+        messages: {
+          forbidden:
+            'Only the synchronization HTTP adapter and its provider may import HTTP transport code.',
+        },
+        schema: [],
+      },
+      create(context) {
+        const filename = context.filename.replaceAll('\\', '/');
+        const isHttpAdapter = filename.endsWith('/http-synchronization-transport.ts');
+        const isProvider = filename.endsWith('/synchronization-transport.token.ts');
+
+        return {
+          ImportDeclaration(node) {
+            if (isHttpAdapter || isProvider) return;
+            const source = node.source.value;
+            if (
+              source === '@angular/common/http' ||
+              (typeof source === 'string' && source.includes('http-synchronization-transport'))
+            ) {
+              context.report({ node, messageId: 'forbidden' });
+            }
+          },
+        };
+      },
+    },
   },
 };

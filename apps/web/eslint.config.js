@@ -42,6 +42,13 @@ module.exports = defineConfig([
     rules: {},
   },
   {
+    files: ['**/sync/**/*.ts'],
+    ignores: ['**/*.spec.ts'],
+    rules: {
+      'architecture/no-sync-http-import': 'error',
+    },
+  },
+  {
     files: ['**/*.rule.ts'],
     rules: {
       'no-restricted-imports': [
