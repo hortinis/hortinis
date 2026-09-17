@@ -723,10 +723,23 @@ The first slice uses a deliberately technical record. It validates the mechanism
 
 #### E9. Run cross-runtime conformance validation
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: E1 through E8.
 - Scope: execute shared fixtures against TypeScript and Java interpretations of the implemented protocol slice.
 - Acceptance: typed comparison, validation, identifiers, revisions, results, and error classifications agree.
+- Artifacts: strengthened TypeScript and Java shared-fixture consumers; production-rule and typed-model
+  validation for operation requests, opaque cursors, accepted results, change pages, and all protocol
+  error classifications; canonical request assertions; and the root `conformance:validate` command.
+- Validation commands: `pnpm conformance:validate`, `pnpm --filter @hortinis/web format:check`,
+  `pnpm --filter @hortinis/web lint`, `pnpm --filter @hortinis/web architecture:check`,
+  `pnpm --filter @hortinis/web typecheck`, followed by the repository-wide Git checks.
+- Validation evidence: on 2026-09-17, the shared twelve-scenario corpus passed the TypeScript suite
+  (49 tests) and Java unit suite (7 tests). TypeScript production validators now check typed operation,
+  record, result, change-page, error, cursor, and closed-shape behavior; Java conformance uses the
+  production request parser, `OperationRules`, `SyncCursorCodec`, and typed protocol/error models.
+  Canonical requests, typed operation equality, invalid identifiers/revisions, opaque cursor validity,
+  accepted results, change pages, and each error classification are exercised. Formatting and strict
+  dependency verification passed for the modified consumers.
 
 #### E10. Publish the V0 technical readiness report
 

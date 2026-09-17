@@ -1,13 +1,15 @@
-package com.hortinis.sync.conformance;
+package com.hortinis.sync.http;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hortinis.sync.protocol.ChangePage;
+import com.hortinis.sync.protocol.InvalidRequestException;
+import com.hortinis.sync.protocol.OperationRules;
+import com.hortinis.sync.protocol.SyncCursorCodec;
+import com.hortinis.sync.protocol.TechnicalRecordOperation;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -15,15 +17,6 @@ import tools.jackson.databind.json.JsonMapper;
 class TechnicalConformanceFixturesTest {
 
   private static final JsonMapper JSON = JsonMapper.builder().build();
-  private static final String KIND = "kind";
-  private static final String OPERATION_ID = "operationId";
-  private static final String RECORD_ID = "recordId";
-  private static final String VALUE = "value";
-  private static final String EXPECTED_REVISION = "expectedRevision";
-  private static final String CREATE = "create";
-  private static final Pattern UUID_V7 =
-      Pattern.compile("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$");
-  private static final Pattern POSITIVE_DECIMAL = Pattern.compile("^[1-9][0-9]*$");
   private static final List<String> FIXTURES =
       List.of(
           "change-page.json",
@@ -47,8 +40,10 @@ class TechnicalConformanceFixturesTest {
       JsonNode expected = fixture.get("expected");
       boolean expectedValid = expected.get("valid").booleanValue();
 
-      if (isObject(request) && request.has(KIND)) {
-        assertThat(isTechnicalRecordOperation(request)).isEqualTo(expectedValid);
+      if (isObject(request) && request.has("kind")) {
+        assertThat(isValidOperation(request)).isEqualTo(expectedValid);
+      } else if (isObject(request) && request.has("cursor")) {
+        assertThat(isValidCursor(request.get("cursor").textValue())).isEqualTo(expectedValid);
       } else if (expected.get("errorCode") != null) {
         assertThat(expectedValid).isFalse();
       }
@@ -61,16 +56,35 @@ class TechnicalConformanceFixturesTest {
       JsonNode acceptedOperations = state == null ? null : state.get("acceptedOperations");
       if (acceptedOperations != null && isObject(request)) {
         for (JsonNode receipt : acceptedOperations) {
-          if (request.get(OPERATION_ID).textValue().equals(receipt.get(OPERATION_ID).textValue())) {
+          if (request
+              .get("operationId")
+              .textValue()
+              .equals(receipt.get("operationId").textValue())) {
             assertThat(operationsEqual(request, receipt.get("request"))).isFalse();
           }
         }
       }
       JsonNode errorCode = expected.get("errorCode");
       JsonNode expectedResponse = expected.get("response");
-      if (errorCode != null) {
-        assertThat(expectedResponse.get("code").textValue()).isEqualTo(errorCode.textValue());
+      String responseCode =
+          expectedResponse != null && expectedResponse.has("code")
+              ? expectedResponse.get("code").textValue()
+              : null;
+      if (errorCode != null || responseCode != null) {
+        assertThat(responseCode)
+            .isEqualTo(errorCode == null ? responseCode : errorCode.textValue());
+        assertResponseShape(
+            expectedResponse, errorCode == null ? responseCode : errorCode.textValue());
+      } else if (expectedResponse != null) {
+        assertThat(isObject(expectedResponse)).isTrue();
+        assertThat(
+                JSON.treeToValue(
+                    expectedResponse, com.hortinis.sync.protocol.OperationResult.class))
+            .isNotNull();
       }
+      JsonNode changePage = fixture.get("response");
+      if (changePage != null)
+        assertThat(JSON.treeToValue(changePage, ChangePage.class)).isNotNull();
     }
   }
 
@@ -92,44 +106,56 @@ class TechnicalConformanceFixturesTest {
     }
   }
 
-  private static boolean isTechnicalRecordOperation(JsonNode value) {
-    if (!isObject(value)
-        || !value.get(OPERATION_ID).isTextual()
-        || !UUID_V7.matcher(value.get(OPERATION_ID).textValue()).matches()
-        || !value.get(RECORD_ID).isTextual()
-        || !UUID_V7.matcher(value.get(RECORD_ID).textValue()).matches()
-        || !value.get(VALUE).isTextual()
-        || !value.get(KIND).isTextual()) {
+  private static boolean isValidOperation(JsonNode value) {
+    try {
+      TechnicalRecordOperation operation = TechnicalOperationParser.parse(value);
+      OperationRules.validate(operation);
+      return true;
+    } catch (InvalidRequestException | IllegalArgumentException exception) {
       return false;
     }
-
-    Set<String> keys = fieldNames(value);
-    if (CREATE.equals(value.get(KIND).textValue())) {
-      return keys.equals(Set.of(KIND, OPERATION_ID, RECORD_ID, VALUE));
-    }
-    return "replace".equals(value.get(KIND).textValue())
-        && keys.equals(Set.of(EXPECTED_REVISION, KIND, OPERATION_ID, RECORD_ID, VALUE))
-        && value.get(EXPECTED_REVISION).isTextual()
-        && POSITIVE_DECIMAL.matcher(value.get(EXPECTED_REVISION).textValue()).matches();
   }
 
   private static boolean operationsEqual(JsonNode left, JsonNode right) {
-    return isTechnicalRecordOperation(left)
-        && isTechnicalRecordOperation(right)
-        && left.get(OPERATION_ID).textValue().equals(right.get(OPERATION_ID).textValue())
-        && left.get(RECORD_ID).textValue().equals(right.get(RECORD_ID).textValue())
-        && left.get(VALUE).textValue().equals(right.get(VALUE).textValue())
-        && left.get(KIND).textValue().equals(right.get(KIND).textValue())
-        && java.util.Objects.equals(left.get(EXPECTED_REVISION), right.get(EXPECTED_REVISION));
+    try {
+      return OperationRules.equal(
+          TechnicalOperationParser.parse(left), TechnicalOperationParser.parse(right));
+    } catch (InvalidRequestException | IllegalArgumentException exception) {
+      return false;
+    }
   }
 
   private static boolean isObject(JsonNode value) {
     return value != null && value.isObject();
   }
 
-  private static Set<String> fieldNames(JsonNode value) {
-    Set<String> names = new HashSet<>();
-    names.addAll(value.propertyNames());
-    return names;
+  private static boolean isValidCursor(String cursor) {
+    try {
+      SyncCursorCodec.decode(cursor);
+      return true;
+    } catch (InvalidRequestException exception) {
+      return false;
+    }
+  }
+
+  private static void assertResponseShape(JsonNode response, String code) throws IOException {
+    switch (code) {
+      case "INVALID_REQUEST" ->
+          JSON.treeToValue(
+              response, TechnicalSynchronizationErrorHandler.InvalidRequestError.class);
+      case "RECORD_NOT_FOUND" ->
+          JSON.treeToValue(
+              response, TechnicalSynchronizationErrorHandler.RecordNotFoundError.class);
+      case "OPERATION_ID_REUSED" ->
+          JSON.treeToValue(
+              response, TechnicalSynchronizationErrorHandler.OperationIdReusedError.class);
+      case "RECORD_ALREADY_EXISTS" ->
+          JSON.treeToValue(
+              response, TechnicalSynchronizationErrorHandler.RecordAlreadyExistsError.class);
+      case "REVISION_CONFLICT" ->
+          JSON.treeToValue(
+              response, TechnicalSynchronizationErrorHandler.RevisionConflictError.class);
+      default -> throw new AssertionError("Unknown fixture error code: " + code);
+    }
   }
 }

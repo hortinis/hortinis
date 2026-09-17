@@ -23,6 +23,10 @@ export interface ChangePage {
   hasMore: boolean;
 }
 
+export function isSyncCursor(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
 export interface InvalidRequestError {
   code: 'INVALID_REQUEST';
   message: string;
@@ -154,8 +158,7 @@ export function isChangePage(value: unknown): value is ChangePage {
     hasExactlyKeys(value, ['changes', 'nextCursor', 'hasMore']) &&
     Array.isArray(value['changes']) &&
     value['changes'].every(isTechnicalChange) &&
-    typeof value['nextCursor'] === 'string' &&
-    value['nextCursor'].length > 0 &&
+    isSyncCursor(value['nextCursor']) &&
     typeof value['hasMore'] === 'boolean'
   );
 }

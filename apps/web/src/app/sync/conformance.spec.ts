@@ -1,6 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { equalTechnicalRecordOperations, isTechnicalRecordOperation } from './conformance';
+import {
+  equalTechnicalRecordOperations,
+  isChangePage,
+  isOperationResult,
+  isSynchronizationError,
+  isSyncCursor,
+  isTechnicalRecord,
+  isTechnicalRecordOperation,
+} from './conformance';
 import type { TechnicalRecord } from './conformance';
 
 interface Fixture {
@@ -15,6 +23,7 @@ interface Fixture {
   };
   expected: {
     valid: boolean;
+    canonicalRequest?: string;
     errorCode?: string;
     equivalent?: boolean;
     response?: unknown;
@@ -39,8 +48,14 @@ const fixtureNames = [
 describe('technical synchronization conformance fixtures', () => {
   it('consumes every shared scenario and agrees with its expected validity', () => {
     for (const fixture of loadFixtures()) {
+      expect(fixture.description).not.toBe('');
       if (isObject(fixture.request) && 'kind' in fixture.request) {
         expect(isTechnicalRecordOperation(fixture.request)).toBe(fixture.expected.valid);
+        if (fixture.expected.valid && fixture.expected.canonicalRequest) {
+          expect(canonicalJson(fixture.request)).toBe(fixture.expected.canonicalRequest);
+        }
+      } else if (isObject(fixture.request) && 'cursor' in fixture.request) {
+        expect(isSyncCursor(fixture.request['cursor'])).toBe(fixture.expected.valid);
       } else if (fixture.expected.errorCode) {
         expect(fixture.expected.valid).toBe(false);
       }
@@ -59,6 +74,22 @@ describe('technical synchronization conformance fixtures', () => {
           expect(equalTechnicalRecordOperations(request, receipt.request)).toBe(false);
         }
       }
+      if (fixture.expected.response) {
+        const responseCode = isObject(fixture.expected.response)
+          ? fixture.expected.response['code']
+          : undefined;
+        if (fixture.expected.errorCode || typeof responseCode === 'string') {
+          expect(isSynchronizationError(fixture.expected.response)).toBe(true);
+          expect((fixture.expected.response as { code: string }).code).toBe(
+            fixture.expected.errorCode ?? responseCode,
+          );
+        } else {
+          expect(isOperationResult(fixture.expected.response), fixture.id).toBe(true);
+        }
+      }
+      if (fixture.response) {
+        expect(isChangePage(fixture.response)).toBe(true);
+      }
     }
   });
 
@@ -67,19 +98,11 @@ describe('technical synchronization conformance fixtures', () => {
       if (fixture.state) {
         expect(Array.isArray(fixture.state.records)).toBe(true);
         for (const record of fixture.state.records) {
-          expect(typeof record.recordId).toBe('string');
-          expect(typeof record.revision).toBe('string');
-          expect(typeof record.value).toBe('string');
+          expect(isTechnicalRecord(record)).toBe(true);
         }
       }
       if (fixture.expected.response) {
         expect(typeof fixture.expected.response).toBe('object');
-        if (fixture.expected.errorCode) {
-          expect(isObject(fixture.expected.response)).toBe(true);
-          expect((fixture.expected.response as Record<string, unknown>)['code']).toBe(
-            fixture.expected.errorCode,
-          );
-        }
       }
       if (fixture.response) {
         expect(typeof fixture.response).toBe('object');
@@ -97,4 +120,15 @@ function loadFixtures(): Fixture[] {
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (isObject(value)) {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value);
 }

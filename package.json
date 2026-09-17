@@ -9,6 +9,7 @@
   },
   "scripts": {
     "compose:validate": "bash scripts/validate-compose.sh",
+    "conformance:validate": "bash scripts/validate-conformance.sh",
     "validate": "bash scripts/validate.sh",
     "contracts:format": "tsp format \"contracts/typespec/**/*.tsp\" \"tooling/contracts/fixtures/**/*.tsp\"",
     "contracts:format:check": "tsp format --check \"contracts/typespec/**/*.tsp\" \"tooling/contracts/fixtures/**/*.tsp\"",
