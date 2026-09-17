@@ -2,7 +2,8 @@ import { Inject, Injectable, InjectionToken } from '@angular/core';
 import Dexie, { Table } from 'dexie';
 import { HORTINIS_DATABASE_SCHEMA } from './database-schema';
 import type { LocalTechnicalRecord } from './local-technical-record';
-import type { OperationResult, TechnicalRecordOperation } from '../sync/conformance';
+import type { OperationResult } from '../sync/conformance';
+import type { LocalTechnicalRecordOperation } from './local-technical-record-operation';
 
 export const HORTINIS_DATABASE_NAME = new InjectionToken<string>('Hortinis database name', {
   providedIn: 'root',
@@ -12,7 +13,7 @@ export const HORTINIS_DATABASE_NAME = new InjectionToken<string>('Hortinis datab
 @Injectable({ providedIn: 'root' })
 export class HortinisDatabase extends Dexie {
   readonly technicalRecords!: Table<LocalTechnicalRecord, string>;
-  readonly outboxOperations!: Table<TechnicalRecordOperation, string>;
+  readonly outboxOperations!: Table<LocalTechnicalRecordOperation, string>;
   readonly acceptedOperationResults!: Table<OperationResult, string>;
 
   // The constructor must pass the injected name to Dexie before the database is initialized.

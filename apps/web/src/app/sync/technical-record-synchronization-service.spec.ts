@@ -11,6 +11,7 @@ import type { SynchronizationTransport } from './synchronization-transport';
 import type { NetworkStatus } from './network-status';
 import { SYNCHRONIZATION_TRANSPORT } from './synchronization-transport.token';
 import { NETWORK_STATUS } from './network-status';
+import type { DeferredReplaceTechnicalRecordOperation } from '../persistence/local-technical-record-operation';
 
 describe('TechnicalRecordSynchronizationService', () => {
   const databases: Dexie[] = [];
@@ -106,6 +107,130 @@ describe('TechnicalRecordSynchronizationService', () => {
     await expect(database.acceptedOperationResults.get(operation.operationId)).resolves.toEqual(
       result,
     );
+  });
+
+  it('submits a dependent create and replace in order with a stable derived revision', async () => {
+    const database = openDatabase();
+    const predecessor = createOperation();
+    const successor: DeferredReplaceTechnicalRecordOperation = {
+      operationId: '01890f3e-7c5a-7b11-8abc-0123456789ab',
+      recordId: predecessor.recordId,
+      value: 'second value',
+      kind: 'replace',
+      expectedRevision: null,
+      predecessorOperationId: predecessor.operationId,
+    };
+    const submissions: TechnicalRecordOperation[] = [];
+    const transport: SynchronizationTransport = {
+      submitOperation: vi.fn(async (operation) => {
+        submissions.push(operation);
+        if (operation.kind === 'create') {
+          return acceptedResult(operation);
+        }
+        expect(operation.expectedRevision).toBe('1');
+        return {
+          outcome: 'accepted' as const,
+          operationId: operation.operationId,
+          record: { recordId: operation.recordId, revision: '2', value: operation.value },
+          sequence: '2',
+        };
+      }),
+      pullChanges: vi.fn(),
+    };
+    const { persistence, service } = services(database, transport, onlineStatus(true));
+    await persistence.commitCreate(predecessor);
+    await database.outboxOperations.add(successor);
+    await database.technicalRecords.put({
+      recordId: predecessor.recordId,
+      value: successor.value,
+      lastAcceptedRevision: null,
+    });
+
+    await expect(service.pushOnePendingOperation()).resolves.toMatchObject({ status: 'accepted' });
+    expect(submissions).toEqual([predecessor]);
+    await expect(database.outboxOperations.get(successor.operationId)).resolves.toMatchObject({
+      expectedRevision: '1',
+    });
+    await expect(database.technicalRecords.get(predecessor.recordId)).resolves.toMatchObject({
+      value: successor.value,
+      lastAcceptedRevision: '1',
+    });
+
+    await expect(service.pushOnePendingOperation()).resolves.toMatchObject({ status: 'accepted' });
+    expect(submissions).toEqual([
+      predecessor,
+      {
+        operationId: successor.operationId,
+        recordId: successor.recordId,
+        value: successor.value,
+        kind: 'replace',
+        expectedRevision: '1',
+      },
+    ]);
+    await expect(database.outboxOperations.count()).resolves.toBe(0);
+    await expect(database.technicalRecords.get(predecessor.recordId)).resolves.toEqual({
+      recordId: predecessor.recordId,
+      value: successor.value,
+      lastAcceptedRevision: '2',
+    });
+  });
+
+  it('keeps both chain operations unchanged across predecessor and successor retries', async () => {
+    const database = openDatabase();
+    const predecessor = createOperation();
+    const successor = {
+      operationId: '01890f3e-7c5a-7b11-8abc-0123456789ab',
+      recordId: predecessor.recordId,
+      value: 'second value',
+      kind: 'replace' as const,
+      expectedRevision: null,
+      predecessorOperationId: predecessor.operationId,
+    } satisfies DeferredReplaceTechnicalRecordOperation;
+    let createAttempts = 0;
+    let replaceAttempts = 0;
+    const transport: SynchronizationTransport = {
+      submitOperation: vi.fn(async (operation) => {
+        if (operation.kind === 'create') {
+          createAttempts += 1;
+          expect(operation).toEqual(predecessor);
+          if (createAttempts === 1) throw new Error('lost predecessor acknowledgement');
+          return acceptedResult(operation);
+        }
+        replaceAttempts += 1;
+        expect(operation).toEqual({
+          operationId: successor.operationId,
+          recordId: successor.recordId,
+          value: successor.value,
+          kind: 'replace',
+          expectedRevision: '1',
+        });
+        if (replaceAttempts === 1) throw new Error('lost successor acknowledgement');
+        return {
+          outcome: 'accepted' as const,
+          operationId: operation.operationId,
+          record: { recordId: operation.recordId, revision: '2', value: operation.value },
+          sequence: '2',
+        };
+      }),
+      pullChanges: vi.fn(),
+    };
+    const { persistence, service } = services(database, transport, onlineStatus(true));
+    await persistence.commitCreate(predecessor);
+    await persistence.commitReplace(successor.operationId, successor.recordId, successor.value);
+
+    await expect(service.pushOnePendingOperation()).resolves.toMatchObject({ status: 'failed' });
+    await expect(service.pushOnePendingOperation()).resolves.toMatchObject({ status: 'accepted' });
+    await expect(service.pushOnePendingOperation()).resolves.toMatchObject({ status: 'failed' });
+    await expect(database.outboxOperations.get(successor.operationId)).resolves.toMatchObject({
+      operationId: successor.operationId,
+      recordId: successor.recordId,
+      value: successor.value,
+      expectedRevision: '1',
+      predecessorOperationId: predecessor.operationId,
+    });
+    await expect(service.pushOnePendingOperation()).resolves.toMatchObject({ status: 'accepted' });
+    expect(createAttempts).toBe(2);
+    expect(replaceAttempts).toBe(2);
   });
 
   function openDatabase(): HortinisDatabase {

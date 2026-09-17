@@ -3,11 +3,17 @@ import type { CreateTechnicalRecordOperation } from './conformance';
 import { generateUuidV7 } from './uuid-v7';
 import { TechnicalRecordPersistence } from '../persistence/technical-record-persistence';
 import type { LocalTechnicalRecord } from '../persistence/local-technical-record';
+import type { LocalTechnicalRecordOperation } from '../persistence/local-technical-record-operation';
 import { TechnicalRecordSynchronizationService } from './technical-record-synchronization-service';
 
 export interface LocalTechnicalRecordCreate {
   record: LocalTechnicalRecord;
   operation: CreateTechnicalRecordOperation;
+}
+
+export interface LocalTechnicalRecordReplace {
+  record: LocalTechnicalRecord;
+  operation: LocalTechnicalRecordOperation;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -26,5 +32,11 @@ export class TechnicalRecordLocalService {
     const record = await this.persistence.commitCreate(operation);
     void this.synchronization.pushOnePendingOperation();
     return { record, operation };
+  }
+
+  async replace(recordId: string, value: string): Promise<LocalTechnicalRecordReplace> {
+    const result = await this.persistence.commitReplace(generateUuidV7(), recordId, value);
+    void this.synchronization.pushOnePendingOperation();
+    return result;
   }
 }

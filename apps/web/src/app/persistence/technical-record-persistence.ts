@@ -6,6 +6,12 @@ import type {
 } from '../sync/conformance';
 import { HortinisDatabase } from './hortinis-database';
 import type { LocalTechnicalRecord } from './local-technical-record';
+import type {
+  DeferredReplaceTechnicalRecordOperation,
+  LocalTechnicalRecordOperation,
+  ReadyDependentReplaceTechnicalRecordOperation,
+} from './local-technical-record-operation';
+import { toSubmittedTechnicalRecordOperation } from './local-technical-record-operation';
 
 @Injectable({ providedIn: 'root' })
 export class TechnicalRecordPersistence {
@@ -31,8 +37,89 @@ export class TechnicalRecordPersistence {
     return localRecord;
   }
 
+  async commitReplace(
+    operationId: string,
+    recordId: string,
+    value: string,
+  ): Promise<{ record: LocalTechnicalRecord; operation: LocalTechnicalRecordOperation }> {
+    let committedOperation: LocalTechnicalRecordOperation;
+    let committedRecord: LocalTechnicalRecord;
+
+    await this.database.transaction(
+      'rw',
+      this.database.technicalRecords,
+      this.database.outboxOperations,
+      async () => {
+        const localRecord = await this.database.technicalRecords.get(recordId);
+        if (!localRecord) {
+          throw new Error('The local record for the replacement is missing.');
+        }
+
+        const pendingForRecord = await this.database.outboxOperations
+          .where('recordId')
+          .equals(recordId)
+          .toArray();
+        if (pendingForRecord.length > 1) {
+          throw new Error('Only one dependent successor is supported in this technical slice.');
+        }
+
+        if (pendingForRecord.length === 1) {
+          const predecessor = pendingForRecord[0];
+          if (predecessor.kind !== 'create') {
+            throw new Error('Only a create predecessor is supported in this technical slice.');
+          }
+          const deferred: DeferredReplaceTechnicalRecordOperation = {
+            operationId,
+            recordId,
+            value,
+            kind: 'replace',
+            expectedRevision: null,
+            predecessorOperationId: predecessor.operationId,
+          };
+          committedOperation = deferred;
+        } else {
+          if (localRecord.lastAcceptedRevision === null) {
+            throw new Error('The replacement has no accepted predecessor revision.');
+          }
+          committedOperation = {
+            operationId,
+            recordId,
+            value,
+            kind: 'replace',
+            expectedRevision: localRecord.lastAcceptedRevision,
+          };
+        }
+
+        committedRecord = {
+          ...localRecord,
+          value,
+        };
+        await this.database.technicalRecords.put(committedRecord);
+        await this.database.outboxOperations.add(committedOperation);
+      },
+    );
+
+    return { record: committedRecord!, operation: committedOperation! };
+  }
+
   async firstPendingOperation(): Promise<TechnicalRecordOperation | undefined> {
-    return this.database.outboxOperations.orderBy('operationId').first();
+    const pending = await this.database.outboxOperations.orderBy('operationId').toArray();
+    for (const operation of pending) {
+      const submitted = toSubmittedTechnicalRecordOperation(operation);
+      if (!submitted) {
+        continue;
+      }
+      if ('predecessorOperationId' in operation) {
+        const predecessorResult = await this.database.acceptedOperationResults.get(
+          operation.predecessorOperationId,
+        );
+        if (!predecessorResult) {
+          continue;
+        }
+      }
+      return submitted;
+    }
+    return undefined;
   }
 
   async commitAcceptedResult(
@@ -57,9 +144,32 @@ export class TechnicalRecordPersistence {
         if (!localRecord) {
           throw new Error('The local record for the accepted operation is missing.');
         }
+
+        const successors = await this.database.outboxOperations
+          .toCollection()
+          .filter(
+            (candidate): candidate is DeferredReplaceTechnicalRecordOperation =>
+              candidate.kind === 'replace' &&
+              candidate.expectedRevision === null &&
+              candidate.predecessorOperationId === operation.operationId,
+          )
+          .toArray();
+        if (successors.length > 1) {
+          throw new Error('A predecessor cannot have more than one successor.');
+        }
+
+        if (successors.length === 1) {
+          const successor = successors[0];
+          const readySuccessor: ReadyDependentReplaceTechnicalRecordOperation = {
+            ...successor,
+            expectedRevision: result.record.revision,
+          };
+          await this.database.outboxOperations.put(readySuccessor);
+        }
+
         await this.database.technicalRecords.put({
           ...localRecord,
-          value: result.record.value,
+          value: successors.length === 0 ? result.record.value : localRecord.value,
           lastAcceptedRevision: result.record.revision,
         });
         await this.database.outboxOperations.delete(operation.operationId);

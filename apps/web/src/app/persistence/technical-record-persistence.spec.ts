@@ -7,6 +7,7 @@ import { TechnicalRecordPersistence } from './technical-record-persistence';
 import { TechnicalRecordLocalService } from '../sync/technical-record-local-service';
 import { TechnicalRecordSynchronizationService } from '../sync/technical-record-synchronization-service';
 import type { CreateTechnicalRecordOperation } from '../sync/conformance';
+import type { DeferredReplaceTechnicalRecordOperation } from './local-technical-record-operation';
 import { vi } from 'vitest';
 
 describe('technical record local persistence', () => {
@@ -115,6 +116,133 @@ describe('technical record local persistence', () => {
     await expect(database.technicalRecords.toArray()).resolves.toEqual([
       { recordId: operation.recordId, value: operation.value, lastAcceptedRevision: '1' },
     ]);
+  });
+
+  it('persists a dependent replacement with an unresolved revision', async () => {
+    const database = openDatabase();
+    const persistence = persistenceFor(database);
+    const predecessor = operationWithIds('dependent-record', 'predecessor-operation');
+    await persistence.commitCreate(predecessor);
+
+    const result = await persistence.commitReplace(
+      'successor-operation',
+      predecessor.recordId,
+      'successor value',
+    );
+
+    const deferred: DeferredReplaceTechnicalRecordOperation = {
+      operationId: 'successor-operation',
+      recordId: predecessor.recordId,
+      value: 'successor value',
+      kind: 'replace',
+      expectedRevision: null,
+      predecessorOperationId: predecessor.operationId,
+    };
+    expect(result.operation).toEqual(deferred);
+    await expect(database.outboxOperations.toArray()).resolves.toEqual([predecessor, deferred]);
+    await expect(database.technicalRecords.get(predecessor.recordId)).resolves.toEqual({
+      recordId: predecessor.recordId,
+      value: 'successor value',
+      lastAcceptedRevision: null,
+    });
+  });
+
+  it('exposes the dependent replacement through the local workflow', async () => {
+    const database = openDatabase();
+    const synchronization = {
+      pushOnePendingOperation: vi.fn(async () => ({ status: 'empty' as const })),
+    } as unknown as TechnicalRecordSynchronizationService;
+    const service = localService(database, synchronization);
+
+    const created = await service.create('first value');
+    const replaced = await service.replace(created.record.recordId, 'second value');
+
+    expect(replaced.record.value).toBe('second value');
+    expect(replaced.operation).toMatchObject({
+      recordId: created.record.recordId,
+      value: 'second value',
+      kind: 'replace',
+      expectedRevision: null,
+      predecessorOperationId: created.operation.operationId,
+    });
+    await vi.waitFor(() =>
+      expect(synchronization.pushOnePendingOperation).toHaveBeenCalledTimes(2),
+    );
+  });
+
+  it('atomically resolves a dependent successor and preserves its local value', async () => {
+    const database = openDatabase();
+    const persistence = persistenceFor(database);
+    const predecessor = operationWithIds('resolve-record', 'resolve-predecessor');
+    await persistence.commitCreate(predecessor);
+    await persistence.commitReplace('resolve-successor', predecessor.recordId, 'successor value');
+
+    const predecessorResult = {
+      outcome: 'accepted' as const,
+      operationId: predecessor.operationId,
+      record: { recordId: predecessor.recordId, revision: '1', value: predecessor.value },
+      sequence: '1',
+    };
+    await persistence.commitAcceptedResult(predecessor, predecessorResult);
+
+    await expect(database.outboxOperations.toArray()).resolves.toEqual([
+      {
+        operationId: 'resolve-successor',
+        recordId: predecessor.recordId,
+        value: 'successor value',
+        kind: 'replace',
+        expectedRevision: '1',
+        predecessorOperationId: predecessor.operationId,
+      },
+    ]);
+    await expect(database.acceptedOperationResults.toArray()).resolves.toEqual([predecessorResult]);
+    await expect(database.technicalRecords.get(predecessor.recordId)).resolves.toEqual({
+      recordId: predecessor.recordId,
+      value: 'successor value',
+      lastAcceptedRevision: '1',
+    });
+  });
+
+  it('rolls back predecessor acceptance when successor resolution fails', async () => {
+    const database = openDatabase();
+    const persistence = persistenceFor(database);
+    const predecessor = operationWithIds('rollback-chain-record', 'rollback-predecessor');
+    await persistence.commitCreate(predecessor);
+    const successor = {
+      operationId: 'rollback-successor',
+      recordId: predecessor.recordId,
+      value: 'successor value',
+      kind: 'replace' as const,
+      expectedRevision: null,
+      predecessorOperationId: predecessor.operationId,
+    } satisfies DeferredReplaceTechnicalRecordOperation;
+    await database.outboxOperations.add(successor);
+    await database.outboxOperations.add({
+      ...successor,
+      operationId: 'second-successor',
+    });
+    await database.technicalRecords.put({
+      recordId: predecessor.recordId,
+      value: successor.value,
+      lastAcceptedRevision: null,
+    });
+
+    const predecessorResult = {
+      outcome: 'accepted' as const,
+      operationId: predecessor.operationId,
+      record: { recordId: predecessor.recordId, revision: '1', value: predecessor.value },
+      sequence: '1',
+    };
+    await expect(persistence.commitAcceptedResult(predecessor, predecessorResult)).rejects.toThrow(
+      'more than one successor',
+    );
+
+    await expect(database.acceptedOperationResults.count()).resolves.toBe(0);
+    await expect(database.outboxOperations.count()).resolves.toBe(3);
+    await expect(database.technicalRecords.get(predecessor.recordId)).resolves.toMatchObject({
+      value: successor.value,
+      lastAcceptedRevision: null,
+    });
   });
 
   it('rolls back the accepted result when local accepted-state persistence fails', async () => {

@@ -606,13 +606,26 @@ The first slice uses a deliberately technical record. It validates the mechanism
 
 #### E4a. Prove one dependent operation chain
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: E4.
 - Scope: persist and submit two causally dependent operations in order, deriving the successor's expected
   revision from its predecessor's stable result before first submission.
 - Excludes: atomic multi-operation batches and arbitrary dependency graphs.
 - Acceptance: the successor is never submitted before the predecessor has a stable result, and retries do
   not change either operation's identifier, request fields or expected revision.
+- Artifacts: local-only deferred and ready outbox operation types; atomic dependent replacement persistence;
+  explicit predecessor readiness checks; atomic successor revision materialization when the predecessor is
+  accepted; and technical-record local replacement workflow and browser coverage. The wire contract and
+  PostgreSQL schema remain unchanged.
+- Validation commands: `pnpm --filter @hortinis/web format:check`, `pnpm --filter @hortinis/web lint`,
+  `pnpm --filter @hortinis/web architecture:check`, `pnpm --filter @hortinis/web typecheck`,
+  `pnpm --filter @hortinis/web test`, followed by the E4 backend and repository-wide checks.
+- Validation evidence: on 2026-09-16, the Angular/Vitest suite passed 36 tests across six files. Coverage
+  proves durable deferred successor persistence, predecessor-before-successor submission even when IDs sort
+  out of causal order, revision derivation, preservation of newer local intent, lost-acknowledgement retry
+  invariants for both operations, and rollback when successor resolution cannot be completed. Formatting,
+  linting, strict Angular/TypeScript checks, and the web architecture check passed.
+- Relevant decisions: ADR-0002, ADR-0008, ADR-0010, ADR-0018, and ADR-0022.
 
 #### E5. Pull changes through an opaque cursor
 
