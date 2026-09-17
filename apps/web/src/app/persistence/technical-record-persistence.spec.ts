@@ -118,6 +118,45 @@ describe('technical record local persistence', () => {
     ]);
   });
 
+  it('persists a revision conflict while retaining the exact local proposal', async () => {
+    const database = openDatabase();
+    const persistence = persistenceFor(database);
+    const operation = {
+      operationId: '01890f3e-7c5a-7b11-8abc-0123456789ab',
+      recordId: '01890f3e-7c5a-7b13-8abc-0123456789ab',
+      value: 'local proposal',
+      kind: 'replace' as const,
+      expectedRevision: '1',
+    };
+    const conflict = {
+      code: 'REVISION_CONFLICT' as const,
+      message: 'The expected revision does not match the current revision.',
+      operationId: operation.operationId,
+      expectedRevision: operation.expectedRevision,
+      currentRecord: {
+        recordId: operation.recordId,
+        revision: '2',
+        value: 'server value',
+      },
+    };
+    await database.technicalRecords.add({
+      recordId: operation.recordId,
+      value: operation.value,
+      lastAcceptedRevision: operation.expectedRevision,
+    });
+    await database.outboxOperations.add(operation);
+
+    await persistence.commitRevisionConflict(operation, conflict);
+
+    await expect(database.revisionConflicts.get(operation.operationId)).resolves.toEqual(conflict);
+    await expect(database.outboxOperations.get(operation.operationId)).resolves.toEqual(operation);
+    await expect(database.technicalRecords.get(operation.recordId)).resolves.toEqual({
+      recordId: operation.recordId,
+      value: operation.value,
+      lastAcceptedRevision: operation.expectedRevision,
+    });
+  });
+
   it('retains accepted results and the synchronization cursor after reopening', async () => {
     const name = databaseName();
     const firstDatabase = openDatabase(name);

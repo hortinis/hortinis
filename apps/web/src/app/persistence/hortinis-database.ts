@@ -2,7 +2,7 @@ import { Inject, Injectable, InjectionToken } from '@angular/core';
 import Dexie, { Table } from 'dexie';
 import { HORTINIS_DATABASE_SCHEMA } from './database-schema';
 import type { LocalTechnicalRecord } from './local-technical-record';
-import type { OperationResult } from '../sync/conformance';
+import type { OperationResult, RevisionConflictError } from '../sync/conformance';
 import type { LocalTechnicalRecordOperation } from './local-technical-record-operation';
 import type { LocalSynchronizationState } from './local-synchronization-state';
 
@@ -16,6 +16,7 @@ export class HortinisDatabase extends Dexie {
   readonly technicalRecords!: Table<LocalTechnicalRecord, string>;
   readonly outboxOperations!: Table<LocalTechnicalRecordOperation, string>;
   readonly acceptedOperationResults!: Table<OperationResult, string>;
+  readonly revisionConflicts!: Table<RevisionConflictError, string>;
   readonly synchronizationState!: Table<LocalSynchronizationState, string>;
 
   // The constructor must pass the injected name to Dexie before the database is initialized.

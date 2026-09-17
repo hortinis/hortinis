@@ -30,6 +30,7 @@ describe('HortinisDatabase', () => {
       'technicalRecords',
       'outboxOperations',
       'acceptedOperationResults',
+      'revisionConflicts',
       'synchronizationState',
     ]);
   });

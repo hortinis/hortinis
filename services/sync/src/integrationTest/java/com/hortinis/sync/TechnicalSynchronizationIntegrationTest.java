@@ -43,6 +43,7 @@ class TechnicalSynchronizationIntegrationTest {
   private static final String OPERATION_ID = "01890f3e-7c5a-7b12-8abc-0123456789ab";
   private static final String RECORD_ID = "01890f3e-7c5a-7b13-8abc-0123456789ab";
   private static final String REPLACE_OPERATION_ID = "01890f3e-7c5a-7b14-8abc-0123456789ab";
+  private static final String STALE_REPLACE_OPERATION_ID = "01890f3e-7c5a-7b15-8abc-0123456789ab";
   private static final String NON_V7_OPERATION_ID = "01890f3e-7c5a-4b12-8abc-0123456789ab";
   private static final String NON_V7_RECORD_ID = "01890f3e-7c5a-4b13-8abc-0123456789ab";
 
@@ -247,6 +248,71 @@ class TechnicalSynchronizationIntegrationTest {
   }
 
   @Test
+  void rejectsReplaceWithStaleRevisionWithoutChangingAcceptedState() throws Exception {
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createRequest(FIRST_VALUE)))
+        .andExpect(status().isOk());
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(replaceRequest(REPLACEMENT_VALUE, "1")))
+        .andExpect(status().isOk());
+
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(replaceRequest(STALE_REPLACE_OPERATION_ID, "stale value", "1")))
+        .andExpect(status().isConflict())
+        .andExpect(
+            content()
+                .json(
+                    "{\"code\":\"REVISION_CONFLICT\",\"message\":"
+                        + "\"The expected revision does not match the current revision.\","
+                        + "\"operationId\":\""
+                        + STALE_REPLACE_OPERATION_ID
+                        + "\",\"expectedRevision\":\"1\",\"currentRecord\":{"
+                        + "\"recordId\":\""
+                        + RECORD_ID
+                        + "\",\"revision\":\"2\",\"value\":\""
+                        + REPLACEMENT_VALUE
+                        + "\"}}",
+                    true));
+
+    assertThat(count(TECHNICAL_RECORD_TABLE)).isEqualTo(1);
+    assertThat(count(ACCEPTED_OPERATION_TABLE)).isEqualTo(2);
+    assertThat(count(CHANGE_TABLE)).isEqualTo(2);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM accepted_technical_record_operation WHERE operation_id = ?",
+                Integer.class,
+                java.util.UUID.fromString(STALE_REPLACE_OPERATION_ID)))
+        .isZero();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT COUNT(*) FROM technical_record_change WHERE operation_id = ?",
+                Integer.class,
+                java.util.UUID.fromString(STALE_REPLACE_OPERATION_ID)))
+        .isZero();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT revision FROM technical_record WHERE record_id = ?",
+                Long.class,
+                java.util.UUID.fromString(RECORD_ID)))
+        .isEqualTo(2);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT value FROM technical_record WHERE record_id = ?",
+                String.class,
+                java.util.UUID.fromString(RECORD_ID)))
+        .isEqualTo(REPLACEMENT_VALUE);
+  }
+
+  @Test
   void pullsAcceptedChangesInSequenceOrderAndResumesAfterAnOpaqueCursor() throws Exception {
     mockMvc
         .perform(
@@ -416,8 +482,12 @@ class TechnicalSynchronizationIntegrationTest {
   }
 
   private String replaceRequest(String value, String expectedRevision) {
+    return replaceRequest(REPLACE_OPERATION_ID, value, expectedRevision);
+  }
+
+  private String replaceRequest(String operationId, String value, String expectedRevision) {
     return "{\"operationId\":\""
-        + REPLACE_OPERATION_ID
+        + operationId
         + "\",\"recordId\":\""
         + RECORD_ID
         + VALUE_FIELD

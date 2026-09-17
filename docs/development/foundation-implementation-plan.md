@@ -673,11 +673,29 @@ The first slice uses a deliberately technical record. It validates the mechanism
 
 #### E7. Represent an expected-revision conflict
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: E5.
 - Scope: submit an operation based on a stale server revision and return an explicit conflict without silent last-write-wins behavior.
 - Excludes: final domain-specific conflict presentation and resolution.
 - Acceptance: the accepted server state and competing proposal remain identifiable and independent local work remains usable.
+- Artifacts: the existing `REVISION_CONFLICT` contract and server behavior are exercised by a stale-write
+  PostgreSQL integration scenario; the browser development schema remains at version 1 and adds a
+  durable revision-conflict table; conflict persistence retains the exact outbox proposal, quarantines it
+  from automatic resubmission, and exposes a typed conflict outcome while unrelated operations continue.
+- Validation commands: `pnpm contracts:validate`, `pnpm --filter @hortinis/web format:check`,
+  `pnpm --filter @hortinis/web lint`, `pnpm --filter @hortinis/web architecture:check`,
+  `pnpm --filter @hortinis/web typecheck`, `pnpm --filter @hortinis/web test`,
+  `pnpm --filter @hortinis/web test:e2e`, `./gradlew --dependency-verification=strict
+  :services:sync:spotlessCheck :services:sync:test :services:sync:integrationTest`, the backend
+  Checkstyle and PMD tasks, followed by the repository-wide Git checks.
+- Validation evidence: on 2026-09-17, contract validation passed; the Angular/Vitest suite passed 47
+  tests across seven files; Chromium passed four browser scenarios including conflict persistence and
+  independent-operation continuation; backend Spotless, unit tests, PostgreSQL integration tests,
+  Checkstyle, and PMD passed. The stale-write integration test confirmed that the server retained the
+  accepted revision and created no receipt or change for the rejected proposal.
+- Schema note: this development-only increment intentionally keeps Dexie at schema version 1; existing
+  local development databases must be recreated when adopting the new table. Production migration
+  policy remains outside this slice.
 
 #### E8. Demonstrate offline and failure independence
 

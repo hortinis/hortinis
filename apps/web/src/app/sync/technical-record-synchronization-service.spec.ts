@@ -8,6 +8,7 @@ import { TechnicalRecordPersistence } from '../persistence/technical-record-pers
 import { TechnicalRecordSynchronizationService } from './technical-record-synchronization-service';
 import type { ChangePage, OperationResult, TechnicalRecordOperation } from './conformance';
 import type { SynchronizationTransport } from './synchronization-transport';
+import { SynchronizationProtocolError } from './synchronization-transport';
 import type { NetworkStatus } from './network-status';
 import { SYNCHRONIZATION_TRANSPORT } from './synchronization-transport.token';
 import { NETWORK_STATUS } from './network-status';
@@ -108,6 +109,80 @@ describe('TechnicalRecordSynchronizationService', () => {
 
     await expect(service.pushOnePendingOperation()).resolves.toMatchObject({ status: 'failed' });
     await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
+  });
+
+  it('persists a revision conflict and continues with an independent operation', async () => {
+    const database = openDatabase();
+    const conflictedOperation = {
+      operationId: '01890f3e-7c5a-7b11-8abc-0123456789ab',
+      recordId: '01890f3e-7c5a-7b13-8abc-0123456789ab',
+      value: 'local proposal',
+      kind: 'replace' as const,
+      expectedRevision: '1',
+    };
+    const independentOperation = {
+      operationId: '01890f3e-7c5a-7b15-8abc-0123456789ab',
+      recordId: '01890f3e-7c5a-7b16-8abc-0123456789ab',
+      value: 'independent value',
+      kind: 'create' as const,
+    };
+    const conflict = {
+      code: 'REVISION_CONFLICT' as const,
+      message: 'stale',
+      operationId: conflictedOperation.operationId,
+      expectedRevision: conflictedOperation.expectedRevision,
+      currentRecord: {
+        recordId: conflictedOperation.recordId,
+        revision: '2',
+        value: 'server value',
+      },
+    };
+    const transport: SynchronizationTransport = {
+      submitOperation: vi.fn(async (operation) => {
+        if (operation.operationId === conflictedOperation.operationId) {
+          throw new SynchronizationProtocolError(409, conflict);
+        }
+        return acceptedResult(operation);
+      }),
+      pullChanges: vi.fn(),
+    };
+    const { persistence, service } = services(database, transport, onlineStatus(true));
+    await database.technicalRecords.add({
+      recordId: conflictedOperation.recordId,
+      value: conflictedOperation.value,
+      lastAcceptedRevision: conflictedOperation.expectedRevision,
+    });
+    await database.technicalRecords.add({
+      recordId: independentOperation.recordId,
+      value: independentOperation.value,
+      lastAcceptedRevision: null,
+    });
+    await database.outboxOperations.bulkAdd([conflictedOperation, independentOperation]);
+
+    await expect(service.pushOnePendingOperation()).resolves.toEqual({
+      status: 'conflict',
+      operation: conflictedOperation,
+      conflict,
+    });
+    await expect(database.revisionConflicts.get(conflictedOperation.operationId)).resolves.toEqual(
+      conflict,
+    );
+    await expect(database.outboxOperations.get(conflictedOperation.operationId)).resolves.toEqual(
+      conflictedOperation,
+    );
+
+    await expect(service.pushOnePendingOperation()).resolves.toMatchObject({
+      status: 'accepted',
+      operation: independentOperation,
+    });
+    expect(transport.submitOperation).toHaveBeenCalledTimes(2);
+    await expect(database.outboxOperations.get(conflictedOperation.operationId)).resolves.toEqual(
+      conflictedOperation,
+    );
+    await expect(
+      database.outboxOperations.get(independentOperation.operationId),
+    ).resolves.toBeUndefined();
+    await expect(persistence.firstPendingOperation()).resolves.toBeUndefined();
   });
 
   it('retries the same operation after a lost acknowledgement', async () => {

@@ -1,5 +1,11 @@
 import { inject, Injectable } from '@angular/core';
-import type { ChangePage, OperationResult, TechnicalRecordOperation } from './conformance';
+import type {
+  ChangePage,
+  OperationResult,
+  RevisionConflictError,
+  TechnicalRecordOperation,
+} from './conformance';
+import { SynchronizationProtocolError } from './synchronization-transport';
 import { SYNCHRONIZATION_TRANSPORT } from './synchronization-transport.token';
 import { TechnicalRecordPersistence } from '../persistence/technical-record-persistence';
 import { NETWORK_STATUS } from './network-status';
@@ -8,6 +14,7 @@ export type PushOutcome =
   | { status: 'empty' }
   | { status: 'offline' }
   | { status: 'accepted'; operation: TechnicalRecordOperation; result: OperationResult }
+  | { status: 'conflict'; operation: TechnicalRecordOperation; conflict: RevisionConflictError }
   | { status: 'failed'; operation: TechnicalRecordOperation; error: unknown };
 
 export type PullOutcome =
@@ -48,6 +55,9 @@ export class TechnicalRecordSynchronizationService {
         }
         if (outcome.status === 'empty') {
           break;
+        }
+        if (outcome.status === 'conflict') {
+          continue;
         }
         if (outcome.status === 'offline') {
           return { status: 'offline', pushed, pulled };
@@ -99,6 +109,13 @@ export class TechnicalRecordSynchronizationService {
         await this.persistence.commitAcceptedResult(operation, result);
         return { status: 'accepted', operation, result };
       } catch (error) {
+        if (
+          error instanceof SynchronizationProtocolError &&
+          error.body.code === 'REVISION_CONFLICT'
+        ) {
+          await this.persistence.commitRevisionConflict(operation, error.body);
+          return { status: 'conflict', operation, conflict: error.body };
+        }
         return { status: 'failed', operation, error };
       }
     } finally {

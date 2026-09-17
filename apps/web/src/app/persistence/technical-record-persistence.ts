@@ -3,9 +3,10 @@ import type {
   CreateTechnicalRecordOperation,
   ChangePage,
   OperationResult,
+  RevisionConflictError,
   TechnicalRecordOperation,
 } from '../sync/conformance';
-import { isChangePage } from '../sync/conformance';
+import { equalTechnicalRecordOperations, isChangePage } from '../sync/conformance';
 import { HortinisDatabase } from './hortinis-database';
 import type { LocalTechnicalRecord } from './local-technical-record';
 import type {
@@ -110,6 +111,9 @@ export class TechnicalRecordPersistence {
   async firstPendingOperation(): Promise<TechnicalRecordOperation | undefined> {
     const pending = await this.database.outboxOperations.orderBy('operationId').toArray();
     for (const operation of pending) {
+      if (await this.database.revisionConflicts.get(operation.operationId)) {
+        continue;
+      }
       const submitted = toSubmittedTechnicalRecordOperation(operation);
       if (!submitted) {
         continue;
@@ -125,6 +129,42 @@ export class TechnicalRecordPersistence {
       return submitted;
     }
     return undefined;
+  }
+
+  async commitRevisionConflict(
+    operation: TechnicalRecordOperation,
+    conflict: RevisionConflictError,
+  ): Promise<void> {
+    if (
+      operation.kind !== 'replace' ||
+      conflict.operationId !== operation.operationId ||
+      conflict.currentRecord.recordId !== operation.recordId ||
+      conflict.expectedRevision !== operation.expectedRevision
+    ) {
+      throw new Error('The revision conflict does not correspond to the submitted operation.');
+    }
+
+    await this.database.transaction(
+      'rw',
+      this.database.technicalRecords,
+      this.database.outboxOperations,
+      this.database.revisionConflicts,
+      async () => {
+        const pending = await this.database.outboxOperations.get(operation.operationId);
+        if (!pending) {
+          throw new Error('The conflicted operation is no longer pending.');
+        }
+        const submitted = toSubmittedTechnicalRecordOperation(pending);
+        if (!submitted || !equalTechnicalRecordOperations(submitted, operation)) {
+          throw new Error('The persisted operation does not match the submitted operation.');
+        }
+        if (!(await this.database.technicalRecords.get(operation.recordId))) {
+          throw new Error('The local record for the conflicted operation is missing.');
+        }
+
+        await this.database.revisionConflicts.put(conflict);
+      },
+    );
   }
 
   async commitAcceptedResult(
