@@ -6,9 +6,13 @@ import { describe, expect, it, vi, afterEach } from 'vitest';
 import { HortinisDatabase } from '../persistence/hortinis-database';
 import { TechnicalRecordPersistence } from '../persistence/technical-record-persistence';
 import { TechnicalRecordSynchronizationService } from './technical-record-synchronization-service';
+import { TechnicalRecordLocalService } from './technical-record-local-service';
 import type { ChangePage, OperationResult, TechnicalRecordOperation } from './conformance';
 import type { SynchronizationTransport } from './synchronization-transport';
-import { SynchronizationProtocolError } from './synchronization-transport';
+import {
+  SynchronizationProtocolError,
+  SynchronizationUnavailableError,
+} from './synchronization-transport';
 import type { NetworkStatus } from './network-status';
 import { SYNCHRONIZATION_TRANSPORT } from './synchronization-transport.token';
 import { NETWORK_STATUS } from './network-status';
@@ -109,6 +113,69 @@ describe('TechnicalRecordSynchronizationService', () => {
 
     await expect(service.pushOnePendingOperation()).resolves.toMatchObject({ status: 'failed' });
     await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
+  });
+
+  it('keeps accepting independent local work while synchronization is offline', async () => {
+    const database = openDatabase();
+    let online = false;
+    const transport: SynchronizationTransport = {
+      submitOperation: vi.fn(async (operation) => acceptedResult(operation)),
+      pullChanges: vi.fn(async () => ({ changes: [], nextCursor: 'cursor', hasMore: false })),
+    };
+    const { service } = services(database, transport, { isOnline: () => online });
+    const local = TestBed.inject(TechnicalRecordLocalService);
+
+    const first = await local.create('offline first');
+    const second = await local.create('offline second');
+    await vi.waitFor(() => expect(service.status()).toEqual({ status: 'offline' }));
+
+    expect(first.record.value).toBe('offline first');
+    expect(second.record.value).toBe('offline second');
+    await expect(database.technicalRecords.count()).resolves.toBe(2);
+    await expect(database.outboxOperations.count()).resolves.toBe(2);
+    expect(transport.submitOperation).not.toHaveBeenCalled();
+
+    online = true;
+    await expect(service.recoverAfterReload()).resolves.toMatchObject({
+      status: 'completed',
+      pushed: 2,
+    });
+    await expect(database.outboxOperations.count()).resolves.toBe(0);
+    await expect(database.acceptedOperationResults.count()).resolves.toBe(2);
+    await expect(database.technicalRecords.count()).resolves.toBe(2);
+  });
+
+  it('keeps accepting local work after a failed synchronization and recovers it explicitly', async () => {
+    const database = openDatabase();
+    let available = false;
+    const transport: SynchronizationTransport = {
+      submitOperation: vi.fn(async (operation) => {
+        if (!available) throw new SynchronizationUnavailableError();
+        return acceptedResult(operation);
+      }),
+      pullChanges: vi.fn(async () => ({ changes: [], nextCursor: 'cursor', hasMore: false })),
+    };
+    const { service } = services(database, transport, onlineStatus(true));
+    const local = TestBed.inject(TechnicalRecordLocalService);
+
+    const first = await local.create('failed first');
+    await vi.waitFor(() =>
+      expect(service.status()).toEqual({ status: 'failed', reason: 'unavailable' }),
+    );
+    const second = await local.create('after failure');
+    await expect(database.outboxOperations.count()).resolves.toBe(2);
+    await vi.waitFor(() => expect(transport.submitOperation).toHaveBeenCalledTimes(2));
+
+    available = true;
+    await expect(service.recoverAfterReload()).resolves.toMatchObject({
+      status: 'completed',
+      pushed: 2,
+    });
+
+    await expect(database.outboxOperations.count()).resolves.toBe(0);
+    await expect(database.acceptedOperationResults.count()).resolves.toBe(2);
+    expect(transport.submitOperation).toHaveBeenCalledWith(first.operation);
+    expect(transport.submitOperation).toHaveBeenCalledWith(second.operation);
   });
 
   it('persists a revision conflict and continues with an independent operation', async () => {

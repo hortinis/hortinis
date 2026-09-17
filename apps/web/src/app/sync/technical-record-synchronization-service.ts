@@ -1,11 +1,16 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, signal } from '@angular/core';
 import type {
   ChangePage,
   OperationResult,
   RevisionConflictError,
   TechnicalRecordOperation,
 } from './conformance';
-import { SynchronizationProtocolError } from './synchronization-transport';
+import {
+  SynchronizationBoundaryError,
+  SynchronizationProtocolError,
+  SynchronizationUnexpectedResponseError,
+  SynchronizationUnavailableError,
+} from './synchronization-transport';
 import { SYNCHRONIZATION_TRANSPORT } from './synchronization-transport.token';
 import { TechnicalRecordPersistence } from '../persistence/technical-record-persistence';
 import { NETWORK_STATUS } from './network-status';
@@ -29,6 +34,16 @@ export type RecoveryOutcome =
   | { status: 'failed'; pushed: number; pulled: number; error: unknown }
   | { status: 'already-running' };
 
+export type SynchronizationFailureReason =
+  'unavailable' | 'protocol' | 'boundary' | 'unexpected-response' | 'local-persistence' | 'unknown';
+
+export type SynchronizationStatus =
+  | { status: 'idle' }
+  | { status: 'synchronizing' }
+  | { status: 'offline' }
+  | { status: 'failed'; reason: SynchronizationFailureReason }
+  | { status: 'completed'; pushed: number; pulled: number };
+
 @Injectable({ providedIn: 'root' })
 export class TechnicalRecordSynchronizationService {
   private readonly persistence = inject(TechnicalRecordPersistence);
@@ -37,6 +52,7 @@ export class TechnicalRecordSynchronizationService {
   private pushInProgress = false;
   private pullInProgress = false;
   private recoveryInProgress = false;
+  readonly status = signal<SynchronizationStatus>({ status: 'idle' });
 
   async recoverAfterReload(): Promise<RecoveryOutcome> {
     if (this.recoveryInProgress) {
@@ -44,6 +60,7 @@ export class TechnicalRecordSynchronizationService {
     }
 
     this.recoveryInProgress = true;
+    this.status.set({ status: 'synchronizing' });
     let pushed = 0;
     let pulled = 0;
     try {
@@ -60,8 +77,10 @@ export class TechnicalRecordSynchronizationService {
           continue;
         }
         if (outcome.status === 'offline') {
+          this.status.set({ status: 'offline' });
           return { status: 'offline', pushed, pulled };
         }
+        this.status.set({ status: 'failed', reason: this.failureReason(outcome.error) });
         return { status: 'failed', pushed, pulled, error: outcome.error };
       }
 
@@ -72,17 +91,22 @@ export class TechnicalRecordSynchronizationService {
           if (outcome.page.hasMore) {
             continue;
           }
+          this.status.set({ status: 'completed', pushed, pulled });
           return { status: 'completed', pushed, pulled };
         }
         if (outcome.status === 'offline') {
+          this.status.set({ status: 'offline' });
           return { status: 'offline', pushed, pulled };
         }
         if (outcome.status === 'empty') {
+          this.status.set({ status: 'completed', pushed, pulled });
           return { status: 'completed', pushed, pulled };
         }
+        this.status.set({ status: 'failed', reason: this.failureReason(outcome.error) });
         return { status: 'failed', pushed, pulled, error: outcome.error };
       }
     } catch (error) {
+      this.status.set({ status: 'failed', reason: this.failureReason(error) });
       return { status: 'failed', pushed, pulled, error };
     } finally {
       this.recoveryInProgress = false;
@@ -94,6 +118,7 @@ export class TechnicalRecordSynchronizationService {
       return { status: 'empty' };
     }
     if (!this.network.isOnline()) {
+      if (!this.recoveryInProgress) this.status.set({ status: 'offline' });
       return { status: 'offline' };
     }
 
@@ -107,6 +132,9 @@ export class TechnicalRecordSynchronizationService {
       try {
         const result = await this.transport.submitOperation(operation);
         await this.persistence.commitAcceptedResult(operation, result);
+        if (!this.recoveryInProgress) {
+          this.status.set({ status: 'completed', pushed: 1, pulled: 0 });
+        }
         return { status: 'accepted', operation, result };
       } catch (error) {
         if (
@@ -115,6 +143,9 @@ export class TechnicalRecordSynchronizationService {
         ) {
           await this.persistence.commitRevisionConflict(operation, error.body);
           return { status: 'conflict', operation, conflict: error.body };
+        }
+        if (!this.recoveryInProgress) {
+          this.status.set({ status: 'failed', reason: this.failureReason(error) });
         }
         return { status: 'failed', operation, error };
       }
@@ -128,6 +159,7 @@ export class TechnicalRecordSynchronizationService {
       return { status: 'empty' };
     }
     if (!this.network.isOnline()) {
+      if (!this.recoveryInProgress) this.status.set({ status: 'offline' });
       return { status: 'offline' };
     }
 
@@ -139,10 +171,22 @@ export class TechnicalRecordSynchronizationService {
         await this.persistence.commitPulledPage(page);
         return { status: 'applied', page };
       } catch (error) {
+        if (!this.recoveryInProgress) {
+          this.status.set({ status: 'failed', reason: this.failureReason(error) });
+        }
         return { status: 'failed', error };
       }
     } finally {
       this.pullInProgress = false;
     }
+  }
+
+  private failureReason(error: unknown): SynchronizationFailureReason {
+    if (error instanceof SynchronizationUnavailableError) return 'unavailable';
+    if (error instanceof SynchronizationProtocolError) return 'protocol';
+    if (error instanceof SynchronizationBoundaryError) return 'boundary';
+    if (error instanceof SynchronizationUnexpectedResponseError) return 'unexpected-response';
+    if (error instanceof Error) return 'local-persistence';
+    return 'unknown';
   }
 }

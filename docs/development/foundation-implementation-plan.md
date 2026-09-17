@@ -699,10 +699,27 @@ The first slice uses a deliberately technical record. It validates the mechanism
 
 #### E8. Demonstrate offline and failure independence
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: E2 and B4.
 - Scope: create additional local technical work while the service is unreachable or a synchronization operation has failed.
 - Acceptance: local commits remain available, failures are observable, and recovery does not require discarding local storage.
+- Artifacts: a privacy-safe observable synchronization status signal; explicit recovery status transitions;
+  offline and unavailable-service independence coverage through the real local technical-record workflow;
+  and offline production-shell validation with external font assets disabled.
+- Validation commands: `pnpm --filter @hortinis/web format:check`, `pnpm --filter @hortinis/web lint`,
+  `pnpm --filter @hortinis/web architecture:check`, `pnpm --filter @hortinis/web typecheck`,
+  `pnpm --filter @hortinis/web test`, `pnpm --filter @hortinis/web build`,
+  `pnpm --filter @hortinis/web test:e2e`, followed by the repository-wide Git checks.
+- Validation evidence: the Angular/Vitest suite passed 49 tests. New coverage proves two independent
+  local commits complete while offline, no transport request is attempted, offline status is observable,
+  and both operations are later accepted through explicit recovery. A separate scenario proves that a
+  failed unavailable-service submission is observable, later local work still commits, both outbox rows
+  remain durable, and recovery accepts both operations without clearing local storage. Chromium passed
+  all four production-shell, offline-reload, reload-recovery, and conflict scenarios. External Google
+  Fonts and Material Icons links are commented in the foundation shell so production builds do not
+  require network access for font inlining.
+- Excludes: automatic retry scheduling, exponential backoff, periodic background synchronization,
+  synchronization-history compaction, and user-facing product workflow screens.
 
 #### E9. Run cross-runtime conformance validation
 
