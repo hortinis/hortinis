@@ -629,17 +629,47 @@ The first slice uses a deliberately technical record. It validates the mechanism
 
 #### E5. Pull changes through an opaque cursor
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: E3.
 - Scope: retrieve accepted changes ordered by server sequence and persist the new cursor with their local application.
 - Acceptance: repeated pulls create no duplicates and cannot persist a cursor beyond unapplied changes.
+- Artifacts: the typed change-page and technical-change protocol models, opaque cursor codec, server-side
+  ordered change-page retrieval, browser cursor persistence, atomic pulled-page application, and browser
+  and PostgreSQL integration coverage.
+- Validation commands: `pnpm contracts:validate`, `pnpm --filter @hortinis/web format:check`,
+  `pnpm --filter @hortinis/web lint`, `pnpm --filter @hortinis/web architecture:check`,
+  `pnpm --filter @hortinis/web typecheck`, `pnpm --filter @hortinis/web test`,
+  `./gradlew --dependency-verification=strict :services:sync:test :services:sync:integrationTest`,
+  the backend Spotless, Checkstyle, and PMD tasks, followed by the repository-wide Git checks.
+- Validation evidence: the browser persistence tests apply ordered pages atomically, retain local intent
+  while applying remote changes, reject unordered pages without advancing the cursor, and reuse the
+  persisted cursor on the next pull. The server tests prove opaque cursor validation, sequence-ordered
+  pages, page-size boundaries, `hasMore`, and continuation from the returned cursor. The current web
+  baseline passes formatting, lint, architecture, strict typecheck, and all unit tests.
+- Relevant decisions: ADR-0002, ADR-0008, ADR-0010, ADR-0018, and ADR-0022.
 
 #### E6. Recover synchronization after browser reload
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: E2 through E5.
 - Scope: restore local state, pending operations, stable results, and cursors after reloading the browser application.
 - Acceptance: synchronization resumes without losing or duplicating accepted local intent.
+- Artifacts: non-blocking Angular startup recovery, serialized pending-operation draining, paginated pull
+  recovery from the persisted cursor, single-flight recovery protection, IndexedDB close/reopen coverage,
+  and Chromium browser-reload coverage with strict operation and cursor assertions.
+- Validation commands: `pnpm contracts:validate`, `pnpm --filter @hortinis/web format:check`,
+  `pnpm --filter @hortinis/web lint`, `pnpm --filter @hortinis/web architecture:check`,
+  `pnpm --filter @hortinis/web typecheck`, `pnpm --filter @hortinis/web test`,
+  `pnpm --filter @hortinis/web test:e2e`, `pnpm --filter @hortinis/web build`,
+  `./gradlew --dependency-verification=strict :services:sync:test :services:sync:integrationTest`,
+  the backend Spotless, Checkstyle, and PMD tasks, followed by the repository-wide Git checks.
+- Validation evidence: 45 web unit tests and 3 Chromium E2E tests passed. The reload scenario restored
+  an IndexedDB outbox operation and opaque cursor, submitted the exact persisted operation, committed
+  its stable result once, pulled from the saved cursor, and advanced the cursor only after the page was
+  applied. Backend unit and PostgreSQL integration tests passed, as did contract validation and backend
+  quality checks.
+- Excludes: automatic retry backoff, periodic background synchronization, conflict presentation and
+  resolution, synchronization-history compaction, and full reconciliation.
 
 #### E7. Represent an expected-revision conflict
 

@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -35,6 +36,8 @@ class TechnicalSynchronizationIntegrationTest {
   private static final String ACCEPTED_OPERATION_TABLE = "accepted_technical_record_operation";
   private static final String CHANGE_TABLE = "technical_record_change";
   private static final String FIRST_VALUE = "first value";
+  private static final String REPLACEMENT_VALUE = "replacement value";
+  private static final String VALUE_FIELD = "\",\"value\":\"";
   private static final String CLOSE_OBJECT = "}";
   private static final String CLOSE_QUOTE_AND_OBJECT = "\"}";
   private static final String OPERATION_ID = "01890f3e-7c5a-7b12-8abc-0123456789ab";
@@ -126,7 +129,7 @@ class TechnicalSynchronizationIntegrationTest {
             .perform(
                 post(OPERATIONS_PATH)
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content(replaceRequest("replacement value", "1")))
+                    .content(replaceRequest(REPLACEMENT_VALUE, "1")))
             .andExpect(status().isOk())
             .andReturn()
             .getResponse()
@@ -139,7 +142,9 @@ class TechnicalSynchronizationIntegrationTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
                         "{\"expectedRevision\":\"1\",\"kind\":\"replace\","
-                            + "\"value\":\"replacement value\",\"recordId\":\""
+                            + "\"value\":\""
+                            + REPLACEMENT_VALUE
+                            + "\",\"recordId\":\""
                             + RECORD_ID
                             + "\",\"operationId\":\""
                             + REPLACE_OPERATION_ID
@@ -222,13 +227,12 @@ class TechnicalSynchronizationIntegrationTest {
         .perform(
             post(OPERATIONS_PATH)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(replaceRequest("replacement value", "1")))
+                .content(replaceRequest(REPLACEMENT_VALUE, "1")))
         .andExpect(status().isOk())
         .andExpect(
             content()
                 .json(
-                    acceptedResponse(
-                        REPLACE_OPERATION_ID, RECORD_ID, "2", "replacement value", "2"),
+                    acceptedResponse(REPLACE_OPERATION_ID, RECORD_ID, "2", REPLACEMENT_VALUE, "2"),
                     true));
 
     assertThat(count(TECHNICAL_RECORD_TABLE)).isEqualTo(1);
@@ -254,7 +258,7 @@ class TechnicalSynchronizationIntegrationTest {
         .perform(
             post(OPERATIONS_PATH)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(replaceRequest("replacement value", "1")))
+                .content(replaceRequest(REPLACEMENT_VALUE, "1")))
         .andExpect(status().isOk());
 
     mockMvc
@@ -267,7 +271,7 @@ class TechnicalSynchronizationIntegrationTest {
                         + acceptedChange(RECORD_ID, OPERATION_ID, "1", FIRST_VALUE, "1")
                         + ","
                         + acceptedChange(
-                            RECORD_ID, REPLACE_OPERATION_ID, "2", "replacement value", "2")
+                            RECORD_ID, REPLACE_OPERATION_ID, "2", REPLACEMENT_VALUE, "2")
                         + "],\"nextCursor\":\"v1.Mg\",\"hasMore\":false}",
                     true));
 
@@ -279,7 +283,7 @@ class TechnicalSynchronizationIntegrationTest {
                 .json(
                     "{\"changes\":["
                         + acceptedChange(
-                            RECORD_ID, REPLACE_OPERATION_ID, "2", "replacement value", "2")
+                            RECORD_ID, REPLACE_OPERATION_ID, "2", REPLACEMENT_VALUE, "2")
                         + "],\"nextCursor\":\"v1.Mg\",\"hasMore\":false}",
                     true));
   }
@@ -389,7 +393,7 @@ class TechnicalSynchronizationIntegrationTest {
         + operationId
         + "\",\"recordId\":\""
         + recordId
-        + "\",\"value\":\""
+        + VALUE_FIELD
         + value
         + "\",\"kind\":\"create\""
         + CLOSE_OBJECT;
@@ -416,7 +420,7 @@ class TechnicalSynchronizationIntegrationTest {
         + REPLACE_OPERATION_ID
         + "\",\"recordId\":\""
         + RECORD_ID
-        + "\",\"value\":\""
+        + VALUE_FIELD
         + value
         + "\",\"kind\":\"replace\",\"expectedRevision\":\""
         + expectedRevision
@@ -431,7 +435,7 @@ class TechnicalSynchronizationIntegrationTest {
         + recordId
         + "\",\"revision\":\""
         + revision
-        + "\",\"value\":\""
+        + VALUE_FIELD
         + value
         + "\"},\"sequence\":\""
         + sequence
@@ -446,7 +450,7 @@ class TechnicalSynchronizationIntegrationTest {
         + recordId
         + "\",\"revision\":\""
         + revision
-        + "\",\"value\":\""
+        + VALUE_FIELD
         + value
         + "\"},\"sequence\":\""
         + sequence

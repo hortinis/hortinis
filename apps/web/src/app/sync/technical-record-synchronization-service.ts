@@ -16,6 +16,12 @@ export type PullOutcome =
   | { status: 'applied'; page: ChangePage }
   | { status: 'failed'; error: unknown };
 
+export type RecoveryOutcome =
+  | { status: 'completed'; pushed: number; pulled: number }
+  | { status: 'offline'; pushed: number; pulled: number }
+  | { status: 'failed'; pushed: number; pulled: number; error: unknown }
+  | { status: 'already-running' };
+
 @Injectable({ providedIn: 'root' })
 export class TechnicalRecordSynchronizationService {
   private readonly persistence = inject(TechnicalRecordPersistence);
@@ -23,6 +29,55 @@ export class TechnicalRecordSynchronizationService {
   private readonly network = inject(NETWORK_STATUS);
   private pushInProgress = false;
   private pullInProgress = false;
+  private recoveryInProgress = false;
+
+  async recoverAfterReload(): Promise<RecoveryOutcome> {
+    if (this.recoveryInProgress) {
+      return { status: 'already-running' };
+    }
+
+    this.recoveryInProgress = true;
+    let pushed = 0;
+    let pulled = 0;
+    try {
+      while (true) {
+        const outcome = await this.pushOnePendingOperation();
+        if (outcome.status === 'accepted') {
+          pushed += 1;
+          continue;
+        }
+        if (outcome.status === 'empty') {
+          break;
+        }
+        if (outcome.status === 'offline') {
+          return { status: 'offline', pushed, pulled };
+        }
+        return { status: 'failed', pushed, pulled, error: outcome.error };
+      }
+
+      while (true) {
+        const outcome = await this.pullOnePage();
+        if (outcome.status === 'applied') {
+          pulled += 1;
+          if (outcome.page.hasMore) {
+            continue;
+          }
+          return { status: 'completed', pushed, pulled };
+        }
+        if (outcome.status === 'offline') {
+          return { status: 'offline', pushed, pulled };
+        }
+        if (outcome.status === 'empty') {
+          return { status: 'completed', pushed, pulled };
+        }
+        return { status: 'failed', pushed, pulled, error: outcome.error };
+      }
+    } catch (error) {
+      return { status: 'failed', pushed, pulled, error };
+    } finally {
+      this.recoveryInProgress = false;
+    }
+  }
 
   async pushOnePendingOperation(): Promise<PushOutcome> {
     if (this.pushInProgress) {

@@ -267,8 +267,93 @@ describe('TechnicalRecordSynchronizationService', () => {
     expect(replaceAttempts).toBe(2);
   });
 
-  function openDatabase(): HortinisDatabase {
-    const database = new HortinisDatabase(`hortinis-e3-${crypto.randomUUID()}`);
+  it('recovers all pending operations and pull pages after a reload', async () => {
+    const name = `hortinis-recovery-${crypto.randomUUID()}`;
+    const firstDatabase = openDatabase(name);
+    const operation = createOperation();
+    await firstDatabase.technicalRecords.add({
+      recordId: operation.recordId,
+      value: operation.value,
+      lastAcceptedRevision: null,
+    });
+    await firstDatabase.outboxOperations.add(operation);
+    firstDatabase.close();
+
+    const database = openDatabase(name);
+    const pages: ChangePage[] = [
+      { changes: [], nextCursor: 'cursor-one', hasMore: true },
+      { changes: [], nextCursor: 'cursor-two', hasMore: false },
+    ];
+    const result = acceptedResult(operation);
+    const transport: SynchronizationTransport = {
+      submitOperation: vi.fn(async () => result),
+      pullChanges: vi.fn(async (cursor) => {
+        expect(cursor).toBe(pages.length === 2 ? undefined : 'cursor-one');
+        return pages.shift()!;
+      }),
+    };
+    const { persistence, service } = services(database, transport, onlineStatus(true));
+    await expect(service.recoverAfterReload()).resolves.toEqual({
+      status: 'completed',
+      pushed: 1,
+      pulled: 2,
+    });
+
+    expect(transport.submitOperation).toHaveBeenCalledWith(operation);
+    expect(transport.pullChanges).toHaveBeenCalledTimes(2);
+    await expect(database.outboxOperations.count()).resolves.toBe(0);
+    await expect(database.acceptedOperationResults.get(operation.operationId)).resolves.toEqual(
+      result,
+    );
+    await expect(persistence.synchronizationCursor()).resolves.toBe('cursor-two');
+  });
+
+  it('retains durable work when reload recovery is offline or fails', async () => {
+    const database = openDatabase();
+    const operation = createOperation();
+    const transport: SynchronizationTransport = {
+      submitOperation: vi.fn(async () => {
+        throw new Error('service unavailable');
+      }),
+      pullChanges: vi.fn(),
+    };
+    const { persistence, service } = services(database, transport, onlineStatus(true));
+    await persistence.commitCreate(operation);
+
+    await expect(service.recoverAfterReload()).resolves.toMatchObject({
+      status: 'failed',
+      pushed: 0,
+      pulled: 0,
+    });
+    await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
+    expect(transport.pullChanges).not.toHaveBeenCalled();
+  });
+
+  it('does not start a second reload recovery while one is running', async () => {
+    const database = openDatabase();
+    const operation = createOperation();
+    let resolveSubmission: ((result: OperationResult) => void) | undefined;
+    const transport: SynchronizationTransport = {
+      submitOperation: vi.fn(
+        () =>
+          new Promise<OperationResult>((resolve) => {
+            resolveSubmission = resolve;
+          }),
+      ),
+      pullChanges: vi.fn(async () => ({ changes: [], nextCursor: 'cursor', hasMore: false })),
+    };
+    const { persistence, service } = services(database, transport, onlineStatus(true));
+    await persistence.commitCreate(operation);
+
+    const firstRecovery = service.recoverAfterReload();
+    await vi.waitFor(() => expect(transport.submitOperation).toHaveBeenCalledOnce());
+    await expect(service.recoverAfterReload()).resolves.toEqual({ status: 'already-running' });
+    resolveSubmission!(acceptedResult(operation));
+    await expect(firstRecovery).resolves.toMatchObject({ status: 'completed', pushed: 1 });
+  });
+
+  function openDatabase(name = `hortinis-e3-${crypto.randomUUID()}`): HortinisDatabase {
+    const database = new HortinisDatabase(name);
     databases.push(database);
     return database;
   }

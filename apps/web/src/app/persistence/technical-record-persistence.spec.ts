@@ -118,6 +118,37 @@ describe('technical record local persistence', () => {
     ]);
   });
 
+  it('retains accepted results and the synchronization cursor after reopening', async () => {
+    const name = databaseName();
+    const firstDatabase = openDatabase(name);
+    const persistence = persistenceFor(firstDatabase);
+    const operation = operationWithIds('reload-record', 'reload-operation');
+    const result = {
+      outcome: 'accepted' as const,
+      operationId: operation.operationId,
+      record: { recordId: operation.recordId, revision: '1', value: operation.value },
+      sequence: '1',
+    };
+
+    await persistence.commitCreate(operation);
+    await persistence.commitAcceptedResult(operation, result);
+    await persistence.commitPulledPage({
+      changes: [],
+      nextCursor: 'opaque-reload-cursor',
+      hasMore: false,
+    });
+    firstDatabase.close();
+
+    const reopenedDatabase = openDatabase(name);
+    await expect(
+      reopenedDatabase.acceptedOperationResults.get(operation.operationId),
+    ).resolves.toEqual(result);
+    await expect(reopenedDatabase.synchronizationState.get('technical-records')).resolves.toEqual({
+      scope: 'technical-records',
+      cursor: 'opaque-reload-cursor',
+    });
+  });
+
   it('persists a dependent replacement with an unresolved revision', async () => {
     const database = openDatabase();
     const persistence = persistenceFor(database);
