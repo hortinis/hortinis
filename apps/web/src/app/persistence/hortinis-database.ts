@@ -4,6 +4,7 @@ import { HORTINIS_DATABASE_SCHEMA } from './database-schema';
 import type { LocalTechnicalRecord } from './local-technical-record';
 import type { OperationResult } from '../sync/conformance';
 import type { LocalTechnicalRecordOperation } from './local-technical-record-operation';
+import type { LocalSynchronizationState } from './local-synchronization-state';
 
 export const HORTINIS_DATABASE_NAME = new InjectionToken<string>('Hortinis database name', {
   providedIn: 'root',
@@ -15,6 +16,7 @@ export class HortinisDatabase extends Dexie {
   readonly technicalRecords!: Table<LocalTechnicalRecord, string>;
   readonly outboxOperations!: Table<LocalTechnicalRecordOperation, string>;
   readonly acceptedOperationResults!: Table<OperationResult, string>;
+  readonly synchronizationState!: Table<LocalSynchronizationState, string>;
 
   // The constructor must pass the injected name to Dexie before the database is initialized.
   // eslint-disable-next-line @angular-eslint/prefer-inject

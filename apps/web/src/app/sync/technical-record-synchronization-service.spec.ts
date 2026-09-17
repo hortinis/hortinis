@@ -6,7 +6,7 @@ import { describe, expect, it, vi, afterEach } from 'vitest';
 import { HortinisDatabase } from '../persistence/hortinis-database';
 import { TechnicalRecordPersistence } from '../persistence/technical-record-persistence';
 import { TechnicalRecordSynchronizationService } from './technical-record-synchronization-service';
-import type { OperationResult, TechnicalRecordOperation } from './conformance';
+import type { ChangePage, OperationResult, TechnicalRecordOperation } from './conformance';
 import type { SynchronizationTransport } from './synchronization-transport';
 import type { NetworkStatus } from './network-status';
 import { SYNCHRONIZATION_TRANSPORT } from './synchronization-transport.token';
@@ -43,6 +43,40 @@ describe('TechnicalRecordSynchronizationService', () => {
     await expect(database.acceptedOperationResults.get(operation.operationId)).resolves.toEqual(
       result,
     );
+  });
+
+  it('pulls a page using the persisted cursor and commits the page', async () => {
+    const database = openDatabase();
+    const page: ChangePage = {
+      changes: [],
+      nextCursor: 'opaque-cursor',
+      hasMore: false,
+    };
+    const transport: SynchronizationTransport = {
+      submitOperation: vi.fn(),
+      pullChanges: vi.fn(async (cursor) => {
+        expect(cursor).toBeUndefined();
+        return page;
+      }),
+    };
+    const { persistence, service } = services(database, transport, onlineStatus(true));
+
+    await expect(service.pullOnePage()).resolves.toEqual({ status: 'applied', page });
+    expect(transport.pullChanges).toHaveBeenCalledOnce();
+    await expect(persistence.synchronizationCursor()).resolves.toBe('opaque-cursor');
+  });
+
+  it('skips a pull while offline and retains the cursor', async () => {
+    const database = openDatabase();
+    const transport: SynchronizationTransport = {
+      submitOperation: vi.fn(),
+      pullChanges: vi.fn(),
+    };
+    const { persistence, service } = services(database, transport, onlineStatus(false));
+
+    await expect(service.pullOnePage()).resolves.toEqual({ status: 'offline' });
+    expect(transport.pullChanges).not.toHaveBeenCalled();
+    await expect(persistence.synchronizationCursor()).resolves.toBeUndefined();
   });
 
   it('skips the request while offline and retains pending work', async () => {

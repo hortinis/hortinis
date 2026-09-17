@@ -1,8 +1,10 @@
 package com.hortinis.sync;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.concurrent.ExecutorService;
@@ -28,6 +30,7 @@ class TechnicalSynchronizationIntegrationTest {
 
   private static final String POSTGRES_IMAGE = "postgres:18.0";
   private static final String OPERATIONS_PATH = "/api/v1/sync/operations";
+  private static final String CHANGES_PATH = "/api/v1/sync/changes";
   private static final String TECHNICAL_RECORD_TABLE = "technical_record";
   private static final String ACCEPTED_OPERATION_TABLE = "accepted_technical_record_operation";
   private static final String CHANGE_TABLE = "technical_record_change";
@@ -240,6 +243,89 @@ class TechnicalSynchronizationIntegrationTest {
   }
 
   @Test
+  void pullsAcceptedChangesInSequenceOrderAndResumesAfterAnOpaqueCursor() throws Exception {
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createRequest(FIRST_VALUE)))
+        .andExpect(status().isOk());
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(replaceRequest("replacement value", "1")))
+        .andExpect(status().isOk());
+
+    mockMvc
+        .perform(get(CHANGES_PATH))
+        .andExpect(status().isOk())
+        .andExpect(
+            content()
+                .json(
+                    "{\"changes\":["
+                        + acceptedChange(RECORD_ID, OPERATION_ID, "1", FIRST_VALUE, "1")
+                        + ","
+                        + acceptedChange(
+                            RECORD_ID, REPLACE_OPERATION_ID, "2", "replacement value", "2")
+                        + "],\"nextCursor\":\"v1.Mg\",\"hasMore\":false}",
+                    true));
+
+    mockMvc
+        .perform(get(CHANGES_PATH).param("cursor", "v1.MQ"))
+        .andExpect(status().isOk())
+        .andExpect(
+            content()
+                .json(
+                    "{\"changes\":["
+                        + acceptedChange(
+                            RECORD_ID, REPLACE_OPERATION_ID, "2", "replacement value", "2")
+                        + "],\"nextCursor\":\"v1.Mg\",\"hasMore\":false}",
+                    true));
+  }
+
+  @Test
+  void rejectsMalformedPullCursors() throws Exception {
+    mockMvc
+        .perform(get(CHANGES_PATH).param("cursor", "not-a-cursor"))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().json("{\"code\":\"INVALID_REQUEST\"}", false));
+  }
+
+  @Test
+  void indicatesAnotherPageWithoutAdvancingBeyondTheReturnedChanges() throws Exception {
+    for (int index = 0; index < 101; index++) {
+      mockMvc
+          .perform(
+              post(OPERATIONS_PATH)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(
+                      createRequest(
+                          UUID.randomUUID().toString(),
+                          UUID.randomUUID().toString(),
+                          "value-" + index)))
+          .andExpect(status().isOk());
+    }
+
+    mockMvc
+        .perform(get(CHANGES_PATH))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.changes.length()").value(100))
+        .andExpect(jsonPath("$.changes[0].sequence").value("1"))
+        .andExpect(jsonPath("$.changes[99].sequence").value("100"))
+        .andExpect(jsonPath("$.nextCursor").value("v1.MTAw"))
+        .andExpect(jsonPath("$.hasMore").value(true));
+
+    mockMvc
+        .perform(get(CHANGES_PATH).param("cursor", "v1.MTAw"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.changes.length()").value(1))
+        .andExpect(jsonPath("$.changes[0].sequence").value("101"))
+        .andExpect(jsonPath("$.nextCursor").value("v1.MTAx"))
+        .andExpect(jsonPath("$.hasMore").value(false));
+  }
+
+  @Test
   void acceptsCanonicalUuidRegardlessOfVersion() throws Exception {
     mockMvc
         .perform(
@@ -350,6 +436,21 @@ class TechnicalSynchronizationIntegrationTest {
         + "\"},\"sequence\":\""
         + sequence
         + CLOSE_QUOTE_AND_OBJECT;
+  }
+
+  private String acceptedChange(
+      String recordId, String operationId, String revision, String value, String sequence) {
+    return "{\"operationId\":\""
+        + operationId
+        + "\",\"record\":{\"recordId\":\""
+        + recordId
+        + "\",\"revision\":\""
+        + revision
+        + "\",\"value\":\""
+        + value
+        + "\"},\"sequence\":\""
+        + sequence
+        + "\"}";
   }
 
   private int count(String table) {

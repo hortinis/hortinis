@@ -1,9 +1,11 @@
 import { inject, Injectable } from '@angular/core';
 import type {
   CreateTechnicalRecordOperation,
+  ChangePage,
   OperationResult,
   TechnicalRecordOperation,
 } from '../sync/conformance';
+import { isChangePage } from '../sync/conformance';
 import { HortinisDatabase } from './hortinis-database';
 import type { LocalTechnicalRecord } from './local-technical-record';
 import type {
@@ -12,6 +14,9 @@ import type {
   ReadyDependentReplaceTechnicalRecordOperation,
 } from './local-technical-record-operation';
 import { toSubmittedTechnicalRecordOperation } from './local-technical-record-operation';
+import type { LocalSynchronizationState } from './local-synchronization-state';
+
+const TECHNICAL_SYNCHRONIZATION_SCOPE = 'technical-records';
 
 @Injectable({ providedIn: 'root' })
 export class TechnicalRecordPersistence {
@@ -173,6 +178,67 @@ export class TechnicalRecordPersistence {
           lastAcceptedRevision: result.record.revision,
         });
         await this.database.outboxOperations.delete(operation.operationId);
+      },
+    );
+  }
+
+  async synchronizationCursor(): Promise<string | undefined> {
+    const state = await this.database.synchronizationState.get(TECHNICAL_SYNCHRONIZATION_SCOPE);
+    return state?.cursor;
+  }
+
+  async commitPulledPage(page: ChangePage): Promise<void> {
+    if (!isChangePage(page)) {
+      throw new Error('The pulled change page does not satisfy the synchronization contract.');
+    }
+
+    let previousSequence: bigint | undefined;
+    const operationIds = new Set<string>();
+    for (const change of page.changes) {
+      const sequence = BigInt(change.sequence);
+      if (previousSequence !== undefined && sequence <= previousSequence) {
+        throw new Error('The pulled changes are not in ascending server-sequence order.');
+      }
+      if (operationIds.has(change.operationId)) {
+        throw new Error('The pulled page contains a duplicate operation.');
+      }
+      previousSequence = sequence;
+      operationIds.add(change.operationId);
+    }
+
+    await this.database.transaction(
+      'rw',
+      this.database.technicalRecords,
+      this.database.outboxOperations,
+      this.database.synchronizationState,
+      async () => {
+        for (const change of page.changes) {
+          const localRecord = await this.database.technicalRecords.get(change.record.recordId);
+          const pending = localRecord
+            ? await this.database.outboxOperations
+                .where('recordId')
+                .equals(change.record.recordId)
+                .count()
+            : 0;
+          const currentRevision = localRecord?.lastAcceptedRevision;
+          if (currentRevision !== null && currentRevision !== undefined) {
+            if (BigInt(change.record.revision) <= BigInt(currentRevision)) {
+              continue;
+            }
+          }
+
+          await this.database.technicalRecords.put({
+            recordId: change.record.recordId,
+            value: pending > 0 && localRecord ? localRecord.value : change.record.value,
+            lastAcceptedRevision: change.record.revision,
+          });
+        }
+
+        const state: LocalSynchronizationState = {
+          scope: TECHNICAL_SYNCHRONIZATION_SCOPE,
+          cursor: page.nextCursor,
+        };
+        await this.database.synchronizationState.put(state);
       },
     );
   }

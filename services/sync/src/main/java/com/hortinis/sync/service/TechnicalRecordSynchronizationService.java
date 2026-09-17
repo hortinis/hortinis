@@ -2,6 +2,7 @@ package com.hortinis.sync.service;
 
 import com.hortinis.sync.persistence.TechnicalRecordAcceptancePersistence;
 import com.hortinis.sync.persistence.TechnicalRecordAcceptancePersistence.AcceptedOperationReceipt;
+import com.hortinis.sync.protocol.ChangePage;
 import com.hortinis.sync.protocol.CreateTechnicalRecordOperation;
 import com.hortinis.sync.protocol.OperationIdReusedException;
 import com.hortinis.sync.protocol.OperationResult;
@@ -10,9 +11,12 @@ import com.hortinis.sync.protocol.RecordAlreadyExistsException;
 import com.hortinis.sync.protocol.RecordNotFoundException;
 import com.hortinis.sync.protocol.ReplaceTechnicalRecordOperation;
 import com.hortinis.sync.protocol.RevisionConflictException;
+import com.hortinis.sync.protocol.SyncCursorCodec;
+import com.hortinis.sync.protocol.TechnicalChange;
 import com.hortinis.sync.protocol.TechnicalRecord;
 import com.hortinis.sync.protocol.TechnicalRecordOperation;
 import java.math.BigInteger;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
@@ -27,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class TechnicalRecordSynchronizationService {
 
   private static final String CREATE_KIND = "create";
+  private static final int CHANGE_PAGE_SIZE = 100;
 
   private final TechnicalRecordAcceptancePersistence persistence;
 
@@ -89,6 +94,21 @@ public class TechnicalRecordSynchronizationService {
     long sequence = persistence.insertChange(operation.operationId(), accepted);
     return new OperationResult(
         "accepted", operation.operationId(), accepted, Long.toString(sequence));
+  }
+
+  @Transactional(readOnly = true)
+  public ChangePage pull(String cursor) {
+    long afterSequence = SyncCursorCodec.decode(cursor);
+    List<TechnicalChange> fetched =
+        persistence.findChangesAfter(afterSequence, CHANGE_PAGE_SIZE + 1);
+    boolean hasMore = fetched.size() > CHANGE_PAGE_SIZE;
+    List<TechnicalChange> changes =
+        hasMore ? List.copyOf(fetched.subList(0, CHANGE_PAGE_SIZE)) : List.copyOf(fetched);
+    long nextSequence =
+        changes.isEmpty()
+            ? afterSequence
+            : Long.parseLong(changes.get(changes.size() - 1).sequence());
+    return new ChangePage(changes, SyncCursorCodec.encode(nextSequence), hasMore);
   }
 
   private OperationResult replayOrReject(

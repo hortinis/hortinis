@@ -3,9 +3,11 @@ package com.hortinis.sync.persistence;
 import com.hortinis.sync.protocol.CreateTechnicalRecordOperation;
 import com.hortinis.sync.protocol.OperationResult;
 import com.hortinis.sync.protocol.ReplaceTechnicalRecordOperation;
+import com.hortinis.sync.protocol.TechnicalChange;
 import com.hortinis.sync.protocol.TechnicalRecord;
 import com.hortinis.sync.protocol.TechnicalRecordOperation;
 import java.math.BigInteger;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -117,6 +119,22 @@ public class TechnicalRecordAcceptancePersistence {
                         resultSet.getString(2), resultSet.getString(3), resultSet.getString(4)),
                     resultSet.getString(5)))
         .optional();
+  }
+
+  public List<TechnicalChange> findChangesAfter(long sequence, int limit) {
+    return jdbc.sql(
+            "SELECT c.operation_id::text, c.record_id::text, c.revision::text, c.value, "
+                + "c.server_sequence::text FROM technical_record_change c "
+                + "WHERE c.server_sequence > ? ORDER BY c.server_sequence ASC LIMIT ?")
+        .params(sequence, limit)
+        .query(
+            (resultSet, rowNumber) ->
+                new TechnicalChange(
+                    resultSet.getString(1),
+                    new TechnicalRecord(
+                        resultSet.getString(2), resultSet.getString(3), resultSet.getString(4)),
+                    resultSet.getString(5)))
+        .list();
   }
 
   private static Object expectedRevision(TechnicalRecordOperation operation) {

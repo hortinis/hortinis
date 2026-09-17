@@ -19,7 +19,7 @@ describe('HortinisDatabase', () => {
     );
   });
 
-  it('creates the empty initial application database', async () => {
+  it('creates the initial application database', async () => {
     const database = track(new HortinisDatabase(databaseName()));
 
     await database.open();
@@ -30,6 +30,7 @@ describe('HortinisDatabase', () => {
       'technicalRecords',
       'outboxOperations',
       'acceptedOperationResults',
+      'synchronizationState',
     ]);
   });
 

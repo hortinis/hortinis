@@ -1,11 +1,14 @@
 package com.hortinis.sync.http;
 
+import com.hortinis.sync.protocol.ChangePage;
 import com.hortinis.sync.protocol.OperationResult;
 import com.hortinis.sync.service.TechnicalRecordSynchronizationService;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.JsonNode;
 
@@ -27,5 +30,10 @@ public class TechnicalSynchronizationController {
   @PostMapping("/operations")
   public OperationResult submitOperation(@RequestBody JsonNode body) {
     return synchronization.submit(TechnicalOperationParser.parse(body));
+  }
+
+  @GetMapping("/changes")
+  public ChangePage pullChanges(@RequestParam(required = false) String cursor) {
+    return synchronization.pull(cursor);
   }
 }
