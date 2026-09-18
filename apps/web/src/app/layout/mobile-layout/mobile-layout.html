@@ -1,0 +1,24 @@
+<mat-toolbar class="nav">
+  @for (route of routing.mainRoutes(); track route.name) {
+    @if (!route.route) {
+      <button (click)="route.click()" class="nav__button" matFab>
+        <mat-icon class="material-symbols-outlined">{{ route.icon }}</mat-icon>
+        <span>{{ route.name }}</span>
+      </button>
+    } @else {
+      <button
+        class="nav__button"
+        matButton
+        [routerLink]="route.routerLink"
+        routerLinkActive="nav__button--active">
+        <mat-icon class="material-symbols-outlined nav__button__icon">
+          {{ route.icon }}
+        </mat-icon>
+        <span>{{ route.name }}</span>
+      </button>
+    }
+  }
+</mat-toolbar>
+<main class="container">
+  <router-outlet></router-outlet>
+</main>

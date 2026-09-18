@@ -1,4 +1,5 @@
-<main>
-  <h1>Hortinis</h1>
-  <router-outlet />
-</main>
+@if (device.mobileLandscape() || device.mobilePortrait()) {
+  <hortinis-mobile-layout></hortinis-mobile-layout>
+} @else {
+  <hortinis-desktop-layout></hortinis-desktop-layout>
+}

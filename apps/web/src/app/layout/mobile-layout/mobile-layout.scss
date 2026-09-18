@@ -1,0 +1,60 @@
+@use '@angular/material' as mat;
+
+:host {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  justify-content: stretch;
+  align-items: stretch;
+
+  .container {
+    flex: 1;
+  }
+
+  &.landscape {
+    flex-direction: row;
+
+    .nav {
+      width: initial;
+      height: 100%;
+      flex-direction: column;
+      padding: 0;
+    }
+  }
+
+  &:not(.landscape) {
+    flex-direction: column-reverse;
+
+    .nav {
+      height: auto;
+      padding: 5px;
+    }
+  }
+
+  .nav {
+    justify-content: space-around;
+    @include mat.toolbar-overrides(
+      (
+        container-background-color: var(--mat-sys-inverse-primary, blue),
+        container-text-color: var(--mat-sys-inverse-surface),
+      )
+    );
+
+    &__button {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+
+      &__icon {
+        margin: 0;
+      }
+      &--active {
+        @include mat.toolbar-overrides(
+          (
+            container-text-color: var(--mat-sys-on-secondary-container, purple),
+          )
+        );
+      }
+    }
+  }
+}
