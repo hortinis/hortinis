@@ -1,10 +1,15 @@
 import { Routes } from '@angular/router';
 import { Layout } from './layout/layout';
+import {
+  configurationCheckGuard,
+  configuredCheckGuard,
+} from './configuration/configuration-check-guard';
 
 export const routes: Routes = [
   {
     path: '',
     component: Layout,
+    canActivate: [configurationCheckGuard],
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'home' },
       {
@@ -25,5 +30,11 @@ export const routes: Routes = [
         loadComponent: async () => import('./features/diary/diary').then(({ Diary }) => Diary),
       },
     ],
+  },
+  {
+    path: 'configure',
+    canActivate: [configuredCheckGuard],
+    loadComponent: async () =>
+      import('./configuration/configuration').then(({ Configuration }) => Configuration),
   },
 ];

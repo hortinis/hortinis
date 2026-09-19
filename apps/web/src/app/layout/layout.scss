@@ -17,7 +17,6 @@
     flex-direction: row;
 
     .nav {
-      width: initial;
       height: 100%;
       flex-direction: column;
       &:not(.nav--web) {
@@ -45,15 +44,32 @@
     &:not(.nav--web) {
       justify-content: space-around;
       align-items: stretch;
+      width: initial;
       .nav__button {
+        border-color: transparent;
         height: 100%;
         flex: 1 0;
+        &--active {
+          font-weight: bold;
+        }
+        &--fab {
+          align-self: center;
+          padding: 0 15px;
+          width: auto;
+        }
       }
     }
     &--web {
       gap: 10px;
       padding: 10px;
       align-items: start;
+      width: 150px;
+      align-items: stretch;
+      .nav__button {
+        justify-content: start;
+        gap: 5px;
+        padding: 5px;
+      }
     }
     @include mat.toolbar-overrides(
       (

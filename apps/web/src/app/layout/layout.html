@@ -3,7 +3,7 @@
     @if (!route.route) {
       <button
         (click)="route.click()"
-        class="nav__button"
+        class="nav__button nav__button--fab"
         [class.nav__button--mobile]="device.mobile()"
         matFab>
         <mat-icon class="material-symbols-outlined">{{ route.icon }}</mat-icon>
