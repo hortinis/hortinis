@@ -1,0 +1,95 @@
+@use '@angular/material' as mat;
+
+:host {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  justify-content: stretch;
+  align-items: stretch;
+
+  .container {
+    flex: 1;
+    background-color: var(--mat-sys-primary);
+    color: var(--mat-sys-on-primary);
+  }
+
+  &.landscape {
+    flex-direction: row;
+
+    .nav {
+      width: initial;
+      height: 100%;
+      flex-direction: column;
+      &:not(.nav--web) {
+        padding: 0;
+      }
+    }
+  }
+
+  &:not(.landscape) {
+    flex-direction: column-reverse;
+
+    .nav {
+      &:not(.nav--web) {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr) auto repeat(2, 1fr);
+        gap: 5px;
+        padding: 5px;
+      }
+      height: auto;
+      padding: 5px;
+    }
+  }
+
+  .nav {
+    &:not(.nav--web) {
+      justify-content: space-around;
+      align-items: stretch;
+      .nav__button {
+        height: 100%;
+        flex: 1 0;
+      }
+    }
+    &--web {
+      gap: 10px;
+      padding: 10px;
+      align-items: start;
+    }
+    @include mat.toolbar-overrides(
+      (
+        container-background-color: var(--mat-sys-inverse-primary, blue),
+        container-text-color: var(--mat-sys-inverse-surface),
+      )
+    );
+
+    &__button {
+      display: flex;
+      &--mobile {
+        flex-direction: column;
+        align-items: center;
+      }
+      &:not(.nav__button--active) {
+        border-color: transparent;
+      }
+      @include mat.button-overrides(
+        (
+          text-container-shape: 10px,
+          text-touch-target-size: 56px,
+          outlined-container-shape: 10px,
+        )
+      );
+
+      &__icon {
+        margin: 0;
+      }
+      &--active {
+        border: 1px solid;
+        @include mat.toolbar-overrides(
+          (
+            container-text-color: var(--mat-sys-on-secondary-container, purple),
+          )
+        );
+      }
+    }
+  }
+}
