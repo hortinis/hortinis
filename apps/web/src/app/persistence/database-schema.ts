@@ -4,4 +4,7 @@ export const HORTINIS_DATABASE_SCHEMA = {
   acceptedOperationResults: 'operationId',
   revisionConflicts: 'operationId',
   synchronizationState: 'scope',
+  garden: 'id, name',
+  space: 'id, gardenId, type, name',
+  configuration: 'sync, serverUrl',
 };

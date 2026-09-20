@@ -1,9 +1,19 @@
-import { Component } from '@angular/core';
+import { inject, Service } from '@angular/core';
+import { ConfigurationPersistence } from '../persistence/configuration/configuration-persistence';
 
-@Component({
-  imports: [],
-  selector: 'hortinis-configuration',
-  styleUrl: './configuration.scss',
-  templateUrl: './configuration.html',
-})
-export class Configuration {}
+export interface ConfigurationModel {
+  sync: false;
+  serverUrl?: string;
+}
+
+@Service()
+export class Configuration {
+  private readonly persistence = inject(ConfigurationPersistence);
+
+  public async configured(): Promise<boolean> {
+    return await this.persistence.configured();
+  }
+  public async configure(): Promise<void> {
+    return await this.persistence.configure();
+  }
+}

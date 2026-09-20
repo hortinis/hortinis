@@ -35,6 +35,8 @@ export const routes: Routes = [
     path: 'configure',
     canActivate: [configuredCheckGuard],
     loadComponent: async () =>
-      import('./configuration/configuration').then(({ Configuration }) => Configuration),
+      import('./configuration/base-configuration').then(
+        ({ BaseConfiguration: BaseConfiguration }) => BaseConfiguration,
+      ),
   },
 ];
