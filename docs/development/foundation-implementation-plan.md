@@ -150,7 +150,9 @@ This contract does not yet select Nginx, Caddy, Traefik, or another production r
 - Keep native development supported alongside containers.
 - Add no third-party runtime assets, mandatory external service, credential, generated secret, telemetry, or external analytics.
 - Do not enable local analytics. The activation gates in ADR-0017 require follow-up decisions and validation before collection is authorized.
-- Do not select unresolved authentication, backup, catalog-distribution, retention, or reconciliation details implicitly during scaffold work.
+- Do not select unresolved authentication, backup, or catalog-distribution details implicitly during
+  scaffold work. Production synchronization retention and reconciliation are governed by ADR-0023
+  through ADR-0026 and remain unavailable until their Track G implementation increments are validated.
 
 ## 5. Increment plan
 
@@ -463,7 +465,7 @@ C1 through C4, formerly separate backend layer and protocol module setup, are fo
 - Depends on: D3 and D4.
 - Scope: establish the Flyway lifecycle and configuration without selecting or creating application tables.
 - Excludes: application schema design, technical-record tables, persistence queries, garden tables, and
-  unresolved long-term retention policy.
+  the production retention policy later selected by ADR-0023.
 - Acceptance: Flyway is enabled for the service, an empty database can start cleanly without an
   application migration, and repeat startup remains idempotent.
 - Follow-up from D3+D4: define the first application migration only after E1 establishes canonical
@@ -476,7 +478,8 @@ C1 through C4, formerly separate backend layer and protocol module setup, are fo
 - Scope: derive and implement the smallest additive PostgreSQL schema required by the synchronization
   walking skeleton and its E3 transaction cases.
 - Excludes: garden tables, tombstones, retention or compaction policy, synchronization generations,
-  reconciliation snapshots, and other unresolved production synchronization details.
+  reconciliation snapshots, and other production synchronization details now governed by ADR-0023
+  through ADR-0026.
 - Acceptance: the migration is traceable to the accepted fixtures and transaction cases, succeeds against
   an empty database, is idempotent across service restart, and introduces no unused placeholder tables.
 - Artifacts: Flyway migration `V1__create_technical_sync_schema.sql` defining the current technical-record
@@ -838,7 +841,7 @@ resolve the open protocol policies before an implementation task relies on them.
 
 #### G1. Resolve production synchronization policies
 
-- Initial status: `planned`.
+- Status: `specified`; final validation remains blocked by the planned E10 dependency.
 - Depends on: E10.
 - Scope: accept the remaining retention, compaction, synchronization-generation, tombstone, anchored
   snapshot, continuation, indeterminate-outcome, and full-reconciliation wire decisions identified in
@@ -846,6 +849,13 @@ resolve the open protocol policies before an implementation task relies on them.
 - Excludes: domain-specific merge and conflict-resolution rules.
 - Acceptance: one or more accepted architecture decisions define testable policies and wire behavior
   without weakening ADR-0010's preservation of pending local intent.
+- Artifacts: ADR-0023 through ADR-0026; contract-first generation, deletion, tombstone, reconciliation,
+  snapshot-continuation, indeterminate-outcome, and generic reconciliation schemas; anchored
+  reconciliation endpoints; canonical policy fixtures; a policy-to-implementation traceability matrix;
+  generated-contract validation; and updated architecture, API, and contract documentation.
+- Validation: contract formatting, generation drift, OpenAPI linting, schema validation, canonical
+  positive examples, and focused negative checks must pass. After E10 is validated, review its V0 risk
+  evidence against these decisions before changing G1 to `validated`.
 
 #### G2. Implement tombstones and interrupted-exchange recovery
 

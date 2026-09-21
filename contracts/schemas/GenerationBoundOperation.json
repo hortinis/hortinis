@@ -1,0 +1,21 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "GenerationBoundOperation.json",
+    "type": "object",
+    "properties": {
+        "generation": {
+            "$ref": "SyncGeneration.json"
+        },
+        "operation": {
+            "$ref": "ProductionTechnicalRecordOperation.json"
+        }
+    },
+    "required": [
+        "generation",
+        "operation"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "A production operation bound immutably to the generation of its first submission."
+}

@@ -25,6 +25,10 @@ function readJsonFixture(name) {
   return JSON.parse(readFileSync(resolve(repositoryRoot, "tooling/contracts/fixtures", name), "utf8"));
 }
 
+function readSyncFixture(name) {
+  return JSON.parse(readFileSync(resolve(contractsRoot, "sync/fixtures", name), "utf8"));
+}
+
 function loadProductionSchemaValidators() {
   const schemaDirectory = resolve(contractsRoot, "schemas");
   const schemas = readdirSync(schemaDirectory)
@@ -81,7 +85,7 @@ test("TypeSpec emits matching OpenAPI 3.1 and Draft 2020-12 JSON Schema wire sha
   }
 });
 
-test("the committed OpenAPI contract exposes only the versioned technical synchronization operations", () => {
+test("the committed OpenAPI contract exposes the versioned technical synchronization operations", () => {
   const openApiPath = resolve(contractsRoot, "openapi/openapi.yaml");
   const document = readYamlFile(openApiPath);
   assert.equal(document.openapi, "3.1.0");
@@ -89,6 +93,8 @@ test("the committed OpenAPI contract exposes only the versioned technical synchr
   assert.deepEqual(Object.keys(document.paths).sort(), [
     "/api/v1/sync/changes",
     "/api/v1/sync/operations",
+    "/api/v1/sync/reconciliations",
+    "/api/v1/sync/reconciliations/{reconciliationId}/snapshot",
   ]);
   assert.equal(
     document.paths["/api/v1/sync/operations"].post.requestBody.content["application/json"].schema.$ref,
@@ -106,7 +112,82 @@ test("the committed OpenAPI contract exposes only the versioned technical synchr
     "200",
     "400",
   ]);
+  assert.equal(
+    document.paths["/api/v1/sync/reconciliations"].post.requestBody.content["application/json"]
+      .schema.$ref,
+    "#/components/schemas/Models.StartReconciliationRequest",
+  );
+  assert.deepEqual(
+    Object.keys(document.paths["/api/v1/sync/reconciliations"].post.responses).sort(),
+    ["201", "400"],
+  );
+  assert.deepEqual(
+    Object.keys(
+      document.paths["/api/v1/sync/reconciliations/{reconciliationId}/snapshot"].get.responses,
+    ).sort(),
+    ["200", "400", "410"],
+  );
   assertLocalReferences(document, openApiPath);
+});
+
+test("production synchronization policy fixtures satisfy their generated schemas", () => {
+  const ajv = loadProductionSchemaValidators();
+  const fixtureNames = [
+    "generation-bound-delete.json",
+    "indeterminate-operation.json",
+    "reconciliation-outcomes.json",
+    "reconciliation-required.json",
+    "reconciliation-session.json",
+    "snapshot-continuation-page.json",
+    "snapshot-final-page.json",
+  ];
+
+  for (const name of fixtureNames) {
+    const fixture = readSyncFixture(name);
+    const validate = ajv.getSchema(fixture.schema);
+    assert.ok(validate, `${fixture.schema} is registered`);
+    const values = fixture.values ?? [fixture.value];
+    for (const value of values) {
+      assert.equal(validate(value), true, `${fixture.id}: ${JSON.stringify(validate.errors)}`);
+    }
+  }
+});
+
+test("snapshot page variants and production operation envelopes remain closed", () => {
+  const ajv = loadProductionSchemaValidators();
+  const validateSnapshotPage = ajv.getSchema("SnapshotPage.json");
+  const validateEnvelope = ajv.getSchema("GenerationBoundOperation.json");
+  const validateReconciliationStart = ajv.getSchema("StartReconciliationRequest.json");
+  assert.ok(validateSnapshotPage);
+  assert.ok(validateEnvelope);
+  assert.ok(validateReconciliationStart);
+
+  const continuation = readSyncFixture("snapshot-continuation-page.json").value;
+  const finalPage = readSyncFixture("snapshot-final-page.json").value;
+  assert.equal(validateSnapshotPage({ ...continuation, incrementalCursor: "not-allowed" }), false);
+  assert.equal(validateSnapshotPage({ ...finalPage, nextCursor: "not-allowed" }), false);
+  assert.equal(validateSnapshotPage({ ...continuation, hasMore: false }), false);
+
+  const deletion = readSyncFixture("generation-bound-delete.json").value;
+  assert.equal(validateEnvelope({ ...deletion, generation: "" }), false);
+  assert.equal(validateEnvelope({ ...deletion, unexpected: true }), false);
+  assert.equal(
+    validateEnvelope({
+      ...deletion,
+      operation: { ...deletion.operation, expectedRevision: "0" },
+    }),
+    false,
+  );
+  assert.equal(validateReconciliationStart({}), true);
+  assert.equal(
+    validateReconciliationStart({
+      previousGeneration: "generation-3",
+      previousCursor: "opaque-cursor",
+    }),
+    true,
+  );
+  assert.equal(validateReconciliationStart({ previousGeneration: "generation-3" }), false);
+  assert.equal(validateReconciliationStart({ previousCursor: "opaque-cursor" }), false);
 });
 
 test("production schemas enforce technical operations, identifiers, revisions, and closed objects", () => {

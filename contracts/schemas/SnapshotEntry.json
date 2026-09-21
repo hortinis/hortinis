@@ -1,0 +1,13 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "SnapshotEntry.json",
+    "oneOf": [
+        {
+            "$ref": "LiveSnapshotEntry.json"
+        },
+        {
+            "$ref": "TombstoneSnapshotEntry.json"
+        }
+    ],
+    "description": "One entry in a complete anchored server snapshot."
+}

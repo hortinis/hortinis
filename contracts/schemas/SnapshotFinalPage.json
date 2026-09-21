@@ -1,0 +1,41 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "SnapshotFinalPage.json",
+    "type": "object",
+    "properties": {
+        "reconciliationId": {
+            "$ref": "ReconciliationId.json"
+        },
+        "generation": {
+            "$ref": "SyncGeneration.json"
+        },
+        "anchorSequence": {
+            "$ref": "PositiveDecimal.json"
+        },
+        "entries": {
+            "type": "array",
+            "items": {
+                "$ref": "SnapshotEntry.json"
+            }
+        },
+        "hasMore": {
+            "type": "boolean",
+            "const": false
+        },
+        "incrementalCursor": {
+            "$ref": "SyncCursor.json"
+        }
+    },
+    "required": [
+        "reconciliationId",
+        "generation",
+        "anchorSequence",
+        "entries",
+        "hasMore",
+        "incrementalCursor"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "The final snapshot page and the opaque incremental cursor positioned after its anchor."
+}

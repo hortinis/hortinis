@@ -8,6 +8,8 @@ Run `pnpm contracts:generate` after editing `.tsp` files. Run `pnpm contracts:va
 formatting, generated-file consistency, OpenAPI and schema validity, and the positive and negative
 contract fixtures.
 
-The version-one source defines only the technical synchronization operations and envelopes required by
-the walking skeleton. Keep authentication, authorization, garden resources, deletion, compaction,
-generation rollover, and reconciliation within their approved implementation increments.
+The version-one source contains the implemented walking-skeleton operations and the selected production
+reconciliation wire contract. ADR-0023 through ADR-0026 define the production policy. Their schemas and
+reconciliation endpoints are contract-first inputs to G2 through G4; the current Spring and browser
+adapters do not implement them yet. Keep authentication, authorization, garden resources, and
+domain-specific conflict resolution within their approved implementation increments.

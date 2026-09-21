@@ -1,0 +1,11 @@
+{
+  "id": "reconciliation-required",
+  "description": "A compacted incremental cursor explicitly requires full reconciliation.",
+  "schema": "ReconciliationRequiredError.json",
+  "value": {
+    "code": "RECONCILIATION_REQUIRED",
+    "message": "Incremental history is no longer available.",
+    "currentGeneration": "generation-4",
+    "reason": "history_compacted"
+  }
+}

@@ -69,6 +69,10 @@ Separate packages or modules require demonstrated reuse or a need for independen
 - [ADR-0020: Catalog release coordination](decisions/0020-catalog-release-coordination.md)
 - [ADR-0021: TypeSpec contract source](decisions/0021-typespec-contract-source.md)
 - [ADR-0022: UUIDv7 generation library](decisions/0022-uuid-v7-library.md)
+- [ADR-0023: Synchronization retention, compaction, and generations](decisions/0023-synchronization-retention-and-generations.md)
+- [ADR-0024: Synchronization tombstones and identifier retirement](decisions/0024-synchronization-tombstones.md)
+- [ADR-0025: Anchored reconciliation snapshots and continuation](decisions/0025-anchored-reconciliation-snapshots.md)
+- [ADR-0026: Indeterminate operation outcomes and full reconciliation](decisions/0026-indeterminate-outcomes-and-full-reconciliation.md)
 
 ## Open decisions
 

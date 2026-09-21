@@ -1,0 +1,41 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "SnapshotContinuationPage.json",
+    "type": "object",
+    "properties": {
+        "reconciliationId": {
+            "$ref": "ReconciliationId.json"
+        },
+        "generation": {
+            "$ref": "SyncGeneration.json"
+        },
+        "anchorSequence": {
+            "$ref": "PositiveDecimal.json"
+        },
+        "entries": {
+            "type": "array",
+            "items": {
+                "$ref": "SnapshotEntry.json"
+            }
+        },
+        "hasMore": {
+            "type": "boolean",
+            "const": true
+        },
+        "nextCursor": {
+            "$ref": "SnapshotCursor.json"
+        }
+    },
+    "required": [
+        "reconciliationId",
+        "generation",
+        "anchorSequence",
+        "entries",
+        "hasMore",
+        "nextCursor"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "A non-final page from one immutable anchored snapshot."
+}

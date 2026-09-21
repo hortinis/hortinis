@@ -1,0 +1,22 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "LiveSnapshotEntry.json",
+    "type": "object",
+    "properties": {
+        "kind": {
+            "type": "string",
+            "const": "record"
+        },
+        "record": {
+            "$ref": "TechnicalRecord.json"
+        }
+    },
+    "required": [
+        "kind",
+        "record"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "A live record in an anchored snapshot."
+}

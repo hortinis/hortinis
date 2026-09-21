@@ -11,6 +11,7 @@ options:
     openapi-versions:
       - "3.1.0"
     output-file: openapi.yaml
+    omit-unreachable-types: true
     seal-object-schemas: true
   "@typespec/json-schema":
     emitter-output-dir: "{project-root}/../schemas"

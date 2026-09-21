@@ -1,0 +1,22 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "AdoptServerReconciliationOutcome.json",
+    "type": "object",
+    "properties": {
+        "outcome": {
+            "type": "string",
+            "const": "adopt_server"
+        },
+        "recordId": {
+            "$ref": "Uuid.json"
+        }
+    },
+    "required": [
+        "outcome",
+        "recordId"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "Use anchored server state because no pending local intent overlaps this record."
+}

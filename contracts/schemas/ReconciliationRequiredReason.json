@@ -1,0 +1,19 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "ReconciliationRequiredReason.json",
+    "anyOf": [
+        {
+            "type": "string",
+            "const": "generation_expired"
+        },
+        {
+            "type": "string",
+            "const": "history_compacted"
+        },
+        {
+            "type": "string",
+            "const": "cursor_expired"
+        }
+    ],
+    "description": "Why incremental synchronization cannot continue."
+}

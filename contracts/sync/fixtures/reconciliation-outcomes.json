@@ -1,0 +1,26 @@
+{
+  "id": "reconciliation-outcomes",
+  "description": "Generic reconciliation preserves pending, conflicting, and indeterminate local intent.",
+  "schema": "ReconciliationOutcome.json",
+  "values": [
+    {
+      "outcome": "adopt_server",
+      "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab"
+    },
+    {
+      "outcome": "preserve_pending",
+      "recordId": "01890f3e-7c5a-7b14-8abc-0123456789ab",
+      "operationIds": ["01890f3e-7c5a-7b17-8abc-0123456789ab"]
+    },
+    {
+      "outcome": "conflict",
+      "recordId": "01890f3e-7c5a-7b15-8abc-0123456789ab",
+      "operationIds": ["01890f3e-7c5a-7b18-8abc-0123456789ab"]
+    },
+    {
+      "outcome": "keep_indeterminate",
+      "recordId": "01890f3e-7c5a-7b19-8abc-0123456789ab",
+      "operationId": "01890f3e-7c5a-7b20-8abc-0123456789ab"
+    }
+  ]
+}

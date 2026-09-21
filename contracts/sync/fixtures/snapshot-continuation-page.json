@@ -1,0 +1,22 @@
+{
+  "id": "snapshot-continuation-page",
+  "description": "A non-final anchored snapshot page has only a snapshot continuation cursor.",
+  "schema": "SnapshotPage.json",
+  "value": {
+    "reconciliationId": "reconcile-scope-1-session-7",
+    "generation": "generation-4",
+    "anchorSequence": "42",
+    "entries": [
+      {
+        "kind": "record",
+        "record": {
+          "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab",
+          "revision": "2",
+          "value": "anchored value"
+        }
+      }
+    ],
+    "hasMore": true,
+    "nextCursor": "snapshot-session-7-page-2"
+  }
+}

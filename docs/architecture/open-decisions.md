@@ -6,8 +6,8 @@ Accepted foundation technologies and policies are recorded in the architecture d
 - authorization roles, permissions, and the authentication implementation library;
 - the access design for an individually operated server without a mandatory account, its configuration default, and its relationship to the built-in-account baseline in ADR-0013;
 - offline unlock, credential recovery, session expiry, and device revocation behavior;
-- domain-specific conflict presentation and resolution;
-- incremental-history and idempotency retention periods, synchronization-generation rollover, tombstone retention, compaction thresholds, the point-in-time snapshot and continuation mechanism, the indeterminate-operation outcome representation, and the full-reconciliation wire format;
+- domain-specific synchronization merge semantics, conflict presentation, and conflict resolution beyond
+  the generic record-level reconciliation outcomes accepted by ADR-0026;
 - production reverse proxy and TLS examples;
 - backup, restore, rollback, and upgrade procedures and their automated verification;
 - the optional S3-compatible storage adapter implementation;

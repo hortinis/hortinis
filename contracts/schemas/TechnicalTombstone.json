@@ -1,0 +1,25 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "TechnicalTombstone.json",
+    "type": "object",
+    "properties": {
+        "recordId": {
+            "$ref": "Uuid.json"
+        },
+        "revision": {
+            "$ref": "PositiveDecimal.json"
+        },
+        "deletedAtSequence": {
+            "$ref": "PositiveDecimal.json"
+        }
+    },
+    "required": [
+        "recordId",
+        "revision",
+        "deletedAtSequence"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "The retained synchronization representation of an accepted deletion."
+}

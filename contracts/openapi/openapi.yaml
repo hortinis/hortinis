@@ -67,6 +67,67 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/Models.TechnicalRecordOperation'
+  /api/v1/sync/reconciliations:
+    post:
+      operationId: startTechnicalRecordReconciliation
+      summary: Start one anchored full-reconciliation session
+      description: Capture an internally consistent technical-record snapshot at one server sequence.
+      parameters: []
+      responses:
+        '201':
+          description: The request has succeeded and a new resource has been created as a result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.ReconciliationSession'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Models.StartReconciliationRequest'
+  /api/v1/sync/reconciliations/{reconciliationId}/snapshot:
+    get:
+      operationId: pullTechnicalRecordSnapshot
+      summary: Pull one page from an anchored reconciliation snapshot
+      description: Continue an immutable snapshot session with its opaque, session-bound cursor.
+      parameters:
+        - name: reconciliationId
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/Models.ReconciliationId'
+        - name: cursor
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/Models.SnapshotCursor'
+          explode: false
+      responses:
+        '200':
+          description: The request has succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.SnapshotPage'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '410':
+          description: Client error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.SnapshotExpiredError'
 components:
   schemas:
     Models.ChangePage:
@@ -137,6 +198,21 @@ components:
       unevaluatedProperties:
         not: {}
       description: The request does not satisfy the synchronization contract.
+    Models.LiveSnapshotEntry:
+      type: object
+      required:
+        - kind
+        - record
+      properties:
+        kind:
+          type: string
+          enum:
+            - record
+        record:
+          $ref: '#/components/schemas/Models.TechnicalRecord'
+      unevaluatedProperties:
+        not: {}
+      description: A live record in an anchored snapshot.
     Models.OperationIdReusedError:
       type: object
       required:
@@ -181,6 +257,33 @@ components:
       type: string
       pattern: ^[1-9][0-9]*$
       description: A positive integer encoded as a decimal string for cross-runtime precision.
+    Models.ReconciliationId:
+      type: string
+      minLength: 1
+      description: An opaque, non-empty reconciliation-session identifier controlled by the server.
+    Models.ReconciliationSession:
+      type: object
+      required:
+        - reconciliationId
+        - generation
+        - anchorSequence
+        - firstSnapshotCursor
+        - expiresAt
+      properties:
+        reconciliationId:
+          $ref: '#/components/schemas/Models.ReconciliationId'
+        generation:
+          $ref: '#/components/schemas/Models.SyncGeneration'
+        anchorSequence:
+          $ref: '#/components/schemas/Models.PositiveDecimal'
+        firstSnapshotCursor:
+          $ref: '#/components/schemas/Models.SnapshotCursor'
+        expiresAt:
+          type: string
+          format: date-time
+      unevaluatedProperties:
+        not: {}
+      description: An anchored reconciliation session and its first opaque snapshot cursor.
     Models.RecordAlreadyExistsError:
       type: object
       required:
@@ -275,10 +378,134 @@ components:
       unevaluatedProperties:
         not: {}
       description: Replacement failed because the expected and current revisions differ.
+    Models.SnapshotContinuationPage:
+      type: object
+      required:
+        - reconciliationId
+        - generation
+        - anchorSequence
+        - entries
+        - hasMore
+        - nextCursor
+      properties:
+        reconciliationId:
+          $ref: '#/components/schemas/Models.ReconciliationId'
+        generation:
+          $ref: '#/components/schemas/Models.SyncGeneration'
+        anchorSequence:
+          $ref: '#/components/schemas/Models.PositiveDecimal'
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/Models.SnapshotEntry'
+        hasMore:
+          type: boolean
+          enum:
+            - true
+        nextCursor:
+          $ref: '#/components/schemas/Models.SnapshotCursor'
+      unevaluatedProperties:
+        not: {}
+      description: A non-final page from one immutable anchored snapshot.
+    Models.SnapshotCursor:
+      type: string
+      minLength: 1
+      description: An opaque, non-empty cursor bound to one anchored snapshot session.
+    Models.SnapshotEntry:
+      type: object
+      oneOf:
+        - $ref: '#/components/schemas/Models.LiveSnapshotEntry'
+        - $ref: '#/components/schemas/Models.TombstoneSnapshotEntry'
+      discriminator:
+        propertyName: kind
+        mapping:
+          record: '#/components/schemas/Models.LiveSnapshotEntry'
+          tombstone: '#/components/schemas/Models.TombstoneSnapshotEntry'
+      description: One entry in a complete anchored server snapshot.
+    Models.SnapshotExpiredError:
+      type: object
+      required:
+        - code
+        - message
+        - reconciliationId
+      properties:
+        code:
+          type: string
+          enum:
+            - SNAPSHOT_EXPIRED
+        message:
+          type: string
+          minLength: 1
+        reconciliationId:
+          $ref: '#/components/schemas/Models.ReconciliationId'
+      unevaluatedProperties:
+        not: {}
+      description: The anchored snapshot session or cursor has expired.
+    Models.SnapshotFinalPage:
+      type: object
+      required:
+        - reconciliationId
+        - generation
+        - anchorSequence
+        - entries
+        - hasMore
+        - incrementalCursor
+      properties:
+        reconciliationId:
+          $ref: '#/components/schemas/Models.ReconciliationId'
+        generation:
+          $ref: '#/components/schemas/Models.SyncGeneration'
+        anchorSequence:
+          $ref: '#/components/schemas/Models.PositiveDecimal'
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/Models.SnapshotEntry'
+        hasMore:
+          type: boolean
+          enum:
+            - false
+        incrementalCursor:
+          $ref: '#/components/schemas/Models.SyncCursor'
+      unevaluatedProperties:
+        not: {}
+      description: The final snapshot page and the opaque incremental cursor positioned after its anchor.
+    Models.SnapshotPage:
+      anyOf:
+        - $ref: '#/components/schemas/Models.SnapshotContinuationPage'
+        - $ref: '#/components/schemas/Models.SnapshotFinalPage'
+      description: One page from an internally consistent anchored snapshot.
+    Models.StartReconciliationFromState:
+      type: object
+      required:
+        - previousGeneration
+        - previousCursor
+      properties:
+        previousGeneration:
+          $ref: '#/components/schemas/Models.SyncGeneration'
+        previousCursor:
+          $ref: '#/components/schemas/Models.SyncCursor'
+      unevaluatedProperties:
+        not: {}
+      description: Start a full reconciliation from one matching generation and cursor pair.
+    Models.StartReconciliationRequest:
+      anyOf:
+        - $ref: '#/components/schemas/Models.StartReconciliationWithoutState'
+        - $ref: '#/components/schemas/Models.StartReconciliationFromState'
+      description: Start a full reconciliation either without state or from one complete persisted boundary.
+    Models.StartReconciliationWithoutState:
+      type: object
+      unevaluatedProperties:
+        not: {}
+      description: Start a full reconciliation without previously persisted synchronization state.
     Models.SyncCursor:
       type: string
       minLength: 1
       description: An opaque, non-empty incremental synchronization cursor.
+    Models.SyncGeneration:
+      type: string
+      minLength: 1
+      description: An opaque, non-empty synchronization-generation identifier controlled by the server.
     Models.TechnicalChange:
       type: object
       required:
@@ -322,6 +549,37 @@ components:
           create: '#/components/schemas/Models.CreateTechnicalRecordOperation'
           replace: '#/components/schemas/Models.ReplaceTechnicalRecordOperation'
       description: One stable technical-record operation submitted for synchronization.
+    Models.TechnicalTombstone:
+      type: object
+      required:
+        - recordId
+        - revision
+        - deletedAtSequence
+      properties:
+        recordId:
+          $ref: '#/components/schemas/Models.Uuid'
+        revision:
+          $ref: '#/components/schemas/Models.PositiveDecimal'
+        deletedAtSequence:
+          $ref: '#/components/schemas/Models.PositiveDecimal'
+      unevaluatedProperties:
+        not: {}
+      description: The retained synchronization representation of an accepted deletion.
+    Models.TombstoneSnapshotEntry:
+      type: object
+      required:
+        - kind
+        - tombstone
+      properties:
+        kind:
+          type: string
+          enum:
+            - tombstone
+        tombstone:
+          $ref: '#/components/schemas/Models.TechnicalTombstone'
+      unevaluatedProperties:
+        not: {}
+      description: A retained deletion in an anchored snapshot.
     Models.Uuid:
       type: string
       pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$

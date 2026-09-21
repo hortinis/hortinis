@@ -1,0 +1,21 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "StartReconciliationFromState.json",
+    "type": "object",
+    "properties": {
+        "previousGeneration": {
+            "$ref": "SyncGeneration.json"
+        },
+        "previousCursor": {
+            "$ref": "SyncCursor.json"
+        }
+    },
+    "required": [
+        "previousGeneration",
+        "previousCursor"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "Start a full reconciliation from one matching generation and cursor pair."
+}

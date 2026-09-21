@@ -88,8 +88,11 @@ The expected versions are Node.js `v24.18.0` and pnpm `11.26.0`. The root `pnpm 
 
 TypeSpec sources under `contracts/typespec` are the authority for HTTP and language-neutral JSON
 contracts. OpenAPI documents and standalone JSON Schemas are generated artifacts. The current contract
-defines the versioned technical synchronization push and pull operations; the emitter compatibility
-fixture separately exercises representative wire shapes.
+defines the implemented V0 technical synchronization push and pull operations plus the contract-first
+production reconciliation endpoints and schemas selected by G1. The emitter compatibility fixture
+separately exercises representative wire shapes. The
+[production synchronization traceability matrix](synchronization-policy-traceability.md) records which
+later increment implements and validates each selected policy.
 
 Run contract checks independently from the repository root:
 

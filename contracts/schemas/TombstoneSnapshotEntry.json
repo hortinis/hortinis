@@ -1,0 +1,22 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "TombstoneSnapshotEntry.json",
+    "type": "object",
+    "properties": {
+        "kind": {
+            "type": "string",
+            "const": "tombstone"
+        },
+        "tombstone": {
+            "$ref": "TechnicalTombstone.json"
+        }
+    },
+    "required": [
+        "kind",
+        "tombstone"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "A retained deletion in an anchored snapshot."
+}

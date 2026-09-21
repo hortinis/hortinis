@@ -1,0 +1,19 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "ReconciliationOutcome.json",
+    "oneOf": [
+        {
+            "$ref": "AdoptServerReconciliationOutcome.json"
+        },
+        {
+            "$ref": "PreservePendingReconciliationOutcome.json"
+        },
+        {
+            "$ref": "ConflictReconciliationOutcome.json"
+        },
+        {
+            "$ref": "KeepIndeterminateReconciliationOutcome.json"
+        }
+    ],
+    "description": "A domain-neutral per-record result of three-way full reconciliation."
+}

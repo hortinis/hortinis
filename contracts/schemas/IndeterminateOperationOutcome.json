@@ -1,0 +1,35 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "IndeterminateOperationOutcome.json",
+    "type": "object",
+    "properties": {
+        "outcome": {
+            "type": "string",
+            "const": "indeterminate"
+        },
+        "operationId": {
+            "$ref": "Uuid.json"
+        },
+        "submittedGeneration": {
+            "$ref": "SyncGeneration.json"
+        },
+        "currentGeneration": {
+            "$ref": "SyncGeneration.json"
+        },
+        "reason": {
+            "type": "string",
+            "const": "receipt_unavailable"
+        }
+    },
+    "required": [
+        "outcome",
+        "operationId",
+        "submittedGeneration",
+        "currentGeneration",
+        "reason"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "The server can no longer prove whether an operation was accepted."
+}

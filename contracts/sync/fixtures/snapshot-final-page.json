@@ -1,0 +1,22 @@
+{
+  "id": "snapshot-final-page",
+  "description": "The final anchored snapshot page supplies only the incremental cursor after the anchor.",
+  "schema": "SnapshotPage.json",
+  "value": {
+    "reconciliationId": "reconcile-scope-1-session-7",
+    "generation": "generation-4",
+    "anchorSequence": "42",
+    "entries": [
+      {
+        "kind": "tombstone",
+        "tombstone": {
+          "recordId": "01890f3e-7c5a-7b15-8abc-0123456789ab",
+          "revision": "3",
+          "deletedAtSequence": "41"
+        }
+      }
+    ],
+    "hasMore": false,
+    "incrementalCursor": "changes-strictly-after-sequence-42"
+  }
+}

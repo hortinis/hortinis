@@ -1,0 +1,14 @@
+{
+  "id": "generation-bound-delete",
+  "description": "A production deletion is bound to its first-submission generation and expected revision.",
+  "schema": "GenerationBoundOperation.json",
+  "value": {
+    "generation": "generation-4",
+    "operation": {
+      "operationId": "01890f3e-7c5a-7b16-8abc-0123456789ab",
+      "recordId": "01890f3e-7c5a-7b15-8abc-0123456789ab",
+      "kind": "delete",
+      "expectedRevision": "2"
+    }
+  }
+}

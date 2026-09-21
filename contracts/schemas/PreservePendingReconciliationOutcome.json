@@ -1,0 +1,29 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "PreservePendingReconciliationOutcome.json",
+    "type": "object",
+    "properties": {
+        "outcome": {
+            "type": "string",
+            "const": "preserve_pending"
+        },
+        "recordId": {
+            "$ref": "Uuid.json"
+        },
+        "operationIds": {
+            "type": "array",
+            "items": {
+                "$ref": "Uuid.json"
+            }
+        }
+    },
+    "required": [
+        "outcome",
+        "recordId",
+        "operationIds"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "Preserve a pending causal chain for explicit rebasing into the active generation."
+}

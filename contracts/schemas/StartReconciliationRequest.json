@@ -1,0 +1,13 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "StartReconciliationRequest.json",
+    "oneOf": [
+        {
+            "$ref": "StartReconciliationWithoutState.json"
+        },
+        {
+            "$ref": "StartReconciliationFromState.json"
+        }
+    ],
+    "description": "Start a full reconciliation either without state or from one complete persisted boundary."
+}

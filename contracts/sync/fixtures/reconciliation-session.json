@@ -1,0 +1,12 @@
+{
+  "id": "reconciliation-session",
+  "description": "A full reconciliation starts at one generation and anchor sequence.",
+  "schema": "ReconciliationSession.json",
+  "value": {
+    "reconciliationId": "reconcile-scope-1-session-7",
+    "generation": "generation-4",
+    "anchorSequence": "42",
+    "firstSnapshotCursor": "snapshot-session-7-page-1",
+    "expiresAt": "2026-09-22T12:00:00Z"
+  }
+}

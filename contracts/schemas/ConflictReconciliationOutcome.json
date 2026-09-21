@@ -1,0 +1,29 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "ConflictReconciliationOutcome.json",
+    "type": "object",
+    "properties": {
+        "outcome": {
+            "type": "string",
+            "const": "conflict"
+        },
+        "recordId": {
+            "$ref": "Uuid.json"
+        },
+        "operationIds": {
+            "type": "array",
+            "items": {
+                "$ref": "Uuid.json"
+            }
+        }
+    },
+    "required": [
+        "outcome",
+        "recordId",
+        "operationIds"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "Keep competing server state and local intent as an explicit record-level conflict."
+}

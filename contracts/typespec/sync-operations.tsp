@@ -29,6 +29,22 @@ namespace Hortinis.Sync {
     @body body: Models.ChangePage;
   }
 
+  model ReconciliationSessionResponse {
+    @statusCode statusCode: 201;
+    @body body: Models.ReconciliationSession;
+  }
+
+  model SnapshotPageResponse {
+    @statusCode statusCode: 200;
+    @body body: Models.SnapshotPage;
+  }
+
+  @error
+  model SnapshotExpiredResponse {
+    @statusCode statusCode: 410;
+    @body body: Models.SnapshotExpiredError;
+  }
+
   @route("/api/v1/sync")
   interface SynchronizationOperations {
     @post
@@ -50,5 +66,24 @@ namespace Hortinis.Sync {
     pullChanges(@query cursor?: Models.SyncCursor):
       | ChangePageResponse
       | InvalidRequestResponse;
+
+    @post
+    @route("/reconciliations")
+    @TypeSpec.OpenAPI.operationId("startTechnicalRecordReconciliation")
+    @summary("Start one anchored full-reconciliation session")
+    @doc("Capture an internally consistent technical-record snapshot at one server sequence.")
+    startReconciliation(@body request: Models.StartReconciliationRequest):
+      | ReconciliationSessionResponse
+      | InvalidRequestResponse;
+
+    @get
+    @route("/reconciliations/{reconciliationId}/snapshot")
+    @TypeSpec.OpenAPI.operationId("pullTechnicalRecordSnapshot")
+    @summary("Pull one page from an anchored reconciliation snapshot")
+    @doc("Continue an immutable snapshot session with its opaque, session-bound cursor.")
+    pullSnapshot(
+      @path reconciliationId: Models.ReconciliationId,
+      @query cursor: Models.SnapshotCursor,
+    ): SnapshotPageResponse | InvalidRequestResponse | SnapshotExpiredResponse;
   }
 }

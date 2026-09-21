@@ -1,0 +1,34 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "ReconciliationSession.json",
+    "type": "object",
+    "properties": {
+        "reconciliationId": {
+            "$ref": "ReconciliationId.json"
+        },
+        "generation": {
+            "$ref": "SyncGeneration.json"
+        },
+        "anchorSequence": {
+            "$ref": "PositiveDecimal.json"
+        },
+        "firstSnapshotCursor": {
+            "$ref": "SnapshotCursor.json"
+        },
+        "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+        }
+    },
+    "required": [
+        "reconciliationId",
+        "generation",
+        "anchorSequence",
+        "firstSnapshotCursor",
+        "expiresAt"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "An anchored reconciliation session and its first opaque snapshot cursor."
+}

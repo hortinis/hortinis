@@ -1,8 +1,8 @@
 # Synchronization conformance fixtures
 
-This directory contains the language-neutral examples consumed by the browser and service protocol
-tests. The fixtures exercise the technical synchronization contract defined by D2; they do not define
-garden resources or persistence behavior.
+This directory contains the language-neutral examples consumed by protocol and contract tests. The
+fixtures exercise the technical synchronization contract defined by D2 and the production policy wire
+shapes selected by G1; they do not define garden resources or persistence behavior.
 
 Each JSON file is one scenario with this shape:
 
@@ -34,3 +34,18 @@ operation ID with a different field value is a distinct request and must be reje
 Fixtures are intentionally ASCII-only where canonical bytes are asserted so the TypeScript and Java
 consumers can focus on the protocol boundary. Generated TypeSpec artifacts and hand-maintained schema
 copies do not belong here.
+
+G1 policy fixtures use a smaller schema-oriented shape:
+
+```json
+{
+  "id": "snapshot-final-page",
+  "description": "...",
+  "schema": "SnapshotPage.json",
+  "value": { "...": "..." }
+}
+```
+
+A fixture may use `values` when several variants must satisfy the same generated schema. Contract tests
+consume these examples now; G2 through G5 extend cross-runtime consumers as the corresponding behavior
+is implemented.

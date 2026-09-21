@@ -1,0 +1,13 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "SnapshotPage.json",
+    "oneOf": [
+        {
+            "$ref": "SnapshotContinuationPage.json"
+        },
+        {
+            "$ref": "SnapshotFinalPage.json"
+        }
+    ],
+    "description": "One page from an internally consistent anchored snapshot."
+}

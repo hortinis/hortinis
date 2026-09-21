@@ -1,0 +1,31 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "ReconciliationRequiredError.json",
+    "type": "object",
+    "properties": {
+        "code": {
+            "type": "string",
+            "const": "RECONCILIATION_REQUIRED"
+        },
+        "message": {
+            "type": "string",
+            "minLength": 1
+        },
+        "currentGeneration": {
+            "$ref": "SyncGeneration.json"
+        },
+        "reason": {
+            "$ref": "ReconciliationRequiredReason.json"
+        }
+    },
+    "required": [
+        "code",
+        "message",
+        "currentGeneration",
+        "reason"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "Incremental synchronization cannot continue and a full reconciliation is required."
+}

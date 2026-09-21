@@ -1,0 +1,27 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "SnapshotExpiredError.json",
+    "type": "object",
+    "properties": {
+        "code": {
+            "type": "string",
+            "const": "SNAPSHOT_EXPIRED"
+        },
+        "message": {
+            "type": "string",
+            "minLength": 1
+        },
+        "reconciliationId": {
+            "$ref": "ReconciliationId.json"
+        }
+    },
+    "required": [
+        "code",
+        "message",
+        "reconciliationId"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "The anchored snapshot session or cursor has expired."
+}

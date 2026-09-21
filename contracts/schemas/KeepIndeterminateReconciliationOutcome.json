@@ -1,0 +1,26 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "KeepIndeterminateReconciliationOutcome.json",
+    "type": "object",
+    "properties": {
+        "outcome": {
+            "type": "string",
+            "const": "keep_indeterminate"
+        },
+        "recordId": {
+            "$ref": "Uuid.json"
+        },
+        "operationId": {
+            "$ref": "Uuid.json"
+        }
+    },
+    "required": [
+        "outcome",
+        "recordId",
+        "operationId"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "Keep an operation whose server acceptance remains unprovable as indeterminate local work."
+}

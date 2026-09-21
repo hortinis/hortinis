@@ -1,0 +1,12 @@
+{
+  "id": "indeterminate-operation",
+  "description": "A retired-generation operation remains explicit when its acceptance receipt is unavailable.",
+  "schema": "IndeterminateOperationOutcome.json",
+  "value": {
+    "outcome": "indeterminate",
+    "operationId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+    "submittedGeneration": "generation-2",
+    "currentGeneration": "generation-4",
+    "reason": "receipt_unavailable"
+  }
+}

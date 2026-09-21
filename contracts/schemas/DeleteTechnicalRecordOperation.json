@@ -1,0 +1,31 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "DeleteTechnicalRecordOperation.json",
+    "type": "object",
+    "properties": {
+        "operationId": {
+            "$ref": "Uuid.json",
+            "description": "The stable operation and idempotency identifier."
+        },
+        "recordId": {
+            "$ref": "Uuid.json"
+        },
+        "kind": {
+            "type": "string",
+            "const": "delete"
+        },
+        "expectedRevision": {
+            "$ref": "PositiveDecimal.json"
+        }
+    },
+    "required": [
+        "operationId",
+        "recordId",
+        "kind",
+        "expectedRevision"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "Delete an existing technical record at its expected server revision."
+}

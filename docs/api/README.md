@@ -8,9 +8,9 @@ committed OpenAPI 3.1 document under `contracts/openapi/` and standalone JSON Sc
 Contracts are defined before their Spring MVC adapters. If generated clients or boundary types are
 introduced, they must be reproducible and must not be edited by hand.
 
-## Technical synchronization API
+## Implemented V0 technical synchronization API
 
-The version-one walking-skeleton contract exposes only these operations:
+The V0 walking-skeleton adapters implement these operations:
 
 - `POST /api/v1/sync/operations` accepts or identically replays one technical-record operation;
 - `GET /api/v1/sync/changes` pulls accepted changes after an optional opaque `cursor` query parameter.
@@ -59,11 +59,37 @@ Record-existence and revision conflicts include the current accepted technical r
 This preserves enough information for the walking skeleton to represent server state and pending local
 intent independently without selecting domain conflict resolution.
 
+## Selected production synchronization contract
+
+ADR-0023 through ADR-0026 select the production retention and reconciliation behavior. The TypeSpec
+source and generated artifacts define its wire shapes before G2 through G4 activate their Spring and
+browser adapters.
+
+The production operation envelope binds the original operation immutably to an opaque synchronization
+generation. It extends the technical operation union with expected-revision deletion. An old-generation
+operation is never accepted as a new operation in the current generation: a retained receipt returns its
+stable result, unavailable incremental history returns `RECONCILIATION_REQUIRED`, and a missing receipt
+whose result cannot be proved returns an `indeterminate` outcome.
+
+The selected reconciliation API adds:
+
+- `POST /api/v1/sync/reconciliations`, which captures one active generation, anchor sequence, expiry,
+  and first opaque snapshot cursor;
+- `GET /api/v1/sync/reconciliations/{reconciliationId}/snapshot`, which reads immutable pages from that
+  anchor.
+
+A non-final snapshot page has only `nextCursor`. The final page has only `incrementalCursor`, positioned
+strictly after the anchor. Snapshot entries are a closed union of live records and retained tombstones.
+`SNAPSHOT_EXPIRED` requires a new session without deleting the client's old base or pending work.
+
+The generic reconciliation result is record-level. It can adopt server state, preserve a pending causal
+chain, retain a conflict, or keep an operation indeterminate. Merging individual fields or deciding that
+two domain operations are semantically equivalent remains a future domain-specific decision.
+
 ## Deliberate limitations
 
 The contract does not define authentication, authorization, a production synchronization-scope
-identifier, batching, deletion, tombstones, history or idempotency-receipt compaction, synchronization
-generations, indeterminate outcomes, snapshots, or full reconciliation. The V0 validation topology uses
-one test-only synchronization scope, retains all incremental history and idempotency receipts, and must
-not expose an unauthenticated production service. Those production policies remain governed by Track G
-and the open architecture decisions.
+identifier, batching, garden resources, or domain-specific conflict resolution. The V0 validation
+topology uses one test-only synchronization scope, retains all incremental history and idempotency
+receipts, and must not expose an unauthenticated production service. The production policy schemas and
+reconciliation endpoints remain unavailable at runtime until G2 through G4 implement them.

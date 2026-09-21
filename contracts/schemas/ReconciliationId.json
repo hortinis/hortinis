@@ -1,0 +1,7 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "ReconciliationId.json",
+    "type": "string",
+    "minLength": 1,
+    "description": "An opaque, non-empty reconciliation-session identifier controlled by the server."
+}
