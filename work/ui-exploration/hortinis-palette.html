@@ -1,0 +1,149 @@
+<section id="hortinis-palette" aria-labelledby="hortinis-palette-title">
+  <style>
+    #hortinis-palette {
+      --hortinis-ink: light-dark(#172019, #eef5ef);
+      --hortinis-muted-ink: light-dark(#506056, #b8c7bc);
+      --hortinis-primary: #2f6b3b;
+      --hortinis-primary-soft: #c4efc9;
+      --hortinis-primary-soft-ink: #12391b;
+      --hortinis-secondary: #8b5e3c;
+      --hortinis-secondary-soft: #f4dccb;
+      --hortinis-secondary-soft-ink: #3a2417;
+      --hortinis-tertiary: #426b78;
+      --hortinis-tertiary-soft: #c5e7ee;
+      --hortinis-tertiary-soft-ink: #15363e;
+      color: var(--hortinis-ink);
+      color-scheme: light dark;
+    }
+
+    #hortinis-palette h2 {
+      margin-block: 0 1rem;
+    }
+
+    #hortinis-palette .palette-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    #hortinis-palette .palette-entry {
+      min-inline-size: 0;
+    }
+
+    #hortinis-palette .palette-swatch {
+      display: grid;
+      align-content: end;
+      min-block-size: 9rem;
+      padding: 1rem;
+      color: #ffffff;
+      border-radius: 1rem 1rem 0 0;
+    }
+
+    #hortinis-palette .palette-primary {
+      background: var(--hortinis-primary);
+    }
+
+    #hortinis-palette .palette-secondary {
+      background: var(--hortinis-secondary);
+    }
+
+    #hortinis-palette .palette-tertiary {
+      background: var(--hortinis-tertiary);
+    }
+
+    #hortinis-palette .palette-name,
+    #hortinis-palette .palette-code {
+      display: block;
+    }
+
+    #hortinis-palette .palette-name {
+      font-weight: 500;
+    }
+
+    #hortinis-palette .palette-code {
+      margin-block-start: 0.25rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #hortinis-palette .palette-soft {
+      padding: 1rem;
+      border-radius: 0 0 1rem 1rem;
+    }
+
+    #hortinis-palette .palette-soft-primary {
+      color: var(--hortinis-primary-soft-ink);
+      background: var(--hortinis-primary-soft);
+    }
+
+    #hortinis-palette .palette-soft-secondary {
+      color: var(--hortinis-secondary-soft-ink);
+      background: var(--hortinis-secondary-soft);
+    }
+
+    #hortinis-palette .palette-soft-tertiary {
+      color: var(--hortinis-tertiary-soft-ink);
+      background: var(--hortinis-tertiary-soft);
+    }
+
+    #hortinis-palette .palette-role {
+      margin: 0;
+      font-weight: 500;
+    }
+
+    #hortinis-palette .palette-use {
+      margin-block: 0.25rem 0;
+    }
+
+    #hortinis-palette .palette-note {
+      margin-block: 1rem 0;
+      color: var(--hortinis-muted-ink);
+    }
+
+    @media (max-width: 600px) {
+      #hortinis-palette .palette-grid {
+        grid-template-columns: 1fr;
+      }
+
+      #hortinis-palette .palette-swatch {
+        min-block-size: 6rem;
+      }
+    }
+  </style>
+
+  <h2 id="hortinis-palette-title">Hortinis core palette</h2>
+  <div class="palette-grid">
+    <article class="palette-entry">
+      <div class="palette-swatch palette-primary">
+        <span class="palette-name">Garden green</span>
+        <span class="palette-code">Primary · #2F6B3B</span>
+      </div>
+      <div class="palette-soft palette-soft-primary">
+        <p class="palette-role">Growth and action</p>
+        <p class="palette-use">Primary actions, active navigation, healthy states</p>
+      </div>
+    </article>
+
+    <article class="palette-entry">
+      <div class="palette-swatch palette-secondary">
+        <span class="palette-name">Terracotta soil</span>
+        <span class="palette-code">Secondary · #8B5E3C</span>
+      </div>
+      <div class="palette-soft palette-soft-secondary">
+        <p class="palette-role">Warmth and cultivation</p>
+        <p class="palette-use">Supporting controls, harvests, earth-related context</p>
+      </div>
+    </article>
+
+    <article class="palette-entry">
+      <div class="palette-swatch palette-tertiary">
+        <span class="palette-name">Rain blue</span>
+        <span class="palette-code">Tertiary · #426B78</span>
+      </div>
+      <div class="palette-soft palette-soft-tertiary">
+        <p class="palette-role">Weather and information</p>
+        <p class="palette-use">Forecasts, sync information, neutral highlights</p>
+      </div>
+    </article>
+  </div>
+  <p class="palette-note">Each core color supports white text at WCAG AA contrast for normal text.</p>
+</section>

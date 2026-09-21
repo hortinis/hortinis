@@ -1,0 +1,294 @@
+<div id="hortinis-recording" lang="fr" aria-label="Hortinis : tester la saisie et les détails facultatifs">
+<style>
+  #hortinis-recording { color-scheme:light dark; font-family:system-ui,sans-serif; }
+  #hortinis-recording * { box-sizing:border-box; }
+  #hortinis-recording .example { max-width:390px; margin:0 auto 28px; }
+  #hortinis-recording .caption { font-size:16px; font-weight:500; color:light-dark(#293c32,#dce9df); margin:0 0 8px; }
+  #hortinis-recording .phone { --bg:light-dark(#fff,#1b2821); --soft:light-dark(#f2f5ef,#25362b); --ink:light-dark(#25392d,#e4eee6); --muted:light-dark(#57685c,#b5c6b9); --line:light-dark(#dce4db,#415247); --accent:light-dark(#27623e,#b1dbb7); --on:light-dark(#fff,#173620); --warning:light-dark(#fff0d5,#493a24); --warning-ink:light-dark(#714b13,#ffe0a5); position:relative; background:var(--bg); color:var(--ink); border:1px solid var(--line); border-radius:20px; overflow:hidden; font-size:14px; line-height:1.35; }
+  #hortinis-recording button,#hortinis-recording select,#hortinis-recording input { font:inherit; }
+  #hortinis-recording button { cursor:pointer; color:inherit; min-height:44px; border:0; background:none; }
+  #hortinis-recording header { padding:6px 12px; display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--line); }
+  #hortinis-recording header select { flex:1; min-width:0; width:100%; border:0; background:var(--bg); color:var(--ink); min-height:44px; font-size:18px; font-weight:500; }
+  #hortinis-recording .connection { font-size:11px; color:var(--muted); white-space:nowrap; }
+  #hortinis-recording .garden-alert { border-radius:20px; background:var(--warning); color:var(--warning-ink); padding:4px 10px; font-size:12px; white-space:nowrap; }
+  #hortinis-recording .warning { background:var(--warning); color:var(--warning-ink); padding:0 12px; }
+  #hortinis-recording summary { cursor:pointer; min-height:44px; display:flex; align-items:center; gap:7px; }
+  #hortinis-recording .warning summary { font-size:13px; }
+  #hortinis-recording .warning p { margin:0; padding:0 0 10px; font-size:13px; }
+  #hortinis-recording .toolbar { display:flex; align-items:center; justify-content:space-between; padding:0 12px; min-height:40px; border-bottom:1px solid var(--line); }
+  #hortinis-recording .toolbar strong { font-weight:500; }
+  #hortinis-recording .toolbar span { color:var(--muted); font-size:12px; }
+  #hortinis-recording .tasks { padding:0 12px; }
+  #hortinis-recording .task { display:flex; align-items:center; gap:10px; min-height:52px; padding:5px 0; border-bottom:1px solid var(--line); cursor:pointer; }
+  #hortinis-recording .task input { width:20px; height:20px; flex:0 0 20px; margin:0; accent-color:var(--accent); }
+  #hortinis-recording .task .words { flex:1; min-width:0; }
+  #hortinis-recording .task strong { display:block; font-size:14px; font-weight:500; }
+  #hortinis-recording .task small { display:block; font-size:12px; color:var(--muted); }
+  #hortinis-recording .due { font-size:11px; color:var(--muted); white-space:nowrap; }
+  #hortinis-recording .group-label { margin:0; padding:7px 12px; font-size:12px; font-weight:500; color:var(--muted); background:var(--soft); }
+  #hortinis-recording .grouped .task { min-height:var(--task-height,54px); padding:8px 0; gap:12px; }
+  #hortinis-recording .grouped .task strong { font-size:15px; }
+  #hortinis-recording .grouped .due { font-size:12px; }
+  #hortinis-recording .grouped .tasks { padding:0 16px 6px; }
+  #hortinis-recording .grouped .group-label { padding:10px 16px 7px; font-size:13px; }
+  #hortinis-recording .grouped .toolbar { min-height:46px; padding:0 16px; }
+  #hortinis-recording .grouped header { padding:8px 12px; }
+  #hortinis-recording .grouped .warning { padding:3px 16px; }
+  #hortinis-recording .grouped .task small { display:none; }
+  #hortinis-recording .grouped .tasks { padding-bottom:0; }
+  #hortinis-recording .ledger .task { min-height:48px; }
+  #hortinis-recording .ledger .words { display:flex; flex-direction:column; }
+  #hortinis-recording .ledger header { background:var(--soft); }
+  #hortinis-recording .ledger header select { background:var(--soft); }
+  #hortinis-recording .footer-space { min-height:58px; padding:6px 76px 6px 12px; display:flex; align-items:center; }
+  #hortinis-recording .done { font-size:12px; color:var(--muted); width:100%; }
+  #hortinis-recording .done .task strong { text-decoration:line-through; }
+  #hortinis-recording .floating { position:absolute; bottom:66px; right:12px; border-radius:50%; width:48px; height:48px; background:var(--accent); color:var(--on); box-shadow:0 3px 9px light-dark(#233b302b,#0006); font-size:27px; display:flex; align-items:center; justify-content:center; z-index:2; }
+  #hortinis-recording .ledger .floating { width:auto; padding:0 15px; gap:5px; border-radius:24px; font-size:14px; }
+  #hortinis-recording nav { display:grid; grid-template-columns:repeat(4,1fr); background:var(--bg); border-top:1px solid var(--line); padding:4px; }
+  #hortinis-recording nav button { position:relative; font-size:12px; min-height:48px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:var(--muted); border-radius:8px; }
+  #hortinis-recording nav button[aria-current] { color:var(--accent); background:var(--soft); font-weight:500; }
+  #hortinis-recording .badge { background:var(--accent); color:var(--on); border-radius:9px; padding:1px 5px; font-size:10px; }
+  #hortinis-recording .grouped nav { grid-template-columns:repeat(5,1fr); padding:6px; gap:2px; }
+  #hortinis-recording .grouped nav button { min-height:52px; }
+  #hortinis-recording .grouped .footer-space { min-height:8px; padding:0 16px; }
+  #hortinis-recording .grouped .dock-add { font-size:12px; background:var(--accent); color:var(--on); border-radius:10px; }
+  #hortinis-recording .top-record { display:flex; align-items:center; gap:5px; padding:0 12px; background:var(--accent); color:var(--on); border-radius:10px; font-weight:500; flex-shrink:0; }
+  #hortinis-recording .top header select { font-size:16px; }
+  #hortinis-recording .top nav { grid-template-columns:repeat(4,1fr); }
+  #hortinis-recording .top .sheet { top:66px; bottom:auto; }
+  #hortinis-recording svg { width:18px; height:18px; }
+  #hortinis-recording .sheet { position:absolute; bottom:60px; left:8px; right:8px; z-index:3; padding:14px; background:var(--bg); border:1px solid var(--line); border-radius:16px; box-shadow:0 -8px 30px light-dark(#20332733,#0008); }
+  #hortinis-recording .sheet-head { display:flex; justify-content:space-between; align-items:center; }
+  #hortinis-recording .sheet-head strong { font-size:16px; font-weight:500; }
+  #hortinis-recording .sheet-head button { font-size:22px; width:44px; }
+  #hortinis-recording .sheet p { font-size:14px; margin:8px 0; }
+  #hortinis-recording .sheet label { display:block; margin:8px 0; font-size:13px; }
+  #hortinis-recording .sheet select,#hortinis-recording .sheet input { display:block; width:100%; min-height:44px; padding:8px; font-size:16px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); }
+  #hortinis-recording .submit { background:var(--accent); color:var(--on); border-radius:8px; width:100%; margin-top:8px; }
+  #hortinis-recording .status { font-size:12px; color:var(--muted); padding:0 12px; }
+  #hortinis-recording .status:empty { display:none; }
+  #hortinis-recording .phone { --task-height:52px; --page:light-dark(#f2f1e8,#14231c); background:var(--page); }
+  #hortinis-recording .phone header { background:var(--bg); }
+  #hortinis-recording .grouped .toolbar { border:0; min-height:44px; }
+  #hortinis-recording .task-area { padding:0 10px 10px; display:grid; gap:9px; }
+  #hortinis-recording .place-panel { background:var(--bg); border:1px solid var(--line); border-radius:13px; overflow:hidden; }
+  #hortinis-recording .place-panel>summary { padding:0 12px; gap:9px; min-height:44px; background:var(--soft); }
+  #hortinis-recording .place-name { font-family:Georgia,serif; font-size:19px; font-weight:500; flex:1; }
+  #hortinis-recording .place-icon { display:flex; color:var(--accent); }
+  #hortinis-recording .place-count { color:var(--muted); font-size:12px; }
+  #hortinis-recording .chevron { width:14px; color:var(--muted); }
+  #hortinis-recording .place-panel:not([open]) .chevron { transform:rotate(-90deg); }
+  #hortinis-recording .grouped .tasks { padding:0 12px; }
+  #hortinis-recording .grouped .task { gap:9px; }
+  #hortinis-recording .task:last-child { border:0; }
+  #hortinis-recording .task input { order:3; width:20px; height:20px; }
+  #hortinis-recording .action-icon { order:0; display:flex; align-items:center; justify-content:center; width:24px; flex:0 0 24px; color:var(--muted); }
+  #hortinis-recording .task .words { order:1; }
+  #hortinis-recording .task .due { order:2; font-size:11px; }
+  #hortinis-recording .grouped .task .exception { display:block; font-size:12px; }
+  #hortinis-recording .grouped .footer-space { min-height:0; padding:0 12px; }
+  #hortinis-recording [hidden] { display:none !important; }
+</style>
+<style>
+  #hortinis-recording .phone { --task-height:54px; }
+  #hortinis-recording .overdue strong,#hortinis-recording .late { color:var(--warning-ink); }
+  #hortinis-recording .overdue { background:light-dark(#fff8e9,#302b20); }
+  #hortinis-recording .grouped .task .late { display:block; font-size:12px; }
+  #hortinis-recording .completed-row { display:flex; align-items:center; border-bottom:1px solid var(--line); gap:8px; }
+  #hortinis-recording .completed-row .task { flex:1; min-width:0; border:0; }
+  #hortinis-recording .text-action { color:var(--accent); text-decoration:underline; padding:4px 8px; font-size:13px; }
+  #hortinis-recording .completion-feedback { background:var(--soft); border:1px solid var(--line); border-radius:10px; margin:4px 10px 10px; padding:8px 10px; }
+  #hortinis-recording .feedback-top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  #hortinis-recording .feedback-top strong { font-size:13px; font-weight:500; }
+  #hortinis-recording .feedback-top button { min-height:32px; min-width:32px; font-size:20px; }
+  #hortinis-recording .feedback-actions { display:flex; flex-wrap:wrap; gap:3px; }
+  #hortinis-recording .feedback-actions button { min-height:44px; color:var(--accent); font-size:13px; padding:4px 8px; }
+  #hortinis-recording .view-heading { display:flex; align-items:center; justify-content:space-between; padding:10px 16px; }
+  #hortinis-recording .view-heading h3 { font-size:19px; font-weight:500; margin:0; }
+  #hortinis-recording .view-heading button { width:44px; font-size:23px; }
+  #hortinis-recording .editor { padding:0 16px 16px; background:var(--bg); }
+  #hortinis-recording .editor label { display:block; margin:10px 0; font-size:13px; }
+  #hortinis-recording .editor input,#hortinis-recording .editor select,#hortinis-recording .editor textarea { display:block; width:100%; padding:9px; min-height:44px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font:inherit; font-size:16px; }
+  #hortinis-recording .editor textarea { resize:vertical; min-height:72px; }
+  #hortinis-recording .editor .check-label { display:flex; align-items:center; gap:9px; min-height:44px; }
+  #hortinis-recording .editor .check-label input { width:20px; height:20px; min-height:20px; flex:0 0 20px; accent-color:var(--accent); }
+  #hortinis-recording .editor .field-pair { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  #hortinis-recording .optional-fields { border-top:1px solid var(--line); margin-top:12px; }
+  #hortinis-recording .optional-fields summary { font-size:14px; color:var(--accent); }
+  #hortinis-recording .editor-note { color:var(--muted); font-size:13px; margin:0 0 10px; }
+  #hortinis-recording .journal-list { padding:0 12px 12px; }
+  #hortinis-recording .journal-entry { padding:12px; margin:0 0 10px; border:1px solid var(--line); border-radius:12px; background:var(--bg); }
+  #hortinis-recording .journal-entry h4 { font-size:15px; font-weight:500; margin:0 0 4px; }
+  #hortinis-recording .journal-entry p { margin:4px 0; font-size:13px; overflow-wrap:anywhere; white-space:pre-wrap; }
+  #hortinis-recording .entry-meta { color:var(--muted); font-size:12px; }
+  #hortinis-recording .journal-entry summary { color:var(--muted); font-size:12px; }
+  #hortinis-recording .revision { border-top:1px solid var(--line); padding:7px 0; }
+  #hortinis-recording .journal-entry.voided { opacity:.8; }
+  #hortinis-recording .journal-entry.voided h4 { text-decoration:line-through; }
+  #hortinis-recording .form-error { color:var(--warning-ink); font-size:13px; }
+  #hortinis-recording .phone.is-editor { background:var(--bg); }
+  #hortinis-recording .phone.is-journal .sheet { bottom:66px; }
+  #hortinis-recording [hidden] { display:none !important; }
+</style>
+<div class="screens"></div>
+<style>
+  #hortinis-recording .sample-note { color:light-dark(#57685c,#b5c6b9); font-size:12px; margin:0 0 10px; }
+  #hortinis-recording .weather { margin:10px 10px 8px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:var(--bg); }
+  #hortinis-recording .weather-top { display:flex; align-items:center; gap:9px; }
+  #hortinis-recording .weather-top>svg { width:29px; height:29px; color:var(--accent); }
+  #hortinis-recording .weather-title { flex:1; font-weight:500; }
+  #hortinis-recording .weather-title small { display:block; font-size:12px; font-weight:400; color:var(--muted); }
+  #hortinis-recording .temperature { font-size:23px; font-weight:500; }
+  #hortinis-recording .weather-bottom { display:flex; flex-wrap:wrap; gap:6px 14px; font-size:12px; color:var(--muted); margin-top:8px; }
+  #hortinis-recording .weather-empty { margin:0; color:var(--muted); font-size:13px; }
+  #hortinis-recording .periods { padding:10px 10px 0; display:grid; grid-template-columns:1fr .8fr 1.2fr; gap:4px; }
+  #hortinis-recording .periods button,#hortinis-recording .periods select { min-width:0; min-height:44px; border:1px solid var(--line); background:var(--bg); color:var(--ink); border-radius:9px; font-size:12px; padding:5px; }
+  #hortinis-recording .periods button[aria-pressed="true"],#hortinis-recording .periods select.chosen { background:var(--accent); color:var(--on); border-color:var(--accent); }
+  #hortinis-recording .grouped .toolbar { gap:10px; flex-wrap:wrap; padding:8px 14px; }
+  #hortinis-recording .grouped .toolbar strong { font-size:14px; }
+  #hortinis-recording .grouped .task { min-height:var(--task-height,54px); }
+  #hortinis-recording .grouped .task small { display:block; font-size:12px; }
+  #hortinis-recording .empty { margin:0; padding:22px 12px; color:var(--muted); font-size:14px; }
+  #hortinis-recording .done { padding:0 12px; }
+  #hortinis-recording .done .task { text-decoration:none; }
+  #hortinis-recording .status { padding:0 12px 8px; }
+</style>
+<style>
+  #hortinis-recording .context-bar { display:grid; grid-template-columns:1.12fr 1fr; border-top:1px solid var(--line); background:var(--bg); padding:0 8px; }
+  #hortinis-recording .context-bar button { min-width:0; display:flex; align-items:center; justify-content:center; gap:7px; padding:6px 4px; font-size:13px; color:var(--muted); min-height:44px; }
+  #hortinis-recording .context-bar .small-chevron { width:12px; }
+  #hortinis-recording .context-bar .weather-trigger { border-left:1px solid var(--line); }
+  #hortinis-recording .period-choices { display:grid; gap:4px; }
+  #hortinis-recording .period-choices button { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:48px; padding:8px 12px; border-radius:8px; font-size:14px; text-align:left; }
+  #hortinis-recording .period-choices button small { font-size:12px; }
+  #hortinis-recording .period-choices button[aria-pressed="true"] { background:var(--accent); color:var(--on); }
+  #hortinis-recording .sheet { bottom:112px; }
+  #hortinis-recording .phone:has(.sheet:not([hidden])) { min-height:640px; }
+  #hortinis-recording .weather-sheet .weather { margin:0; border:0; padding:8px 0; }
+  #hortinis-recording .weather-note { color:var(--muted); font-size:12px; }
+  #hortinis-recording .status { position:absolute; width:1px; height:1px; padding:0; overflow:hidden; clip-path:inset(50%); }
+</style>
+<script>
+(() => {
+  const root=document.getElementById('hortinis-recording');
+  const today='2027-04-12';
+  const tasks=[
+    {id:1,place:'Jardin',label:'Arroser le jardin',action:'Arrosage',target:'Tout le jardin',exclude:true,icon:'droplets',date:'2027-04-10'},
+    {id:2,place:'Jardin',label:'Retourner le compost',action:'Travail du compost',target:'Tout le jardin',icon:'rotate-cw',date:today},
+    {id:3,place:'Planche est',label:'Désherber les carottes',action:'Désherbage',target:'Planche est',icon:'sprout',date:today},
+    {id:4,place:'Planche est',label:'Récolter les radis',action:'Récolte',target:'Radis · Planche est',icon:'basket',date:today},
+    {id:5,place:'Serre',label:'Attacher les tomates',action:'Tuteurage',target:'Tomates · Serre',icon:'move-up',date:today},
+    {id:6,place:'Serre',label:'Arroser les tomates',action:'Arrosage',target:'Tomates · Serre',icon:'droplets',date:today},
+    {id:7,place:'Planche ouest',label:'Pailler les fraisiers',action:'Paillage',target:'Planche ouest',icon:'leaf',date:'2027-04-13'},
+    {id:8,place:'Planche ouest',label:'Ajouter du compost',action:'Fertilisation',target:'Planche ouest',icon:'shovel',date:'2027-04-20'}
+  ];
+  const periods={today:['Aujourd’hui','Lun. 12 avril',today,today],tomorrow:['Demain','Mar. 13 avril','2027-04-13','2027-04-13'],next:['Sem. prochaine','19–25 avril','2027-04-19','2027-04-25'],undated:['Sans date','Sans date prévue',null,null]};
+  const actions=['Arrosage','Récolte','Observation','Fertilisation','Travail du sol','Travail du compost','Désherbage','Tuteurage','Paillage'];
+  const events=new Map();const completed=new Map();const collapsed=new Set();
+  let nextId=1,period='today',view='home',returnView='home',editingId=null,lastId=null,lastMessage='',editorDraft=null;
+  const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+  const dateLabel=value=>value?new Intl.DateTimeFormat('fr-FR',{day:'numeric',month:'long',timeZone:'UTC'}).format(new Date(value+'T12:00:00Z')):'Date inconnue';
+  root.querySelector('.screens').innerHTML=`<section class="example"><h2 class="caption">N · Terminer vite, détailler si besoin</h2><p class="sample-note">Données fictives · modifications temporaires dans cette maquette</p><div class="phone grouped bottom">
+    <header><select aria-label="Jardin sélectionné"><option>Jardin maison</option><option>Potager partagé</option></select><button class="garden-alert" aria-label="Potager partagé : un point à vérifier">! 1</button></header>
+    <main class="home-view"><details class="warning"><summary><i data-lucide="thermometer-snowflake" aria-hidden="true"></i>Ce soir · Vérifier la protection des tomates</summary><p>Exemple de prévision : 2 °C à l’extérieur. La température sous serre est inconnue.</p></details><div class="toolbar"><strong class="period-title"></strong><span><span class="count"></span> tâches · Hors ligne</span></div><div class="task-area"></div><details class="done" hidden><summary>Terminées sur la période · <span>0</span></summary><div></div></details></main>
+    <section class="journal-view" hidden aria-label="Journal du jardin"><div class="view-heading"><h3>Journal</h3></div><div class="journal-list"></div></section>
+    <section class="editor-view" hidden aria-label="Saisie d’un événement"><div class="view-heading"><h3></h3><button type="button" class="cancel-editor" aria-label="Fermer sans enregistrer">×</button></div><form class="editor"><p class="editor-note"></p><label>Action<select name="action">${actions.map(a=>`<option>${a}</option>`).join('')}</select></label><label>Cible<select name="target"></select></label><label class="check-label exclusion" hidden><input type="checkbox" name="exclude">Sauf la serre</label><label>Date du fait (vide si inconnue)<input type="date" name="date"></label><label class="observation" hidden>Que constatez-vous ?<textarea name="observation" placeholder="Par exemple : des trous dans les feuilles"></textarea></label><details class="optional-fields"><summary>Détails facultatifs <i data-lucide="chevron-down" aria-hidden="true"></i></summary><div class="field-pair"><label>Quantité<input name="amount" type="number" min="0" step="any" placeholder="Inconnue"></label><label>Unité<select name="unit"><option value="">Non précisée</option><option>L</option><option>kg</option><option>g</option><option>pièces</option></select></label></div><label>Notes<textarea name="notes" placeholder="Ajouter une précision"></textarea></label></details><p class="form-error" role="alert" hidden></p><button type="submit" class="submit">Enregistrer</button></form></section>
+    <aside class="completion-feedback" hidden aria-label="Dernière action"><div class="feedback-top"><strong></strong><button type="button" class="dismiss-feedback" aria-label="Masquer le message">×</button></div><div class="feedback-actions"><button type="button" class="feedback-details">Ajouter des détails</button><button type="button" class="feedback-undo">Annuler</button></div></aside>
+    <div class="status" role="status" aria-live="polite"></div>
+    <div class="context-bar" role="group" aria-label="Période et météo"><button type="button" class="period-trigger" aria-expanded="false"><i data-lucide="calendar-days" aria-hidden="true"></i><span>Aujourd’hui</span><i class="small-chevron" data-lucide="chevron-down" aria-hidden="true"></i></button><button type="button" class="weather-trigger"><i data-lucide="cloud-sun" aria-hidden="true"></i><span>8° · 2–14°</span></button></div>
+    <nav aria-label="Navigation principale">${[['house','Accueil'],['sprout','Jardin'],['plus','Noter'],['calendar-days','Planifier'],['notebook-pen','Journal']].map(([icon,label],i)=>`<button type="button" data-nav="${i}" ${i===0?'aria-current="page"':''} ${i===2?'class="dock-add" aria-label="Noter un événement"':''}><i data-lucide="${icon}" aria-hidden="true"></i><span>${label}${i===3?' <span class="badge" aria-label="Une suggestion">1</span>':''}</span></button>`).join('')}</nav>
+    <section class="sheet period-sheet" hidden aria-label="Choisir une période"><div class="sheet-head"><strong>Afficher les tâches</strong><button data-close type="button" aria-label="Fermer">×</button></div><div class="period-choices">${Object.entries(periods).map(([key,p])=>`<button type="button" data-period="${key}" aria-pressed="${key==='today'}"><span>${p[0]}</span><small>${p[1]}</small></button>`).join('')}</div></section>
+    <section class="sheet info" hidden aria-label="Détails"><div class="sheet-head"><strong></strong><button data-close type="button" aria-label="Fermer">×</button></div><p></p></section>
+  </div></section>`;
+  const q=s=>root.querySelector(s),all=s=>[...root.querySelectorAll(s)];
+  const announce=text=>q('.status').textContent=text;
+  const current=e=>e.revisions[e.revisions.length-1];
+  function inPeriod(t){return period==='today'?t.date!==null&&t.date<=today:period==='undated'?t.date===null:t.date>=periods[period][2]&&t.date<=periods[period][3];}
+  function payload(action,target,exclude=false){return {action,target,exclude,date:today,amount:'',unit:'',notes:'',observation:'',voided:false};}
+  function createEvent(data,taskId=null){const id=nextId++;events.set(id,{id,taskId,revisions:[{...data}]});if(taskId!==null)completed.set(taskId,id);return id;}
+  function feedback(id,message){lastId=id;lastMessage=message;announce(message);}
+  function taskRow(t){const done=completed.has(t.id),late=!done&&t.date<today;
+    const label=`<label class="task ${late?'overdue':''}"><input type="checkbox" data-task="${t.id}" aria-label="${done?'Annuler la réalisation de':'Terminer'} : ${esc(t.label)}" ${done?'checked':''}><span class="action-icon" aria-hidden="true"><i data-lucide="${t.icon}"></i></span><span class="words"><strong>${esc(t.label)}</strong>${t.exclude?'<small>Sauf la serre</small>':''}${late?`<small class="late">En retard · prévu le ${dateLabel(t.date)}</small>`:''}</span></label>`;
+    return done?`<div class="completed-row">${label}<button type="button" class="text-action" data-edit="${completed.get(t.id)}" aria-label="Modifier le travail enregistré : ${esc(t.label)}">Détails</button></div>`:label;
+  }
+  function revisionText(data){const quantity=data.amount===''?'Quantité inconnue':`${data.amount}${data.unit?' '+data.unit:' · unité non précisée'}`;
+    return `${dateLabel(data.date)} · ${data.target}${data.exclude?' · sauf la serre':''}\n${quantity}${data.observation?'\n'+data.observation:''}${data.notes?'\n'+data.notes:''}`;
+  }
+  function renderJournal(){
+    const list=[...events.values()].reverse();
+    q('.journal-list').innerHTML=list.length?list.map(e=>{const data=current(e);return `<article class="journal-entry ${data.voided?'voided':''}"><h4>${esc(data.action)}${data.voided?' · Annulé':''}</h4><p>${esc(revisionText(data))}</p><span class="entry-meta">${e.taskId!==null?'Lié à une tâche':'Saisie directe'}${e.revisions.length>1?' · Modifié':''}</span>${data.voided?'':`<div><button type="button" class="text-action" data-edit="${e.id}">Modifier les détails</button></div>`}<details><summary>Historique · ${e.revisions.length} ${e.revisions.length>1?'étapes':'étape'}</summary>${e.revisions.map((r,i)=>`<div class="revision"><span class="entry-meta">${i===0?'Saisie initiale':r.voided?'Annulation':'Correction'}</span><p>${esc(revisionText(r))}</p></div>`).join('')}</details></article>`;}).join(''):'<p class="empty">Aucun événement enregistré. Terminez une tâche ou utilisez « Noter ».</p>';
+  }
+  function render(){
+    const visible=tasks.filter(inPeriod),pending=visible.filter(t=>!completed.has(t.id)),done=visible.filter(t=>completed.has(t.id));
+    q('.period-title').textContent=periods[period][1];q('.count').textContent=pending.length;
+    q('.period-trigger span').textContent=periods[period][0];
+    q('.weather-trigger span').textContent=period==='today'?'8° · 2–14°':period==='tomorrow'?'5–16°':'Météo —';
+    q('.task-area').innerHTML=['Jardin','Planche est','Planche ouest','Serre'].map((place,i)=>{const group=pending.filter(t=>t.place===place);if(!group.length)return '';return `<details class="place-panel" data-place="${place}" ${collapsed.has(place)?'':'open'}><summary><span class="place-icon"><i data-lucide="${['trees','rows-3','rows-3','house'][i]}" aria-hidden="true"></i></span><span class="place-name">${place}</span><span class="place-count">${group.length}</span><i class="chevron" data-lucide="chevron-down" aria-hidden="true"></i></summary><div class="tasks">${group.map(taskRow).join('')}</div></details>`;}).join('')||'<p class="empty">Aucune tâche restante pour cette période.</p>';
+    all('.place-panel').forEach(panel=>panel.addEventListener('toggle',()=>{if(!panel.isConnected)return;panel.open?collapsed.delete(panel.dataset.place):collapsed.add(panel.dataset.place);}));
+    q('.done').hidden=!done.length;q('.done summary span').textContent=done.length;q('.done div').innerHTML=done.map(taskRow).join('');
+    q('.completion-feedback').hidden=lastId===null||view==='editor';q('.feedback-top strong').textContent=lastMessage;
+    if(lastId!==null){const voided=current(events.get(lastId)).voided;q('.feedback-actions').hidden=voided;}
+    q('.home-view').hidden=view!=='home';q('.journal-view').hidden=view!=='journal';q('.editor-view').hidden=view!=='editor';q('.context-bar').hidden=view!=='home';
+    q('.phone').classList.toggle('is-editor',view==='editor');q('.phone').classList.toggle('is-journal',view==='journal');
+    all('[data-nav]').forEach(button=>{const active=(view==='home'&&button.dataset.nav==='0')||(view==='journal'&&button.dataset.nav==='4')||(view==='editor'&&button.dataset.nav==='2');if(active)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});
+    renderJournal();if(globalThis.lucide)lucide.createIcons();
+  }
+  function undo(id){const e=events.get(id);if(!e||current(e).voided)return;e.revisions.push({...current(e),voided:true});if(e.taskId!==null)completed.delete(e.taskId);feedback(id,e.taskId!==null?'Réalisation annulée · tâche rouverte':'Saisie annulée');render();}
+  function closeSheets(){all('.sheet').forEach(el=>el.hidden=true);q('.period-trigger').setAttribute('aria-expanded','false');}
+  function info(title,text){closeSheets();q('.info strong').textContent=title;q('.info p').textContent=text;q('.info').hidden=false;}
+  function readForm(){return {action:q('[name="action"]').value,target:q('[name="target"]').value,exclude:!q('.exclusion').hidden&&q('[name="exclude"]').checked,date:q('[name="date"]').value,amount:q('[name="amount"]').value,unit:q('[name="unit"]').value,notes:q('[name="notes"]').value,observation:q('[name="action"]').value==='Observation'?q('[name="observation"]').value:'',voided:false};}
+  function setTargets(preferred){const action=q('[name="action"]').value;const options=action==='Récolte'?['Radis · Planche est','Tomates · Serre']:['Tout le jardin','Planche est','Planche ouest','Serre','Tomates · Serre','Radis · Planche est'];q('[name="target"]').innerHTML=options.map(target=>`<option>${target}</option>`).join('');q('[name="target"]').value=options.includes(preferred)?preferred:options[0];updateFields();}
+  function updateFields(){const action=q('[name="action"]').value;q('.observation').hidden=action!=='Observation';q('[name="observation"]').required=action==='Observation';q('.field-pair').hidden=action==='Observation';q('.exclusion').hidden=q('[name="target"]').value!=='Tout le jardin';}
+  function openEditor(id=null,expand=true){
+    closeSheets();returnView=view==='journal'?'journal':'home';editingId=id;
+    const data=id===null?editorDraft??payload('Arrosage','Tout le jardin'):current(events.get(id));
+    q('.editor').reset();q('.form-error').hidden=true;q('.editor-view h3').textContent=id===null?'Noter un événement':'Détails du travail';
+    q('.editor-note').textContent=id===null?'La date et les détails peuvent rester inconnus.':'La réalisation est déjà enregistrée. Fermer laisse les valeurs actuelles intactes.';
+    q('[name="action"]').value=data.action;setTargets(data.target);
+    q('[name="action"]').disabled=id!==null;
+    q('[name="target"]').disabled=id!==null&&events.get(id).taskId!==null;
+    for(const name of ['date','amount','unit','notes','observation'])q(`[name="${name}"]`).value=data[name];
+    q('[name="exclude"]').checked=Boolean(data.exclude);q('.optional-fields').open=expand;
+    q('.submit').textContent=id===null?'Enregistrer':'Enregistrer les détails';view='editor';render();q('[name="action"]').focus();
+  }
+  function cancelEditor(){if(editingId===null)editorDraft=readForm();view=returnView;editingId=null;render();q('[data-nav="2"]').focus();}
+  root.addEventListener('change',event=>{
+    if(!event.target.matches('[data-task]'))return;
+    const t=tasks.find(t=>t.id===Number(event.target.dataset.task));
+    if(!event.target.checked){undo(completed.get(t.id));return;}
+    if(completed.has(t.id))return;
+    const id=createEvent(payload(t.action,t.target,Boolean(t.exclude)),t.id);feedback(id,`${t.action} enregistré · ${dateLabel(today)}`);render();
+    const next=q('.task-area [data-task]');if(next)next.focus();else q('.done summary').focus();
+  });
+  root.addEventListener('click',event=>{const edit=event.target.closest('[data-edit]');if(edit)openEditor(Number(edit.dataset.edit),true);});
+  q('.feedback-details').addEventListener('click',()=>openEditor(lastId,true));q('.feedback-undo').addEventListener('click',()=>undo(lastId));q('.dismiss-feedback').addEventListener('click',()=>{lastId=null;render();});
+  q('.cancel-editor').addEventListener('click',cancelEditor);
+  q('[name="action"]').addEventListener('change',()=>setTargets(q('[name="target"]').value));q('[name="target"]').addEventListener('change',updateFields);
+  q('.editor').addEventListener('submit',event=>{
+    event.preventDefault();const data=readForm();
+    if(data.action==='Observation'&&!data.observation.trim()){q('.form-error').textContent='Décrivez ce que vous avez constaté.';q('.form-error').hidden=false;return;}
+    let id=editingId;
+    if(id===null){id=createEvent(data);editorDraft=null;feedback(id,`${data.action} enregistré · ${dateLabel(data.date)}`);}
+    else {const e=events.get(id);if(JSON.stringify(data)!==JSON.stringify(current(e)))e.revisions.push({...data});feedback(id,'Détails enregistrés · même événement');}
+    view=returnView;editingId=null;render();q('.feedback-details').focus();
+  });
+  all('[data-nav]').forEach(button=>button.addEventListener('click',()=>{
+    const key=button.dataset.nav;
+    if(view==='editor'&&key!=='2'){cancelEditor();}
+    if(key==='2'){if(view!=='editor')openEditor(null,false);return;}
+    closeSheets();if(key==='0'||key==='4'){view=key==='0'?'home':'journal';render();return;}
+    info(key==='1'?'Jardin':'Planification',key==='1'?'La navigation complète sera explorée séparément.':'Une idée à planifier : préparer la culture qui suivra les radis.');
+  }));
+  all('[data-close]').forEach(button=>button.addEventListener('click',closeSheets));
+  q('.period-trigger').addEventListener('click',()=>{const open=q('.period-sheet').hidden;closeSheets();q('.period-sheet').hidden=!open;q('.period-trigger').setAttribute('aria-expanded',String(open));});
+  all('[data-period]').forEach(button=>button.addEventListener('click',()=>{period=button.dataset.period;all('[data-period]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));closeSheets();render();announce(`${periods[period][1]} : ${q('.count').textContent} tâches restantes.`);}));
+  q('.weather-trigger').addEventListener('click',()=>info('Météo · données fictives',period==='today'?'12 avril : 8 °C à 8 h. Minimum 2 °C, maximum 14 °C. Pluie : 10 %. Vent : 12 km/h.':period==='tomorrow'?'13 avril : minimum 5 °C, maximum 16 °C. Prévision fictive.':'Aucune prévision disponible pour cette période.'));
+  q('.garden-alert').addEventListener('click',()=>info('Potager partagé','Un risque de froid est signalé pour ce soir.'));
+  q('header select').addEventListener('change',event=>{event.target.selectedIndex=0;info('Jardin de démonstration','Les interactions de cette maquette concernent le jardin maison.');});
+  root.addEventListener('keydown',event=>{if(event.key==='Escape'){if(view==='editor')cancelEditor();else closeSheets();}});
+  render();
+  if(globalThis.Tweak){const state={height:54};new Tweak({container:q('.phone'),onChange:()=>q('.phone').style.setProperty('--task-height',state.height+'px')}).addSlider(state,'height',{label:'Hauteur des tâches',min:48,max:64,step:2,unit:'px'});}
+})();
+</script>
+</div>

@@ -1,0 +1,546 @@
+<div id="hortinis-desktop-home" lang="fr" aria-label="Hortinis sur ordinateur">
+  <style>
+    #hortinis-desktop-home {
+      --hort-desktop-bg: light-dark(#f3f1e7, #142119);
+      --hort-desktop-surface: light-dark(#fffef9, #1e2c24);
+      --hort-desktop-soft: light-dark(#edf2e9, #293c2e);
+      --hort-desktop-ink: light-dark(#293c30, #e5eee7);
+      --hort-desktop-muted: light-dark(#667368, #b6c4b9);
+      --hort-desktop-line: light-dark(#d8dfd3, #435247);
+      --hort-desktop-accent: light-dark(#2f6d46, #addbb8);
+      --hort-desktop-on-accent: light-dark(#ffffff, #17331f);
+      --hort-desktop-warning: light-dark(#fff0d6, #4a3a24);
+      --hort-desktop-warning-ink: light-dark(#704910, #ffe0a5);
+      --hort-desktop-info: light-dark(#e8f0f4, #263d47);
+      --hort-desktop-danger: light-dark(#9a3d36, #ffb4aa);
+      color-scheme: light dark;
+      color: var(--hort-desktop-ink);
+      font-family: system-ui, sans-serif;
+      width: 100%;
+    }
+    #hortinis-desktop-home * { box-sizing: border-box; }
+    #hortinis-desktop-home button,
+    #hortinis-desktop-home input,
+    #hortinis-desktop-home select,
+    #hortinis-desktop-home textarea { font: inherit; color: inherit; }
+    #hortinis-desktop-home button { cursor: pointer; }
+    #hortinis-desktop-home [hidden] { display: none !important; }
+    #hortinis-desktop-home .desktop-window {
+      position: relative;
+      display: grid;
+      grid-template-columns: var(--hort-sidebar-width, 220px) minmax(0, 1fr);
+      min-height: 700px;
+      overflow: hidden;
+      border: 1px solid var(--hort-desktop-line);
+      border-radius: 18px;
+      background: var(--hort-desktop-bg);
+      box-shadow: 0 16px 50px color-mix(in srgb, var(--hort-desktop-ink) 12%, transparent);
+    }
+    #hortinis-desktop-home .desktop-sidebar {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      padding: 16px 12px;
+      border-right: 1px solid var(--hort-desktop-line);
+      background: var(--hort-desktop-surface);
+    }
+    #hortinis-desktop-home .desktop-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 2px 8px 16px;
+      font: 500 22px/1 Georgia, serif;
+    }
+    #hortinis-desktop-home .desktop-brand-mark {
+      width: 34px;
+      height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 11px 11px 11px 4px;
+      background: var(--hort-desktop-accent);
+      color: var(--hort-desktop-on-accent);
+    }
+    #hortinis-desktop-home .desktop-garden-switcher {
+      width: 100%;
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 10px;
+      border: 1px solid var(--hort-desktop-line);
+      border-radius: 11px;
+      background: var(--hort-desktop-soft);
+      text-align: left;
+    }
+    #hortinis-desktop-home .desktop-garden-switcher span { flex: 1; min-width: 0; }
+    #hortinis-desktop-home .desktop-garden-switcher strong,
+    #hortinis-desktop-home .desktop-garden-switcher small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #hortinis-desktop-home .desktop-garden-switcher strong { font-weight: 500; }
+    #hortinis-desktop-home .desktop-garden-switcher small { margin-top: 2px; color: var(--hort-desktop-muted); }
+    #hortinis-desktop-home .desktop-nav { display: grid; gap: 4px; margin-top: 16px; }
+    #hortinis-desktop-home .desktop-nav button,
+    #hortinis-desktop-home .desktop-global button {
+      width: 100%;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--hort-desktop-muted);
+      text-align: left;
+    }
+    #hortinis-desktop-home .desktop-nav button span,
+    #hortinis-desktop-home .desktop-global button span { flex: 1; }
+    #hortinis-desktop-home .desktop-nav button[aria-current="page"],
+    #hortinis-desktop-home .desktop-global button[aria-current="page"] {
+      background: var(--hort-desktop-soft);
+      color: var(--hort-desktop-accent);
+      font-weight: 500;
+    }
+    #hortinis-desktop-home .desktop-nav .desktop-record {
+      margin: 5px 0;
+      background: var(--hort-desktop-accent);
+      color: var(--hort-desktop-on-accent);
+      font-weight: 500;
+    }
+    #hortinis-desktop-home .desktop-count {
+      min-width: 22px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      background: var(--hort-desktop-warning);
+      color: var(--hort-desktop-warning-ink);
+      text-align: center;
+      font-size: 12px;
+    }
+    #hortinis-desktop-home .desktop-global {
+      display: grid;
+      gap: 4px;
+      margin-top: auto;
+      padding-top: 14px;
+      border-top: 1px solid var(--hort-desktop-line);
+    }
+    #hortinis-desktop-home .desktop-content { min-width: 0; }
+    #hortinis-desktop-home .desktop-topbar {
+      min-height: 66px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 18px;
+      border-bottom: 1px solid var(--hort-desktop-line);
+      background: var(--hort-desktop-surface);
+    }
+    #hortinis-desktop-home .desktop-topbar h1 {
+      flex: 1;
+      margin: 0;
+      font: 500 24px/1.2 Georgia, serif;
+    }
+    #hortinis-desktop-home .desktop-period,
+    #hortinis-desktop-home .desktop-weather,
+    #hortinis-desktop-home .desktop-icon-action {
+      min-height: 42px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 10px;
+      border: 1px solid var(--hort-desktop-line);
+      border-radius: 9px;
+      background: var(--hort-desktop-surface);
+    }
+    #hortinis-desktop-home .desktop-icon-action { width: 42px; justify-content: center; padding: 0; }
+    #hortinis-desktop-home .desktop-main-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 270px;
+      gap: 18px;
+      padding: 20px;
+    }
+    #hortinis-desktop-home .desktop-main-grid.single { grid-template-columns: minmax(0, 1fr); }
+    #hortinis-desktop-home .desktop-main-column { min-width: 0; }
+    #hortinis-desktop-home .desktop-heading-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    #hortinis-desktop-home .desktop-heading-row div { flex: 1; }
+    #hortinis-desktop-home h2,
+    #hortinis-desktop-home h3 { font-family: Georgia, serif; font-weight: 500; }
+    #hortinis-desktop-home h2 { margin: 0 0 3px; font-size: 25px; }
+    #hortinis-desktop-home h3 { margin: 0; font-size: 18px; }
+    #hortinis-desktop-home p { margin: 0; }
+    #hortinis-desktop-home .desktop-muted { color: var(--hort-desktop-muted); }
+    #hortinis-desktop-home .desktop-small { font-size: 12px; }
+    #hortinis-desktop-home .desktop-view-options { display: flex; gap: 4px; }
+    #hortinis-desktop-home .desktop-view-options button {
+      min-height: 38px;
+      padding: 6px 9px;
+      border: 1px solid var(--hort-desktop-line);
+      background: var(--hort-desktop-surface);
+    }
+    #hortinis-desktop-home .desktop-view-options button:first-child { border-radius: 8px 0 0 8px; }
+    #hortinis-desktop-home .desktop-view-options button:last-child { border-radius: 0 8px 8px 0; }
+    #hortinis-desktop-home .desktop-view-options button[aria-pressed="true"] { background: var(--hort-desktop-soft); color: var(--hort-desktop-accent); }
+    #hortinis-desktop-home .desktop-place-list { display: grid; gap: 10px; }
+    #hortinis-desktop-home .desktop-place {
+      overflow: hidden;
+      border: 1px solid var(--hort-desktop-line);
+      border-radius: 12px;
+      background: var(--hort-desktop-surface);
+    }
+    #hortinis-desktop-home .desktop-place summary {
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 12px;
+      background: var(--hort-desktop-soft);
+      cursor: pointer;
+    }
+    #hortinis-desktop-home .desktop-place summary h3 { flex: 1; }
+    #hortinis-desktop-home .desktop-place-count { color: var(--hort-desktop-muted); font-size: 12px; }
+    #hortinis-desktop-home .desktop-task {
+      min-height: var(--hort-task-height, 58px);
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr) auto 28px;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-top: 1px solid var(--hort-desktop-line);
+    }
+    #hortinis-desktop-home .desktop-task:first-child { border-top: 0; }
+    #hortinis-desktop-home .desktop-task.is-done { color: var(--hort-desktop-muted); }
+    #hortinis-desktop-home .desktop-task.is-done strong { text-decoration: line-through; }
+    #hortinis-desktop-home .desktop-task strong,
+    #hortinis-desktop-home .desktop-task small { display: block; }
+    #hortinis-desktop-home .desktop-task strong { font-weight: 500; }
+    #hortinis-desktop-home .desktop-task small { margin-top: 2px; color: var(--hort-desktop-muted); }
+    #hortinis-desktop-home .desktop-due { color: var(--hort-desktop-muted); font-size: 12px; white-space: nowrap; }
+    #hortinis-desktop-home .desktop-due.overdue { color: var(--hort-desktop-danger); font-weight: 500; }
+    #hortinis-desktop-home .desktop-task input { width: 20px; height: 20px; accent-color: var(--hort-desktop-accent); }
+    #hortinis-desktop-home .desktop-side-column { display: grid; align-content: start; gap: 12px; }
+    #hortinis-desktop-home .desktop-context {
+      padding: 14px;
+      border: 1px solid var(--hort-desktop-line);
+      border-radius: 12px;
+      background: var(--hort-desktop-surface);
+    }
+    #hortinis-desktop-home .desktop-context.warning { background: var(--hort-desktop-warning); color: var(--hort-desktop-warning-ink); }
+    #hortinis-desktop-home .desktop-context.info { background: var(--hort-desktop-info); }
+    #hortinis-desktop-home .desktop-context-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    #hortinis-desktop-home .desktop-context-head h3 { flex: 1; }
+    #hortinis-desktop-home .desktop-context p { font-size: 13px; }
+    #hortinis-desktop-home .desktop-context button {
+      min-height: 38px;
+      margin-top: 10px;
+      padding: 6px 9px;
+      border: 1px solid currentColor;
+      border-radius: 8px;
+      background: transparent;
+    }
+    #hortinis-desktop-home .desktop-all-gardens,
+    #hortinis-desktop-home .desktop-sync-view {
+      padding: 20px;
+    }
+    #hortinis-desktop-home .desktop-garden-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+    #hortinis-desktop-home .desktop-garden-card {
+      min-height: 150px;
+      padding: 14px;
+      border: 1px solid var(--hort-desktop-line);
+      border-radius: 12px;
+      background: var(--hort-desktop-surface);
+      text-align: left;
+    }
+    #hortinis-desktop-home .desktop-garden-card strong,
+    #hortinis-desktop-home .desktop-garden-card small { display: block; }
+    #hortinis-desktop-home .desktop-garden-card strong { margin: 14px 0 5px; font: 500 19px/1.2 Georgia, serif; }
+    #hortinis-desktop-home .desktop-garden-card small { color: var(--hort-desktop-muted); }
+    #hortinis-desktop-home .desktop-garden-card.active { border-color: var(--hort-desktop-accent); }
+    #hortinis-desktop-home .desktop-attention {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 4px 7px;
+      border-radius: 10px;
+      background: var(--hort-desktop-warning);
+      color: var(--hort-desktop-warning-ink);
+      font-size: 12px;
+    }
+    #hortinis-desktop-home .desktop-sync-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 280px;
+      gap: 16px;
+      margin-top: 16px;
+    }
+    #hortinis-desktop-home .desktop-sync-section {
+      padding: 14px;
+      border: 1px solid var(--hort-desktop-line);
+      border-radius: 12px;
+      background: var(--hort-desktop-surface);
+    }
+    #hortinis-desktop-home .desktop-sync-row {
+      display: flex;
+      gap: 12px;
+      justify-content: space-between;
+      padding: 11px 0;
+      border-bottom: 1px solid var(--hort-desktop-line);
+    }
+    #hortinis-desktop-home .desktop-sync-row:last-child { border-bottom: 0; }
+    #hortinis-desktop-home .desktop-sync-row strong { font-weight: 500; text-align: right; }
+    #hortinis-desktop-home .desktop-button {
+      min-height: 42px;
+      padding: 7px 11px;
+      border: 1px solid var(--hort-desktop-line);
+      border-radius: 9px;
+      background: var(--hort-desktop-surface);
+    }
+    #hortinis-desktop-home .desktop-button.primary {
+      border-color: var(--hort-desktop-accent);
+      background: var(--hort-desktop-accent);
+      color: var(--hort-desktop-on-accent);
+    }
+    #hortinis-desktop-home .desktop-modal-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 8;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 78px 24px 24px;
+      background: color-mix(in srgb, var(--hort-desktop-ink) 38%, transparent);
+    }
+    #hortinis-desktop-home .desktop-modal {
+      width: min(620px, 100%);
+      overflow: hidden;
+      border-radius: 15px;
+      background: var(--hort-desktop-surface);
+      box-shadow: 0 18px 55px color-mix(in srgb, var(--hort-desktop-ink) 30%, transparent);
+    }
+    #hortinis-desktop-home .desktop-modal-head {
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--hort-desktop-line);
+    }
+    #hortinis-desktop-home .desktop-modal-head h2 { flex: 1; font-size: 21px; }
+    #hortinis-desktop-home .desktop-modal-body { padding: 16px; }
+    #hortinis-desktop-home .desktop-action-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+    #hortinis-desktop-home .desktop-action-choice {
+      min-height: 78px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 10px;
+      border: 1px solid var(--hort-desktop-line);
+      border-radius: 10px;
+      background: var(--hort-desktop-surface);
+      text-align: left;
+    }
+    #hortinis-desktop-home .desktop-action-choice[aria-pressed="true"] { border-color: var(--hort-desktop-accent); background: var(--hort-desktop-soft); }
+    #hortinis-desktop-home .desktop-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+    #hortinis-desktop-home .desktop-field label { display: block; margin-bottom: 5px; font-size: 13px; font-weight: 500; }
+    #hortinis-desktop-home .desktop-field select,
+    #hortinis-desktop-home .desktop-field input {
+      width: 100%;
+      min-height: 44px;
+      padding: 8px 9px;
+      border: 1px solid var(--hort-desktop-line);
+      border-radius: 8px;
+      background: var(--hort-desktop-surface);
+    }
+    #hortinis-desktop-home .desktop-modal-actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 12px 16px;
+      border-top: 1px solid var(--hort-desktop-line);
+      background: var(--hort-desktop-soft);
+    }
+    #hortinis-desktop-home .desktop-toast {
+      position: absolute;
+      right: 18px;
+      bottom: 18px;
+      z-index: 10;
+      min-width: 280px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid var(--hort-desktop-line);
+      border-radius: 11px;
+      background: var(--hort-desktop-surface);
+      box-shadow: 0 8px 28px color-mix(in srgb, var(--hort-desktop-ink) 18%, transparent);
+    }
+    #hortinis-desktop-home .desktop-toast span { flex: 1; }
+    #hortinis-desktop-home .desktop-toast button { min-height: 36px; border: 0; background: transparent; color: var(--hort-desktop-accent); }
+    #hortinis-desktop-home .desktop-status {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+    #hortinis-desktop-home .desktop-window.compact { --hort-task-height: 48px; }
+    #hortinis-desktop-home .desktop-window.compact .desktop-main-grid { gap: 14px; padding: 16px; }
+    #hortinis-desktop-home .desktop-window.compact .desktop-place-list { gap: 7px; }
+    @media (max-width: 820px) {
+      #hortinis-desktop-home .desktop-window { grid-template-columns: 178px minmax(0, 1fr); }
+      #hortinis-desktop-home .desktop-main-grid { grid-template-columns: 1fr; }
+      #hortinis-desktop-home .desktop-side-column { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      #hortinis-desktop-home .desktop-garden-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 620px) {
+      #hortinis-desktop-home .desktop-window { display: block; border-radius: 12px; }
+      #hortinis-desktop-home .desktop-sidebar { border-right: 0; border-bottom: 1px solid var(--hort-desktop-line); }
+      #hortinis-desktop-home .desktop-brand { padding-bottom: 10px; }
+      #hortinis-desktop-home .desktop-nav,
+      #hortinis-desktop-home .desktop-global { display: flex; flex-wrap: wrap; margin-top: 8px; padding-top: 8px; }
+      #hortinis-desktop-home .desktop-nav button,
+      #hortinis-desktop-home .desktop-global button { width: auto; flex: 1 1 120px; }
+      #hortinis-desktop-home .desktop-topbar { flex-wrap: wrap; }
+      #hortinis-desktop-home .desktop-topbar h1 { flex-basis: 100%; }
+      #hortinis-desktop-home .desktop-side-column,
+      #hortinis-desktop-home .desktop-garden-grid,
+      #hortinis-desktop-home .desktop-sync-layout,
+      #hortinis-desktop-home .desktop-action-grid,
+      #hortinis-desktop-home .desktop-field-row { grid-template-columns: 1fr; }
+      #hortinis-desktop-home .desktop-task { grid-template-columns: 22px minmax(0, 1fr) 24px; }
+      #hortinis-desktop-home .desktop-due { grid-column: 2; }
+    }
+  </style>
+
+  <section class="desktop-window" aria-label="Application Hortinis sur ordinateur">
+    <aside class="desktop-sidebar"></aside>
+    <section class="desktop-content"></section>
+    <div class="desktop-status" role="status" aria-live="polite"></div>
+  </section>
+
+  <script>
+    (() => {
+      const root = document.getElementById('hortinis-desktop-home');
+      const app = root.querySelector('.desktop-window');
+      const sidebar = root.querySelector('.desktop-sidebar');
+      const content = root.querySelector('.desktop-content');
+      const state = {
+        view: 'home',
+        density: 'comfortable',
+        showAside: true,
+        period: 'today',
+        completed: new Set(),
+        modal: '',
+        recordAction: 'Arrosage',
+        selectedGarden: 'Jardin maison',
+        feedback: ''
+      };
+      const tasks = [
+        { id: 1, place: 'Jardin', label: 'Arroser les planches', detail: 'Sauf la serre', due: 'Aujourd’hui', icon: 'droplets' },
+        { id: 2, place: 'Jardin', label: 'Retourner le compost', detail: 'Zone compost', due: 'Aujourd’hui', icon: 'rotate-cw' },
+        { id: 3, place: 'Planche est', label: 'Désherber les carottes', detail: 'Rangées 1 à 3', due: 'En retard · 10 avr.', icon: 'sprout', overdue: true },
+        { id: 4, place: 'Planche est', label: 'Récolter les radis', detail: 'Quantité facultative', due: 'Quand ils sont prêts', icon: 'shopping-basket' },
+        { id: 5, place: 'Serre', label: 'Attacher les tomates', detail: 'Tomates Marmande', due: 'Aujourd’hui', icon: 'move-up' },
+        { id: 6, place: 'Serre', label: 'Observer les semis', detail: 'Aucun diagnostic requis', due: 'Aujourd’hui', icon: 'eye' }
+      ];
+      const icon = name => `<i data-lucide="${name}" aria-hidden="true"></i>`;
+      const announce = text => { root.querySelector('.desktop-status').textContent = text; };
+      const navButton = (view, iconName, label, extra = '') => `<button type="button" data-view="${view}" ${state.view === view ? 'aria-current="page"' : ''}>${icon(iconName)}<span>${label}</span>${extra}</button>`;
+
+      function renderSidebar() {
+        sidebar.innerHTML = `<div class="desktop-brand"><span class="desktop-brand-mark">${icon('sprout')}</span><span>Hortinis</span></div><button type="button" class="desktop-garden-switcher" data-view="gardens">${icon('leaf')}<span><strong>${state.selectedGarden}</strong><small>2 autres jardins</small></span>${icon('chevrons-up-down')}</button><nav class="desktop-nav" aria-label="Navigation du jardin">${navButton('home','house','Accueil')}${navButton('garden','sprout','Jardin')}<button type="button" class="desktop-record" data-open-record>${icon('plus')}<span>Noter</span></button>${navButton('plan','calendar-days','Planifier','<span class="desktop-count">1</span>')}${navButton('journal','notebook-pen','Journal')}</nav><nav class="desktop-global" aria-label="Navigation globale">${navButton('gardens','layout-grid','Tous les jardins')}${navButton('sync','database','Données et synchronisation','<span class="desktop-count">1</span>')}<button type="button" data-settings>${icon('settings')}<span>Réglages</span></button></nav>`;
+      }
+
+      const topbar = title => `<header class="desktop-topbar"><h1>${title}</h1><button type="button" class="desktop-period" data-period>${icon('calendar-days')}<span>${state.period === 'today' ? 'Aujourd’hui' : 'Cette semaine'}</span>${icon('chevron-down')}</button><button type="button" class="desktop-weather" data-weather>${icon('cloud-sun')}<span>8° · 2–14°</span></button><button type="button" class="desktop-icon-action" data-view="sync" aria-label="Synchronisation locale avec un élément à examiner">${icon('cloud-off')}</button></header>`;
+      const taskRow = task => `<div class="desktop-task ${state.completed.has(task.id) ? 'is-done' : ''}" data-task-row="${task.id}">${state.completed.has(task.id) ? icon('pencil') : icon(task.icon)}<span><strong>${task.label}</strong><small>${task.detail}</small></span><span class="desktop-due ${task.overdue && !state.completed.has(task.id) ? 'overdue' : ''}">${state.completed.has(task.id) ? 'Terminée' : task.due}</span><input type="checkbox" data-task="${task.id}" aria-label="${state.completed.has(task.id) ? 'Rouvrir' : 'Terminer'} : ${task.label}" ${state.completed.has(task.id) ? 'checked' : ''}></div>`;
+
+      function renderHome() {
+        const remaining = tasks.length - state.completed.size;
+        const places = ['Jardin','Planche est','Serre'];
+        content.innerHTML = `${topbar(state.selectedGarden)}<div class="desktop-main-grid ${state.showAside ? '' : 'single'}"><main class="desktop-main-column"><div class="desktop-heading-row"><div><h2>À faire</h2><p class="desktop-muted">${remaining} tâches restantes · lundi 12 avril</p></div><div class="desktop-view-options" role="group" aria-label="Densité de la liste"><button type="button" data-density="comfortable" aria-pressed="${state.density === 'comfortable'}">Confortable</button><button type="button" data-density="compact" aria-pressed="${state.density === 'compact'}">Compacte</button></div></div><div class="desktop-place-list">${places.map((place, index) => { const rows = tasks.filter(task => task.place === place); const count = rows.filter(task => !state.completed.has(task.id)).length; return `<details class="desktop-place" open><summary>${icon(['trees','rows-3','warehouse'][index])}<h3>${place}</h3><span class="desktop-place-count">${count} à faire</span>${icon('chevron-down')}</summary><div>${rows.map(taskRow).join('')}</div></details>`; }).join('')}</div></main>${state.showAside ? `<aside class="desktop-side-column" aria-label="Contexte du jardin"><section class="desktop-context warning"><div class="desktop-context-head">${icon('thermometer-snowflake')}<h3>Ce soir</h3></div><p>Minimum prévu : 2 °C dehors. Vérifiez la protection des tomates ; la température sous serre reste inconnue.</p><button type="button" data-weather>Détails météo</button></section><section class="desktop-context"><div class="desktop-context-head">${icon('calendar-plus')}<h3>À planifier</h3></div><p>Préparer la culture qui suivra les radis sur la planche est.</p><button type="button" data-view="plan">Ouvrir la planification</button></section><section class="desktop-context info"><div class="desktop-context-head">${icon('cloud-off')}<h3>Travail local</h3></div><p>Les changements sont enregistrés sur cet ordinateur. La synchronisation demande votre attention.</p><button type="button" data-view="sync">Voir l’état global</button></section></aside>` : ''}</div>${toast()}`;
+      }
+
+      function renderGardens() {
+        content.innerHTML = `${topbar('Tous les jardins')}<main class="desktop-all-gardens"><div class="desktop-heading-row"><div><h2>Vue d’ensemble</h2><p class="desktop-muted">Sélectionnez un jardin pour ouvrir son contexte de travail.</p></div><button type="button" class="desktop-button primary" data-add-garden>${icon('plus')} Ajouter un jardin</button></div><div class="desktop-garden-grid"><button type="button" class="desktop-garden-card ${state.selectedGarden === 'Jardin maison' ? 'active' : ''}" data-select-garden="Jardin maison">${icon('leaf')}<strong>Jardin maison</strong><small>6 tâches${state.selectedGarden === 'Jardin maison' ? ' · jardin sélectionné' : ''}</small><span class="desktop-attention">Alerte froid</span></button><button type="button" class="desktop-garden-card ${state.selectedGarden === 'Potager partagé' ? 'active' : ''}" data-select-garden="Potager partagé">${icon('trees')}<strong>Potager partagé</strong><small>3 tâches${state.selectedGarden === 'Potager partagé' ? ' · jardin sélectionné' : ' · dernière ouverture hier'}</small><span class="desktop-attention">2 éléments à vérifier</span></button><button type="button" class="desktop-garden-card ${state.selectedGarden === 'Parcelle nord' ? 'active' : ''}" data-select-garden="Parcelle nord">${icon('rows-3')}<strong>Parcelle nord</strong><small>Aucune tâche urgente${state.selectedGarden === 'Parcelle nord' ? ' · jardin sélectionné' : ''}</small></button></div></main>${toast()}`;
+      }
+
+      function renderSync() {
+        content.innerHTML = `${topbar('Données et synchronisation')}<main class="desktop-sync-view"><div class="desktop-heading-row"><div><h2>État global</h2><p class="desktop-muted">La connexion couvre ce profil local et ses trois jardins.</p></div><button type="button" class="desktop-button" data-change-server>Changer de serveur</button></div><div class="desktop-sync-layout"><section class="desktop-sync-section"><h3>Connexion</h3><div class="desktop-sync-row"><span>Serveur actif</span><strong>jardin.exemple.fr</strong></div><div class="desktop-sync-row"><span>Compte</span><strong>camille@exemple.fr</strong></div><div class="desktop-sync-row"><span>Dernière synchronisation</span><strong>Hier à 18 h 42</strong></div><div class="desktop-sync-row"><span>Travail local en attente</span><strong>4 changements</strong></div><div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button type="button" class="desktop-button primary" data-sync-now>Réessayer maintenant</button><button type="button" class="desktop-button" data-disconnect>Rester en local</button></div></section><aside class="desktop-sync-section"><h3>À examiner</h3><p class="desktop-muted" style="margin-top:8px">Une correction contradictoire concerne une récolte du Potager partagé.</p><button type="button" class="desktop-button" style="width:100%;margin-top:14px" data-conflict>Comparer les versions</button></aside></div></main>${toast()}`;
+      }
+
+      function renderPlaceholder() {
+        const titles = { garden: 'Jardin', plan: 'Planification', journal: 'Journal' };
+        content.innerHTML = `${topbar(titles[state.view])}<main class="desktop-all-gardens"><h2>${titles[state.view]}</h2><p class="desktop-muted">Cette destination reste directement accessible dans la navigation bureau. Son contenu détaillé sera exploré séparément.</p></main>${toast()}`;
+      }
+
+      function recordModal() {
+        if (state.modal !== 'record') return '';
+        const actions = [['Arrosage','droplets'],['Récolte','shopping-basket'],['Observation','eye'],['Fertilisation','shovel'],['Travail du sol','sprout'],['Autre','ellipsis']];
+        return `<div class="desktop-modal-layer"><section class="desktop-modal" role="dialog" aria-modal="true" aria-labelledby="desktop-record-title"><header class="desktop-modal-head"><h2 id="desktop-record-title">Noter un événement</h2><button type="button" class="desktop-icon-action" data-close-modal aria-label="Fermer et abandonner">${icon('x')}</button></header><div class="desktop-modal-body"><p class="desktop-muted" style="margin-bottom:12px">Qu’avez-vous fait ou constaté ?</p><div class="desktop-action-grid">${actions.map(([label,name]) => `<button type="button" class="desktop-action-choice" data-record-action="${label}" aria-pressed="${state.recordAction === label}">${icon(name)}<span>${label}</span></button>`).join('')}</div><div class="desktop-field-row"><div class="desktop-field"><label for="desktop-target">Cible facultative</label><select id="desktop-target"><option>Jardin maison</option><option>Planche est</option><option>Serre</option><option>Tomates Marmande</option></select></div><div class="desktop-field"><label for="desktop-date">Date du fait</label><input id="desktop-date" type="date" value="2027-04-12"></div></div><button type="button" class="desktop-button" style="margin-top:12px" data-exclusions>${icon('list-minus')} Ajouter des exclusions</button></div><footer class="desktop-modal-actions"><button type="button" class="desktop-button" data-close-modal>Annuler</button><button type="button" class="desktop-button primary" data-save-record>Enregistrer</button></footer></section></div>`;
+      }
+
+      function toast() {
+        return state.feedback ? `<aside class="desktop-toast"><span>${state.feedback}</span><button type="button" data-dismiss>OK</button></aside>` : '';
+      }
+
+      function render() {
+        app.querySelectorAll('.desktop-modal-layer').forEach(element => element.remove());
+        app.classList.toggle('compact', state.density === 'compact');
+        renderSidebar();
+        if (state.view === 'home') renderHome();
+        else if (state.view === 'gardens') renderGardens();
+        else if (state.view === 'sync') renderSync();
+        else renderPlaceholder();
+        app.insertAdjacentHTML('beforeend', recordModal());
+        if (globalThis.lucide) lucide.createIcons({ attrs: { width: 18, height: 18 } });
+      }
+
+      root.addEventListener('click', event => {
+        const button = event.target.closest('button');
+        if (!button) return;
+        if (button.dataset.view) { state.view = button.dataset.view; state.feedback = ''; state.modal = ''; render(); announce(`Vue ${button.textContent.trim()} ouverte.`); return; }
+        if (button.hasAttribute('data-open-record')) { state.modal = 'record'; render(); return; }
+        if (button.hasAttribute('data-close-modal')) { state.modal = ''; render(); announce('Saisie abandonnée.'); return; }
+        if (button.dataset.recordAction) { state.recordAction = button.dataset.recordAction; render(); return; }
+        if (button.hasAttribute('data-save-record')) { state.modal = ''; state.feedback = `${state.recordAction} enregistré localement`; state.view = 'home'; render(); return; }
+        if (button.hasAttribute('data-exclusions')) { state.feedback = 'Le sélecteur d’exclusions reprend espaces, cultures et lots sans nécessiter de plan.'; state.modal = ''; render(); return; }
+        if (button.dataset.density) { state.density = button.dataset.density; render(); return; }
+        if (button.hasAttribute('data-period')) { state.period = state.period === 'today' ? 'week' : 'today'; render(); return; }
+        if (button.hasAttribute('data-weather')) { state.feedback = 'Prévision enregistrée à 8 h · données fictives'; render(); return; }
+        if (button.dataset.selectGarden) { state.selectedGarden = button.dataset.selectGarden; state.view = 'home'; state.feedback = `${button.dataset.selectGarden} sélectionné`; render(); return; }
+        if (button.hasAttribute('data-add-garden')) { state.feedback = 'Nouveau jardin créé sans nom · configuration facultative'; render(); return; }
+        if (button.hasAttribute('data-change-server')) { state.feedback = 'Le changement proposera : conserver le distant, conserver le local ou fusionner.'; render(); return; }
+        if (button.hasAttribute('data-sync-now')) { state.feedback = 'Nouvelle tentative planifiée · le travail local reste disponible'; render(); return; }
+        if (button.hasAttribute('data-disconnect')) { state.feedback = 'Déconnecté · les trois jardins restent disponibles localement'; render(); return; }
+        if (button.hasAttribute('data-conflict')) { state.feedback = 'Comparaison des versions : écran à préciser dans le parcours des conflits.'; render(); return; }
+        if (button.hasAttribute('data-settings')) { state.feedback = 'Réglages globaux : préférences, sauvegarde et fournisseurs.'; render(); return; }
+        if (button.hasAttribute('data-dismiss')) { state.feedback = ''; render(); return; }
+      });
+
+      root.addEventListener('change', event => {
+        if (!event.target.matches('[data-task]')) return;
+        const id = Number(event.target.dataset.task);
+        event.target.checked ? state.completed.add(id) : state.completed.delete(id);
+        state.feedback = event.target.checked ? 'Tâche terminée · Détails · Annuler' : 'Tâche rouverte';
+        render();
+      });
+
+      render();
+      if (globalThis.Tweak) {
+        const tweak = new Tweak({ container: app, onChange: render });
+        tweak.addSelect(state, 'density', { label: 'Densité des tâches', options: [{ label: 'Confortable', value: 'comfortable' }, { label: 'Compacte', value: 'compact' }], reference: 'desktop.task-density' });
+        tweak.addToggle(state, 'showAside', { label: 'Panneau de contexte', reference: 'desktop.context-panel' });
+      }
+    })();
+  </script>
+</div>

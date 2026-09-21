@@ -1,0 +1,338 @@
+<div id="hortinis-quick-record" lang="fr" aria-label="Hortinis, parcours rapide Noter">
+<style>
+  #hortinis-quick-record {
+    --hort-page: light-dark(#f2f1e8, #14231c);
+    --hort-surface: light-dark(#fffdf7, #1b2821);
+    --hort-soft: light-dark(#edf3ec, #25362b);
+    --hort-ink: light-dark(#21362a, #e7efe9);
+    --hort-muted: light-dark(#5b6b60, #b5c6b9);
+    --hort-line: light-dark(#d5ded4, #415247);
+    --hort-green: light-dark(#28633e, #b1dbb7);
+    --hort-on-green: light-dark(#ffffff, #173620);
+    --hort-warn: light-dark(#7a4b0e, #ffdca0);
+    color-scheme: light dark;
+    font-family: system-ui, sans-serif;
+    color: var(--hort-ink);
+    display: grid;
+    justify-items: center;
+    padding: 4px 0;
+  }
+  #hortinis-quick-record * { box-sizing: border-box; }
+  #hortinis-quick-record button,
+  #hortinis-quick-record input,
+  #hortinis-quick-record textarea { font: inherit; color: inherit; }
+  #hortinis-quick-record button { cursor: pointer; }
+  #hortinis-quick-record .phone {
+    width: min(100%, 390px);
+    min-height: 690px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--hort-line);
+    border-radius: 22px;
+    background: var(--hort-page);
+  }
+  #hortinis-quick-record .topbar {
+    min-height: 58px;
+    display: grid;
+    grid-template-columns: 48px 1fr 48px;
+    align-items: center;
+    padding: 4px 8px;
+    background: var(--hort-surface);
+    border-bottom: 1px solid var(--hort-line);
+  }
+  #hortinis-quick-record .topbar h2 { margin: 0; text-align: center; font: 500 20px/1.2 Georgia, serif; }
+  #hortinis-quick-record .icon-button {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: transparent;
+    color: var(--hort-muted);
+  }
+  #hortinis-quick-record .screen { flex: 1; padding: 14px 14px 96px; }
+  #hortinis-quick-record .intro { margin: 0 0 12px; color: var(--hort-muted); font-size: 14px; }
+  #hortinis-quick-record .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #hortinis-quick-record .action-grid.is-list { grid-template-columns: 1fr; }
+  #hortinis-quick-record .action-choice {
+    min-height: 66px;
+    display: grid;
+    grid-template-columns: 32px 1fr;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 10px;
+    text-align: left;
+    border: 1px solid var(--hort-line);
+    border-radius: 12px;
+    background: var(--hort-surface);
+    font-weight: 500;
+  }
+  #hortinis-quick-record .action-grid.is-list .action-choice { min-height: 52px; }
+  #hortinis-quick-record .action-choice i { color: var(--hort-green); }
+  #hortinis-quick-record .section-label { margin: 18px 0 8px; font-size: 13px; color: var(--hort-muted); font-weight: 500; }
+  #hortinis-quick-record .summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 12px;
+    margin-bottom: 10px;
+    border-radius: 12px;
+    background: var(--hort-soft);
+  }
+  #hortinis-quick-record .summary i { color: var(--hort-green); }
+  #hortinis-quick-record .summary strong { display: block; font-weight: 500; }
+  #hortinis-quick-record .summary small { display: block; color: var(--hort-muted); }
+  #hortinis-quick-record .field-label { display: block; margin: 14px 0 6px; font-size: 13px; font-weight: 500; }
+  #hortinis-quick-record .target-modes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  #hortinis-quick-record .target-mode {
+    min-height: 48px;
+    padding: 6px;
+    border: 1px solid var(--hort-line);
+    border-radius: 10px;
+    background: var(--hort-surface);
+    font-size: 13px;
+  }
+  #hortinis-quick-record .target-mode[aria-pressed="true"] {
+    background: var(--hort-green);
+    color: var(--hort-on-green);
+    border-color: var(--hort-green);
+  }
+  #hortinis-quick-record .choice-list { display: grid; gap: 6px; margin-top: 8px; }
+  #hortinis-quick-record .choice-row {
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 8px 10px;
+    text-align: left;
+    border: 1px solid var(--hort-line);
+    border-radius: 10px;
+    background: var(--hort-surface);
+  }
+  #hortinis-quick-record .choice-row[aria-pressed="true"] { border-color: var(--hort-green); background: var(--hort-soft); }
+  #hortinis-quick-record .choice-row span { flex: 1; }
+  #hortinis-quick-record .choice-row small { display: block; color: var(--hort-muted); }
+  #hortinis-quick-record .form-control {
+    width: 100%;
+    min-height: 48px;
+    padding: 10px;
+    border: 1px solid var(--hort-line);
+    border-radius: 10px;
+    background: var(--hort-surface);
+    font-size: 16px;
+  }
+  #hortinis-quick-record textarea.form-control { min-height: 84px; resize: vertical; }
+  #hortinis-quick-record .date-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: end; }
+  #hortinis-quick-record .unknown-date {
+    min-height: 48px;
+    padding: 8px 10px;
+    border: 1px solid var(--hort-line);
+    border-radius: 10px;
+    background: var(--hort-surface);
+  }
+  #hortinis-quick-record details { margin-top: 14px; border-top: 1px solid var(--hort-line); }
+  #hortinis-quick-record summary { min-height: 48px; display: flex; align-items: center; gap: 7px; color: var(--hort-green); cursor: pointer; }
+  #hortinis-quick-record .optional-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #hortinis-quick-record .sticky-action {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 10px 14px 14px;
+    background: linear-gradient(to bottom, transparent, var(--hort-page) 22%);
+  }
+  #hortinis-quick-record .primary {
+    width: 100%;
+    min-height: 50px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--hort-green);
+    color: var(--hort-on-green);
+    font-weight: 500;
+  }
+  #hortinis-quick-record .primary:disabled { opacity: .45; cursor: not-allowed; }
+  #hortinis-quick-record .home-preview { padding: 16px 14px 90px; }
+  #hortinis-quick-record .home-preview h3 { margin: 4px 0 12px; font: 500 22px/1.2 Georgia, serif; }
+  #hortinis-quick-record .place-preview { background: var(--hort-surface); border: 1px solid var(--hort-line); border-radius: 13px; overflow: hidden; }
+  #hortinis-quick-record .place-preview strong { display: block; padding: 12px; background: var(--hort-soft); font-weight: 500; }
+  #hortinis-quick-record .place-preview p { margin: 0; padding: 12px; color: var(--hort-muted); }
+  #hortinis-quick-record .feedback {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 76px;
+    z-index: 4;
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 6px 4px 11px;
+    border: 1px solid var(--hort-line);
+    border-radius: 12px;
+    background: var(--hort-surface);
+    box-shadow: 0 4px 16px light-dark(#1736202b, #00000080);
+  }
+  #hortinis-quick-record .feedback strong { flex: 1; font-size: 13px; font-weight: 500; }
+  #hortinis-quick-record .feedback button { min-height: 44px; border: 0; background: transparent; color: var(--hort-green); font-size: 13px; }
+  #hortinis-quick-record .bottom-nav {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 2px;
+    padding: 5px;
+    border-top: 1px solid var(--hort-line);
+    background: var(--hort-surface);
+  }
+  #hortinis-quick-record .bottom-nav button { min-height: 54px; border: 0; background: transparent; color: var(--hort-muted); font-size: 11px; }
+  #hortinis-quick-record .bottom-nav button span { display: block; margin-top: 2px; }
+  #hortinis-quick-record .bottom-nav .record-nav { border-radius: 10px; background: var(--hort-green); color: var(--hort-on-green); }
+  #hortinis-quick-record .error { color: var(--hort-warn); font-size: 13px; margin: 8px 0 0; }
+  #hortinis-quick-record [hidden] { display: none !important; }
+  @media (max-width: 350px) {
+    #hortinis-quick-record .action-grid { grid-template-columns: 1fr; }
+    #hortinis-quick-record .target-modes { grid-template-columns: 1fr; }
+    #hortinis-quick-record .optional-grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<section class="phone" aria-label="Écran mobile Hortinis">
+  <header class="topbar">
+    <button type="button" class="icon-button back" aria-label="Revenir en arrière" hidden><i data-lucide="arrow-left" aria-hidden="true"></i></button>
+    <span class="back-placeholder"></span>
+    <h2>Noter</h2>
+    <button type="button" class="icon-button close" aria-label="Fermer et effacer la saisie"><i data-lucide="x" aria-hidden="true"></i></button>
+  </header>
+  <main class="screen"></main>
+  <aside class="feedback" role="status" aria-live="polite" hidden>
+    <strong></strong>
+    <button type="button" class="feedback-details">Détails</button>
+    <button type="button" class="feedback-undo">Annuler</button>
+    <button type="button" class="icon-button feedback-dismiss" aria-label="Masquer le message"><i data-lucide="x" aria-hidden="true"></i></button>
+  </aside>
+  <nav class="bottom-nav" aria-label="Navigation principale" hidden>
+    <button type="button"><i data-lucide="house" aria-hidden="true"></i><span>Accueil</span></button>
+    <button type="button"><i data-lucide="sprout" aria-hidden="true"></i><span>Jardin</span></button>
+    <button type="button" class="record-nav"><i data-lucide="plus" aria-hidden="true"></i><span>Noter</span></button>
+    <button type="button"><i data-lucide="calendar-days" aria-hidden="true"></i><span>Planifier</span></button>
+    <button type="button"><i data-lucide="notebook-pen" aria-hidden="true"></i><span>Journal</span></button>
+  </nav>
+</section>
+
+<script>
+(() => {
+  const root = document.getElementById('hortinis-quick-record');
+  const phone = root.querySelector('.phone');
+  const screen = root.querySelector('.screen');
+  const state = { layout: 'grid', step: 'types', action: '', targetMode: 'none', target: '', cropScope: 'all', date: '2027-04-12', observation: '', saved: null };
+  const actions = [
+    ['Arrosage', 'droplets'], ['Récolte', 'shopping-basket'], ['Observation', 'eye'],
+    ['Semis', 'sprout'], ['Plantation ou repiquage', 'move-right'], ['Fertilisation', 'shovel'],
+    ['Désherbage', 'flower-2'], ['Paillage', 'layers-3'], ['Protection', 'shield'],
+    ['Retrait de protection', 'shield-off'], ['Taille ou tuteurage', 'scissors'], ['Traitement', 'spray-can'],
+    ['Travail du sol', 'pickaxe'], ['Autre travail', 'ellipsis']
+  ];
+  const crops = [
+    ['Tomates Marmande', 'Serre et planche sud'],
+    ['Radis', 'Planche est'],
+    ['Carottes', 'Planche est']
+  ];
+  const spaces = [
+    ['Serre', 'Contient une partie des tomates'],
+    ['Planche est', 'Radis et carottes'],
+    ['Planche ouest', 'Espace vide'],
+    ['Zone de compost', 'Espace sans culture']
+  ];
+  const iconFor = name => (actions.find(a => a[0] === name) || ['', 'notebook-pen'])[1];
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function icons() { if (globalThis.lucide) lucide.createIcons({ attrs: { width: 18, height: 18 } }); }
+  function setHeader() {
+    const editing = state.step === 'form';
+    root.querySelector('.back').hidden = !editing;
+    root.querySelector('.back-placeholder').hidden = editing;
+    root.querySelector('.topbar h2').textContent = state.step === 'home' ? 'Jardin maison' : state.step === 'form' ? state.action : 'Noter';
+    root.querySelector('.close').hidden = state.step === 'home';
+    root.querySelector('.bottom-nav').hidden = state.step !== 'home';
+  }
+  function renderTypes() {
+    screen.className = 'screen';
+    screen.innerHTML = `<p class="intro">Qu’avez-vous fait ou constaté ?</p><div class="action-grid ${state.layout === 'list' ? 'is-list' : ''}">${actions.map(([label, icon]) => `<button type="button" class="action-choice" data-action="${esc(label)}"><i data-lucide="${icon}" aria-hidden="true"></i><span>${esc(label)}</span></button>`).join('')}</div>`;
+    screen.querySelectorAll('[data-action]').forEach(button => button.addEventListener('click', () => { state.action = button.dataset.action; state.step = 'form'; render(); }));
+  }
+  function targetChoices() {
+    if (state.targetMode === 'crop') return `<div class="choice-list">${crops.map(([name, detail]) => `<button type="button" class="choice-row" data-target="${esc(name)}" aria-pressed="${state.target === name}"><i data-lucide="sprout" aria-hidden="true"></i><span>${esc(name)}<small>${esc(detail)}</small></span></button>`).join('')}</div>${state.target === 'Tomates Marmande' ? `<span class="field-label">Quelle partie ?</span><div class="choice-list"><button type="button" class="choice-row" data-scope="all" aria-pressed="${state.cropScope === 'all'}"><span>Toute la culture<small>Tous les lots de tomates Marmande</small></span></button><button type="button" class="choice-row" data-scope="Serre" aria-pressed="${state.cropScope === 'Serre'}"><span>Seulement dans la serre<small>La partie du lot située dans cet espace</small></span></button><button type="button" class="choice-row" data-scope="Planche sud" aria-pressed="${state.cropScope === 'Planche sud'}"><span>Seulement sur la planche sud<small>La partie du lot située dans cet espace</small></span></button></div>` : ''}`;
+    if (state.targetMode === 'space') return `<div class="choice-list">${spaces.map(([name, detail]) => `<button type="button" class="choice-row" data-target="${esc(name)}" aria-pressed="${state.target === name}"><i data-lucide="map-pin" aria-hidden="true"></i><span>${esc(name)}<small>${esc(detail)}</small></span></button>`).join('')}</div>`;
+    return '<p class="intro" style="margin-top:8px">Le fait sera rattaché au jardin, sans cible plus précise.</p>';
+  }
+  function renderForm() {
+    const observationRequired = state.action === 'Observation';
+    const targetLabel = state.targetMode === 'none' ? 'Jardin entier' : state.target || (state.targetMode === 'crop' ? 'Culture non choisie' : 'Espace non choisi');
+    screen.className = 'screen';
+    screen.innerHTML = `<div class="summary"><i data-lucide="${iconFor(state.action)}" aria-hidden="true"></i><span><strong>${esc(state.action)}</strong><small>${esc(targetLabel)}</small></span></div>
+      <span class="field-label">Cible facultative</span>
+      <div class="target-modes" role="group" aria-label="Type de cible">
+        <button type="button" class="target-mode" data-mode="none" aria-pressed="${state.targetMode === 'none'}">Aucune cible précise</button>
+        <button type="button" class="target-mode" data-mode="crop" aria-pressed="${state.targetMode === 'crop'}">Une culture</button>
+        <button type="button" class="target-mode" data-mode="space" aria-pressed="${state.targetMode === 'space'}">Un espace</button>
+      </div>
+      <div class="targets">${targetChoices()}</div>
+      ${observationRequired ? `<label class="field-label" for="quick-observation">Que constatez-vous ?</label><textarea id="quick-observation" class="form-control" placeholder="Par exemple : trous dans les feuilles">${esc(state.observation)}</textarea><p class="error" role="alert" hidden>Décrivez brièvement ce que vous avez constaté.</p>` : ''}
+      <div class="date-row"><label><span class="field-label">Date du fait</span><input class="form-control date-input" type="date" value="${state.date}"></label><button type="button" class="unknown-date">Date inconnue</button></div>
+      <details><summary><i data-lucide="chevron-down" aria-hidden="true"></i>Détails facultatifs</summary><div class="optional-grid"><label><span class="field-label">Quantité</span><input class="form-control" inputmode="decimal" placeholder="Inconnue"></label><label><span class="field-label">Unité</span><input class="form-control" placeholder="kg, L, pièces…"></label></div><label><span class="field-label">Notes</span><textarea class="form-control" placeholder="Ajouter une précision"></textarea></label></details>
+      <div class="sticky-action"><button type="button" class="primary save">Enregistrer</button></div>`;
+    screen.querySelectorAll('[data-mode]').forEach(button => button.addEventListener('click', () => { state.targetMode = button.dataset.mode; state.target = ''; state.cropScope = 'all'; render(); }));
+    screen.querySelectorAll('[data-target]').forEach(button => button.addEventListener('click', () => { state.target = button.dataset.target; render(); }));
+    screen.querySelectorAll('[data-scope]').forEach(button => button.addEventListener('click', () => { state.cropScope = button.dataset.scope; render(); }));
+    const observation = screen.querySelector('#quick-observation');
+    if (observation) observation.addEventListener('input', event => { state.observation = event.target.value; screen.querySelector('.error').hidden = true; });
+    screen.querySelector('.date-input').addEventListener('change', event => { state.date = event.target.value; });
+    screen.querySelector('.unknown-date').addEventListener('click', () => { state.date = ''; render(); });
+    screen.querySelector('.save').addEventListener('click', save);
+  }
+  function renderHome(message = '') {
+    screen.className = 'screen home-preview';
+    screen.innerHTML = `<h3>Bonjour Camille</h3><p class="intro">Aujourd’hui · Jardin maison · Hors ligne</p><section class="place-preview"><strong>Travail du jour</strong><p>${message || '3 tâches restent à faire.'}</p></section>`;
+  }
+  function save() {
+    if (state.action === 'Observation' && !state.observation.trim()) {
+      const error = screen.querySelector('.error'); error.hidden = false; screen.querySelector('#quick-observation').focus(); return;
+    }
+    const precise = state.targetMode === 'none' ? 'jardin' : state.target || (state.targetMode === 'crop' ? 'culture non précisée' : 'espace non précisé');
+    const scope = state.cropScope !== 'all' ? ` · ${state.cropScope}` : '';
+    state.saved = { action: state.action, target: precise, scope };
+    state.step = 'home';
+    renderHome(`${state.action} enregistré${precise === 'jardin' ? '' : ` · ${precise}${scope}`}.`);
+    showFeedback(`${state.action} noté`);
+    setHeader(); icons();
+  }
+  function showFeedback(message) {
+    const feedback = root.querySelector('.feedback');
+    feedback.querySelector('strong').textContent = message;
+    feedback.hidden = false;
+  }
+  function resetDraft() {
+    Object.assign(state, { step: 'home', action: '', targetMode: 'none', target: '', cropScope: 'all', date: '2027-04-12', observation: '' });
+    root.querySelector('.feedback').hidden = true;
+    renderHome('Saisie fermée : le brouillon a été effacé.'); setHeader(); icons();
+  }
+  function render() { setHeader(); state.step === 'types' ? renderTypes() : state.step === 'form' ? renderForm() : renderHome(); icons(); }
+  root.querySelector('.back').addEventListener('click', () => { state.step = 'types'; state.action = ''; state.targetMode = 'none'; state.target = ''; state.observation = ''; render(); });
+  root.querySelector('.close').addEventListener('click', resetDraft);
+  root.querySelector('.feedback-dismiss').addEventListener('click', () => { root.querySelector('.feedback').hidden = true; });
+  root.querySelector('.feedback-undo').addEventListener('click', () => { state.saved = null; root.querySelector('.feedback strong').textContent = 'Saisie annulée'; root.querySelector('.feedback-details').hidden = true; root.querySelector('.feedback-undo').hidden = true; renderHome('La saisie a été annulée.'); icons(); });
+  root.querySelector('.feedback-details').addEventListener('click', () => { if (!state.saved) return; Object.assign(state, { step: 'form', action: state.saved.action, targetMode: state.saved.target === 'jardin' ? 'none' : crops.some(c => c[0] === state.saved.target) ? 'crop' : 'space', target: state.saved.target === 'jardin' ? '' : state.saved.target }); root.querySelector('.feedback').hidden = true; render(); const details = screen.querySelector('details'); if (details) details.open = true; });
+  root.querySelector('.record-nav').addEventListener('click', () => { Object.assign(state, { step: 'types', action: '', targetMode: 'none', target: '', cropScope: 'all', date: '2027-04-12', observation: '' }); root.querySelector('.feedback').hidden = true; render(); });
+  render();
+  if (globalThis.Tweak) {
+    const tweak = new Tweak({ container: phone, onChange: render });
+    tweak.addSelect(state, 'layout', { label: 'Présentation des actions', options: [{ label: 'Grille compacte', value: 'grid' }, { label: 'Liste', value: 'list' }], reference: 'record.actions-layout' });
+  }
+})();
+</script>
+</div>

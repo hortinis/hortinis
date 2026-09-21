@@ -1,0 +1,203 @@
+<div id="hortinis-weather-time" lang="fr" aria-label="Variantes météo et navigation temporelle de Hortinis">
+<style>
+  #hortinis-weather-time { color-scheme:light dark; font-family:system-ui,sans-serif; }
+  #hortinis-weather-time * { box-sizing:border-box; }
+  #hortinis-weather-time .example { max-width:390px; margin:0 auto 28px; }
+  #hortinis-weather-time .caption { font-size:16px; font-weight:500; color:light-dark(#293c32,#dce9df); margin:0 0 8px; }
+  #hortinis-weather-time .phone { --bg:light-dark(#fff,#1b2821); --soft:light-dark(#f2f5ef,#25362b); --ink:light-dark(#25392d,#e4eee6); --muted:light-dark(#57685c,#b5c6b9); --line:light-dark(#dce4db,#415247); --accent:light-dark(#27623e,#b1dbb7); --on:light-dark(#fff,#173620); --warning:light-dark(#fff0d5,#493a24); --warning-ink:light-dark(#714b13,#ffe0a5); position:relative; background:var(--bg); color:var(--ink); border:1px solid var(--line); border-radius:20px; overflow:hidden; font-size:14px; line-height:1.35; }
+  #hortinis-weather-time button,#hortinis-weather-time select,#hortinis-weather-time input { font:inherit; }
+  #hortinis-weather-time button { cursor:pointer; color:inherit; min-height:44px; border:0; background:none; }
+  #hortinis-weather-time header { padding:6px 12px; display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--line); }
+  #hortinis-weather-time header select { flex:1; min-width:0; width:100%; border:0; background:var(--bg); color:var(--ink); min-height:44px; font-size:18px; font-weight:500; }
+  #hortinis-weather-time .connection { font-size:11px; color:var(--muted); white-space:nowrap; }
+  #hortinis-weather-time .garden-alert { border-radius:20px; background:var(--warning); color:var(--warning-ink); padding:4px 10px; font-size:12px; white-space:nowrap; }
+  #hortinis-weather-time .warning { background:var(--warning); color:var(--warning-ink); padding:0 12px; }
+  #hortinis-weather-time summary { cursor:pointer; min-height:44px; display:flex; align-items:center; gap:7px; }
+  #hortinis-weather-time .warning summary { font-size:13px; }
+  #hortinis-weather-time .warning p { margin:0; padding:0 0 10px; font-size:13px; }
+  #hortinis-weather-time .toolbar { display:flex; align-items:center; justify-content:space-between; padding:0 12px; min-height:40px; border-bottom:1px solid var(--line); }
+  #hortinis-weather-time .toolbar strong { font-weight:500; }
+  #hortinis-weather-time .toolbar span { color:var(--muted); font-size:12px; }
+  #hortinis-weather-time .tasks { padding:0 12px; }
+  #hortinis-weather-time .task { display:flex; align-items:center; gap:10px; min-height:52px; padding:5px 0; border-bottom:1px solid var(--line); cursor:pointer; }
+  #hortinis-weather-time .task input { width:20px; height:20px; flex:0 0 20px; margin:0; accent-color:var(--accent); }
+  #hortinis-weather-time .task .words { flex:1; min-width:0; }
+  #hortinis-weather-time .task strong { display:block; font-size:14px; font-weight:500; }
+  #hortinis-weather-time .task small { display:block; font-size:12px; color:var(--muted); }
+  #hortinis-weather-time .due { font-size:11px; color:var(--muted); white-space:nowrap; }
+  #hortinis-weather-time .group-label { margin:0; padding:7px 12px; font-size:12px; font-weight:500; color:var(--muted); background:var(--soft); }
+  #hortinis-weather-time .grouped .task { min-height:var(--task-height,54px); padding:8px 0; gap:12px; }
+  #hortinis-weather-time .grouped .task strong { font-size:15px; }
+  #hortinis-weather-time .grouped .due { font-size:12px; }
+  #hortinis-weather-time .grouped .tasks { padding:0 16px 6px; }
+  #hortinis-weather-time .grouped .group-label { padding:10px 16px 7px; font-size:13px; }
+  #hortinis-weather-time .grouped .toolbar { min-height:46px; padding:0 16px; }
+  #hortinis-weather-time .grouped header { padding:8px 12px; }
+  #hortinis-weather-time .grouped .warning { padding:3px 16px; }
+  #hortinis-weather-time .grouped .task small { display:none; }
+  #hortinis-weather-time .grouped .tasks { padding-bottom:0; }
+  #hortinis-weather-time .ledger .task { min-height:48px; }
+  #hortinis-weather-time .ledger .words { display:flex; flex-direction:column; }
+  #hortinis-weather-time .ledger header { background:var(--soft); }
+  #hortinis-weather-time .ledger header select { background:var(--soft); }
+  #hortinis-weather-time .footer-space { min-height:58px; padding:6px 76px 6px 12px; display:flex; align-items:center; }
+  #hortinis-weather-time .done { font-size:12px; color:var(--muted); width:100%; }
+  #hortinis-weather-time .done .task strong { text-decoration:line-through; }
+  #hortinis-weather-time .floating { position:absolute; bottom:66px; right:12px; border-radius:50%; width:48px; height:48px; background:var(--accent); color:var(--on); box-shadow:0 3px 9px light-dark(#233b302b,#0006); font-size:27px; display:flex; align-items:center; justify-content:center; z-index:2; }
+  #hortinis-weather-time .ledger .floating { width:auto; padding:0 15px; gap:5px; border-radius:24px; font-size:14px; }
+  #hortinis-weather-time nav { display:grid; grid-template-columns:repeat(4,1fr); background:var(--bg); border-top:1px solid var(--line); padding:4px; }
+  #hortinis-weather-time nav button { position:relative; font-size:12px; min-height:48px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:var(--muted); border-radius:8px; }
+  #hortinis-weather-time nav button[aria-current] { color:var(--accent); background:var(--soft); font-weight:500; }
+  #hortinis-weather-time .badge { background:var(--accent); color:var(--on); border-radius:9px; padding:1px 5px; font-size:10px; }
+  #hortinis-weather-time .grouped nav { grid-template-columns:repeat(5,1fr); padding:6px; gap:2px; }
+  #hortinis-weather-time .grouped nav button { min-height:52px; }
+  #hortinis-weather-time .grouped .footer-space { min-height:8px; padding:0 16px; }
+  #hortinis-weather-time .grouped .dock-add { font-size:12px; background:var(--accent); color:var(--on); border-radius:10px; }
+  #hortinis-weather-time .top-record { display:flex; align-items:center; gap:5px; padding:0 12px; background:var(--accent); color:var(--on); border-radius:10px; font-weight:500; flex-shrink:0; }
+  #hortinis-weather-time .top header select { font-size:16px; }
+  #hortinis-weather-time .top nav { grid-template-columns:repeat(4,1fr); }
+  #hortinis-weather-time .top .sheet { top:66px; bottom:auto; }
+  #hortinis-weather-time svg { width:18px; height:18px; }
+  #hortinis-weather-time .sheet { position:absolute; bottom:60px; left:8px; right:8px; z-index:3; padding:14px; background:var(--bg); border:1px solid var(--line); border-radius:16px; box-shadow:0 -8px 30px light-dark(#20332733,#0008); }
+  #hortinis-weather-time .sheet-head { display:flex; justify-content:space-between; align-items:center; }
+  #hortinis-weather-time .sheet-head strong { font-size:16px; font-weight:500; }
+  #hortinis-weather-time .sheet-head button { font-size:22px; width:44px; }
+  #hortinis-weather-time .sheet p { font-size:14px; margin:8px 0; }
+  #hortinis-weather-time .sheet label { display:block; margin:8px 0; font-size:13px; }
+  #hortinis-weather-time .sheet select,#hortinis-weather-time .sheet input { display:block; width:100%; min-height:44px; padding:8px; font-size:16px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); }
+  #hortinis-weather-time .submit { background:var(--accent); color:var(--on); border-radius:8px; width:100%; margin-top:8px; }
+  #hortinis-weather-time .status { font-size:12px; color:var(--muted); padding:0 12px; }
+  #hortinis-weather-time .status:empty { display:none; }
+  #hortinis-weather-time .phone { --task-height:52px; --page:light-dark(#f2f1e8,#14231c); background:var(--page); }
+  #hortinis-weather-time .phone header { background:var(--bg); }
+  #hortinis-weather-time .grouped .toolbar { border:0; min-height:44px; }
+  #hortinis-weather-time .task-area { padding:0 10px 10px; display:grid; gap:9px; }
+  #hortinis-weather-time .place-panel { background:var(--bg); border:1px solid var(--line); border-radius:13px; overflow:hidden; }
+  #hortinis-weather-time .place-panel>summary { padding:0 12px; gap:9px; min-height:44px; background:var(--soft); }
+  #hortinis-weather-time .place-name { font-family:Georgia,serif; font-size:19px; font-weight:500; flex:1; }
+  #hortinis-weather-time .place-icon { display:flex; color:var(--accent); }
+  #hortinis-weather-time .place-count { color:var(--muted); font-size:12px; }
+  #hortinis-weather-time .chevron { width:14px; color:var(--muted); }
+  #hortinis-weather-time .place-panel:not([open]) .chevron { transform:rotate(-90deg); }
+  #hortinis-weather-time .grouped .tasks { padding:0 12px; }
+  #hortinis-weather-time .grouped .task { gap:9px; }
+  #hortinis-weather-time .task:last-child { border:0; }
+  #hortinis-weather-time .task input { order:3; width:20px; height:20px; }
+  #hortinis-weather-time .action-icon { order:0; display:flex; align-items:center; justify-content:center; width:24px; flex:0 0 24px; color:var(--muted); }
+  #hortinis-weather-time .task .words { order:1; }
+  #hortinis-weather-time .task .due { order:2; font-size:11px; }
+  #hortinis-weather-time .grouped .task .exception { display:block; font-size:12px; }
+  #hortinis-weather-time .grouped .footer-space { min-height:0; padding:0 12px; }
+  #hortinis-weather-time [hidden] { display:none !important; }
+</style>
+<div class="screens"></div>
+<style>
+  #hortinis-weather-time .sample-note { color:light-dark(#57685c,#b5c6b9); font-size:12px; margin:0 0 10px; }
+  #hortinis-weather-time .weather { margin:10px 10px 8px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:var(--bg); }
+  #hortinis-weather-time .weather-top { display:flex; align-items:center; gap:9px; }
+  #hortinis-weather-time .weather-top>svg { width:29px; height:29px; color:var(--accent); }
+  #hortinis-weather-time .weather-title { flex:1; font-weight:500; }
+  #hortinis-weather-time .weather-title small { display:block; font-size:12px; font-weight:400; color:var(--muted); }
+  #hortinis-weather-time .temperature { font-size:23px; font-weight:500; }
+  #hortinis-weather-time .weather-bottom { display:flex; flex-wrap:wrap; gap:6px 14px; font-size:12px; color:var(--muted); margin-top:8px; }
+  #hortinis-weather-time .weather-empty { margin:0; color:var(--muted); font-size:13px; }
+  #hortinis-weather-time .periods { padding:10px 10px 0; display:grid; grid-template-columns:1fr .8fr 1.2fr; gap:4px; }
+  #hortinis-weather-time .periods button,#hortinis-weather-time .periods select { min-width:0; min-height:44px; border:1px solid var(--line); background:var(--bg); color:var(--ink); border-radius:9px; font-size:12px; padding:5px; }
+  #hortinis-weather-time .periods button[aria-pressed="true"],#hortinis-weather-time .periods select.chosen { background:var(--accent); color:var(--on); border-color:var(--accent); }
+  #hortinis-weather-time .grouped .toolbar { gap:10px; flex-wrap:wrap; padding:8px 14px; }
+  #hortinis-weather-time .grouped .toolbar strong { font-size:14px; }
+  #hortinis-weather-time .grouped .task { min-height:var(--task-height,54px); }
+  #hortinis-weather-time .grouped .task small { display:block; font-size:12px; }
+  #hortinis-weather-time .empty { margin:0; padding:22px 12px; color:var(--muted); font-size:14px; }
+  #hortinis-weather-time .done { padding:0 12px; }
+  #hortinis-weather-time .done .task { text-decoration:none; }
+  #hortinis-weather-time .status { padding:0 12px 8px; }
+</style>
+<script>
+(() => {
+  const root=document.getElementById('hortinis-weather-time');
+  const items=[
+    {id:1,place:'Jardin',label:'Arroser les planches',note:'Sauf la serre',icon:'droplets',date:'2027-04-12'},
+    {id:2,place:'Jardin',label:'Retourner le compost',icon:'rotate-cw',date:'2027-04-12'},
+    {id:3,place:'Planche est',label:'Désherber les carottes',icon:'sprout',date:'2027-04-12'},
+    {id:4,place:'Planche est',label:'Éclaircir les radis',icon:'scissors',date:'2027-04-12'},
+    {id:5,place:'Serre',label:'Attacher les tomates',icon:'move-up',date:'2027-04-12'},
+    {id:6,place:'Serre',label:'Observer les semis',icon:'eye',date:'2027-04-12'},
+    {id:7,place:'Planche ouest',label:'Pailler les fraisiers',icon:'leaf',date:'2027-04-13'},
+    {id:8,place:'Planche ouest',label:'Ajouter du compost',icon:'shovel',date:'2027-04-13'},
+    {id:9,place:'Planche est',label:'Semer les betteraves',icon:'sprout',date:'2027-04-20'},
+    {id:10,place:'Planche ouest',label:'Préparer le sol',icon:'shovel',date:'2027-04-22'},
+    {id:11,place:'Planche est',label:'Récolter les radis',note:'Lorsque les racines sont prêtes',icon:'basket',date:null}
+  ];
+  const ranges={today:['2027-04-12','2027-04-12','Lun. 12 avril'],tomorrow:['2027-04-13','2027-04-13','Mar. 13 avril'],week:['2027-04-12','2027-04-18','Du 12 au 18 avril'],next:['2027-04-19','2027-04-25','Du 19 au 25 avril'],undated:[null,null,'Sans date prévue']};
+  const variants=[['J · Météo seule',true,false],['K · Navigation temporelle seule',false,true],['L · Météo et navigation temporelle',true,true]];
+  variants.forEach(([title,weather,temporal])=>{
+    const section=document.createElement('section');section.className='example';
+    section.innerHTML=`<h2 class="caption">${title}</h2><p class="sample-note">Données fictives · lundi 12 avril 2027</p><div class="phone grouped bottom" aria-label="${title}">
+      <header><select aria-label="Jardin sélectionné"><option>Jardin maison</option><option>Potager partagé</option></select><button class="garden-alert" aria-label="Potager partagé : un point à vérifier">! 1</button></header>
+      ${temporal?`<div class="periods" role="group" aria-label="Période des tâches"><button type="button" data-period="today" aria-pressed="true">Aujourd’hui</button><button type="button" data-period="tomorrow" aria-pressed="false">Demain</button><select aria-label="Autre période"><option value="">Autre période</option><option value="week">Cette semaine</option><option value="next">Sem. prochaine</option><option value="undated">Sans date</option></select></div>`:''}
+      ${weather?'<section class="weather" aria-label="Météo pour la période sélectionnée"></section>':''}
+      <details class="warning"><summary><i data-lucide="thermometer-snowflake" aria-hidden="true"></i>Ce soir · Vérifier la protection des tomates</summary><p>Prévision extérieure : 2 °C au minimum. La température sous serre est inconnue. Bulletin enregistré à 8 h.</p></details>
+      <div class="toolbar"><strong class="period-title">Lun. 12 avril</strong><span><span class="count">6</span> tâches · Hors ligne</span></div>
+      <div class="task-area"></div>
+      <details class="done" hidden><summary>Terminées sur la période · <span>0</span></summary><div></div></details>
+      <div class="status" role="status" aria-live="polite"></div>
+      <nav aria-label="Navigation principale">${[['house','Accueil'],['sprout','Jardin'],['plus','Noter'],['calendar-days','Planifier'],['notebook-pen','Journal']].map(([icon,label],i)=>`<button type="button" data-nav="${i}" ${i===0?'aria-current="page"':''} ${i===2?'class="dock-add" aria-label="Noter un événement" aria-expanded="false"':''}><i data-lucide="${icon}" aria-hidden="true"></i><span>${label}${i===3?' <span class="badge" aria-label="Une suggestion de planification">1</span>':''}</span></button>`).join('')}</nav>
+      <section class="sheet record-sheet" hidden aria-label="Noter un événement"><div class="sheet-head"><strong>Noter un événement</strong><button type="button" data-close aria-label="Fermer">×</button></div><form><label>Action<select name="action"><option>Arrosage</option><option>Récolte</option><option>Observation</option><option>Fertilisation</option><option>Travail du sol</option></select></label><label>Cible<select name="target"></select></label><label>Date du fait (si connue)<input name="date" type="date" value="2027-04-12"></label><label class="extra">Notes (facultatif)<input name="detail"></label><button class="submit" type="submit">Aperçu de la saisie</button></form></section>
+      <section class="sheet info" hidden aria-label="Détails"><div class="sheet-head"><strong></strong><button type="button" data-close aria-label="Fermer">×</button></div><p></p></section>
+    </div>`;
+    root.querySelector('.screens').append(section);
+    const q=s=>section.querySelector(s),all=s=>[...section.querySelectorAll(s)];
+    let period='today';const completed=new Set();const collapsed=new Set();
+    const belongs=t=>period==='undated'?t.date===null:t.date!==null&&t.date>=ranges[period][0]&&t.date<=ranges[period][1];
+    const row=t=>`<label class="task"><input type="checkbox" data-task="${t.id}" aria-label="${completed.has(t.id)?'Rouvrir':'Terminer'} : ${t.label}" ${completed.has(t.id)?'checked':''}><span class="action-icon" aria-hidden="true"><i data-lucide="${t.icon}"></i></span><span class="words"><strong>${t.label}</strong>${t.note?`<small>${t.note}</small>`:''}</span>${['week','next'].includes(period)?`<span class="due">${Number(t.date.slice(-2))} avr.</span>`:''}</label>`;
+    function render(){
+      const visible=items.filter(belongs),pending=visible.filter(t=>!completed.has(t.id)),done=visible.filter(t=>completed.has(t.id));
+      q('.period-title').textContent=ranges[period][2];q('.count').textContent=pending.length;
+      q('.task-area').innerHTML=['Jardin','Planche est','Planche ouest','Serre'].map((place,i)=>{
+        const tasks=pending.filter(t=>t.place===place);if(!tasks.length)return '';
+        return `<details class="place-panel" data-place="${place}" ${collapsed.has(place)?'':'open'}><summary><span class="place-icon"><i data-lucide="${['trees','rows-3','rows-3','house'][i]}" aria-hidden="true"></i></span><span class="place-name">${place}</span><span class="place-count" aria-label="Tâches restantes">${tasks.length}</span><i class="chevron" data-lucide="chevron-down" aria-hidden="true"></i></summary><div class="tasks">${tasks.map(row).join('')}</div></details>`;
+      }).join('')||'<p class="empty">Aucune tâche restante sur cette période.</p>';
+      all('.place-panel').forEach(panel=>panel.addEventListener('toggle',()=>{panel.open?collapsed.delete(panel.dataset.place):collapsed.add(panel.dataset.place);}));
+      q('.done').hidden=!done.length;q('.done summary span').textContent=done.length;q('.done div').innerHTML=done.map(row).join('');
+      if(weather){
+        const today=period==='today',tomorrow=period==='tomorrow';
+        q('.weather').innerHTML=today||tomorrow?`<div class="weather-top"><i data-lucide="${today?'cloud-sun':'sun'}" aria-hidden="true"></i><span class="weather-title">${today?'Éclaircies':'Ensoleillé'}<small>${today?'Aujourd’hui · relevé à 8 h':'Demain · prévision'}</small></span><span class="temperature">${today?'8°':'5–16°'}</span></div><div class="weather-bottom"><span>${today?'Min. 2° · Max. 14°':'Min. 5° · Max. 16°'}</span><span>Pluie ${today?'10':'5'} %</span><span>Vent ${today?'12':'8'} km/h</span></div>`:`<p class="weather-empty">${period==='undated'?'Choisissez un jour pour afficher sa météo.':'Aucune prévision disponible pour toute cette période.'}</p>`;
+      }
+      if(globalThis.lucide)lucide.createIcons();
+    }
+    section.addEventListener('change',event=>{
+      if(!event.target.matches('[data-task]'))return;
+      const id=Number(event.target.dataset.task);event.target.checked?completed.add(id):completed.delete(id);render();
+      q('.status').textContent=event.target.checked?'Tâche terminée. Vous pouvez la rouvrir dans « Terminées ».':'Tâche rouverte.';
+    });
+    function setPeriod(value){
+      period=value;all('[data-period]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.period===value)));
+      const select=q('.periods select');select.value=['today','tomorrow'].includes(value)?'':value;select.classList.toggle('chosen',select.value!=='');
+      render();q('.status').textContent=`${ranges[value][2]} : ${q('.count').textContent} tâches restantes.`;
+    }
+    if(temporal){all('[data-period]').forEach(button=>button.addEventListener('click',()=>setPeriod(button.dataset.period)));q('.periods select').addEventListener('change',event=>{if(event.target.value)setPeriod(event.target.value);else setPeriod('today');});}
+    function closeSheets(){all('.sheet').forEach(el=>el.hidden=true);q('[data-nav="2"]').setAttribute('aria-expanded','false');}
+    function info(title,text){closeSheets();q('.info strong').textContent=title;q('.info p').textContent=text;q('.info').hidden=false;}
+    all('[data-close]').forEach(button=>button.addEventListener('click',closeSheets));section.addEventListener('keydown',event=>{if(event.key==='Escape')closeSheets();});
+    q('.garden-alert').addEventListener('click',()=>info('Potager partagé · À vérifier','Un risque de froid est signalé pour ce soir. Consultez la protection des jeunes plants.'));
+    q('header select').addEventListener('change',event=>{info('Changer de jardin','Cette maquette utilise uniquement les tâches du jardin maison.');event.target.selectedIndex=0;});
+    all('[data-nav]').forEach(button=>button.addEventListener('click',()=>{
+      const key=button.dataset.nav;
+      if(key==='2'){const open=q('.record-sheet').hidden;closeSheets();q('.record-sheet').hidden=!open;button.setAttribute('aria-expanded',String(open));return;}
+      if(key==='0'){closeSheets();return;}
+      if(key==='3'){info('Une idée à planifier','Préparer la culture qui suivra les radis dans la planche est. La date peut rester à préciser.');return;}
+      info(key==='1'?'Jardin':'Journal','Cet écran sera exploré dans une prochaine maquette.');
+    }));
+    function changeAction(){const action=q('[name="action"]').value;
+      q('[name="target"]').innerHTML=(action==='Récolte'?['Radis · Planche est','Tomates · Serre']:['Tout le jardin','Planche est','Planche ouest','Serre','Tomates · Serre']).map(t=>`<option>${t}</option>`).join('');
+      q('.extra').firstChild.textContent=action==='Récolte'?'Quantité (facultatif)':action==='Observation'?'Que constatez-vous ?':'Notes (facultatif)';q('[name="detail"]').required=action==='Observation';
+    }
+    q('[name="action"]').addEventListener('change',changeAction);changeAction();
+    q('form').addEventListener('submit',event=>{event.preventDefault();info('Aperçu de la saisie',`${q('[name="action"]').value} · ${q('[name="target"]').value}. Aucune donnée n’est enregistrée dans cette maquette.`);});
+    render();
+    if(globalThis.Tweak){const state={height:54};new Tweak({container:q('.phone'),onChange:()=>q('.phone').style.setProperty('--task-height',state.height+'px')}).addSlider(state,'height',{label:'Hauteur des tâches',min:48,max:64,step:2,unit:'px'});}
+  });
+})();
+</script>
+</div>

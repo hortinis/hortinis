@@ -1,6 +1,6 @@
 # Hortinis home-screen specification
 
-- Updated on: 2026-09-16.
+- Updated on: 2026-09-21.
 - Status: draft. M is the accepted layout starting point; O is the provisional completion interaction reference.
 - Parent: [UI guidelines](ui-guidelines.md). Domain behavior remains governed by the [domain model](domain-model.md) and [functional decisions](functional-decisions.md).
 - Implementation readiness: contributes to P0.2; does not complete that milestone or bypass foundation readiness.
@@ -13,9 +13,11 @@ On opening Hortinis, a gardener should understand what needs attention in the se
 
 **M** is the accepted starting layout: garden and attention context, grouped place sections, compact weather and period controls, and labeled Record in the bottom navigation. **O** explores what happens after a task is completed: its row remains in place, and a compact floating confirmation offers Details and Undo.
 
-- [Open mockup O: stable task rows and floating completion feedback](</home/julien/.codex/visualizations/2026/09/08/01a08211-6f83-75b0-9f59-4eb6d04cff03/stable-completion-fr.html>) — interactive discussion prototype; French sample UI, temporary in-memory data.
+- [Open mockup O: stable task rows and floating completion feedback](../../work/ui-exploration/stable-completion-fr.html) — interactive discussion prototype; French sample UI, temporary in-memory data.
 - [Open the quick-recording discussion prototype](../../work/ui-exploration/quick-recording.html) — retained repository prototype for the type-first flow; English sample UI, temporary in-memory data.
-- [Open the global-journey discussion prototype](</home/julien/.codex/visualizations/2026/09/16/01a0aa07-563f-7db3-bd08-2a892d7493d3/hortinis-global-journey.html>) — first opening, garden overview, synchronization entry, server change, draft abandonment, and optional exclusions; French sample UI, temporary in-memory data.
+- [Open the global-journey discussion prototype](../../work/ui-exploration/global-journey-fr.html) — first opening, garden overview, synchronization entry, server change, draft abandonment, and optional exclusions; French sample UI, temporary in-memory data.
+- [Open the desktop-home discussion prototype](../../work/ui-exploration/desktop-home-fr.html) — desktop adaptation of the selected-garden home and global navigation; French sample UI, temporary in-memory data.
+- [Browse the retained prototype inventory](../../work/ui-exploration/README.md) — all current discussion mockups and their focus.
 - Mockups A–M and O are design explorations, not production UI. The French copy is only for the requested prototype; repository specifications remain English.
 
 The functional outline is:

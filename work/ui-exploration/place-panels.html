@@ -1,0 +1,161 @@
+<div id="hortinis-places" aria-label="Hortinis concept I: distinct garden places">
+<style>
+  #hortinis-places { color-scheme:light dark; font-family:system-ui,sans-serif; }
+  #hortinis-places * { box-sizing:border-box; }
+  #hortinis-places .example { max-width:390px; margin:0 auto 28px; }
+  #hortinis-places .caption { font-size:16px; font-weight:500; color:light-dark(#293c32,#dce9df); margin:0 0 8px; }
+  #hortinis-places .phone { --bg:light-dark(#fff,#1b2821); --soft:light-dark(#f2f5ef,#25362b); --ink:light-dark(#25392d,#e4eee6); --muted:light-dark(#57685c,#b5c6b9); --line:light-dark(#dce4db,#415247); --accent:light-dark(#27623e,#b1dbb7); --on:light-dark(#fff,#173620); --warning:light-dark(#fff0d5,#493a24); --warning-ink:light-dark(#714b13,#ffe0a5); position:relative; background:var(--bg); color:var(--ink); border:1px solid var(--line); border-radius:20px; overflow:hidden; font-size:14px; line-height:1.35; }
+  #hortinis-places button,#hortinis-places select,#hortinis-places input { font:inherit; }
+  #hortinis-places button { cursor:pointer; color:inherit; min-height:44px; border:0; background:none; }
+  #hortinis-places header { padding:6px 12px; display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--line); }
+  #hortinis-places header select { flex:1; min-width:0; width:100%; border:0; background:var(--bg); color:var(--ink); min-height:44px; font-size:18px; font-weight:500; }
+  #hortinis-places .connection { font-size:11px; color:var(--muted); white-space:nowrap; }
+  #hortinis-places .garden-alert { border-radius:20px; background:var(--warning); color:var(--warning-ink); padding:4px 10px; font-size:12px; white-space:nowrap; }
+  #hortinis-places .warning { background:var(--warning); color:var(--warning-ink); padding:0 12px; }
+  #hortinis-places summary { cursor:pointer; min-height:44px; display:flex; align-items:center; gap:7px; }
+  #hortinis-places .warning summary { font-size:13px; }
+  #hortinis-places .warning p { margin:0; padding:0 0 10px; font-size:13px; }
+  #hortinis-places .toolbar { display:flex; align-items:center; justify-content:space-between; padding:0 12px; min-height:40px; border-bottom:1px solid var(--line); }
+  #hortinis-places .toolbar strong { font-weight:500; }
+  #hortinis-places .toolbar span { color:var(--muted); font-size:12px; }
+  #hortinis-places .tasks { padding:0 12px; }
+  #hortinis-places .task { display:flex; align-items:center; gap:10px; min-height:52px; padding:5px 0; border-bottom:1px solid var(--line); cursor:pointer; }
+  #hortinis-places .task input { width:20px; height:20px; flex:0 0 20px; margin:0; accent-color:var(--accent); }
+  #hortinis-places .task .words { flex:1; min-width:0; }
+  #hortinis-places .task strong { display:block; font-size:14px; font-weight:500; }
+  #hortinis-places .task small { display:block; font-size:12px; color:var(--muted); }
+  #hortinis-places .due { font-size:11px; color:var(--muted); white-space:nowrap; }
+  #hortinis-places .group-label { margin:0; padding:7px 12px; font-size:12px; font-weight:500; color:var(--muted); background:var(--soft); }
+  #hortinis-places .grouped .task { min-height:var(--task-height,54px); padding:8px 0; gap:12px; }
+  #hortinis-places .grouped .task strong { font-size:15px; }
+  #hortinis-places .grouped .due { font-size:12px; }
+  #hortinis-places .grouped .tasks { padding:0 16px 6px; }
+  #hortinis-places .grouped .group-label { padding:10px 16px 7px; font-size:13px; }
+  #hortinis-places .grouped .toolbar { min-height:46px; padding:0 16px; }
+  #hortinis-places .grouped header { padding:8px 12px; }
+  #hortinis-places .grouped .warning { padding:3px 16px; }
+  #hortinis-places .grouped .task small { display:none; }
+  #hortinis-places .grouped .tasks { padding-bottom:0; }
+  #hortinis-places .ledger .task { min-height:48px; }
+  #hortinis-places .ledger .words { display:flex; flex-direction:column; }
+  #hortinis-places .ledger header { background:var(--soft); }
+  #hortinis-places .ledger header select { background:var(--soft); }
+  #hortinis-places .footer-space { min-height:58px; padding:6px 76px 6px 12px; display:flex; align-items:center; }
+  #hortinis-places .done { font-size:12px; color:var(--muted); width:100%; }
+  #hortinis-places .done .task strong { text-decoration:line-through; }
+  #hortinis-places .floating { position:absolute; bottom:66px; right:12px; border-radius:50%; width:48px; height:48px; background:var(--accent); color:var(--on); box-shadow:0 3px 9px light-dark(#233b302b,#0006); font-size:27px; display:flex; align-items:center; justify-content:center; z-index:2; }
+  #hortinis-places .ledger .floating { width:auto; padding:0 15px; gap:5px; border-radius:24px; font-size:14px; }
+  #hortinis-places nav { display:grid; grid-template-columns:repeat(4,1fr); background:var(--bg); border-top:1px solid var(--line); padding:4px; }
+  #hortinis-places nav button { position:relative; font-size:12px; min-height:48px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:var(--muted); border-radius:8px; }
+  #hortinis-places nav button[aria-current] { color:var(--accent); background:var(--soft); font-weight:500; }
+  #hortinis-places .badge { background:var(--accent); color:var(--on); border-radius:9px; padding:1px 5px; font-size:10px; }
+  #hortinis-places .grouped nav { grid-template-columns:repeat(5,1fr); padding:6px; gap:2px; }
+  #hortinis-places .grouped nav button { min-height:52px; }
+  #hortinis-places .grouped .footer-space { min-height:8px; padding:0 16px; }
+  #hortinis-places .grouped .dock-add { font-size:12px; background:var(--accent); color:var(--on); border-radius:10px; }
+  #hortinis-places .top-record { display:flex; align-items:center; gap:5px; padding:0 12px; background:var(--accent); color:var(--on); border-radius:10px; font-weight:500; flex-shrink:0; }
+  #hortinis-places .top header select { font-size:16px; }
+  #hortinis-places .top nav { grid-template-columns:repeat(4,1fr); }
+  #hortinis-places .top .sheet { top:66px; bottom:auto; }
+  #hortinis-places svg { width:18px; height:18px; }
+  #hortinis-places .sheet { position:absolute; bottom:60px; left:8px; right:8px; z-index:3; padding:14px; background:var(--bg); border:1px solid var(--line); border-radius:16px; box-shadow:0 -8px 30px light-dark(#20332733,#0008); }
+  #hortinis-places .sheet-head { display:flex; justify-content:space-between; align-items:center; }
+  #hortinis-places .sheet-head strong { font-size:16px; font-weight:500; }
+  #hortinis-places .sheet-head button { font-size:22px; width:44px; }
+  #hortinis-places .sheet p { font-size:14px; margin:8px 0; }
+  #hortinis-places .sheet label { display:block; margin:8px 0; font-size:13px; }
+  #hortinis-places .sheet select,#hortinis-places .sheet input { display:block; width:100%; min-height:44px; padding:8px; font-size:16px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); }
+  #hortinis-places .submit { background:var(--accent); color:var(--on); border-radius:8px; width:100%; margin-top:8px; }
+  #hortinis-places .status { font-size:12px; color:var(--muted); padding:0 12px; }
+  #hortinis-places .status:empty { display:none; }
+  #hortinis-places .phone { --task-height:52px; --page:light-dark(#f2f1e8,#14231c); background:var(--page); }
+  #hortinis-places .phone header { background:var(--bg); }
+  #hortinis-places .grouped .toolbar { border:0; min-height:44px; }
+  #hortinis-places .task-area { padding:0 10px 10px; display:grid; gap:9px; }
+  #hortinis-places .place-panel { background:var(--bg); border:1px solid var(--line); border-radius:13px; overflow:hidden; }
+  #hortinis-places .place-panel>summary { padding:0 12px; gap:9px; min-height:44px; background:var(--soft); }
+  #hortinis-places .place-name { font-family:Georgia,serif; font-size:19px; font-weight:500; flex:1; }
+  #hortinis-places .place-icon { display:flex; color:var(--accent); }
+  #hortinis-places .place-count { color:var(--muted); font-size:12px; }
+  #hortinis-places .chevron { width:14px; color:var(--muted); }
+  #hortinis-places .place-panel:not([open]) .chevron { transform:rotate(-90deg); }
+  #hortinis-places .grouped .tasks { padding:0 12px; }
+  #hortinis-places .grouped .task { gap:9px; }
+  #hortinis-places .task:last-child { border:0; }
+  #hortinis-places .task input { order:3; width:20px; height:20px; }
+  #hortinis-places .action-icon { order:0; display:flex; align-items:center; justify-content:center; width:24px; flex:0 0 24px; color:var(--muted); }
+  #hortinis-places .task .words { order:1; }
+  #hortinis-places .task .due { order:2; font-size:11px; }
+  #hortinis-places .grouped .task .exception { display:block; font-size:12px; }
+  #hortinis-places .grouped .footer-space { min-height:0; padding:0 12px; }
+  #hortinis-places [hidden] { display:none !important; }
+</style>
+<div class="screens"></div>
+<script>
+(() => {
+  const root=document.getElementById('hortinis-places');
+  const sample=[
+    ['Water the beds','Garden · Except greenhouse','Today'],
+    ['Turn the compost','Garden','Today'],
+    ['Harvest the radishes','East bed','When ready'],
+    ['Weed around the carrots','East bed','Today'],
+    ['Mulch the strawberries','West bed','Today'],
+    ['Add compost','West bed','Tomorrow'],
+    ['Tie in the tomatoes','Greenhouse','Today'],
+    ['Check seedling emergence','Greenhouse','Tomorrow']
+  ];
+  const concepts=[['grouped','I · Places with character','bottom']];
+  concepts.forEach(([kind,title,position])=>{
+    const section=document.createElement('section');section.className='example';
+    const actionIcons=['droplets','rotate-cw','basket','sprout','leaf','shovel','move-up','eye'];
+    const task=(t,i)=>`<label class="task" data-index="${i}"><input type="checkbox" aria-label="Complete: ${t[0]}"><span class="action-icon" aria-hidden="true"><i data-lucide="${actionIcons[i]}"></i></span><span class="words"><strong>${t[0]}</strong>${i===0?'<small class="exception">Except greenhouse</small>':''}</span><span class="due">${t[2]}</span></label>`;
+    let rows='';
+    if(kind==='grouped') {
+      const places=[['Garden','trees'],['East bed','rows-3'],['West bed','rows-3'],['Greenhouse','house']];
+      places.forEach(([place,icon])=>{ rows+=`<details class="place-panel" open><summary><span class="place-icon"><i data-lucide="${icon}" aria-hidden="true"></i></span><span class="place-name">${place}</span><span class="place-count" aria-label="Pending tasks">2</span><i class="chevron" data-lucide="chevron-down" aria-hidden="true"></i></summary><div class="tasks" data-place="${place}">`+sample.map((t,i)=>t[1].startsWith(place)?task(t,i):'').join('')+'</div></details>'; });
+    } else { rows='<div class="tasks">'+sample.map(task).join('')+'</div>'; }
+    section.innerHTML=`<h2 class="caption">${title}</h2><div class="phone ${kind} ${position}" aria-label="${title}">
+      <header><select aria-label="Selected garden"><option>Home garden</option><option>Allotment</option></select><button class="garden-alert" aria-label="Allotment: one concern">! 1</button>${position==='top'?'<button class="top-record" data-open="record" aria-label="Record an event" aria-expanded="false"><i data-lucide="plus" aria-hidden="true"></i>Record</button>':''}</header>
+      <details class="warning"><summary><i data-lucide="thermometer-snowflake" aria-hidden="true"></i>Cold tonight · Check tomato protection</summary><p>Sample forecast: 2°C outdoors, saved at 08:00. Shelter temperature is unknown.</p></details>
+      <div class="toolbar"><strong>Work by place <span class="count">8</span></strong><span>12 Apr · Offline</span></div>
+      <div class="task-area">${rows}</div>
+      <div class="footer-space"><details class="done" hidden><summary>Completed · <span>0</span></summary><div></div></details></div>
+      <div class="status" role="status" aria-live="polite"></div>
+      <nav aria-label="Main navigation">${[['house','Today'],['sprout','Garden'],['calendar-days','Plan'],['notebook-pen','Journal']].map(([icon,label],i)=>`${position==='bottom'&&i===2?'<button class="dock-add" data-open="record" aria-label="Record an event" aria-expanded="false"><i data-lucide="plus" aria-hidden="true"></i><span>Record</span></button>':''}<button ${i===0?'aria-current="page"':''} data-nav="${label}"><i data-lucide="${icon}" aria-hidden="true"></i><span>${label}${label==='Plan'?' <span class="badge" aria-label="1 planning suggestion">1</span>':''}</span></button>`).join('')}</nav>
+      <section class="sheet" hidden aria-label="Event recording"><div class="sheet-head"><strong>Record an event</strong><button data-close aria-label="Close recording">×</button></div><form><label>Action<select name="action"><option>Watering</option><option>Harvest</option><option>Observation</option><option>Fertilizing</option><option>Soil preparation</option></select></label><label>Target<select name="target"></select></label><label class="extra">Notes (optional)<input name="detail" placeholder="For example, except the greenhouse"></label><button class="submit" type="submit">Preview recording</button></form></section>
+      <section class="sheet info" hidden aria-label="Details"><div class="sheet-head"><strong></strong><button data-close aria-label="Close details">×</button></div><p></p></section>
+    </div>`;
+    root.querySelector('.screens').append(section);
+    const q=s=>section.querySelector(s), all=s=>[...section.querySelectorAll(s)];
+    const info=(title,text)=>{q('.sheet:not(.info)').hidden=true;q('[data-open="record"]').setAttribute('aria-expanded','false');q('.info strong').textContent=title;q('.info p').textContent=text;q('.info').hidden=false;};
+    all('.task input').forEach(input=>input.addEventListener('change',()=>{
+      const row=input.closest('.task'),i=Number(row.dataset.index);
+      const place=sample[i][1].split(' · ')[0];
+      const destination=input.checked?q('.done div'):kind==='grouped'?q(`[data-place="${place}"]`):q('.tasks');
+      destination.append(row);
+      [...destination.children].sort((a,b)=>Number(a.dataset.index)-Number(b.dataset.index)).forEach(el=>destination.append(el));
+      const count=all('.task input:checked').length;
+      q('.count').textContent=8-count;q('.done').hidden=!count;q('.done summary span').textContent=count;
+      all('.place-panel').forEach(panel=>panel.querySelector('.place-count').textContent=panel.querySelectorAll('.task input:not(:checked)').length);
+    }));
+    q('[data-open="record"]').addEventListener('click',()=>{q('.info').hidden=true;const sheet=q('.sheet:not(.info)');sheet.hidden=!sheet.hidden;q('[data-open="record"]').setAttribute('aria-expanded',String(!sheet.hidden));if(!sheet.hidden)q('[name="action"]').focus();});
+    all('[data-close]').forEach(button=>button.addEventListener('click',()=>{button.closest('.sheet').hidden=true;q('[data-open="record"]').setAttribute('aria-expanded','false');}));
+    section.addEventListener('keydown',event=>{if(event.key==='Escape'){all('.sheet').forEach(s=>s.hidden=true);q('[data-open="record"]').setAttribute('aria-expanded','false');}});
+    q('.garden-alert').addEventListener('click',()=>info('Allotment · 1 concern','Cold risk tonight. Check protection on the young plants.'));
+    q('header select').addEventListener('change',event=>{info('Garden switch preview',`${event.target.value} selected. This comparison uses the Home garden sample task list.`);event.target.selectedIndex=0;});
+    all('[data-nav]').forEach(button=>button.addEventListener('click',()=>{const name=button.dataset.nav;if(name==='Today'){all('.sheet').forEach(s=>s.hidden=true);return;}info(name==='Plan'?'Planning · 1 suggestion':name,name==='Plan'?'East bed: plan what follows the radishes. Choose a crop now; dates and location can remain undecided.':`${name} is always directly accessible. Its screen is outside this home comparison.`);}));
+    const change=()=>{
+      const action=q('[name="action"]').value;
+      q('[name="target"]').innerHTML=(action==='Harvest'?['Radishes · East bed','Tomatoes · Greenhouse']:['Whole garden','East bed','West bed','Greenhouse','Tomatoes · Greenhouse']).map(x=>`<option>${x}</option>`).join('');
+      q('.extra').firstChild.textContent=action==='Harvest'?'Quantity (optional)':action==='Observation'?'What did you notice?':'Notes (optional)';
+      q('[name="detail"]').required=action==='Observation';
+      q('[name="detail"]').placeholder=action==='Harvest'?'For example, 6 radishes':action==='Observation'?'For example, holes in the leaves':'For example, except the greenhouse';
+    };
+    q('[name="action"]').addEventListener('change',change);change();
+    q('form').addEventListener('submit',event=>{event.preventDefault();info('Recording preview',`${q('[name="action"]').value} · ${q('[name="target"]').value}. Nothing is saved in this mockup.`);});
+    if(globalThis.Tweak){const state={rowHeight:52,icons:true};const tweak=new Tweak({container:q('.phone'),onChange:()=>{q('.phone').style.setProperty('--task-height',state.rowHeight+'px');all('.action-icon').forEach(el=>el.hidden=!state.icons);}});tweak.addSlider(state,'rowHeight',{label:'Task row height',min:48,max:64,step:2,unit:'px'});tweak.addToggle(state,'icons',{label:'Action icons'});}
+  });
+  if(globalThis.lucide)lucide.createIcons();
+})();
+</script>
+</div>

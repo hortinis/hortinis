@@ -1,0 +1,419 @@
+<div id="hortinis-planning" lang="fr">
+  <style>
+    #hortinis-planning {
+      color-scheme: light dark;
+      --hort-page: light-dark(#f4f2e9, #14231c);
+      --hort-surface: light-dark(#fffef8, #1b2b22);
+      --hort-soft: light-dark(#edf2e8, #26382d);
+      --hort-ink: light-dark(#21372a, #e6eee8);
+      --hort-muted: light-dark(#5e6d63, #b8c7bc);
+      --hort-line: light-dark(#d8dfd5, #405247);
+      --hort-accent: light-dark(#2d6845, #a9d8b2);
+      --hort-accent-on: light-dark(#ffffff, #17351f);
+      --hort-plan: light-dark(#dcebd9, #294a35);
+      --hort-path: light-dark(#ded8c9, #493f32);
+      --hort-water: light-dark(#cfe5e9, #27434a);
+      --hort-warning: light-dark(#fff0cf, #493a22);
+      --hort-warning-ink: light-dark(#76500f, #ffe1a3);
+      font-family: system-ui, sans-serif;
+      color: var(--hort-ink);
+      width: 100%;
+    }
+    #hortinis-planning * { box-sizing: border-box; }
+    #hortinis-planning button,
+    #hortinis-planning input,
+    #hortinis-planning select { font: inherit; color: inherit; }
+    #hortinis-planning button { cursor: pointer; }
+    #hortinis-planning .app {
+      background: var(--hort-page);
+      border: 1px solid var(--hort-line);
+      border-radius: 18px;
+      overflow: hidden;
+      min-height: 720px;
+    }
+    #hortinis-planning .topbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 58px;
+      padding: 7px 14px;
+      background: var(--hort-surface);
+      border-bottom: 1px solid var(--hort-line);
+    }
+    #hortinis-planning .garden-name { font-family: Georgia, serif; font-size: 20px; font-weight: 500; flex: 1; }
+    #hortinis-planning .top-action,
+    #hortinis-planning .tool,
+    #hortinis-planning .time-choice,
+    #hortinis-planning .mode-choice,
+    #hortinis-planning .secondary,
+    #hortinis-planning .primary,
+    #hortinis-planning .icon-action {
+      min-height: 44px;
+      border: 1px solid var(--hort-line);
+      border-radius: 9px;
+      background: var(--hort-surface);
+      padding: 7px 11px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+    }
+    #hortinis-planning .primary { background: var(--hort-accent); color: var(--hort-accent-on); border-color: var(--hort-accent); }
+    #hortinis-planning .icon-action { width: 44px; padding: 0; }
+    #hortinis-planning .top-action { white-space: nowrap; }
+    #hortinis-planning .temporal {
+      display: grid;
+      grid-template-columns: auto minmax(260px, 1fr) auto;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 14px;
+      background: var(--hort-surface);
+      border-bottom: 1px solid var(--hort-line);
+    }
+    #hortinis-planning .time-shortcuts { display: flex; gap: 4px; }
+    #hortinis-planning .time-choice { min-width: 78px; border-color: transparent; background: transparent; }
+    #hortinis-planning .time-choice[aria-pressed="true"] { background: var(--hort-soft); border-color: var(--hort-line); color: var(--hort-accent); font-weight: 500; }
+    #hortinis-planning .timeline { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 9px; }
+    #hortinis-planning .timeline input { width: 100%; accent-color: var(--hort-accent); }
+    #hortinis-planning .timeline span { color: var(--hort-muted); font-size: 12px; white-space: nowrap; }
+    #hortinis-planning .business-date { font-weight: 500; white-space: nowrap; }
+    #hortinis-planning .intent {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 14px;
+      background: var(--hort-warning);
+      color: var(--hort-warning-ink);
+      border-bottom: 1px solid var(--hort-line);
+      font-size: 13px;
+    }
+    #hortinis-planning .workspace { display: grid; grid-template-columns: 178px minmax(350px, 1fr) 250px; min-height: 536px; }
+    #hortinis-planning .palette,
+    #hortinis-planning .inspector { background: var(--hort-surface); padding: 12px; }
+    #hortinis-planning .palette { border-right: 1px solid var(--hort-line); }
+    #hortinis-planning .inspector { border-left: 1px solid var(--hort-line); }
+    #hortinis-planning h2 { font-family: Georgia, serif; font-size: 18px; font-weight: 500; margin: 0 0 10px; }
+    #hortinis-planning h3 { font-size: 14px; font-weight: 500; margin: 14px 0 7px; }
+    #hortinis-planning .mode-row { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    #hortinis-planning .mode-choice { padding: 5px; font-size: 12px; }
+    #hortinis-planning .mode-choice[aria-pressed="true"],
+    #hortinis-planning .tool[aria-pressed="true"] { background: var(--hort-soft); color: var(--hort-accent); border-color: var(--hort-accent); }
+    #hortinis-planning .tools { display: grid; gap: 5px; }
+    #hortinis-planning .tool { justify-content: flex-start; width: 100%; }
+    #hortinis-planning .scale-state { margin-top: 12px; padding: 10px; background: var(--hort-warning); color: var(--hort-warning-ink); border-radius: 10px; }
+    #hortinis-planning .scale-state strong { display: block; font-size: 13px; font-weight: 500; }
+    #hortinis-planning .scale-state span { display: block; font-size: 12px; margin: 3px 0 8px; }
+    #hortinis-planning .scale-state button { border: 0; padding: 0; background: transparent; color: inherit; text-decoration: underline; min-height: 34px; }
+    #hortinis-planning .stage { position: relative; min-width: 0; padding: 15px; overflow: hidden; }
+    #hortinis-planning .stage-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    #hortinis-planning .stage-head strong { flex: 1; font-weight: 500; }
+    #hortinis-planning .legend { display: flex; gap: 12px; color: var(--hort-muted); font-size: 12px; flex-wrap: wrap; }
+    #hortinis-planning .legend span { display: inline-flex; align-items: center; gap: 5px; }
+    #hortinis-planning .swatch { width: 12px; height: 12px; display: inline-block; border-radius: 3px; }
+    #hortinis-planning .swatch.plan { background: var(--hort-plan); border: 1px dashed var(--hort-accent); }
+    #hortinis-planning .swatch.actual { background: var(--hort-accent); }
+    #hortinis-planning .garden-canvas {
+      position: relative;
+      height: 438px;
+      border: 2px solid var(--hort-accent);
+      border-radius: 26px 11px 20px 15px;
+      background-color: var(--hort-soft);
+      background-image: linear-gradient(color-mix(in srgb, var(--hort-line) 42%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in srgb, var(--hort-line) 42%, transparent) 1px, transparent 1px);
+      background-size: 24px 24px;
+      overflow: hidden;
+    }
+    #hortinis-planning .canvas-label { position: absolute; top: 9px; left: 12px; font-size: 12px; color: var(--hort-muted); background: var(--hort-surface); padding: 3px 7px; border-radius: 7px; }
+    #hortinis-planning .shape { position: absolute; border: 1px solid var(--hort-line); background: var(--hort-surface); color: var(--hort-ink); padding: 7px; text-align: left; min-height: 44px; }
+    #hortinis-planning .shape strong { display: block; font-size: 13px; font-weight: 500; }
+    #hortinis-planning .shape small { display: block; font-size: 11px; color: var(--hort-muted); }
+    #hortinis-planning .bed-east { left: 9%; top: 19%; width: 36%; height: 28%; border-radius: 8px; transform: rotate(-2deg); }
+    #hortinis-planning .bed-west { left: 10%; bottom: 12%; width: 42%; height: 25%; border-radius: 8px; transform: rotate(2deg); }
+    #hortinis-planning .greenhouse { right: 7%; top: 13%; width: 29%; height: 42%; border-radius: 40% 40% 8px 8px; background: color-mix(in srgb, var(--hort-water) 72%, transparent); }
+    #hortinis-planning .path { left: 52%; top: 0; width: 11%; height: 100%; background: var(--hort-path); border-style: dashed; transform: rotate(4deg); }
+    #hortinis-planning .compost { right: 8%; bottom: 8%; width: 23%; height: 17%; border-radius: 50%; }
+    #hortinis-planning .crop-area { position: absolute; inset: 34% 8% 8% 8%; border: 2px dashed var(--hort-accent); background: var(--hort-plan); border-radius: 8px; padding: 6px; color: var(--hort-ink); }
+    #hortinis-planning .crop-area strong { display: block; font-size: 12px; }
+    #hortinis-planning .crop-row { position: absolute; left: 8%; right: 8%; height: 4px; background: var(--hort-accent); border-radius: 4px; }
+    #hortinis-planning .crop-row.r1 { top: 38%; }
+    #hortinis-planning .crop-row.r2 { top: 55%; }
+    #hortinis-planning .crop-row.r3 { top: 72%; }
+    #hortinis-planning .plant-dots { position: absolute; inset: 34% 9% 8% 9%; display: grid; grid-template-columns: repeat(6, 1fr); align-items: center; justify-items: center; gap: 4px; }
+    #hortinis-planning .plant-dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--hort-accent); }
+    #hortinis-planning .selection { outline: 3px solid var(--hort-accent); outline-offset: 2px; z-index: 3; }
+    #hortinis-planning .draw-hint { position: absolute; left: 50%; bottom: 28px; transform: translateX(-50%); background: var(--hort-surface); border: 1px solid var(--hort-line); border-radius: 9px; padding: 8px 11px; font-size: 12px; white-space: nowrap; box-shadow: 0 4px 16px color-mix(in srgb, var(--hort-ink) 15%, transparent); }
+    #hortinis-planning .field { margin: 9px 0; }
+    #hortinis-planning .field label { display: block; color: var(--hort-muted); font-size: 12px; margin-bottom: 4px; }
+    #hortinis-planning .field select,
+    #hortinis-planning .field input { width: 100%; min-height: 44px; border: 1px solid var(--hort-line); border-radius: 8px; background: var(--hort-surface); padding: 7px; font-size: 16px; }
+    #hortinis-planning .metric { padding: 9px 0; border-top: 1px solid var(--hort-line); }
+    #hortinis-planning .metric span { display: block; color: var(--hort-muted); font-size: 12px; }
+    #hortinis-planning .metric strong { display: block; font-size: 17px; font-weight: 500; }
+    #hortinis-planning .representation { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+    #hortinis-planning .representation button { min-height: 42px; border: 1px solid var(--hort-line); background: var(--hort-surface); border-radius: 8px; font-size: 12px; padding: 4px; }
+    #hortinis-planning .representation button[aria-pressed="true"] { background: var(--hort-soft); color: var(--hort-accent); border-color: var(--hort-accent); }
+    #hortinis-planning .inspector-actions { display: grid; gap: 6px; margin-top: 12px; }
+    #hortinis-planning .bottom-nav { display: grid; grid-template-columns: repeat(5, 1fr); background: var(--hort-surface); border-top: 1px solid var(--hort-line); padding: 5px; }
+    #hortinis-planning .bottom-nav button { border: 0; background: transparent; color: var(--hort-muted); min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 12px; border-radius: 8px; }
+    #hortinis-planning .bottom-nav button[aria-current="page"] { color: var(--hort-accent); background: var(--hort-soft); }
+    #hortinis-planning .automation {
+      position: absolute;
+      z-index: 8;
+      top: 64px;
+      right: 14px;
+      width: min(350px, calc(100% - 28px));
+      background: var(--hort-surface);
+      border: 1px solid var(--hort-line);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 12px 34px color-mix(in srgb, var(--hort-ink) 22%, transparent);
+    }
+    #hortinis-planning .automation[hidden] { display: none; }
+    #hortinis-planning .automation-head { display: flex; align-items: center; gap: 8px; }
+    #hortinis-planning .automation-head h2 { flex: 1; margin: 0; }
+    #hortinis-planning .criterion { display: flex; align-items: flex-start; gap: 9px; min-height: 44px; padding: 7px 0; border-bottom: 1px solid var(--hort-line); }
+    #hortinis-planning .criterion input { width: 20px; height: 20px; accent-color: var(--hort-accent); }
+    #hortinis-planning .criterion span { flex: 1; font-size: 13px; }
+    #hortinis-planning .criterion small { display: block; color: var(--hort-muted); font-size: 11px; }
+    #hortinis-planning .criterion input:disabled { opacity: 1; }
+    #hortinis-planning .automation-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 12px; }
+    #hortinis-planning .status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    @media (max-width: 760px) {
+      #hortinis-planning .app { min-height: 0; border-radius: 16px; }
+      #hortinis-planning .topbar { padding: 6px 10px; }
+      #hortinis-planning .garden-name { font-size: 18px; }
+      #hortinis-planning .top-action span { display: none; }
+      #hortinis-planning .temporal { grid-template-columns: 1fr auto; gap: 8px; padding: 8px 10px; }
+      #hortinis-planning .timeline { grid-column: 1 / -1; grid-row: 2; }
+      #hortinis-planning .time-choice { flex: 1; min-width: 0; padding: 5px; }
+      #hortinis-planning .business-date { font-size: 13px; }
+      #hortinis-planning .workspace { display: flex; flex-direction: column; min-height: 0; }
+      #hortinis-planning .stage { order: 1; padding: 10px; }
+      #hortinis-planning .palette { order: 2; border: 0; border-top: 1px solid var(--hort-line); padding: 9px 10px; }
+      #hortinis-planning .palette h2, #hortinis-planning .palette h3, #hortinis-planning .scale-state { display: none; }
+      #hortinis-planning .mode-row { display: flex; margin-bottom: 6px; }
+      #hortinis-planning .mode-choice { flex: 1; }
+      #hortinis-planning .tools { grid-template-columns: repeat(4, 1fr); }
+      #hortinis-planning .tool { justify-content: center; padding: 4px; font-size: 12px; }
+      #hortinis-planning .tool svg { display: none; }
+      #hortinis-planning .inspector { order: 3; border: 0; border-top: 1px solid var(--hort-line); }
+      #hortinis-planning .garden-canvas { height: 350px; }
+      #hortinis-planning .draw-hint { bottom: 18px; max-width: calc(100% - 24px); white-space: normal; text-align: center; }
+      #hortinis-planning .legend { display: none; }
+      #hortinis-planning .representation { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 420px) {
+      #hortinis-planning .time-choice { font-size: 12px; }
+      #hortinis-planning .business-date { max-width: 105px; overflow: hidden; text-overflow: ellipsis; }
+      #hortinis-planning .garden-canvas { height: 320px; }
+      #hortinis-planning .shape { padding: 5px; }
+      #hortinis-planning .shape small { display: none; }
+      #hortinis-planning .bed-east { width: 40%; }
+      #hortinis-planning .greenhouse { width: 27%; }
+    }
+  </style>
+
+  <section class="app" aria-label="Hortinis, planification du jardin">
+    <header class="topbar">
+      <button class="icon-action" type="button" aria-label="Retour"><i data-lucide="arrow-left" aria-hidden="true"></i></button>
+      <div class="garden-name">Jardin maison</div>
+      <button class="top-action" id="hort-scale" type="button"><i data-lucide="ruler" aria-hidden="true"></i><span>Échelle estimée</span></button>
+      <button class="primary top-action" id="hort-auto" type="button"><i data-lucide="sparkles" aria-hidden="true"></i><span>Organiser</span></button>
+    </header>
+
+    <section class="temporal" aria-label="Navigation temporelle">
+      <div class="time-shortcuts">
+        <button class="time-choice" type="button" data-time="past" aria-pressed="false">Passé</button>
+        <button class="time-choice" type="button" data-time="today" aria-pressed="false">Aujourd’hui</button>
+        <button class="time-choice" type="button" data-time="future" aria-pressed="true">Futur</button>
+      </div>
+      <div class="timeline">
+        <span>2026</span>
+        <input id="hort-date-range" type="range" min="0" max="4" value="3" step="1" aria-label="Date du plan">
+        <span>2028</span>
+      </div>
+      <div class="business-date" id="hort-date">15 mai 2027</div>
+    </section>
+
+    <div class="intent" id="hort-intent"><i data-lucide="calendar-clock" aria-hidden="true"></i><span>Vue future : les cultures affichées sont des intentions, pas des mises en place réelles.</span></div>
+
+    <div class="workspace">
+      <aside class="palette" aria-label="Outils de dessin">
+        <h2>Dessiner</h2>
+        <div class="mode-row" role="group" aria-label="Mode de dessin">
+          <button class="mode-choice" type="button" data-mode="guided" aria-pressed="true">Assisté</button>
+          <button class="mode-choice" type="button" data-mode="free" aria-pressed="false">Libre</button>
+        </div>
+        <h3>Ajouter</h3>
+        <div class="tools">
+          <button class="tool" type="button" data-tool="space" aria-pressed="true"><i data-lucide="square-dashed" aria-hidden="true"></i>Espace</button>
+          <button class="tool" type="button" data-tool="crop" aria-pressed="false"><i data-lucide="sprout" aria-hidden="true"></i>Culture</button>
+          <button class="tool" type="button" data-tool="path" aria-pressed="false"><i data-lucide="route" aria-hidden="true"></i>Allée</button>
+          <button class="tool" type="button" data-tool="obstacle" aria-pressed="false"><i data-lucide="circle-slash" aria-hidden="true"></i>Obstacle</button>
+        </div>
+        <div class="scale-state">
+          <strong>Échelle estimée</strong>
+          <span>Une mesure connue. Capacités affichées comme estimations.</span>
+          <button type="button" id="hort-calibrate">Ajouter une mesure</button>
+        </div>
+      </aside>
+
+      <main class="stage">
+        <div class="stage-head">
+          <strong>Plan au <span id="hort-inline-date">15 mai 2027</span></strong>
+          <div class="legend" aria-label="Légende"><span><i class="swatch actual"></i>Réel</span><span><i class="swatch plan"></i>Planifié</span></div>
+        </div>
+        <div class="garden-canvas" id="hort-canvas" aria-label="Plan du jardin maison, espace implicite associé au jardin">
+          <span class="canvas-label">Jardin maison · espace implicite</span>
+          <button class="shape bed-east selection" type="button" data-shape="east"><strong>Planche est</strong><small>6,2 m² disponibles</small><span class="crop-area" id="hort-crop-area"><strong>Laitues · planifiées</strong></span><span class="crop-rows" hidden><i class="crop-row r1"></i><i class="crop-row r2"></i><i class="crop-row r3"></i></span><span class="plant-dots" hidden></span></button>
+          <button class="shape bed-west" type="button" data-shape="west"><strong>Planche ouest</strong><small>4 × 1,4 m</small></button>
+          <button class="shape greenhouse" type="button" data-shape="greenhouse"><strong>Serre</strong><small>Contenue dans le jardin</small></button>
+          <button class="shape path" type="button" data-shape="path" aria-label="Allée centrale"></button>
+          <button class="shape compost" type="button" data-shape="compost"><strong>Compost</strong><small>Forme libre</small></button>
+          <div class="draw-hint" id="hort-hint">Tracez une forme : les lignes seront redressées automatiquement.</div>
+        </div>
+        <aside class="automation" id="hort-automation" hidden aria-label="Organisation automatique">
+          <div class="automation-head"><h2>Organiser les cultures</h2><button class="icon-action" id="hort-auto-close" type="button" aria-label="Fermer"><i data-lucide="x" aria-hidden="true"></i></button></div>
+          <label class="criterion"><input type="checkbox" checked disabled><span>Disponibilité des espaces<small>Toujours prise en compte</small></span></label>
+          <label class="criterion"><input type="checkbox" checked disabled><span>Capacité estimée<small>Une échelle exacte améliorerait le résultat</small></span></label>
+          <label class="criterion"><input type="checkbox" checked><span>Favoriser les successions<small>Utiliser rapidement l’espace libéré</small></span></label>
+          <label class="criterion"><input type="checkbox" checked><span>Respecter les rotations<small>Éviter une même famille au même endroit</small></span></label>
+          <label class="criterion"><input type="checkbox"><span>Privilégier le rendement</span></label>
+          <label class="criterion"><input type="checkbox"><span>Appliquer mes préférences</span></label>
+          <div class="automation-actions"><button class="secondary" id="hort-preview" type="button">Prévisualiser</button><button class="primary" id="hort-apply" type="button">Appliquer</button></div>
+        </aside>
+      </main>
+
+      <aside class="inspector" aria-label="Détails du placement sélectionné">
+        <h2>Planche est</h2>
+        <div class="metric"><span>Surface disponible</span><strong>6,2 m²</strong></div>
+        <div class="field"><label for="hort-crop">Culture planifiée</label><select id="hort-crop"><option>Laitue pommée</option><option>Radis</option><option>Tomate</option></select></div>
+        <div class="metric"><span>Capacité pour cette culture</span><strong id="hort-capacity">≈ 24 laitues</strong></div>
+        <h3>Représentation</h3>
+        <div class="representation" role="group" aria-label="Représentation des cultures">
+          <button type="button" data-representation="area" aria-pressed="true">Surface</button>
+          <button type="button" data-representation="rows" aria-pressed="false">Rangées</button>
+          <button type="button" data-representation="plants" aria-pressed="false">Plants</button>
+        </div>
+        <div class="field"><label for="hort-spacing">Espacement</label><select id="hort-spacing"><option>Conseillé · 30 cm</option><option>Personnalisé</option><option>Répartir 24 plants</option><option>Placement libre</option></select></div>
+        <div class="field"><label for="hort-effective">Date prévue</label><input id="hort-effective" type="date" value="2027-05-15"></div>
+        <div class="inspector-actions"><button class="primary" id="hort-save" type="button">Enregistrer l’intention</button><button class="secondary" id="hort-confirm" type="button">Confirmer la mise en place réelle</button></div>
+      </aside>
+    </div>
+
+    <nav class="bottom-nav" aria-label="Navigation principale">
+      <button type="button"><i data-lucide="house" aria-hidden="true"></i>Accueil</button>
+      <button type="button"><i data-lucide="sprout" aria-hidden="true"></i>Jardin</button>
+      <button type="button"><i data-lucide="plus" aria-hidden="true"></i>Noter</button>
+      <button type="button" aria-current="page"><i data-lucide="calendar-days" aria-hidden="true"></i>Planifier</button>
+      <button type="button"><i data-lucide="notebook-pen" aria-hidden="true"></i>Journal</button>
+    </nav>
+    <div class="status" id="hort-status" role="status" aria-live="polite"></div>
+  </section>
+
+  <script>
+    (() => {
+      const root = document.getElementById('hortinis-planning');
+      const dates = [
+        { label: '15 juin 2026', mode: 'past' },
+        { label: '12 septembre 2026', mode: 'today' },
+        { label: '15 mars 2027', mode: 'future' },
+        { label: '15 mai 2027', mode: 'future' },
+        { label: '1 septembre 2028', mode: 'future' }
+      ];
+      const state = { detail: 'complet', scale: 'estimée', representation: 'area' };
+      const q = selector => root.querySelector(selector);
+      const qa = selector => [...root.querySelectorAll(selector)];
+      const announce = message => { q('#hort-status').textContent = message; };
+      const icons = () => { if (globalThis.lucide) lucide.createIcons({ attrs: { width: 17, height: 17 } }); };
+
+      function setTime(index) {
+        const entry = dates[index];
+        q('#hort-date').textContent = entry.label;
+        q('#hort-inline-date').textContent = entry.label;
+        qa('[data-time]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.time === entry.mode)));
+        const future = entry.mode === 'future';
+        const past = entry.mode === 'past';
+        q('#hort-intent').innerHTML = future
+          ? '<i data-lucide="calendar-clock" aria-hidden="true"></i><span>Vue future : les cultures affichées sont des intentions, pas des mises en place réelles.</span>'
+          : past
+            ? '<i data-lucide="history" aria-hidden="true"></i><span>Vue historique : le plan montre la disposition connue à cette date.</span>'
+            : '<i data-lucide="map-pin" aria-hidden="true"></i><span>Aujourd’hui : occupations réelles et intentions futures restent distinguées.</span>';
+        q('#hort-confirm').hidden = !future;
+        icons();
+        announce('Plan affiché au ' + entry.label);
+      }
+
+      function setRepresentation(value) {
+        state.representation = value;
+        qa('[data-representation]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.representation === value)));
+        q('#hort-crop-area').hidden = value !== 'area';
+        q('.crop-rows').hidden = value !== 'rows';
+        q('.plant-dots').hidden = value !== 'plants';
+        if (value === 'plants' && !q('.plant-dots').children.length) {
+          q('.plant-dots').innerHTML = Array.from({ length: 24 }, () => '<i></i>').join('');
+        }
+        announce('Représentation : ' + ({ area: 'surface', rows: 'rangées', plants: 'plants individuels' }[value]));
+      }
+
+      function renderTweak() {
+        const scaleCopy = state.scale === 'libre'
+          ? ['Schéma libre', 'Capacité indisponible', 'Définir une mesure']
+          : state.scale === 'dimensionnée'
+            ? ['Plan dimensionné', '6,2 m² disponibles', 'Modifier les mesures']
+            : ['Échelle estimée', 'Une mesure connue. Capacités affichées comme estimations.', 'Ajouter une mesure'];
+        q('#hort-scale span').textContent = scaleCopy[0];
+        q('.scale-state strong').textContent = scaleCopy[0];
+        q('.scale-state span').textContent = scaleCopy[1];
+        q('#hort-calibrate').textContent = scaleCopy[2];
+        q('#hort-capacity').textContent = state.scale === 'libre' ? 'Non vérifiée · proposition relative' : '≈ 24 laitues';
+        q('.inspector').style.display = state.detail === 'simple' ? 'none' : '';
+        q('.workspace').style.gridTemplateColumns = state.detail === 'simple' && innerWidth > 760 ? '178px minmax(350px, 1fr)' : '';
+        setRepresentation(state.representation);
+      }
+
+      q('#hort-date-range').addEventListener('input', event => setTime(Number(event.target.value)));
+      qa('[data-time]').forEach(button => button.addEventListener('click', () => {
+        const index = button.dataset.time === 'past' ? 0 : button.dataset.time === 'today' ? 1 : 3;
+        q('#hort-date-range').value = String(index);
+        setTime(index);
+      }));
+      qa('[data-mode]').forEach(button => button.addEventListener('click', () => {
+        qa('[data-mode]').forEach(other => other.setAttribute('aria-pressed', String(other === button)));
+        q('#hort-hint').textContent = button.dataset.mode === 'free'
+          ? 'Dessinez librement au doigt ou à la souris.'
+          : 'Tracez une forme : les lignes seront redressées automatiquement.';
+      }));
+      qa('[data-tool]').forEach(button => button.addEventListener('click', () => {
+        qa('[data-tool]').forEach(other => other.setAttribute('aria-pressed', String(other === button)));
+        announce('Outil sélectionné : ' + button.textContent.trim());
+      }));
+      qa('[data-shape]').forEach(button => button.addEventListener('click', () => {
+        qa('[data-shape]').forEach(other => other.classList.toggle('selection', other === button));
+        announce(button.getAttribute('aria-label') || button.textContent.trim() + ' sélectionné');
+      }));
+      qa('[data-representation]').forEach(button => button.addEventListener('click', () => setRepresentation(button.dataset.representation)));
+      q('#hort-auto').addEventListener('click', () => { q('#hort-automation').hidden = false; announce('Critères d’organisation ouverts'); });
+      q('#hort-auto-close').addEventListener('click', () => { q('#hort-automation').hidden = true; q('#hort-auto').focus(); });
+      q('#hort-preview').addEventListener('click', () => { q('#hort-automation').hidden = true; q('#hort-hint').textContent = 'Prévisualisation : laitues après les radis, capacité estimée.'; announce('Proposition automatique affichée, sans modifier le plan'); });
+      q('#hort-apply').addEventListener('click', () => { q('#hort-automation').hidden = true; q('#hort-hint').textContent = 'Organisation appliquée · Annuler reste disponible dans l’historique.'; announce('Organisation appliquée au plan'); });
+      q('#hort-save').addEventListener('click', () => announce('Intention enregistrée pour le 15 mai 2027'));
+      q('#hort-confirm').addEventListener('click', () => announce('La confirmation créerait une mise en place réelle distincte du plan'));
+      q('#hort-calibrate').addEventListener('click', () => announce('Mode de calibration : indiquez la longueur d’un côté connu'));
+      q('#hort-scale').addEventListener('click', () => q('#hort-calibrate').click());
+      q('#hort-crop').addEventListener('change', event => {
+        const capacities = { 'Laitue pommée': '≈ 24 laitues', 'Radis': '≈ 110 radis', 'Tomate': '≈ 8 tomates' };
+        q('#hort-capacity').textContent = state.scale === 'libre' ? 'Non vérifiée · proposition relative' : capacities[event.target.value];
+      });
+
+      setTime(3);
+      setRepresentation('area');
+      icons();
+      if (globalThis.Tweak) {
+        const tweak = new Tweak({ container: root, onChange: renderTweak });
+        tweak.addSelect(state, 'detail', { label: 'Niveau de détail', options: [{ label: 'Simple', value: 'simple' }, { label: 'Complet', value: 'complet' }], reference: 'planning.detail' });
+        tweak.addSelect(state, 'scale', { label: 'État de l’échelle', options: [{ label: 'Schéma libre', value: 'libre' }, { label: 'Échelle estimée', value: 'estimée' }, { label: 'Plan dimensionné', value: 'dimensionnée' }], reference: 'planning.scale' });
+        tweak.addSelect(state, 'representation', { label: 'Cultures', options: [{ label: 'Surface', value: 'area' }, { label: 'Rangées', value: 'rows' }, { label: 'Plants', value: 'plants' }], reference: 'planning.representation' });
+      }
+    })();
+  </script>
+</div>

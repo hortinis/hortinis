@@ -1,0 +1,514 @@
+<div id="hortinis-global-journey" lang="fr" aria-label="Parcours global de Hortinis">
+  <style>
+    #hortinis-global-journey {
+      --hort-page: light-dark(#f3f1e7, #15221a);
+      --hort-surface: light-dark(#fffef9, #1e2c24);
+      --hort-soft: light-dark(#e8efe3, #2b4030);
+      --hort-ink: light-dark(#293c30, #e2eee5);
+      --hort-muted: light-dark(#617064, #b7c6ba);
+      --hort-line: light-dark(#d7dfd1, #455448);
+      --hort-accent: light-dark(#306c45, #aedbb8);
+      --hort-on-accent: light-dark(#ffffff, #193321);
+      --hort-warning: light-dark(#fff0d5, #493a24);
+      --hort-warning-ink: light-dark(#714b13, #ffe0a5);
+      --hort-info: light-dark(#e8f0f4, #263d47);
+      color-scheme: light dark;
+      color: var(--hort-ink);
+      font-family: system-ui, sans-serif;
+      max-width: 760px;
+      margin: 0 auto;
+    }
+    #hortinis-global-journey * { box-sizing: border-box; }
+    #hortinis-global-journey button,
+    #hortinis-global-journey input { font: inherit; color: inherit; }
+    #hortinis-global-journey button { cursor: pointer; }
+    #hortinis-global-journey [hidden] { display: none !important; }
+    #hortinis-global-journey .journey-picker {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 12px;
+    }
+    #hortinis-global-journey .journey-picker button {
+      min-height: 40px;
+      border: 1px solid var(--hort-line);
+      border-radius: 20px;
+      background: transparent;
+      padding: 7px 12px;
+    }
+    #hortinis-global-journey .journey-picker button[aria-pressed="true"] {
+      background: var(--hort-soft);
+      border-color: var(--hort-accent);
+      color: var(--hort-accent);
+      font-weight: 500;
+    }
+    #hortinis-global-journey .phone {
+      position: relative;
+      width: min(100%, 390px);
+      min-height: 680px;
+      margin: 0 auto;
+      overflow: hidden;
+      border: 1px solid var(--hort-line);
+      border-radius: 22px;
+      background: var(--hort-page);
+      color: var(--hort-ink);
+      box-shadow: 0 12px 40px color-mix(in srgb, var(--hort-ink) 12%, transparent);
+    }
+    #hortinis-global-journey .app-header {
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-bottom: 1px solid var(--hort-line);
+      background: var(--hort-surface);
+    }
+    #hortinis-global-journey .app-header h2 {
+      flex: 1;
+      margin: 0;
+      font: 500 20px/1.2 Georgia, serif;
+    }
+    #hortinis-global-journey .icon-action {
+      min-width: 44px;
+      min-height: 44px;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #hortinis-global-journey .screen { padding: 16px 14px 90px; }
+    #hortinis-global-journey .welcome {
+      min-height: 680px;
+      padding: 38px 18px 24px;
+      background: var(--hort-surface);
+    }
+    #hortinis-global-journey .brand {
+      width: 54px;
+      height: 54px;
+      margin-bottom: 22px;
+      border-radius: 17px 17px 17px 5px;
+      background: var(--hort-accent);
+      color: var(--hort-on-accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #hortinis-global-journey h1,
+    #hortinis-global-journey h3 {
+      font-family: Georgia, serif;
+      font-weight: 500;
+    }
+    #hortinis-global-journey h1 { margin: 0 0 8px; font-size: 29px; }
+    #hortinis-global-journey h3 { margin: 0 0 7px; font-size: 20px; }
+    #hortinis-global-journey p { margin: 0 0 13px; }
+    #hortinis-global-journey .muted { color: var(--hort-muted); font-size: 14px; }
+    #hortinis-global-journey .entry-actions { display: grid; gap: 10px; margin-top: 28px; }
+    #hortinis-global-journey .primary,
+    #hortinis-global-journey .secondary,
+    #hortinis-global-journey .text-action {
+      min-height: 46px;
+      border-radius: 10px;
+      padding: 9px 12px;
+    }
+    #hortinis-global-journey .primary {
+      border: 1px solid var(--hort-accent);
+      background: var(--hort-accent);
+      color: var(--hort-on-accent);
+      font-weight: 500;
+    }
+    #hortinis-global-journey .secondary {
+      border: 1px solid var(--hort-line);
+      background: var(--hort-surface);
+    }
+    #hortinis-global-journey .text-action {
+      border: 0;
+      background: transparent;
+      color: var(--hort-accent);
+    }
+    #hortinis-global-journey .entry-button {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-align: left;
+    }
+    #hortinis-global-journey .entry-button span { flex: 1; }
+    #hortinis-global-journey .entry-button strong,
+    #hortinis-global-journey .entry-button small { display: block; }
+    #hortinis-global-journey .entry-button small { margin-top: 2px; font-weight: 400; opacity: .82; }
+    #hortinis-global-journey .setup-notice,
+    #hortinis-global-journey .global-notice {
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    #hortinis-global-journey .setup-notice { background: var(--hort-warning); color: var(--hort-warning-ink); }
+    #hortinis-global-journey .global-notice { background: var(--hort-info); }
+    #hortinis-global-journey .notice-head { display: flex; align-items: center; gap: 8px; }
+    #hortinis-global-journey .notice-head strong { flex: 1; font-weight: 500; }
+    #hortinis-global-journey .notice-head button {
+      min-height: 36px;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      text-decoration: underline;
+    }
+    #hortinis-global-journey .garden-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    #hortinis-global-journey .garden-title h3 { flex: 1; margin: 0; }
+    #hortinis-global-journey .status-chip {
+      padding: 4px 8px;
+      border-radius: 12px;
+      background: var(--hort-soft);
+      color: var(--hort-muted);
+      font-size: 12px;
+    }
+    #hortinis-global-journey .work-group,
+    #hortinis-global-journey .garden-row,
+    #hortinis-global-journey .sync-section,
+    #hortinis-global-journey .choice-panel {
+      background: var(--hort-surface);
+      border: 1px solid var(--hort-line);
+      border-radius: 13px;
+    }
+    #hortinis-global-journey .work-group { overflow: hidden; margin-bottom: 10px; }
+    #hortinis-global-journey .work-group > strong {
+      display: block;
+      padding: 11px 12px;
+      background: var(--hort-soft);
+      font: 500 17px/1.2 Georgia, serif;
+    }
+    #hortinis-global-journey .task-row {
+      min-height: 54px;
+      padding: 9px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-top: 1px solid var(--hort-line);
+    }
+    #hortinis-global-journey .task-row span { flex: 1; }
+    #hortinis-global-journey .task-row small { display: block; color: var(--hort-muted); }
+    #hortinis-global-journey .garden-list { display: grid; gap: 9px; }
+    #hortinis-global-journey .garden-row {
+      width: 100%;
+      min-height: 74px;
+      padding: 11px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-align: left;
+    }
+    #hortinis-global-journey .garden-row .garden-copy { flex: 1; }
+    #hortinis-global-journey .garden-row strong,
+    #hortinis-global-journey .garden-row small { display: block; }
+    #hortinis-global-journey .garden-row small { color: var(--hort-muted); margin-top: 3px; }
+    #hortinis-global-journey .attention {
+      padding: 4px 7px;
+      border-radius: 10px;
+      background: var(--hort-warning);
+      color: var(--hort-warning-ink);
+      font-size: 12px;
+    }
+    #hortinis-global-journey .bottom-nav {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 2px;
+      padding: 6px;
+      border-top: 1px solid var(--hort-line);
+      background: var(--hort-surface);
+    }
+    #hortinis-global-journey .bottom-nav button {
+      min-height: 54px;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--hort-muted);
+      font-size: 11px;
+    }
+    #hortinis-global-journey .bottom-nav button span { display: block; margin-top: 2px; }
+    #hortinis-global-journey .bottom-nav .record-nav {
+      background: var(--hort-accent);
+      color: var(--hort-on-accent);
+    }
+    #hortinis-global-journey .field { margin: 14px 0; }
+    #hortinis-global-journey .field label,
+    #hortinis-global-journey .field-label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    #hortinis-global-journey .field input {
+      width: 100%;
+      min-height: 46px;
+      padding: 9px 10px;
+      border: 1px solid var(--hort-line);
+      border-radius: 9px;
+      background: var(--hort-surface);
+      font-size: 16px;
+    }
+    #hortinis-global-journey .server-result {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      margin: 12px 0;
+      border-radius: 12px;
+      background: var(--hort-soft);
+    }
+    #hortinis-global-journey .server-result strong { font-weight: 500; }
+    #hortinis-global-journey .sync-section { padding: 13px; margin-bottom: 10px; }
+    #hortinis-global-journey .sync-section h3 { font-size: 17px; }
+    #hortinis-global-journey .sync-line {
+      display: flex;
+      gap: 8px;
+      justify-content: space-between;
+      margin-top: 8px;
+      color: var(--hort-muted);
+      font-size: 13px;
+    }
+    #hortinis-global-journey .sync-line strong { color: var(--hort-ink); font-weight: 500; }
+    #hortinis-global-journey .choice-stack { display: grid; gap: 9px; margin-top: 14px; }
+    #hortinis-global-journey .choice-panel { padding: 12px; text-align: left; }
+    #hortinis-global-journey .choice-panel strong,
+    #hortinis-global-journey .choice-panel small { display: block; }
+    #hortinis-global-journey .choice-panel small { margin-top: 4px; color: var(--hort-muted); }
+    #hortinis-global-journey .choice-panel.recommended { border-color: var(--hort-accent); }
+    #hortinis-global-journey .choice-panel.recommended strong::after {
+      content: " · recommandé";
+      color: var(--hort-accent);
+      font-size: 12px;
+    }
+    #hortinis-global-journey .summary-box {
+      padding: 12px;
+      border-radius: 12px;
+      background: var(--hort-soft);
+      margin-bottom: 12px;
+    }
+    #hortinis-global-journey .summary-box strong,
+    #hortinis-global-journey .summary-box small { display: block; }
+    #hortinis-global-journey .summary-box small { color: var(--hort-muted); margin-top: 3px; }
+    #hortinis-global-journey .target-row,
+    #hortinis-global-journey .exclusion-row {
+      width: 100%;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px 10px;
+      border: 1px solid var(--hort-line);
+      border-radius: 9px;
+      background: var(--hort-surface);
+      text-align: left;
+      margin-bottom: 7px;
+    }
+    #hortinis-global-journey .target-row[aria-pressed="true"],
+    #hortinis-global-journey .exclusion-row[aria-pressed="true"] {
+      border-color: var(--hort-accent);
+      background: var(--hort-soft);
+    }
+    #hortinis-global-journey .target-row span,
+    #hortinis-global-journey .exclusion-row span { flex: 1; }
+    #hortinis-global-journey .target-row small,
+    #hortinis-global-journey .exclusion-row small { display: block; color: var(--hort-muted); }
+    #hortinis-global-journey .indent { margin-left: 18px; width: calc(100% - 18px); }
+    #hortinis-global-journey .feedback {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      bottom: 72px;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 50px;
+      padding: 8px 10px;
+      border: 1px solid var(--hort-line);
+      border-radius: 12px;
+      background: var(--hort-surface);
+      box-shadow: 0 6px 22px color-mix(in srgb, var(--hort-ink) 16%, transparent);
+    }
+    #hortinis-global-journey .feedback span { flex: 1; font-size: 13px; }
+    #hortinis-global-journey .feedback button { min-height: 36px; border: 0; background: transparent; color: var(--hort-accent); }
+    #hortinis-global-journey .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      z-index: 7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: color-mix(in srgb, var(--hort-ink) 42%, transparent);
+    }
+    #hortinis-global-journey .modal {
+      width: 100%;
+      padding: 17px;
+      border-radius: 16px;
+      background: var(--hort-surface);
+      box-shadow: 0 12px 36px color-mix(in srgb, var(--hort-ink) 28%, transparent);
+    }
+    #hortinis-global-journey .modal-actions { display: grid; gap: 8px; margin-top: 16px; }
+    #hortinis-global-journey .danger {
+      border-color: var(--hort-warning-ink);
+      background: var(--hort-warning);
+      color: var(--hort-warning-ink);
+    }
+    #hortinis-global-journey .status {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+    @media (max-width: 430px) {
+      #hortinis-global-journey .journey-picker { justify-content: flex-start; }
+      #hortinis-global-journey .journey-picker button { flex: 1 1 46%; border-radius: 10px; }
+      #hortinis-global-journey .phone { border-radius: 16px; min-height: 650px; }
+      #hortinis-global-journey .welcome { min-height: 650px; }
+    }
+  </style>
+
+  <div class="journey-picker" role="group" aria-label="Étape du parcours à examiner">
+    <button type="button" data-screen="welcome" aria-pressed="true">Première ouverture</button>
+    <button type="button" data-screen="home" aria-pressed="false">Jardin local</button>
+    <button type="button" data-screen="gardens" aria-pressed="false">Tous les jardins</button>
+    <button type="button" data-screen="sync" aria-pressed="false">Synchronisation</button>
+    <button type="button" data-screen="change-server" aria-pressed="false">Changer de serveur</button>
+    <button type="button" data-screen="record" aria-pressed="false">Noter et exclure</button>
+  </div>
+  <section class="phone" aria-label="Écran mobile Hortinis"></section>
+  <div class="status" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('hortinis-global-journey');
+      const phone = root.querySelector('.phone');
+      const state = {
+        screen: 'welcome',
+        serverStep: 'address',
+        recordStep: 'form',
+        target: 'Jardin actuel',
+        exclusions: new Set(['Serre']),
+        recordDate: '2027-04-12',
+        hasLocalData: false,
+        feedback: '',
+        showSwitchConfirm: false
+      };
+      const esc = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+      const announce = text => { root.querySelector('.status').textContent = text; };
+      const icon = name => `<i data-lucide="${name}" aria-hidden="true"></i>`;
+      const header = (title, back = '') => `<header class="app-header">${back ? `<button type="button" class="icon-action" data-go="${back}" aria-label="Retour">${icon('arrow-left')}</button>` : ''}<h2>${esc(title)}</h2><button type="button" class="icon-action" data-go="sync" aria-label="Données et synchronisation">${icon('database')}</button></header>`;
+      const nav = active => `<nav class="bottom-nav" aria-label="Navigation principale">${[['home','Accueil','home'],['sprout','Jardin','gardens'],['plus','Noter','record'],['calendar-days','Planifier','home'],['notebook-pen','Journal','home']].map(([name,label,screen], index) => `<button type="button" data-go="${screen}" class="${index === 2 ? 'record-nav' : ''}" ${label === active ? 'aria-current="page"' : ''}>${icon(name)}<span>${label}</span></button>`).join('')}</nav>`;
+      const feedback = () => state.feedback ? `<aside class="feedback"><span>${esc(state.feedback)}</span><button type="button" data-dismiss>OK</button></aside>` : '';
+
+      function renderWelcome() {
+        phone.innerHTML = `<main class="welcome"><div class="brand">${icon('sprout')}</div><h1>Bienvenue dans Hortinis</h1><p class="muted">Votre jardin reste utilisable hors ligne. Vous pourrez compléter sa configuration plus tard.</p><div class="entry-actions"><button type="button" class="primary entry-button" data-start-local>${icon('leaf')}<span><strong>Commencer localement</strong><small>Aucun compte et aucun nom requis</small></span>${icon('arrow-right')}</button><button type="button" class="secondary entry-button" data-go="sync">${icon('cloud')}<span><strong>Se connecter à un serveur</strong><small>Retrouver les jardins déjà synchronisés</small></span>${icon('arrow-right')}</button><button type="button" class="secondary entry-button" data-restore>${icon('archive-restore')}<span><strong>Restaurer une sauvegarde</strong><small>Vérifier le fichier avant toute restauration</small></span>${icon('arrow-right')}</button></div></main>${feedback()}`;
+      }
+
+      function renderHome() {
+        phone.innerHTML = `${header('Jardin actuel')}<main class="screen"><section class="setup-notice"><div class="notice-head">${icon('circle-dashed')}<strong>Configuration à terminer</strong><button type="button" data-configure>Configurer</button></div><p class="muted">Vous pouvez déjà noter du travail. Le nom, les espaces et la synchronisation restent facultatifs.</p></section><div class="garden-title"><h3>À faire aujourd’hui</h3><span class="status-chip">Local</span></div><section class="work-group"><strong>Jardin</strong><div class="task-row">${icon('droplets')}<span>Arroser les planches<small>Sauf la serre</small></span><input type="checkbox" aria-label="Terminer : arroser les planches"></div></section><section class="work-group"><strong>Planche est</strong><div class="task-row">${icon('sprout')}<span>Désherber les carottes<small>Aujourd’hui</small></span><input type="checkbox" aria-label="Terminer : désherber les carottes"></div></section></main>${nav('Accueil')}${feedback()}`;
+      }
+
+      function renderGardens() {
+        phone.innerHTML = `${header('Tous les jardins', 'home')}<main class="screen"><section class="global-notice"><div class="notice-head">${icon('cloud-off')}<strong>Synchronisation non configurée</strong><button type="button" data-go="sync">Configurer</button></div></section><div class="garden-list"><button type="button" class="garden-row" data-select-garden="Jardin actuel">${icon('leaf')}<span class="garden-copy"><strong>Jardin actuel</strong><small>Sélectionné · configuration à terminer · 2 tâches</small></span>${icon('chevron-right')}</button><button type="button" class="garden-row" data-select-garden="Potager partagé">${icon('trees')}<span class="garden-copy"><strong>Potager partagé</strong><small>3 tâches · une alerte météo</small></span><span class="attention">À vérifier</span>${icon('chevron-right')}</button><button type="button" class="garden-row" data-select-garden="Parcelle nord">${icon('rows-3')}<span class="garden-copy"><strong>Parcelle nord</strong><small>Aucune attention immédiate</small></span>${icon('chevron-right')}</button></div><button type="button" class="primary" style="width:100%;margin-top:14px" data-add-garden>${icon('plus')} Ajouter un jardin</button></main>${nav('Jardin')}${feedback()}`;
+      }
+
+      function renderSync() {
+        if (state.serverStep === 'address') {
+          phone.innerHTML = `${header('Données et synchronisation', state.hasLocalData ? 'home' : 'welcome')}<main class="screen"><h3>Connecter un serveur</h3><p class="muted">La connexion couvrira ce profil local et tous ses jardins.</p><div class="field"><label for="hort-server">Adresse du serveur</label><input id="hort-server" type="url" value="https://jardin.exemple.fr" autocomplete="url"></div><button type="button" class="primary" style="width:100%" data-check-server>Vérifier le serveur</button><div class="sync-section" style="margin-top:18px"><h3>Utilisation actuelle</h3><div class="sync-line"><span>Mode</span><strong>Local uniquement</strong></div><div class="sync-line"><span>Données sur cet appareil</span><strong>${state.hasLocalData ? '3 jardins' : 'Aucun jardin'}</strong></div></div></main>${feedback()}`;
+        } else {
+          phone.innerHTML = `${header('Connexion au serveur', 'sync')}<main class="screen"><div class="server-result">${icon('badge-check')}<strong>Serveur Hortinis compatible</strong><span class="muted">jardin.exemple.fr · compte requis</span></div><div class="field"><label for="hort-email">Identifiant</label><input id="hort-email" type="email" autocomplete="username" placeholder="camille@exemple.fr"></div><div class="field"><label for="hort-password">Mot de passe</label><input id="hort-password" type="password" autocomplete="current-password"></div><button type="button" class="primary" style="width:100%" data-connect>Se connecter et réunir les jardins</button><button type="button" class="text-action" style="width:100%" data-server-mode>Voir l’accès sans compte ou OIDC</button><p class="muted" style="margin-top:12px">Les jardins locaux et distants seront réunis automatiquement. Une décision ne sera demandée qu’en cas de contradiction.</p></main>${feedback()}`;
+        }
+      }
+
+      function renderChangeServer() {
+        phone.innerHTML = `${header('Changer de serveur', 'sync')}<main class="screen"><h3>Deux ensembles de données détectés</h3><p class="muted">Les données locales restent disponibles sur cet appareil. Choisissez ce que ce nouveau serveur doit synchroniser.</p><div class="choice-stack"><button type="button" class="choice-panel" data-server-choice="distant"><strong>Conserver le distant</strong><small>Utiliser les jardins présents sur le nouveau serveur. Les jardins locaux restent disponibles hors synchronisation.</small></button><button type="button" class="choice-panel" data-server-choice="local"><strong>Conserver le local</strong><small>Utiliser les jardins de cet appareil comme ensemble à synchroniser.</small></button><button type="button" class="choice-panel recommended" data-server-choice="merge"><strong>Fusionner</strong><small>Réunir les jardins locaux et distants, puis signaler uniquement les contradictions.</small></button></div></main>${feedback()}`;
+      }
+
+      function renderRecord() {
+        const exclusionRows = [
+          ['Serre', 'Espace · son contenu est également exclu', false, ''],
+          ['Tomates Marmande', 'Culture dans la serre', true, 'Serre'],
+          ['Planche est', 'Espace', false, ''],
+          ['Radis · lot 2', 'Lot dans la planche est', true, 'Planche est']
+        ];
+        if (state.recordStep === 'exclusions') {
+          const coverageBasis = state.recordDate ? 'Portée évaluée à la date du fait.' : 'Portée évaluée selon la situation actuelle, car aucune date n’est indiquée.';
+          phone.innerHTML = `${header('Exclusions', 'record')}<main class="screen"><div class="summary-box"><strong>Arrosage · Jardin actuel</strong><small>${coverageBasis}</small></div><span class="field-label">Ne pas inclure</span>${exclusionRows.map(([name,detail,indent,parent]) => { const covered = parent && state.exclusions.has(parent); return `<button type="button" class="exclusion-row ${indent ? 'indent' : ''}" ${covered ? 'disabled' : `data-exclusion="${esc(name)}"`} aria-pressed="${state.exclusions.has(name) || covered}"><span><strong>${esc(name)}</strong><small>${esc(detail)}${covered ? ' · couverte par l’espace exclu' : ''}</small></span>${state.exclusions.has(name) || covered ? icon('check') : ''}</button>`; }).join('')}<button type="button" class="primary" style="width:100%;margin-top:12px" data-apply-exclusions>Appliquer les exclusions</button></main>`;
+        } else {
+          const exclusionSummary = state.exclusions.size ? `Sauf ${[...state.exclusions].join(', ')}` : 'Aucune exclusion';
+          phone.innerHTML = `${header('Noter', 'home')}<main class="screen"><div class="summary-box"><strong>Arrosage</strong><small>${esc(state.target)} · ${esc(exclusionSummary)}</small></div><span class="field-label">Cible</span>${['Jardin actuel','Planche est','Tomates Marmande','Radis · lot 2'].map(target => `<button type="button" class="target-row" data-target="${esc(target)}" aria-pressed="${state.target === target}"><span>${esc(target)}</span>${state.target === target ? icon('check') : ''}</button>`).join('')}<button type="button" class="secondary" style="width:100%" data-open-exclusions>${icon('list-minus')} Ajouter ou modifier les exclusions</button><div class="field"><label for="hort-event-date">Date du fait</label><input id="hort-event-date" type="date" value="${state.recordDate}"><span class="muted">Vide : la date reste inconnue et les exclusions utilisent la situation actuelle.</span></div><button type="button" class="primary" style="width:100%" data-save-record>Enregistrer</button><button type="button" class="text-action" style="width:100%" data-switch-during-record>Changer de jardin</button></main>${nav('Noter')}`;
+        }
+        if (state.showSwitchConfirm) {
+          phone.insertAdjacentHTML('beforeend', `<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="hort-switch-title"><h3 id="hort-switch-title">Abandonner cette saisie ?</h3><p class="muted">Changer de jardin supprimera la saisie non enregistrée. Elle ne sera jamais transférée vers l’autre jardin.</p><div class="modal-actions"><button type="button" class="secondary" data-stay>Continuer la saisie</button><button type="button" class="secondary danger" data-abandon-switch>Abandonner et changer</button></div></section></div>`);
+        }
+      }
+
+      function renderRestore() {
+        phone.innerHTML = `${header('Restaurer une sauvegarde', 'welcome')}<main class="screen"><h3>Choisir une sauvegarde Hortinis</h3><p class="muted">Le fichier sera vérifié avant qu’une donnée soit ajoutée. Rien ne sera remplacé silencieusement.</p><div class="field"><label for="hort-backup">Fichier de sauvegarde</label><input id="hort-backup" type="file" accept=".hortinis,.zip"></div><button type="button" class="primary" style="width:100%" disabled>Vérifier la sauvegarde</button></main>`;
+      }
+
+      function render() {
+        root.querySelectorAll('.journey-picker button').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.screen === state.screen)));
+        if (state.screen === 'welcome') renderWelcome();
+        if (state.screen === 'home') renderHome();
+        if (state.screen === 'gardens') renderGardens();
+        if (state.screen === 'sync') renderSync();
+        if (state.screen === 'change-server') renderChangeServer();
+        if (state.screen === 'record') renderRecord();
+        if (state.screen === 'restore') renderRestore();
+        if (globalThis.lucide) lucide.createIcons({ attrs: { width: 18, height: 18 } });
+      }
+
+      function go(screen) {
+        if (screen === 'record' && state.screen === 'record' && state.recordStep === 'exclusions') state.recordStep = 'form';
+        if (['home', 'gardens', 'record'].includes(screen)) state.hasLocalData = true;
+        state.screen = screen;
+        state.feedback = '';
+        state.showSwitchConfirm = false;
+        render();
+        announce(`Écran affiché : ${screen}.`);
+      }
+
+      root.addEventListener('click', event => {
+        const button = event.target.closest('button');
+        if (!button) return;
+        if (button.dataset.screen) { go(button.dataset.screen); return; }
+        if (button.dataset.go) { go(button.dataset.go); return; }
+        if (button.hasAttribute('data-start-local')) { state.hasLocalData = true; state.feedback = 'Jardin local créé · configuration facultative'; go('home'); state.feedback = 'Jardin local créé · configuration facultative'; render(); return; }
+        if (button.hasAttribute('data-restore')) { go('restore'); return; }
+        if (button.hasAttribute('data-configure')) { state.feedback = 'Le nom et les espaces pourront être ajoutés sans bloquer le travail.'; render(); return; }
+        if (button.hasAttribute('data-dismiss')) { state.feedback = ''; render(); return; }
+        if (button.hasAttribute('data-add-garden')) { state.feedback = 'Nouveau jardin créé sans nom · configuration à terminer'; render(); return; }
+        if (button.dataset.selectGarden) { state.feedback = `${button.dataset.selectGarden} sélectionné`; go('home'); state.feedback = `${button.dataset.selectGarden} sélectionné`; render(); return; }
+        if (button.hasAttribute('data-check-server')) { state.serverStep = 'auth'; render(); announce('Serveur compatible. Compte requis.'); return; }
+        if (button.hasAttribute('data-connect')) { state.feedback = 'Connecté · jardins locaux et distants réunis'; go('gardens'); state.feedback = 'Connecté · jardins locaux et distants réunis'; render(); return; }
+        if (button.hasAttribute('data-server-mode')) { state.feedback = 'Le serveur détermine si un compte, un accès direct ou OIDC est disponible.'; render(); return; }
+        if (button.dataset.serverChoice) { state.feedback = button.dataset.serverChoice === 'merge' ? 'Fusion choisie · seules les contradictions demanderont une décision' : `Choix « ${button.querySelector('strong').textContent} » retenu`; go('sync'); state.serverStep = 'address'; state.feedback = button.dataset.serverChoice === 'merge' ? 'Fusion choisie · seules les contradictions demanderont une décision' : `Choix retenu : ${button.querySelector('strong').textContent}`; render(); return; }
+        if (button.dataset.target) { state.target = button.dataset.target; state.exclusions.clear(); render(); return; }
+        if (button.hasAttribute('data-open-exclusions')) { state.recordStep = 'exclusions'; render(); return; }
+        if (button.dataset.exclusion) { state.exclusions.has(button.dataset.exclusion) ? state.exclusions.delete(button.dataset.exclusion) : state.exclusions.add(button.dataset.exclusion); render(); return; }
+        if (button.hasAttribute('data-apply-exclusions')) { state.recordStep = 'form'; render(); return; }
+        if (button.hasAttribute('data-save-record')) { state.feedback = 'Arrosage enregistré localement'; go('home'); state.feedback = 'Arrosage enregistré localement'; render(); return; }
+        if (button.hasAttribute('data-switch-during-record')) { state.showSwitchConfirm = true; render(); return; }
+        if (button.hasAttribute('data-stay')) { state.showSwitchConfirm = false; render(); return; }
+        if (button.hasAttribute('data-abandon-switch')) { state.recordStep = 'form'; state.target = 'Jardin actuel'; state.exclusions = new Set(['Serre']); go('gardens'); state.feedback = 'Saisie abandonnée'; render(); return; }
+      });
+
+      root.addEventListener('change', event => {
+        if (event.target.id === 'hort-event-date') state.recordDate = event.target.value;
+      });
+
+      render();
+    })();
+  </script>
+</div>
