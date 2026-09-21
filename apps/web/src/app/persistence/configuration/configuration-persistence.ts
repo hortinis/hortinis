@@ -17,9 +17,9 @@ export class ConfigurationPersistence {
   async configure(): Promise<void> {
     await this.database.transaction('rw', this.database.configuration, async () =>
       this.database.configuration.add({
-        id: generateUuidV7(),
         sync: false,
       }),
     );
+    console.log('persisted conf');
   }
 }

@@ -6,5 +6,5 @@ export const HORTINIS_DATABASE_SCHEMA = {
   synchronizationState: 'scope',
   garden: 'id, name',
   space: 'id, gardenId, type, name',
-  configuration: 'sync, serverUrl',
+  configuration: '++id, sync, serverUrl',
 };

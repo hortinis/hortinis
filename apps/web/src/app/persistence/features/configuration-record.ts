@@ -1,5 +1,5 @@
 export interface ConfigurationRecord {
-  id: string;
+  id?: number;
   sync: boolean;
   serverUrl?: string;
 }
