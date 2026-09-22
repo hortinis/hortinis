@@ -9,7 +9,7 @@ export const routes: Routes = [
   {
     path: '',
     component: Layout,
-    canActivate: [configurationCheckGuard],
+    // canActivate: [configurationCheckGuard],
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'home' },
       {
@@ -33,7 +33,7 @@ export const routes: Routes = [
   },
   {
     path: 'configure',
-    canActivate: [configuredCheckGuard],
+    // canActivate: [configuredCheckGuard],
     loadComponent: async () =>
       import('./configuration/base-configuration').then(
         ({ BaseConfiguration: BaseConfiguration }) => BaseConfiguration,

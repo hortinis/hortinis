@@ -4,19 +4,49 @@
 // Learn more about theming and how to use it for your application's
 // custom components at https://material.angular.dev/guide/theming
 @use '@angular/material' as mat;
+@use 'sass:map';
 
-@use './theme-colors';
+@use './theme-colors' as colors;
+
+// Extract the generated primary tonal palette.
+$primary: colors.$primary-palette;
+$secondary: colors.$secondary-palette;
 
 html {
   height: 100%;
   @include mat.theme(
     (
       color: (
-        primary: theme-colors.$primary-palette,
-        tertiary: theme-colors.$tertiary-palette,
+        primary: colors.$primary-palette,
+        secondary: colors.$secondary-palette,
+        tertiary: colors.$tertiary-palette,
       ),
       typography: Roboto,
       density: 0,
+    )
+  );
+  // // A tinted background derived from the primary palette.
+  $app-background: light-dark(map.get($secondary, 90), map.get($primary, 50));
+  $app-background: light-dark(#fffef9, #1e2c24);
+
+  // A lighter surface derived from the same palette.
+  $app-surface: light-dark(map.get($secondary, 95), map.get($primary, 10));
+  @include mat.theme-overrides(
+    (
+      background: $app-background,
+      surface: $app-surface,
+      surface-container: light-dark(magenta, purple),
+      on-background: light-dark(map.get($primary, 10), map.get($secondary, 100)),
+      on-surface: light-dark(map.get($primary, 10), map.get($secondary, 100)),
+      surface-container-lowest: light-dark(red, pink),
+      // surface-container-low: light-dark(map.get($secondary, 80), map.get($primary, 10)),
+      surface-container-low: light-dark(#e8efe3, #2b4030),
+      // surface-container-high: light-dark(#306c45, #aedbb8),
+      //light-dark(cyan, darkblue),
+      surface-container-highest: light-dark(grey, orange),
+      surface-variant: light-dark(darkred, yellow),
+      on-surface-variant: light-dark(map.get($primary, 60), map.get($secondary, 60)),
+      // primary-container: light-dark(map.get($secondary, 80), map.get($primary, 50)),
     )
   );
 }
@@ -27,8 +57,11 @@ body {
   // user's system settings.
   color-scheme: light dark;
 
-  background-color: var(--mat-sys-primary);
-  color: var(--mat-sys-on-primary);
+  // Set a default background, font and text colors for the application using
+  // Angular Material's system-level CSS variables. Learn more about these
+  // variables at https://material.angular.dev/guide/system-variables
+  background-color: var(--mat-sys-background);
+  color: var(--mat-sys-on-background);
   font: var(--mat-sys-body-medium);
 
   // Reset the user agent margin.

@@ -5,8 +5,8 @@
         (click)="route.click()"
         class="nav__button nav__button--fab"
         [class.nav__button--mobile]="device.mobile()"
-        matFab>
-        <mat-icon class="material-symbols-outlined">{{ route.icon }}</mat-icon>
+        matButton="outlined">
+        <mat-icon class="material-symbols-outlined nav__button__icon">{{ route.icon }}</mat-icon>
         <span>{{ route.name }}</span>
       </button>
     } @else {

@@ -8,12 +8,12 @@
   align-items: center;
   gap: 5px;
 
-  .card {
-    @include mat.card-overrides(
-      (
-        elevated-container-color: var(--mat-sys-inverse-primary),
-      )
-    );
-    color: var(--mat-sys-on-primary-container);
-  }
+  //   .card {
+  //     @include mat.card-overrides(
+  //       (
+  //         elevated-container-color: var(--mat-sys-inverse-primary),
+  //       )
+  //     );
+  //     color: var(--mat-sys-on-primary-container);
+  //   }
 }

@@ -4,7 +4,7 @@ import { Routing } from '../utils/routing';
 import { MatToolbar } from '@angular/material/toolbar';
 import { MatIcon } from '@angular/material/icon';
 import { RouterOutlet, RouterLinkWithHref, RouterLinkActive } from '@angular/router';
-import { MatButton, MatFabButton } from '@angular/material/button';
+import { MatButton, MatFabButton, MatIconButton } from '@angular/material/button';
 
 @Component({
   imports: [
@@ -15,6 +15,7 @@ import { MatButton, MatFabButton } from '@angular/material/button';
     MatFabButton,
     RouterLinkWithHref,
     RouterLinkActive,
+    MatIconButton,
   ],
   selector: 'hortinis-layout',
   styleUrl: './layout.scss',

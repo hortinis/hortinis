@@ -50,11 +50,6 @@
         &--active {
           font-weight: bold;
         }
-        &--fab {
-          align-self: center;
-          padding: 0 15px;
-          width: auto;
-        }
       }
     }
     &--web {
@@ -69,12 +64,6 @@
         padding: 5px;
       }
     }
-    @include mat.toolbar-overrides(
-      (
-        container-background-color: var(--mat-sys-inverse-primary, blue),
-        container-text-color: var(--mat-sys-inverse-surface),
-      )
-    );
 
     &__button {
       display: flex;
@@ -87,9 +76,8 @@
       }
       @include mat.button-overrides(
         (
-          text-container-shape: 10px,
-          text-touch-target-size: 56px,
-          outlined-container-shape: 10px,
+          text-container-shape: 0px,
+          outlined-container-shape: 0px,
         )
       );
 
@@ -100,7 +88,7 @@
         border: 1px solid;
         @include mat.toolbar-overrides(
           (
-            container-text-color: var(--mat-sys-on-secondary-container, purple),
+            container-text-color: var(--mat-sys-on-surface-variant, purple),
           )
         );
       }
