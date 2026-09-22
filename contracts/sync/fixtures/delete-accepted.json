@@ -1,0 +1,15 @@
+{
+  "id": "delete-accepted",
+  "description": "An accepted deletion returns its incremented tombstone revision and deletion sequence.",
+  "schema": "OperationResult.json",
+  "value": {
+    "outcome": "accepted",
+    "operationId": "01890f3e-7c5a-7b16-8abc-0123456789ab",
+    "tombstone": {
+      "recordId": "01890f3e-7c5a-7b15-8abc-0123456789ab",
+      "revision": "3",
+      "deletedAtSequence": "41"
+    },
+    "sequence": "41"
+  }
+}

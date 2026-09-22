@@ -20,11 +20,14 @@ unknown properties are invalid.
 
 The walking skeleton uses one deliberately technical record with a stable `recordId`, a server
 `revision`, and a string `value`. It is not a garden resource and does not imply a future garden model.
-The accepted operations are:
+G2a extends the contract-first operation union with deletion while its runtime adapters remain planned.
+The operations are:
 
 - `create`, which has no `expectedRevision` and fails when the record already exists;
 - `replace`, which requires `expectedRevision` and fails when the record is absent or the current
-  revision differs.
+  revision differs;
+- `delete`, which requires `expectedRevision`, advances that revision by one, and produces a technical
+  tombstone rather than a live record.
 
 Record and operation identifiers are canonical lowercase UUID strings. The current browser generates
 UUIDv7 values, but UUID version is not part of protocol validity. The `operationId` is also the
@@ -53,23 +56,30 @@ The protocol defines the following explicit errors:
 | `404` | `RECORD_NOT_FOUND` | A replacement targets an absent technical record. |
 | `409` | `OPERATION_ID_REUSED` | An operation identifier was used with a different request. |
 | `409` | `RECORD_ALREADY_EXISTS` | A creation targets an existing technical record. |
+| `409` | `RECORD_IDENTIFIER_RETIRED` | A creation targets an identifier reserved by an accepted deletion. |
 | `409` | `REVISION_CONFLICT` | The expected revision differs from the current revision. |
 
 Record-existence and revision conflicts include the current accepted technical record where it exists.
 This preserves enough information for the walking skeleton to represent server state and pending local
 intent independently without selecting domain conflict resolution.
 
+Creation with a stable identifier reserved by an accepted deletion returns
+`RECORD_IDENTIFIER_RETIRED`. Accepted deletion results and incremental deletion changes contain the same
+tombstone revision and deletion sequence. Result and change contracts are closed unions distinguished by
+the presence of `record` or `tombstone`; existing live-record wire shapes remain unchanged.
+
 ## Selected production synchronization contract
 
-ADR-0023 through ADR-0026 select the production retention and reconciliation behavior. The TypeSpec
-source and generated artifacts define its wire shapes before G2 through G4 activate their Spring and
-browser adapters.
+ADR-0023 through ADR-0027 select the production retention, reconciliation, and retry behavior. The
+TypeSpec source and generated artifacts define its wire shapes before G2 through G4 activate their
+Spring and browser adapters.
 
 The production operation envelope binds the original operation immutably to an opaque synchronization
-generation. It extends the technical operation union with expected-revision deletion. An old-generation
-operation is never accepted as a new operation in the current generation: a retained receipt returns its
-stable result, unavailable incremental history returns `RECONCILIATION_REQUIRED`, and a missing receipt
-whose result cannot be proved returns an `indeterminate` outcome.
+generation. G2 first activates unbound expected-revision deletion; G3 then makes the generation envelope
+mandatory for create, replacement, and deletion. An old-generation operation is never accepted as a new
+operation in the current generation: a retained receipt returns its stable result, unavailable
+incremental history returns `RECONCILIATION_REQUIRED`, and a missing receipt whose result cannot be
+proved returns an `indeterminate` outcome.
 
 The selected reconciliation API adds:
 
@@ -91,5 +101,6 @@ two domain operations are semantically equivalent remains a future domain-specif
 The contract does not define authentication, authorization, a production synchronization-scope
 identifier, batching, garden resources, or domain-specific conflict resolution. The V0 validation
 topology uses one test-only synchronization scope, retains all incremental history and idempotency
-receipts, and must not expose an unauthenticated production service. The production policy schemas and
-reconciliation endpoints remain unavailable at runtime until G2 through G4 implement them.
+receipts, and must not expose an unauthenticated production service. G2a's deletion shapes and the
+production reconciliation endpoints remain unavailable at runtime until G2b through G4 implement their
+adapters.

@@ -12,17 +12,7 @@ namespace Hortinis.Sync.Models {
   @minLength(1)
   scalar SnapshotCursor extends string;
 
-  @doc("Delete an existing technical record at its expected server revision.")
-  model DeleteTechnicalRecordOperation {
-    @doc("The stable operation and idempotency identifier.")
-    operationId: Uuid;
-
-    recordId: Uuid;
-    kind: "delete";
-    expectedRevision: PositiveDecimal;
-  }
-
-  @doc("A production operation supported after generation handling and deletion are implemented.")
+  @doc("The production operation union activated before generation envelopes become mandatory.")
   @discriminated(#{ envelope: "none", discriminatorPropertyName: "kind" })
   @TypeSpec.JsonSchema.oneOf
   union ProductionTechnicalRecordOperation {
@@ -35,13 +25,6 @@ namespace Hortinis.Sync.Models {
   model GenerationBoundOperation {
     generation: SyncGeneration;
     operation: ProductionTechnicalRecordOperation;
-  }
-
-  @doc("The retained synchronization representation of an accepted deletion.")
-  model TechnicalTombstone {
-    recordId: Uuid;
-    revision: PositiveDecimal;
-    deletedAtSequence: PositiveDecimal;
   }
 
   @doc("A live record in an anchored snapshot.")

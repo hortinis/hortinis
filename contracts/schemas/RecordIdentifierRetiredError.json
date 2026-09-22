@@ -1,0 +1,31 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "RecordIdentifierRetiredError.json",
+    "type": "object",
+    "properties": {
+        "code": {
+            "type": "string",
+            "const": "RECORD_IDENTIFIER_RETIRED"
+        },
+        "message": {
+            "type": "string",
+            "minLength": 1
+        },
+        "operationId": {
+            "$ref": "Uuid.json"
+        },
+        "recordId": {
+            "$ref": "Uuid.json"
+        }
+    },
+    "required": [
+        "code",
+        "message",
+        "operationId",
+        "recordId"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "Creation failed because the stable record identifier was retired by an accepted deletion."
+}

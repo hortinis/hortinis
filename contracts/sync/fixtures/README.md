@@ -35,7 +35,7 @@ Fixtures are intentionally ASCII-only where canonical bytes are asserted so the 
 consumers can focus on the protocol boundary. Generated TypeSpec artifacts and hand-maintained schema
 copies do not belong here.
 
-G1 policy fixtures use a smaller schema-oriented shape:
+G1 and G2a policy fixtures use a smaller schema-oriented shape:
 
 ```json
 {
@@ -47,5 +47,5 @@ G1 policy fixtures use a smaller schema-oriented shape:
 ```
 
 A fixture may use `values` when several variants must satisfy the same generated schema. Contract tests
-consume these examples now; G2 through G5 extend cross-runtime consumers as the corresponding behavior
+consume these examples now; G2b through G5 extend cross-runtime consumers as the corresponding behavior
 is implemented.

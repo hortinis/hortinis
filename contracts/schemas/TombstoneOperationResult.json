@@ -1,0 +1,30 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "TombstoneOperationResult.json",
+    "type": "object",
+    "properties": {
+        "outcome": {
+            "type": "string",
+            "const": "accepted"
+        },
+        "operationId": {
+            "$ref": "Uuid.json"
+        },
+        "tombstone": {
+            "$ref": "TechnicalTombstone.json"
+        },
+        "sequence": {
+            "$ref": "PositiveDecimal.json"
+        }
+    },
+    "required": [
+        "outcome",
+        "operationId",
+        "tombstone",
+        "sequence"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "The stable result returned when a deletion is accepted or replayed identically."
+}

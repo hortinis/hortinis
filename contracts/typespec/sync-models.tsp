@@ -41,27 +41,74 @@ namespace Hortinis.Sync.Models {
     expectedRevision: PositiveDecimal;
   }
 
+  @doc("Delete an existing technical record at its expected server revision.")
+  model DeleteTechnicalRecordOperation {
+    @doc("The stable operation and idempotency identifier.")
+    operationId: Uuid;
+
+    recordId: Uuid;
+    kind: "delete";
+    expectedRevision: PositiveDecimal;
+  }
+
   @doc("One stable technical-record operation submitted for synchronization.")
   @discriminated(#{ envelope: "none", discriminatorPropertyName: "kind" })
   @TypeSpec.JsonSchema.oneOf
   union TechnicalRecordOperation {
     create: CreateTechnicalRecordOperation,
     replace: ReplaceTechnicalRecordOperation,
+    delete: DeleteTechnicalRecordOperation,
   }
 
-  @doc("The stable result returned when an operation is accepted or replayed identically.")
-  model OperationResult {
+  @doc("The stable result returned when a create or replacement is accepted or replayed identically.")
+  model RecordOperationResult {
     outcome: "accepted";
     operationId: Uuid;
     record: TechnicalRecord;
     sequence: PositiveDecimal;
   }
 
-  @doc("One accepted server change in monotonic server-sequence order.")
-  model TechnicalChange {
+  @doc("The retained synchronization representation of an accepted deletion.")
+  model TechnicalTombstone {
+    recordId: Uuid;
+    revision: PositiveDecimal;
+    deletedAtSequence: PositiveDecimal;
+  }
+
+  @doc("The stable result returned when a deletion is accepted or replayed identically.")
+  model TombstoneOperationResult {
+    outcome: "accepted";
+    operationId: Uuid;
+    tombstone: TechnicalTombstone;
+    sequence: PositiveDecimal;
+  }
+
+  @doc("The stable result returned when an operation is accepted or replayed identically.")
+  @TypeSpec.JsonSchema.oneOf
+  union OperationResult {
+    record: RecordOperationResult,
+    tombstone: TombstoneOperationResult,
+  }
+
+  @doc("One accepted live-record change in monotonic server-sequence order.")
+  model RecordTechnicalChange {
     operationId: Uuid;
     record: TechnicalRecord;
     sequence: PositiveDecimal;
+  }
+
+  @doc("One accepted deletion in monotonic server-sequence order.")
+  model TombstoneTechnicalChange {
+    operationId: Uuid;
+    tombstone: TechnicalTombstone;
+    sequence: PositiveDecimal;
+  }
+
+  @doc("One accepted server change in monotonic server-sequence order.")
+  @TypeSpec.JsonSchema.oneOf
+  union TechnicalChange {
+    record: RecordTechnicalChange,
+    tombstone: TombstoneTechnicalChange,
   }
 
   @doc("A page of accepted changes and the opaque cursor following the complete page.")
@@ -111,6 +158,17 @@ namespace Hortinis.Sync.Models {
     currentRecord: TechnicalRecord;
   }
 
+  @doc("Creation failed because the stable record identifier was retired by an accepted deletion.")
+  model RecordIdentifierRetiredError {
+    code: "RECORD_IDENTIFIER_RETIRED";
+
+    @minLength(1)
+    message: string;
+
+    operationId: Uuid;
+    recordId: Uuid;
+  }
+
   @doc("Replacement failed because the expected and current revisions differ.")
   model RevisionConflictError {
     code: "REVISION_CONFLICT";
@@ -128,6 +186,7 @@ namespace Hortinis.Sync.Models {
   union ConflictError {
     OPERATION_ID_REUSED: OperationIdReusedError,
     RECORD_ALREADY_EXISTS: RecordAlreadyExistsError,
+    RECORD_IDENTIFIER_RETIRED: RecordIdentifierRetiredError,
     REVISION_CONFLICT: RevisionConflictError,
   }
 }

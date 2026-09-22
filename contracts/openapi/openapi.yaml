@@ -34,7 +34,7 @@ paths:
     post:
       operationId: submitTechnicalRecordOperation
       summary: Submit one technical-record operation
-      description: Accept or identically replay one technical-record operation.
+      description: Accept or identically replay one create, replacement, or deletion operation. Generation binding becomes mandatory in G3.
       parameters: []
       responses:
         '200':
@@ -153,12 +153,14 @@ components:
       oneOf:
         - $ref: '#/components/schemas/Models.OperationIdReusedError'
         - $ref: '#/components/schemas/Models.RecordAlreadyExistsError'
+        - $ref: '#/components/schemas/Models.RecordIdentifierRetiredError'
         - $ref: '#/components/schemas/Models.RevisionConflictError'
       discriminator:
         propertyName: code
         mapping:
           OPERATION_ID_REUSED: '#/components/schemas/Models.OperationIdReusedError'
           RECORD_ALREADY_EXISTS: '#/components/schemas/Models.RecordAlreadyExistsError'
+          RECORD_IDENTIFIER_RETIRED: '#/components/schemas/Models.RecordIdentifierRetiredError'
           REVISION_CONFLICT: '#/components/schemas/Models.RevisionConflictError'
     Models.CreateTechnicalRecordOperation:
       type: object
@@ -182,6 +184,28 @@ components:
       unevaluatedProperties:
         not: {}
       description: Create a technical record that does not yet exist.
+    Models.DeleteTechnicalRecordOperation:
+      type: object
+      required:
+        - operationId
+        - recordId
+        - kind
+        - expectedRevision
+      properties:
+        operationId:
+          $ref: '#/components/schemas/Models.Uuid'
+          description: The stable operation and idempotency identifier.
+        recordId:
+          $ref: '#/components/schemas/Models.Uuid'
+        kind:
+          type: string
+          enum:
+            - delete
+        expectedRevision:
+          $ref: '#/components/schemas/Models.PositiveDecimal'
+      unevaluatedProperties:
+        not: {}
+      description: Delete an existing technical record at its expected server revision.
     Models.InvalidRequestError:
       type: object
       required:
@@ -233,25 +257,9 @@ components:
         not: {}
       description: The operation identifier was already used with a different canonical request.
     Models.OperationResult:
-      type: object
-      required:
-        - outcome
-        - operationId
-        - record
-        - sequence
-      properties:
-        outcome:
-          type: string
-          enum:
-            - accepted
-        operationId:
-          $ref: '#/components/schemas/Models.Uuid'
-        record:
-          $ref: '#/components/schemas/Models.TechnicalRecord'
-        sequence:
-          $ref: '#/components/schemas/Models.PositiveDecimal'
-      unevaluatedProperties:
-        not: {}
+      anyOf:
+        - $ref: '#/components/schemas/Models.RecordOperationResult'
+        - $ref: '#/components/schemas/Models.TombstoneOperationResult'
       description: The stable result returned when an operation is accepted or replayed identically.
     Models.PositiveDecimal:
       type: string
@@ -306,6 +314,28 @@ components:
       unevaluatedProperties:
         not: {}
       description: Creation failed because the technical record already exists.
+    Models.RecordIdentifierRetiredError:
+      type: object
+      required:
+        - code
+        - message
+        - operationId
+        - recordId
+      properties:
+        code:
+          type: string
+          enum:
+            - RECORD_IDENTIFIER_RETIRED
+        message:
+          type: string
+          minLength: 1
+        operationId:
+          $ref: '#/components/schemas/Models.Uuid'
+        recordId:
+          $ref: '#/components/schemas/Models.Uuid'
+      unevaluatedProperties:
+        not: {}
+      description: Creation failed because the stable record identifier was retired by an accepted deletion.
     Models.RecordNotFoundError:
       type: object
       required:
@@ -328,6 +358,43 @@ components:
       unevaluatedProperties:
         not: {}
       description: The operation targets a technical record that does not exist.
+    Models.RecordOperationResult:
+      type: object
+      required:
+        - outcome
+        - operationId
+        - record
+        - sequence
+      properties:
+        outcome:
+          type: string
+          enum:
+            - accepted
+        operationId:
+          $ref: '#/components/schemas/Models.Uuid'
+        record:
+          $ref: '#/components/schemas/Models.TechnicalRecord'
+        sequence:
+          $ref: '#/components/schemas/Models.PositiveDecimal'
+      unevaluatedProperties:
+        not: {}
+      description: The stable result returned when a create or replacement is accepted or replayed identically.
+    Models.RecordTechnicalChange:
+      type: object
+      required:
+        - operationId
+        - record
+        - sequence
+      properties:
+        operationId:
+          $ref: '#/components/schemas/Models.Uuid'
+        record:
+          $ref: '#/components/schemas/Models.TechnicalRecord'
+        sequence:
+          $ref: '#/components/schemas/Models.PositiveDecimal'
+      unevaluatedProperties:
+        not: {}
+      description: One accepted live-record change in monotonic server-sequence order.
     Models.ReplaceTechnicalRecordOperation:
       type: object
       required:
@@ -507,20 +574,9 @@ components:
       minLength: 1
       description: An opaque, non-empty synchronization-generation identifier controlled by the server.
     Models.TechnicalChange:
-      type: object
-      required:
-        - operationId
-        - record
-        - sequence
-      properties:
-        operationId:
-          $ref: '#/components/schemas/Models.Uuid'
-        record:
-          $ref: '#/components/schemas/Models.TechnicalRecord'
-        sequence:
-          $ref: '#/components/schemas/Models.PositiveDecimal'
-      unevaluatedProperties:
-        not: {}
+      anyOf:
+        - $ref: '#/components/schemas/Models.RecordTechnicalChange'
+        - $ref: '#/components/schemas/Models.TombstoneTechnicalChange'
       description: One accepted server change in monotonic server-sequence order.
     Models.TechnicalRecord:
       type: object
@@ -543,11 +599,13 @@ components:
       oneOf:
         - $ref: '#/components/schemas/Models.CreateTechnicalRecordOperation'
         - $ref: '#/components/schemas/Models.ReplaceTechnicalRecordOperation'
+        - $ref: '#/components/schemas/Models.DeleteTechnicalRecordOperation'
       discriminator:
         propertyName: kind
         mapping:
           create: '#/components/schemas/Models.CreateTechnicalRecordOperation'
           replace: '#/components/schemas/Models.ReplaceTechnicalRecordOperation'
+          delete: '#/components/schemas/Models.DeleteTechnicalRecordOperation'
       description: One stable technical-record operation submitted for synchronization.
     Models.TechnicalTombstone:
       type: object
@@ -565,6 +623,27 @@ components:
       unevaluatedProperties:
         not: {}
       description: The retained synchronization representation of an accepted deletion.
+    Models.TombstoneOperationResult:
+      type: object
+      required:
+        - outcome
+        - operationId
+        - tombstone
+        - sequence
+      properties:
+        outcome:
+          type: string
+          enum:
+            - accepted
+        operationId:
+          $ref: '#/components/schemas/Models.Uuid'
+        tombstone:
+          $ref: '#/components/schemas/Models.TechnicalTombstone'
+        sequence:
+          $ref: '#/components/schemas/Models.PositiveDecimal'
+      unevaluatedProperties:
+        not: {}
+      description: The stable result returned when a deletion is accepted or replayed identically.
     Models.TombstoneSnapshotEntry:
       type: object
       required:
@@ -580,6 +659,22 @@ components:
       unevaluatedProperties:
         not: {}
       description: A retained deletion in an anchored snapshot.
+    Models.TombstoneTechnicalChange:
+      type: object
+      required:
+        - operationId
+        - tombstone
+        - sequence
+      properties:
+        operationId:
+          $ref: '#/components/schemas/Models.Uuid'
+        tombstone:
+          $ref: '#/components/schemas/Models.TechnicalTombstone'
+        sequence:
+          $ref: '#/components/schemas/Models.PositiveDecimal'
+      unevaluatedProperties:
+        not: {}
+      description: One accepted deletion in monotonic server-sequence order.
     Models.Uuid:
       type: string
       pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$

@@ -752,6 +752,8 @@ The first slice uses a deliberately technical record. It validates the mechanism
   environments, evidence, limitations, failures found, and remaining protocol risks.
 - Acceptance: every item in the V0 technical readiness gate is traced to passing evidence; the report
   distinguishes demonstrated behavior from planned behavior and authorizes only the V0 product track.
+- Sequencing note: E10 remains required for readiness reporting and release authorization, including
+  G6, but does not block implementation of G1 through G5.
 
 ### Track F: packaging and continuous integration
 
@@ -836,40 +838,109 @@ This track may proceed alongside the web, server, contract, and synchronization 
 ### Track G: production synchronization completion
 
 Track G turns the guarantees that are deliberately deferred from V0 into numbered prerequisites for
-production product work. It starts after E10 and may proceed alongside eligible Track F work. G1 must
-resolve the open protocol policies before an implementation task relies on them.
+production product work. It may proceed before E10 and alongside eligible Track F work. E10 remains a
+readiness-reporting and release prerequisite through G6 rather than an implementation-sequencing
+prerequisite for G1 through G5. G1 must resolve the open protocol policies before an implementation task
+relies on them.
 
 #### G1. Resolve production synchronization policies
 
-- Status: `specified`; final validation remains blocked by the planned E10 dependency.
-- Depends on: E10.
+- Status: `validated`.
+- Depends on: E9.
 - Scope: accept the remaining retention, compaction, synchronization-generation, tombstone, anchored
-  snapshot, continuation, indeterminate-outcome, and full-reconciliation wire decisions identified in
-  `docs/architecture/open-decisions.md`.
+  snapshot, continuation, indeterminate-outcome, full-reconciliation, and bounded-retry decisions
+  identified in `docs/architecture/open-decisions.md`.
 - Excludes: domain-specific merge and conflict-resolution rules.
 - Acceptance: one or more accepted architecture decisions define testable policies and wire behavior
   without weakening ADR-0010's preservation of pending local intent.
-- Artifacts: ADR-0023 through ADR-0026; contract-first generation, deletion, tombstone, reconciliation,
+- Artifacts: ADR-0023 through ADR-0027; contract-first generation, deletion, tombstone, reconciliation,
   snapshot-continuation, indeterminate-outcome, and generic reconciliation schemas; anchored
   reconciliation endpoints; canonical policy fixtures; a policy-to-implementation traceability matrix;
   generated-contract validation; and updated architecture, API, and contract documentation.
 - Validation: contract formatting, generation drift, OpenAPI linting, schema validation, canonical
-  positive examples, and focused negative checks must pass. After E10 is validated, review its V0 risk
-  evidence against these decisions before changing G1 to `validated`.
+  positive examples, and focused negative checks must pass. E10 reviews the V0 risk evidence against
+  these decisions for release reporting without reopening G1's implementation dependency.
+- Validation evidence: on 2026-09-22, contract formatting, generated-artifact drift, local OpenAPI and
+  JSON Schema validation, Redocly linting, canonical production-policy fixtures, and focused negative
+  contract checks passed. The existing TypeScript and Java V0 conformance suites also remained green.
+  E10 remains a direct release-reporting prerequisite through G6 rather than an implementation
+  dependency.
 
 #### G2. Implement tombstones and interrupted-exchange recovery
 
 - Initial status: `planned`.
 - Depends on: G1.
-- Scope: add technical tombstones, resumable exchanges, bounded background retry, retry exhaustion, and
-  observable manual recovery across Dexie, HTTP contracts, Spring, and PostgreSQL.
+- Scope: complete G2a through G2e to add technical tombstones, resumable exchanges, bounded background
+  retry, retry exhaustion, and observable manual recovery across Dexie, HTTP contracts, Spring, and
+  PostgreSQL.
 - Acceptance: deletion propagates without resurrection, interrupted exchanges resume safely, and retry
   scheduling neither blocks local work nor hides permanent failure.
+
+##### G2a. Activate deletion wire contracts
+
+- Status: `validated`.
+- Depends on: G1.
+- Scope: activate the unbound create, replace, and delete operation union for G2; define accepted
+  tombstone results, ordered tombstone changes, and explicit retired-identifier rejection; and preserve
+  the existing live-record result and change wire shapes. G3 makes the generation-bound envelope
+  mandatory.
+- Acceptance: TypeSpec, generated OpenAPI and JSON Schemas, canonical fixtures, and focused negative
+  checks agree on closed deletion request, result, change, and error shapes.
+- Artifacts: the unbound three-operation union; record and tombstone result and change unions; explicit
+  `RECORD_IDENTIFIER_RETIRED`; accepted-deletion, tombstone-page, and retired-identifier fixtures; and
+  updated API, schema, synchronization-policy, and traceability documentation.
+- Validation commands: `pnpm contracts:format:check`, `pnpm contracts:check-generated`,
+  `pnpm contracts:lint`, `pnpm contracts:test`, `pnpm contracts:validate`,
+  `pnpm conformance:validate`, and `git diff --check`.
+- Validation evidence: on 2026-09-22, all contract commands passed. Positive fixtures validated the
+  deletion result, tombstone change page, and retired-identifier error; focused negative checks rejected
+  mixed live/tombstone variants, invalid deletion fields, and unknown or extended closed shapes.
+
+##### G2b. Implement server tombstones and identifier reservations
+
+- Initial status: `planned`.
+- Depends on: G2a.
+- Scope: add the Flyway migration, Spring protocol handling, explicit SQL, immutable tombstone changes,
+  the tombstone projection, and lifetime identifier reservations.
+- Acceptance: deletion, receipt, incremented revision, sequence, live-row removal, tombstone, and
+  identifier reservation commit atomically; identical replay is stable; and a retired identifier cannot
+  be recreated.
+
+##### G2c. Implement browser tombstones and resumable exchange
+
+- Initial status: `planned`.
+- Depends on: G2a and G2b.
+- Scope: add the real Dexie schema migration, atomic local deletion and outbox persistence, accepted
+  tombstone persistence, ordered tombstone pull application, and durable deletion conflicts that retain
+  overlapping pending local intent.
+- Acceptance: interrupted page application never advances the cursor, repeated tombstone application is
+  idempotent, stale live changes cannot resurrect a retired identity, and reload resumes from the last
+  fully applied boundary.
+
+##### G2d. Implement bounded background retry and manual recovery
+
+- Initial status: `planned`.
+- Depends on: G2c.
+- Scope: implement ADR-0027 with durable scheduling and exhaustion state, injectable clock, jitter, and
+  scheduling boundaries, reload recovery, privacy-safe observable status, and explicit manual retry.
+- Acceptance: one immediate attempt and at most four automatic retries follow the selected jitter bounds;
+  offline periods consume no attempt; exhaustion survives reload without losing work; and manual recovery
+  starts a fresh bounded cycle without changing operation identity or cursor.
+
+##### G2e. Validate complete tombstone and interrupted-exchange recovery
+
+- Initial status: `planned`.
+- Depends on: G2d.
+- Scope: run the deletion, migration, rollback, restart, interrupted application, reload, retry,
+  exhaustion, manual-recovery, and cross-runtime scenarios across contracts, Dexie, HTTP, Spring, and
+  PostgreSQL; then update synchronization traceability.
+- Acceptance: G2's complete acceptance criteria pass through focused unit and integration tests plus the
+  browser end-to-end topology. G3 depends on validated G2e.
 
 #### G3. Implement generation rollover and indeterminate outcomes
 
 - Initial status: `planned`.
-- Depends on: G2.
+- Depends on: G2e.
 - Scope: associate client state and operations with a synchronization generation, reject expired
   incremental histories, and preserve operations whose acceptance can no longer be proven as explicit
   indeterminate local work.
@@ -898,7 +969,7 @@ resolve the open protocol policies before an implementation task relies on them.
 #### G6. Publish the foundation readiness report
 
 - Initial status: `planned`.
-- Depends on: G1 through G5, F2, F3, F4, F5, and F6.
+- Depends on: E10, G1 through G5, F2, F3, F4, F5, and F6.
 - Scope: run the complete native, Compose, container-image, CI, migration, restart, synchronization, and
   autonomous-runtime validation matrix and record remaining risks.
 - Acceptance: every item in the foundation readiness gate is traced to passing evidence, no blocking

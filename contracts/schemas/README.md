@@ -8,4 +8,5 @@ changing TypeSpec. Emitter compatibility probes and validator fixtures belong un
 `tooling/contracts/fixtures/`; cross-runtime protocol examples belong under `contracts/sync/fixtures/`.
 
 The production synchronization-policy schemas are generated before their runtime adapters. ADR-0023
-through ADR-0026 define their invariants; G2 through G4 activate them across the browser and service.
+through ADR-0027 define their invariants; G2a activates deletion wire shapes and G2b through G4 activate
+the corresponding browser and service behavior.

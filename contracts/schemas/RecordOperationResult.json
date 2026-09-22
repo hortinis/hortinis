@@ -1,0 +1,30 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "RecordOperationResult.json",
+    "type": "object",
+    "properties": {
+        "outcome": {
+            "type": "string",
+            "const": "accepted"
+        },
+        "operationId": {
+            "$ref": "Uuid.json"
+        },
+        "record": {
+            "$ref": "TechnicalRecord.json"
+        },
+        "sequence": {
+            "$ref": "PositiveDecimal.json"
+        }
+    },
+    "required": [
+        "outcome",
+        "operationId",
+        "record",
+        "sequence"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "The stable result returned when a create or replacement is accepted or replayed identically."
+}

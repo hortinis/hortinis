@@ -1,0 +1,25 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "TombstoneTechnicalChange.json",
+    "type": "object",
+    "properties": {
+        "operationId": {
+            "$ref": "Uuid.json"
+        },
+        "tombstone": {
+            "$ref": "TechnicalTombstone.json"
+        },
+        "sequence": {
+            "$ref": "PositiveDecimal.json"
+        }
+    },
+    "required": [
+        "operationId",
+        "tombstone",
+        "sequence"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "One accepted deletion in monotonic server-sequence order."
+}

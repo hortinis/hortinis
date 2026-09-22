@@ -21,6 +21,13 @@ and monotonic server sequence. A tombstone contains:
 - the final positive record revision;
 - the server sequence assigned to the deletion.
 
+Deletion advances the current record revision by one. A deletion submitted with the current
+`expectedRevision` of `2`, for example, produces tombstone revision `3`. The stable accepted result
+contains the operation identifier, tombstone, and deletion sequence. Incremental pull represents the
+same event as a tombstone change containing the operation identifier, tombstone, and sequence. Live
+accepted results and changes retain their existing wire shapes; the result and change contracts are
+closed unions distinguished by whether they contain `record` or `tombstone`.
+
 The deletion operation requires the current expected revision and participates in the same causal,
 idempotency, conflict, and generation rules as replacement. Pull returns the tombstone as an ordered
 change. Applying it removes the record from the current local projection while preserving enough base
@@ -36,6 +43,11 @@ The server retains a minimal identifier reservation for the lifetime of the sync
 after the detailed tombstone is compacted. A create using a reserved identifier fails explicitly and can
 never resurrect the deleted identity. The reservation contains no former record value or user-provided
 content.
+
+Creation with a reserved identifier returns `RECORD_IDENTIFIER_RETIRED` with the operation and record
+identifiers. It does not synthesize a former record value. During G2, the operation endpoint accepts the
+unbound create, replace, and delete union. G3 makes the already specified generation-bound envelope
+mandatory for all three variants.
 
 Reusing a human-visible name or creating a new record for the same real-world subject uses a new stable
 record identifier. Restoring a deletion, if a future domain workflow permits it, is a new explicit
@@ -67,5 +79,6 @@ domain operation and does not erase the original tombstone history.
 - A pull from before the deletion returns exactly one ordered tombstone and repeated application is
   idempotent.
 - A pending replacement is preserved and becomes an explicit conflict when its target is deleted.
+- A deletion result and its corresponding pull change identify the same tombstone revision and sequence.
 - A create using a retired identifier fails after detailed tombstone compaction.
 - Reconciliation of a stale base cannot recreate a record missing from the complete anchored snapshot.

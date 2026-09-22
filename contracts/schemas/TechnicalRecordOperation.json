@@ -7,6 +7,9 @@
         },
         {
             "$ref": "ReplaceTechnicalRecordOperation.json"
+        },
+        {
+            "$ref": "DeleteTechnicalRecordOperation.json"
         }
     ],
     "description": "One stable technical-record operation submitted for synchronization."

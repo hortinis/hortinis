@@ -9,6 +9,9 @@
             "$ref": "RecordAlreadyExistsError.json"
         },
         {
+            "$ref": "RecordIdentifierRetiredError.json"
+        },
+        {
             "$ref": "RevisionConflictError.json"
         }
     ]

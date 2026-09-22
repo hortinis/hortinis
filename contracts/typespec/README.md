@@ -9,7 +9,8 @@ formatting, generated-file consistency, OpenAPI and schema validity, and the pos
 contract fixtures.
 
 The version-one source contains the implemented walking-skeleton operations and the selected production
-reconciliation wire contract. ADR-0023 through ADR-0026 define the production policy. Their schemas and
-reconciliation endpoints are contract-first inputs to G2 through G4; the current Spring and browser
-adapters do not implement them yet. Keep authentication, authorization, garden resources, and
+synchronization wire contract. ADR-0023 through ADR-0027 define the production policy. G2a activates
+expected-revision deletion, accepted tombstone results, ordered tombstone changes, and retired-identifier
+rejection in the contract before their Spring and browser adapters. Reconciliation schemas and endpoints
+remain contract-first inputs to G3 and G4. Keep authentication, authorization, garden resources, and
 domain-specific conflict resolution within their approved implementation increments.

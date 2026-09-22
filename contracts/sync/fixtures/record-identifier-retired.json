@@ -1,0 +1,11 @@
+{
+  "id": "record-identifier-retired",
+  "description": "Creation with a lifetime-reserved record identifier fails explicitly.",
+  "schema": "RecordIdentifierRetiredError.json",
+  "value": {
+    "code": "RECORD_IDENTIFIER_RETIRED",
+    "message": "The record identifier was retired by an accepted deletion.",
+    "operationId": "01890f3e-7c5a-7b17-8abc-0123456789ab",
+    "recordId": "01890f3e-7c5a-7b15-8abc-0123456789ab"
+  }
+}

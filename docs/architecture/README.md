@@ -73,6 +73,7 @@ Separate packages or modules require demonstrated reuse or a need for independen
 - [ADR-0024: Synchronization tombstones and identifier retirement](decisions/0024-synchronization-tombstones.md)
 - [ADR-0025: Anchored reconciliation snapshots and continuation](decisions/0025-anchored-reconciliation-snapshots.md)
 - [ADR-0026: Indeterminate operation outcomes and full reconciliation](decisions/0026-indeterminate-outcomes-and-full-reconciliation.md)
+- [ADR-0027: Bounded synchronization retry and manual recovery](decisions/0027-bounded-synchronization-retry.md)
 
 ## Open decisions
 

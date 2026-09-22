@@ -12,5 +12,5 @@
             "$ref": "DeleteTechnicalRecordOperation.json"
         }
     ],
-    "description": "A production operation supported after generation handling and deletion are implemented."
+    "description": "The production operation union activated before generation envelopes become mandatory."
 }

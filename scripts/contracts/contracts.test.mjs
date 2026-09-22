@@ -133,13 +133,16 @@ test("the committed OpenAPI contract exposes the versioned technical synchroniza
 test("production synchronization policy fixtures satisfy their generated schemas", () => {
   const ajv = loadProductionSchemaValidators();
   const fixtureNames = [
+    "delete-accepted.json",
     "generation-bound-delete.json",
     "indeterminate-operation.json",
+    "record-identifier-retired.json",
     "reconciliation-outcomes.json",
     "reconciliation-required.json",
     "reconciliation-session.json",
     "snapshot-continuation-page.json",
     "snapshot-final-page.json",
+    "tombstone-change-page.json",
   ];
 
   for (const name of fixtureNames) {
@@ -212,9 +215,16 @@ test("production schemas enforce technical operations, identifiers, revisions, a
     kind: "replace",
     expectedRevision: "1",
   };
+  const deletion = {
+    operationId: "01890f3e-7c5a-7b15-8abc-0123456789ab",
+    recordId,
+    kind: "delete",
+    expectedRevision: "2",
+  };
 
   assert.equal(validateOperation(create), true, JSON.stringify(validateOperation.errors));
   assert.equal(validateOperation(replace), true, JSON.stringify(validateOperation.errors));
+  assert.equal(validateOperation(deletion), true, JSON.stringify(validateOperation.errors));
   assert.equal(validateOperation({ ...create, expectedRevision: "1" }), false);
   const replaceWithoutRevision = { ...replace };
   delete replaceWithoutRevision.expectedRevision;
@@ -223,6 +233,7 @@ test("production schemas enforce technical operations, identifiers, revisions, a
   assert.equal(validateOperation({ ...create, operationId: "01890f3e-7c5a-4b12-8abc-0123456789ab" }), true);
   assert.equal(validateOperation({ ...create, operationId: "01890f3e-7c5a-7b1g-8abc-0123456789ab" }), false);
   assert.equal(validateOperation({ ...create, recordId: recordId.toUpperCase() }), false);
+  assert.equal(validateOperation({ ...deletion, value: "not allowed" }), false);
 
   const result = {
     outcome: "accepted",
@@ -233,6 +244,17 @@ test("production schemas enforce technical operations, identifiers, revisions, a
   assert.equal(validateResult(result), true, JSON.stringify(validateResult.errors));
   assert.equal(validateResult({ ...result, sequence: "0" }), false);
   assert.equal(validateResult({ ...result, record: { ...result.record, revision: 1 } }), false);
+
+  const tombstoneResult = readSyncFixture("delete-accepted.json").value;
+  assert.equal(validateResult(tombstoneResult), true, JSON.stringify(validateResult.errors));
+  assert.equal(validateResult({ ...tombstoneResult, record: result.record }), false);
+  assert.equal(
+    validateResult({
+      ...tombstoneResult,
+      tombstone: { ...tombstoneResult.tombstone, revision: "2" },
+    }),
+    true,
+  );
 });
 
 test("production schemas enforce opaque cursors and explicit protocol errors", () => {
@@ -255,6 +277,15 @@ test("production schemas enforce opaque cursors and explicit protocol errors", (
   };
   assert.equal(validatePage(page), true, JSON.stringify(validatePage.errors));
   assert.equal(validatePage({ ...page, nextCursor: "" }), false);
+  const tombstonePage = readSyncFixture("tombstone-change-page.json").value;
+  assert.equal(validatePage(tombstonePage), true, JSON.stringify(validatePage.errors));
+  assert.equal(
+    validatePage({
+      ...tombstonePage,
+      changes: [{ ...tombstonePage.changes[0], record }],
+    }),
+    false,
+  );
 
   const revisionConflict = {
     code: "REVISION_CONFLICT",
@@ -294,6 +325,10 @@ test("production schemas enforce opaque cursors and explicit protocol errors", (
         currentRecord: record,
       },
     },
+    {
+      schema: "RecordIdentifierRetiredError.json",
+      value: readSyncFixture("record-identifier-retired.json").value,
+    },
     { schema: "RevisionConflictError.json", value: revisionConflict },
   ];
   for (const { schema, value } of explicitErrors) {
@@ -303,6 +338,11 @@ test("production schemas enforce opaque cursors and explicit protocol errors", (
     assert.equal(validate({ ...value, unexpected: true }), false);
   }
   assert.equal(validateConflict(revisionConflict), true, JSON.stringify(validateConflict.errors));
+  assert.equal(
+    validateConflict(readSyncFixture("record-identifier-retired.json").value),
+    true,
+    JSON.stringify(validateConflict.errors),
+  );
   assert.equal(validateConflict({ ...revisionConflict, code: "UNKNOWN_ERROR" }), false);
   const conflictWithoutCurrentRecord = { ...revisionConflict };
   delete conflictWithoutCurrentRecord.currentRecord;
