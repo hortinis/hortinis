@@ -48,7 +48,10 @@ class PostgreSqlServiceRestartIntegrationTest {
                   "SELECT value FROM technical_record WHERE record_id = ?", String.class, recordId))
           .isEqualTo("retained value");
       assertThat(jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history", Integer.class))
-          .isEqualTo(1);
+          .isEqualTo(2);
+      assertThat(
+              jdbc.queryForObject("SELECT count(*) FROM technical_record_tombstone", Integer.class))
+          .isZero();
       assertThat(jdbc.queryForObject("SELECT count(*) FROM technical_record", Integer.class))
           .isEqualTo(1);
     }

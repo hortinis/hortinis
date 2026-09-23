@@ -25,6 +25,8 @@ class PostgreSqlSchemaIntegrationTest {
   private static final String TECHNICAL_RECORD_TABLE = "technical_record";
   private static final String ACCEPTED_OPERATION_TABLE = "accepted_technical_record_operation";
   private static final String CHANGE_TABLE = "technical_record_change";
+  private static final String TOMBSTONE_TABLE = "technical_record_tombstone";
+  private static final String RETIRED_IDENTIFIER_TABLE = "retired_technical_record_identifier";
   private static final String RECORD_ID_COLUMN = "record_id";
   private static final String OPERATION_ID_COLUMN = "operation_id";
   private static final String VALUE_COLUMN = "value";
@@ -40,7 +42,8 @@ class PostgreSqlSchemaIntegrationTest {
   @AfterEach
   void clearApplicationData() {
     jdbc.update(
-        "TRUNCATE technical_record_change, accepted_technical_record_operation, "
+        "TRUNCATE technical_record_change, technical_record_tombstone, "
+            + "retired_technical_record_identifier, accepted_technical_record_operation, "
             + "technical_record RESTART IDENTITY CASCADE");
   }
 
@@ -54,12 +57,17 @@ class PostgreSqlSchemaIntegrationTest {
             (resultSet, rowNumber) -> resultSet.getString(1));
 
     assertThat(applicationTables)
-        .containsExactlyInAnyOrder(TECHNICAL_RECORD_TABLE, ACCEPTED_OPERATION_TABLE, CHANGE_TABLE);
-    assertThat(flyway.info().applied()).hasSize(1);
+        .containsExactlyInAnyOrder(
+            TECHNICAL_RECORD_TABLE,
+            ACCEPTED_OPERATION_TABLE,
+            CHANGE_TABLE,
+            TOMBSTONE_TABLE,
+            RETIRED_IDENTIFIER_TABLE);
+    assertThat(flyway.info().applied()).hasSize(2);
     assertThat(flyway.info().current())
         .isNotNull()
         .extracting(info -> info.getVersion().getVersion())
-        .isEqualTo("1");
+        .isEqualTo("2");
   }
 
   @Test

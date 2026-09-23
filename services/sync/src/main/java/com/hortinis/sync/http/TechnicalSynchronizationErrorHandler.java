@@ -3,6 +3,7 @@ package com.hortinis.sync.http;
 import com.hortinis.sync.protocol.InvalidRequestException;
 import com.hortinis.sync.protocol.OperationIdReusedException;
 import com.hortinis.sync.protocol.RecordAlreadyExistsException;
+import com.hortinis.sync.protocol.RecordIdentifierRetiredException;
 import com.hortinis.sync.protocol.RecordNotFoundException;
 import com.hortinis.sync.protocol.RevisionConflictException;
 import org.springframework.http.ResponseEntity;
@@ -51,6 +52,18 @@ public class TechnicalSynchronizationErrorHandler {
                 exception.currentRecord()));
   }
 
+  @ExceptionHandler(RecordIdentifierRetiredException.class)
+  ResponseEntity<RecordIdentifierRetiredError> recordIdentifierRetired(
+      RecordIdentifierRetiredException exception) {
+    return ResponseEntity.status(409)
+        .body(
+            new RecordIdentifierRetiredError(
+                "RECORD_IDENTIFIER_RETIRED",
+                exception.getMessage(),
+                exception.operationId(),
+                exception.recordId()));
+  }
+
   @ExceptionHandler(RevisionConflictException.class)
   ResponseEntity<RevisionConflictError> revisionConflict(RevisionConflictException exception) {
     return ResponseEntity.status(409)
@@ -85,6 +98,9 @@ public class TechnicalSynchronizationErrorHandler {
       String message,
       String operationId,
       com.hortinis.sync.protocol.TechnicalRecord currentRecord) {}
+
+  public record RecordIdentifierRetiredError(
+      String code, String message, String operationId, String recordId) {}
 
   public record RevisionConflictError(
       String code,

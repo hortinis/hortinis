@@ -1,6 +1,7 @@
 package com.hortinis.sync.http;
 
 import com.hortinis.sync.protocol.CreateTechnicalRecordOperation;
+import com.hortinis.sync.protocol.DeleteTechnicalRecordOperation;
 import com.hortinis.sync.protocol.InvalidRequestException;
 import com.hortinis.sync.protocol.ReplaceTechnicalRecordOperation;
 import com.hortinis.sync.protocol.TechnicalRecordOperation;
@@ -26,21 +27,27 @@ final class TechnicalOperationParser {
     String kind = text(body, KIND);
     String operationId = text(body, OPERATION_ID);
     String recordId = text(body, RECORD_ID);
-    String value = text(body, VALUE);
-    if (!UuidRules.isCanonicalUuid(operationId)
-        || !UuidRules.isCanonicalUuid(recordId)
-        || value == null) {
+    if (!UuidRules.isCanonicalUuid(operationId) || !UuidRules.isCanonicalUuid(recordId)) {
       throw new InvalidRequestException();
     }
+    String value = text(body, VALUE);
     if ("create".equals(kind)
+        && value != null
         && fields(body).equals(Set.of(KIND, OPERATION_ID, RECORD_ID, VALUE))) {
       return new CreateTechnicalRecordOperation(operationId, recordId, value);
     }
     String expectedRevision = text(body, EXPECTED_REVISION);
     if ("replace".equals(kind)
+        && value != null
         && fields(body).equals(Set.of(EXPECTED_REVISION, KIND, OPERATION_ID, RECORD_ID, VALUE))
         && UuidRules.isPositiveDecimal(expectedRevision)) {
       return new ReplaceTechnicalRecordOperation(operationId, recordId, value, expectedRevision);
+    }
+    String deleteExpectedRevision = text(body, EXPECTED_REVISION);
+    if ("delete".equals(kind)
+        && fields(body).equals(Set.of(EXPECTED_REVISION, KIND, OPERATION_ID, RECORD_ID))
+        && UuidRules.isPositiveDecimal(deleteExpectedRevision)) {
+      return new DeleteTechnicalRecordOperation(operationId, recordId, deleteExpectedRevision);
     }
     throw new InvalidRequestException();
   }

@@ -50,10 +50,12 @@ named `gradle-cache` volume. Do not start a second Gradle command using the same
 that build is running; it will contend for Gradle's cache lock. Follow the existing service instead with
 `docker compose --file infrastructure/docker/compose.yaml logs --follow sync`.
 
-The topology now applies the first technical Flyway migration at sync-service startup. It creates only the
+The topology applies versioned technical Flyway migrations at sync-service startup. V1 creates the
 walking-skeleton technical-record projection, accepted-operation receipts, and immutable change journal;
-JDBC acceptance SQL is implemented in E3 and PostgreSQL integration tests remain owned by E3 and D6. Angular static-file
-serving, same-origin edge routing, and production image builds belong to F3 and F2 respectively.
+V2 adds tombstone changes, a tombstone projection, and lifetime identifier reservations. PostgreSQL-backed
+integration tests assert deletion results, ordered pulls, identifier retirement, replay, and transaction
+rollback. Angular static-file serving, same-origin edge routing, and production image builds belong to F3
+and F2 respectively.
 
 ## Frontend workspace
 
@@ -88,9 +90,9 @@ The expected versions are Node.js `v24.18.0` and pnpm `11.26.0`. The root `pnpm 
 
 TypeSpec sources under `contracts/typespec` are the authority for HTTP and language-neutral JSON
 contracts. OpenAPI documents and standalone JSON Schemas are generated artifacts. The current contract
-defines the implemented V0 technical synchronization push and pull operations plus the contract-first
-production reconciliation endpoints and schemas selected by G1. The emitter compatibility fixture
-separately exercises representative wire shapes. The
+defines the V0 technical synchronization operations, including the server-side deletion adapter added in
+G2b, plus the contract-first production reconciliation endpoints and schemas selected by G1. The emitter
+compatibility fixture separately exercises representative wire shapes. The
 [production synchronization traceability matrix](synchronization-policy-traceability.md) records which
 later increment implements and validates each selected policy.
 

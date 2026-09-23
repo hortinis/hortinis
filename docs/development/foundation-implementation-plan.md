@@ -898,13 +898,23 @@ relies on them.
 
 ##### G2b. Implement server tombstones and identifier reservations
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: G2a.
 - Scope: add the Flyway migration, Spring protocol handling, explicit SQL, immutable tombstone changes,
   the tombstone projection, and lifetime identifier reservations.
 - Acceptance: deletion, receipt, incremented revision, sequence, live-row removal, tombstone, and
   identifier reservation commit atomically; identical replay is stable; and a retired identifier cannot
   be recreated.
+- Artifacts: V2 schema migration; delete operation parsing and validation; accepted and pulled tombstone
+  results; `RECORD_IDENTIFIER_RETIRED`; PostgreSQL integration assertions for atomic persistence,
+  stable replay, not-found and revision-conflict behavior, reservation, and rollback; Java consumption of
+  G2a result, change, and error fixtures.
+- Validation evidence: on 2026-09-23, `./gradlew --dependency-verification=strict
+  :services:sync:build` passed, including formatting, Checkstyle, PMD, unit tests, PostgreSQL integration
+  tests, schema assertions, service restart tests, and packaging. The repository-wide `pnpm validate`
+  also passed, including contract checks, 49 frontend unit tests, four browser tests, and both frontend
+  builds. PostgreSQL tests assert the resulting V2 schema and behavior; a populated V1-to-V2 upgrade is
+  not a G2b acceptance requirement for this development service.
 
 ##### G2c. Implement browser tombstones and resumable exchange
 

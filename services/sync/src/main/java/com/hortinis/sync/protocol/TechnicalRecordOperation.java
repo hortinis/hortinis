@@ -1,13 +1,13 @@
 package com.hortinis.sync.protocol;
 
 public sealed interface TechnicalRecordOperation
-    permits CreateTechnicalRecordOperation, ReplaceTechnicalRecordOperation {
+    permits CreateTechnicalRecordOperation,
+        ReplaceTechnicalRecordOperation,
+        DeleteTechnicalRecordOperation {
 
   String operationId();
 
   String recordId();
-
-  String value();
 
   String kind();
 }

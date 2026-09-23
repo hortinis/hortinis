@@ -20,8 +20,8 @@ unknown properties are invalid.
 
 The walking skeleton uses one deliberately technical record with a stable `recordId`, a server
 `revision`, and a string `value`. It is not a garden resource and does not imply a future garden model.
-G2a extends the contract-first operation union with deletion while its runtime adapters remain planned.
-The operations are:
+G2a added deletion to the contract, and G2b implements it in the Spring and PostgreSQL adapters. Browser
+application of tombstones remains in G2c. The operations are:
 
 - `create`, which has no `expectedRevision` and fails when the record already exists;
 - `replace`, which requires `expectedRevision` and fails when the record is absent or the current
@@ -53,7 +53,7 @@ The protocol defines the following explicit errors:
 | HTTP status | Code | Meaning |
 | --- | --- | --- |
 | `400` | `INVALID_REQUEST` | The body, cursor, or protocol version is invalid. |
-| `404` | `RECORD_NOT_FOUND` | A replacement targets an absent technical record. |
+| `404` | `RECORD_NOT_FOUND` | A replacement or deletion targets an absent technical record. |
 | `409` | `OPERATION_ID_REUSED` | An operation identifier was used with a different request. |
 | `409` | `RECORD_ALREADY_EXISTS` | A creation targets an existing technical record. |
 | `409` | `RECORD_IDENTIFIER_RETIRED` | A creation targets an identifier reserved by an accepted deletion. |
@@ -101,6 +101,6 @@ two domain operations are semantically equivalent remains a future domain-specif
 The contract does not define authentication, authorization, a production synchronization-scope
 identifier, batching, garden resources, or domain-specific conflict resolution. The V0 validation
 topology uses one test-only synchronization scope, retains all incremental history and idempotency
-receipts, and must not expose an unauthenticated production service. G2a's deletion shapes and the
-production reconciliation endpoints remain unavailable at runtime until G2b through G4 implement their
-adapters.
+receipts, and must not expose an unauthenticated production service. G2b activates deletion on the server;
+browser tombstone application remains in G2c. The production reconciliation endpoints remain unavailable
+at runtime until G3 and G4 implement their adapters.

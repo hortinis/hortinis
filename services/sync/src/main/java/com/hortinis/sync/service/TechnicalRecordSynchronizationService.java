@@ -4,17 +4,22 @@ import com.hortinis.sync.persistence.TechnicalRecordAcceptancePersistence;
 import com.hortinis.sync.persistence.TechnicalRecordAcceptancePersistence.AcceptedOperationReceipt;
 import com.hortinis.sync.protocol.ChangePage;
 import com.hortinis.sync.protocol.CreateTechnicalRecordOperation;
+import com.hortinis.sync.protocol.DeleteTechnicalRecordOperation;
 import com.hortinis.sync.protocol.OperationIdReusedException;
 import com.hortinis.sync.protocol.OperationResult;
 import com.hortinis.sync.protocol.OperationRules;
 import com.hortinis.sync.protocol.RecordAlreadyExistsException;
+import com.hortinis.sync.protocol.RecordIdentifierRetiredException;
 import com.hortinis.sync.protocol.RecordNotFoundException;
+import com.hortinis.sync.protocol.RecordOperationResult;
 import com.hortinis.sync.protocol.ReplaceTechnicalRecordOperation;
 import com.hortinis.sync.protocol.RevisionConflictException;
 import com.hortinis.sync.protocol.SyncCursorCodec;
 import com.hortinis.sync.protocol.TechnicalChange;
 import com.hortinis.sync.protocol.TechnicalRecord;
 import com.hortinis.sync.protocol.TechnicalRecordOperation;
+import com.hortinis.sync.protocol.TechnicalTombstone;
+import com.hortinis.sync.protocol.TombstoneOperationResult;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Optional;
@@ -31,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class TechnicalRecordSynchronizationService {
 
   private static final String CREATE_KIND = "create";
+  private static final String REPLACE_KIND = "replace";
   private static final int CHANGE_PAGE_SIZE = 100;
 
   private final TechnicalRecordAcceptancePersistence persistence;
@@ -56,8 +62,11 @@ public class TechnicalRecordSynchronizationService {
     }
 
     TechnicalRecord current = persistence.findRecordForUpdate(operation.recordId()).orElse(null);
-    TechnicalRecord accepted;
+    TechnicalRecord accepted = null;
     if (operation instanceof CreateTechnicalRecordOperation create) {
+      if (persistence.isIdentifierRetired(create.recordId())) {
+        throw new RecordIdentifierRetiredException(create.operationId(), create.recordId());
+      }
       if (current != null) {
         throw new RecordAlreadyExistsException(operation.operationId(), current);
       }
@@ -73,6 +82,14 @@ public class TechnicalRecordSynchronizationService {
       accepted =
           new TechnicalRecord(
               replace.recordId(), nextRevision(current.revision()), replace.value());
+    } else if (operation instanceof DeleteTechnicalRecordOperation delete) {
+      if (current == null) {
+        throw new RecordNotFoundException(operation.operationId(), operation.recordId());
+      }
+      if (!new BigInteger(delete.expectedRevision()).equals(new BigInteger(current.revision()))) {
+        throw new RevisionConflictException(
+            operation.operationId(), delete.expectedRevision(), current);
+      }
     } else {
       throw new IllegalStateException("Unsupported technical operation.");
     }
@@ -89,10 +106,21 @@ public class TechnicalRecordSynchronizationService {
       persistence.insertRecord(create);
     } else if (operation instanceof ReplaceTechnicalRecordOperation replace) {
       persistence.replaceRecord(replace, current.revision());
+    } else if (operation instanceof DeleteTechnicalRecordOperation delete) {
+      String revision = nextRevision(current.revision());
+      long sequence =
+          persistence.insertTombstoneChange(delete.operationId(), delete.recordId(), revision);
+      TechnicalTombstone tombstone =
+          new TechnicalTombstone(delete.recordId(), revision, Long.toString(sequence));
+      persistence.insertTombstone(tombstone);
+      persistence.reserveIdentifier(delete.recordId(), Long.toString(sequence));
+      persistence.deleteRecord(delete.recordId());
+      return new TombstoneOperationResult(
+          "accepted", delete.operationId(), tombstone, Long.toString(sequence));
     }
 
     long sequence = persistence.insertChange(operation.operationId(), accepted);
-    return new OperationResult(
+    return new RecordOperationResult(
         "accepted", operation.operationId(), accepted, Long.toString(sequence));
   }
 
@@ -131,7 +159,11 @@ public class TechnicalRecordSynchronizationService {
     if (CREATE_KIND.equals(receipt.kind())) {
       return new CreateTechnicalRecordOperation(operationId, receipt.recordId(), receipt.value());
     }
-    return new ReplaceTechnicalRecordOperation(
-        operationId, receipt.recordId(), receipt.value(), receipt.expectedRevision());
+    if (REPLACE_KIND.equals(receipt.kind())) {
+      return new ReplaceTechnicalRecordOperation(
+          operationId, receipt.recordId(), receipt.value(), receipt.expectedRevision());
+    }
+    return new DeleteTechnicalRecordOperation(
+        operationId, receipt.recordId(), receipt.expectedRevision());
   }
 }

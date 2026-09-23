@@ -35,15 +35,25 @@ class TechnicalSynchronizationIntegrationTest {
   private static final String TECHNICAL_RECORD_TABLE = "technical_record";
   private static final String ACCEPTED_OPERATION_TABLE = "accepted_technical_record_operation";
   private static final String CHANGE_TABLE = "technical_record_change";
+  private static final String TOMBSTONE_TABLE = "technical_record_tombstone";
+  private static final String RETIRED_IDENTIFIER_TABLE = "retired_technical_record_identifier";
   private static final String FIRST_VALUE = "first value";
   private static final String REPLACEMENT_VALUE = "replacement value";
   private static final String VALUE_FIELD = "\",\"value\":\"";
   private static final String CLOSE_OBJECT = "}";
   private static final String CLOSE_QUOTE_AND_OBJECT = "\"}";
+  private static final String CURSOR_PARAMETER = "cursor";
+  private static final String INVALID_REQUEST_RESPONSE = "{\"code\":\"INVALID_REQUEST\"}";
+  private static final String OPERATION_ID_JSON_PREFIX = "{\"operationId\":\"";
+  private static final String RECORD_ID_JSON_SEPARATOR = "\",\"recordId\":\"";
   private static final String OPERATION_ID = "01890f3e-7c5a-7b12-8abc-0123456789ab";
   private static final String RECORD_ID = "01890f3e-7c5a-7b13-8abc-0123456789ab";
   private static final String REPLACE_OPERATION_ID = "01890f3e-7c5a-7b14-8abc-0123456789ab";
   private static final String STALE_REPLACE_OPERATION_ID = "01890f3e-7c5a-7b15-8abc-0123456789ab";
+  private static final String DELETE_OPERATION_ID = "01890f3e-7c5a-7b16-8abc-0123456789ab";
+  private static final String RECREATE_OPERATION_ID = "01890f3e-7c5a-7b17-8abc-0123456789ab";
+  private static final String STALE_DELETE_OPERATION_ID = "01890f3e-7c5a-7b18-8abc-0123456789ab";
+  private static final String MISSING_DELETE_OPERATION_ID = "01890f3e-7c5a-7b19-8abc-0123456789ab";
   private static final String NON_V7_OPERATION_ID = "01890f3e-7c5a-4b12-8abc-0123456789ab";
   private static final String NON_V7_RECORD_ID = "01890f3e-7c5a-4b13-8abc-0123456789ab";
 
@@ -58,7 +68,12 @@ class TechnicalSynchronizationIntegrationTest {
     jdbc.update("DROP TRIGGER IF EXISTS fail_technical_change ON technical_record_change");
     jdbc.update("DROP FUNCTION IF EXISTS fail_technical_change()");
     jdbc.update(
-        "TRUNCATE technical_record_change, accepted_technical_record_operation, "
+        "DROP TRIGGER IF EXISTS fail_identifier_reservation "
+            + "ON retired_technical_record_identifier");
+    jdbc.update("DROP FUNCTION IF EXISTS fail_identifier_reservation()");
+    jdbc.update(
+        "TRUNCATE technical_record_change, technical_record_tombstone, "
+            + "retired_technical_record_identifier, accepted_technical_record_operation, "
             + "technical_record RESTART IDENTITY CASCADE");
   }
 
@@ -145,7 +160,7 @@ class TechnicalSynchronizationIntegrationTest {
                         "{\"expectedRevision\":\"1\",\"kind\":\"replace\","
                             + "\"value\":\""
                             + REPLACEMENT_VALUE
-                            + "\",\"recordId\":\""
+                            + RECORD_ID_JSON_SEPARATOR
                             + RECORD_ID
                             + "\",\"operationId\":\""
                             + REPLACE_OPERATION_ID
@@ -248,6 +263,186 @@ class TechnicalSynchronizationIntegrationTest {
   }
 
   @Test
+  void acceptsDeleteAndPersistsOneAtomicTombstoneBundle() throws Exception {
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createRequest(FIRST_VALUE)))
+        .andExpect(status().isOk());
+
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(deleteRequest(STALE_DELETE_OPERATION_ID, "2")))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("REVISION_CONFLICT"));
+
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(deleteRequest(DELETE_OPERATION_ID, "1")))
+        .andExpect(status().isOk())
+        .andExpect(
+            content()
+                .json(
+                    "{\"outcome\":\"accepted\","
+                        + OPERATION_ID_JSON_PREFIX.substring(1)
+                        + DELETE_OPERATION_ID
+                        + "\",\"tombstone\":{\"recordId\":\""
+                        + RECORD_ID
+                        + "\",\"revision\":\"2\",\"deletedAtSequence\":\"2\"},"
+                        + "\"sequence\":\"2\"}",
+                    true));
+
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(replaceRequest(STALE_REPLACE_OPERATION_ID, "after deletion", "1")))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value("RECORD_NOT_FOUND"));
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(deleteRequest(MISSING_DELETE_OPERATION_ID, "2")))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.code").value("RECORD_NOT_FOUND"));
+
+    assertThat(count(TECHNICAL_RECORD_TABLE)).isZero();
+    assertThat(count(ACCEPTED_OPERATION_TABLE)).isEqualTo(2);
+    assertThat(count(CHANGE_TABLE)).isEqualTo(2);
+    assertThat(count(TOMBSTONE_TABLE)).isEqualTo(1);
+    assertThat(count(RETIRED_IDENTIFIER_TABLE)).isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT revision FROM technical_record_tombstone WHERE record_id = ?",
+                Long.class,
+                UUID.fromString(RECORD_ID)))
+        .isEqualTo(2);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT deleted_at_sequence FROM technical_record_tombstone WHERE record_id = ?",
+                Long.class,
+                UUID.fromString(RECORD_ID)))
+        .isEqualTo(2);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT retired_at_sequence FROM retired_technical_record_identifier "
+                    + "WHERE record_id = ?",
+                Long.class,
+                UUID.fromString(RECORD_ID)))
+        .isEqualTo(2);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT change_kind FROM technical_record_change WHERE operation_id = ?",
+                String.class,
+                UUID.fromString(DELETE_OPERATION_ID)))
+        .isEqualTo("tombstone");
+
+    mockMvc
+        .perform(get(CHANGES_PATH).param(CURSOR_PARAMETER, "v1.MQ"))
+        .andExpect(status().isOk())
+        .andExpect(
+            content()
+                .json(
+                    "{\"changes\":[{"
+                        + OPERATION_ID_JSON_PREFIX.substring(1)
+                        + DELETE_OPERATION_ID
+                        + "\",\"tombstone\":{\"recordId\":\""
+                        + RECORD_ID
+                        + "\",\"revision\":\"2\",\"deletedAtSequence\":\"2\"},"
+                        + "\"sequence\":\"2\"}],\"nextCursor\":\"v1.Mg\","
+                        + "\"hasMore\":false}",
+                    true));
+  }
+
+  @Test
+  void replaysDeleteAndRejectsRecreationOfItsReservedIdentifier() throws Exception {
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createRequest(FIRST_VALUE)))
+        .andExpect(status().isOk());
+
+    String firstResponse = submitDeleteAndReadResponse();
+    String replayResponse = submitDeleteAndReadResponse();
+    assertThat(replayResponse).isEqualTo(firstResponse);
+    assertThat(count(ACCEPTED_OPERATION_TABLE)).isEqualTo(2);
+    assertThat(count(CHANGE_TABLE)).isEqualTo(2);
+    assertThat(count(TOMBSTONE_TABLE)).isEqualTo(1);
+    assertThat(count(RETIRED_IDENTIFIER_TABLE)).isEqualTo(1);
+
+    jdbc.update(
+        "DELETE FROM technical_record_change WHERE operation_id = ?",
+        UUID.fromString(DELETE_OPERATION_ID));
+    jdbc.update(
+        "DELETE FROM technical_record_tombstone WHERE record_id = ?", UUID.fromString(RECORD_ID));
+    jdbc.update(
+        "DELETE FROM accepted_technical_record_operation WHERE operation_id = ?",
+        UUID.fromString(DELETE_OPERATION_ID));
+
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createRequest(RECREATE_OPERATION_ID, RECORD_ID, FIRST_VALUE)))
+        .andExpect(status().isConflict())
+        .andExpect(
+            content()
+                .json(
+                    "{\"code\":\"RECORD_IDENTIFIER_RETIRED\","
+                        + "\"message\":\"The record identifier was retired by "
+                        + "an accepted deletion.\","
+                        + "\"operationId\":\""
+                        + RECREATE_OPERATION_ID
+                        + RECORD_ID_JSON_SEPARATOR
+                        + RECORD_ID
+                        + "\"}",
+                    true));
+
+    assertThat(count(ACCEPTED_OPERATION_TABLE)).isEqualTo(1);
+    assertThat(count(CHANGE_TABLE)).isEqualTo(1);
+    assertThat(count(TOMBSTONE_TABLE)).isZero();
+    assertThat(count(RETIRED_IDENTIFIER_TABLE)).isEqualTo(1);
+  }
+
+  @Test
+  void deletionFailureRollsBackReceiptSequenceTombstoneReservationAndLiveRemoval()
+      throws Exception {
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createRequest(FIRST_VALUE)))
+        .andExpect(status().isOk());
+    jdbc.execute(
+        "CREATE FUNCTION fail_identifier_reservation() RETURNS trigger LANGUAGE plpgsql AS "
+            + "'BEGIN RAISE EXCEPTION ''forced reservation failure''; END;' ");
+    jdbc.execute(
+        "CREATE TRIGGER fail_identifier_reservation BEFORE INSERT ON "
+            + "retired_technical_record_identifier FOR EACH ROW "
+            + "EXECUTE FUNCTION fail_identifier_reservation()");
+
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(deleteRequest(DELETE_OPERATION_ID, "1")))
+        .andExpect(status().is5xxServerError());
+
+    assertThat(count(TECHNICAL_RECORD_TABLE)).isEqualTo(1);
+    assertThat(count(ACCEPTED_OPERATION_TABLE)).isEqualTo(1);
+    assertThat(count(CHANGE_TABLE)).isEqualTo(1);
+    assertThat(count(TOMBSTONE_TABLE)).isZero();
+    assertThat(count(RETIRED_IDENTIFIER_TABLE)).isZero();
+  }
+
+  @Test
   void rejectsReplaceWithStaleRevisionWithoutChangingAcceptedState() throws Exception {
     mockMvc
         .perform(
@@ -342,7 +537,7 @@ class TechnicalSynchronizationIntegrationTest {
                     true));
 
     mockMvc
-        .perform(get(CHANGES_PATH).param("cursor", "v1.MQ"))
+        .perform(get(CHANGES_PATH).param(CURSOR_PARAMETER, "v1.MQ"))
         .andExpect(status().isOk())
         .andExpect(
             content()
@@ -357,9 +552,9 @@ class TechnicalSynchronizationIntegrationTest {
   @Test
   void rejectsMalformedPullCursors() throws Exception {
     mockMvc
-        .perform(get(CHANGES_PATH).param("cursor", "not-a-cursor"))
+        .perform(get(CHANGES_PATH).param(CURSOR_PARAMETER, "not-a-cursor"))
         .andExpect(status().isBadRequest())
-        .andExpect(content().json("{\"code\":\"INVALID_REQUEST\"}", false));
+        .andExpect(content().json(INVALID_REQUEST_RESPONSE, false));
   }
 
   @Test
@@ -387,7 +582,7 @@ class TechnicalSynchronizationIntegrationTest {
         .andExpect(jsonPath("$.hasMore").value(true));
 
     mockMvc
-        .perform(get(CHANGES_PATH).param("cursor", "v1.MTAw"))
+        .perform(get(CHANGES_PATH).param(CURSOR_PARAMETER, "v1.MTAw"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.changes.length()").value(1))
         .andExpect(jsonPath("$.changes[0].sequence").value("101"))
@@ -440,7 +635,7 @@ class TechnicalSynchronizationIntegrationTest {
                         + "\"recordId\":\"01890F3E-7C5A-7B13-8ABC-0123456789AB\","
                         + "\"value\":\"invalid\",\"kind\":\"create\"}"))
         .andExpect(status().isBadRequest())
-        .andExpect(content().json("{\"code\":\"INVALID_REQUEST\"}", false));
+        .andExpect(content().json(INVALID_REQUEST_RESPONSE, false));
 
     mockMvc
         .perform(
@@ -448,6 +643,33 @@ class TechnicalSynchronizationIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createRequestWithExtraField()))
         .andExpect(status().isBadRequest());
+
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    OPERATION_ID_JSON_PREFIX
+                        + DELETE_OPERATION_ID
+                        + RECORD_ID_JSON_SEPARATOR
+                        + RECORD_ID
+                        + "\",\"kind\":\"delete\",\"expectedRevision\":\"1\","
+                        + "\"value\":\"unexpected\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().json(INVALID_REQUEST_RESPONSE, false));
+
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    OPERATION_ID_JSON_PREFIX
+                        + DELETE_OPERATION_ID
+                        + RECORD_ID_JSON_SEPARATOR
+                        + RECORD_ID
+                        + "\",\"kind\":\"delete\",\"expectedRevision\":true}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().json(INVALID_REQUEST_RESPONSE, false));
   }
 
   private String createRequest(String value) {
@@ -455,9 +677,9 @@ class TechnicalSynchronizationIntegrationTest {
   }
 
   private String createRequest(String operationId, String recordId, String value) {
-    return "{\"operationId\":\""
+    return OPERATION_ID_JSON_PREFIX
         + operationId
-        + "\",\"recordId\":\""
+        + RECORD_ID_JSON_SEPARATOR
         + recordId
         + VALUE_FIELD
         + value
@@ -486,9 +708,9 @@ class TechnicalSynchronizationIntegrationTest {
   }
 
   private String replaceRequest(String operationId, String value, String expectedRevision) {
-    return "{\"operationId\":\""
+    return OPERATION_ID_JSON_PREFIX
         + operationId
-        + "\",\"recordId\":\""
+        + RECORD_ID_JSON_SEPARATOR
         + RECORD_ID
         + VALUE_FIELD
         + value
@@ -497,9 +719,32 @@ class TechnicalSynchronizationIntegrationTest {
         + CLOSE_QUOTE_AND_OBJECT;
   }
 
+  private String deleteRequest(String operationId, String expectedRevision) {
+    return OPERATION_ID_JSON_PREFIX
+        + operationId
+        + RECORD_ID_JSON_SEPARATOR
+        + RECORD_ID
+        + "\",\"kind\":\"delete\",\"expectedRevision\":\""
+        + expectedRevision
+        + CLOSE_QUOTE_AND_OBJECT;
+  }
+
+  private String submitDeleteAndReadResponse() throws Exception {
+    return mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(deleteRequest(DELETE_OPERATION_ID, "1")))
+        .andExpect(status().isOk())
+        .andReturn()
+        .getResponse()
+        .getContentAsString();
+  }
+
   private String acceptedResponse(
       String operationId, String recordId, String revision, String value, String sequence) {
-    return "{\"outcome\":\"accepted\",\"operationId\":\""
+    return "{\"outcome\":\"accepted\","
+        + OPERATION_ID_JSON_PREFIX.substring(1)
         + operationId
         + "\",\"record\":{\"recordId\":\""
         + recordId
@@ -514,7 +759,7 @@ class TechnicalSynchronizationIntegrationTest {
 
   private String acceptedChange(
       String recordId, String operationId, String revision, String value, String sequence) {
-    return "{\"operationId\":\""
+    return OPERATION_ID_JSON_PREFIX
         + operationId
         + "\",\"record\":{\"recordId\":\""
         + recordId
