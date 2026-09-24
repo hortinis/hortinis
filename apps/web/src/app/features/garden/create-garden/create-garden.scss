@@ -1,6 +1,31 @@
+@use '@angular/material' as mat;
+
 :host {
+  ::ng-deep {
+    .mat-mdc-dialog-title::before {
+      height: initial;
+    }
+    @include mat.dialog-overrides(
+      (
+        content-padding: 10px,
+        with-actions-content-padding: 10px 15px 0,
+        headline-padding: 10px 15px 0,
+        // container-color: red,
+        container-color: var(--mat-sys-surface-container-high),
+        container-shape: 0px,
+        container-max-width: initial,
+      )
+    );
+  }
   .field {
     display: flex;
     flex-direction: column;
+
+    @include mat.form-field-overrides(
+      (
+        container-height: auto,
+        container-vertical-padding: 10px,
+      )
+    );
   }
 }

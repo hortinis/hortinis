@@ -47,7 +47,7 @@ html {
       // surface-container-high: light-dark(#306c45, #aedbb8),
       //light-dark(cyan, darkblue),
       surface-container-highest: light-dark(grey, orange),
-      surface-variant: light-dark(darkred, yellow),
+      // surface-variant: light-dark(darkred, yellow),
       on-surface-variant: light-dark(map.get($primary, 60), map.get($secondary, 60)),
       // primary-container: light-dark(map.get($secondary, 80), map.get($primary, 50)),
     )
