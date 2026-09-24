@@ -76,8 +76,8 @@
       }
       @include mat.button-overrides(
         (
-          text-container-shape: 0px,
-          outlined-container-shape: 0px,
+          text-container-shape: 5px,
+          outlined-container-shape: 5px,
         )
       );
 

@@ -1,29 +1,11 @@
 <h1>Bienvenue dans Hortinis</h1>
-<p>Votre jardin reste utilisable hors ligne. Vous pourrez compléter sa configuration plus tard.</p>
 
-<mat-card class="card">
-  <mat-card-header>
-    <mat-card-title>Commencer localement</mat-card-title>
-  </mat-card-header>
-  <mat-card-content>
-    <form [formGroup]="gardenForm">
-      <mat-form-field>
-        <mat-label>Nom du jardin</mat-label>
-        <input matInput [formControl]="gardenForm.controls.name" />
-      </mat-form-field>
-    </form>
-  </mat-card-content>
-</mat-card>
-<p>Ou</p>
-<mat-card class="card">
-  <mat-card-header><mat-card-title>Se connecter à un serveur</mat-card-title></mat-card-header>
-  <mat-card-content>
-    <form [formGroup]="serverForm">
-      <mat-form-field>
-        <mat-label>URL du serveur</mat-label>
-        <input matInput [formControl]="serverForm.controls.address" />
-      </mat-form-field>
-    </form>
-  </mat-card-content>
-</mat-card>
-<button (click)="configure()">Configure</button>
+<div class="landing-content">
+  <button
+    matButton="filled"
+    (click)="newGarden()"
+    class="landing-content__button landing-content__button--new-garden">
+    Nouveau jardin
+  </button>
+  <button matButton="outlined" class="landing-content__button">Restaurer un jardin</button>
+</div>

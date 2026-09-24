@@ -1,4 +1,7 @@
 <mat-toolbar class="nav" [class.nav--web]="!device.mobile()">
+  @if (!device.mobile()) {
+    <h1>Hortinis</h1>
+  }
   @for (route of routing.routes(); track route.name) {
     @if (!route.route) {
       <button

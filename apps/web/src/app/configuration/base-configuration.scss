@@ -8,6 +8,31 @@
   align-items: center;
   gap: 5px;
 
+  .landing-content {
+    display: grid;
+    gap: 15px;
+    > * {
+      flex: 1 0 auto;
+    }
+    &__button {
+      @include mat.button-overrides(
+        (
+          // filled-container-height: 50px,
+          // outlined-container-height: 50px,
+          // filled-label-text-size: 20px,
+           // outlined-label-text-size: 20px
+        )
+      );
+      &--new-garden {
+        // @include mat.button-overrides(
+        //   (
+        //     outlined-container-color: red,
+        //   )
+        // );
+      }
+    }
+  }
+
   //   .card {
   //     @include mat.card-overrides(
   //       (

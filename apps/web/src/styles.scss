@@ -25,12 +25,15 @@ html {
       density: 0,
     )
   );
+  .cdk-overlay-dark-backdrop {
+    background-color: light-dark(rgba(0, 0, 0, 0.32), rgba(0, 0, 0, 0.8));
+  }
   // // A tinted background derived from the primary palette.
-  $app-background: light-dark(map.get($secondary, 90), map.get($primary, 50));
+  $app-background: light-dark(map.get($secondary, 95), map.get($primary, 10));
   $app-background: light-dark(#fffef9, #1e2c24);
 
   // A lighter surface derived from the same palette.
-  $app-surface: light-dark(map.get($secondary, 95), map.get($primary, 10));
+  $app-surface: light-dark(map.get($secondary, 98), map.get($primary, 10));
   @include mat.theme-overrides(
     (
       background: $app-background,
