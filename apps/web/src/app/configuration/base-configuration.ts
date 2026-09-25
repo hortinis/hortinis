@@ -41,7 +41,9 @@ export class BaseConfiguration {
     await this.configuration.configure();
   }
   protected newGarden() {
-    const dialogRef = this.dialog.open(CreateGarden);
+    const dialogRef = this.dialog.open(CreateGarden, {
+      panelClass: 'create-garden-dialog',
+    });
 
     dialogRef.afterClosed().subscribe(() => {
       console.log('The dialog was closed');

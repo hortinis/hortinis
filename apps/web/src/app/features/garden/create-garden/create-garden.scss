@@ -1,22 +1,35 @@
 @use '@angular/material' as mat;
 
-:host {
-  ::ng-deep {
-    .mat-mdc-dialog-title::before {
-      height: initial;
-    }
-    @include mat.dialog-overrides(
-      (
-        content-padding: 10px,
-        with-actions-content-padding: 10px 15px 0,
-        headline-padding: 10px 15px 0,
-        // container-color: red,
-        container-color: var(--mat-sys-surface-container-high),
-        container-shape: 0px,
-        container-max-width: initial,
-      )
-    );
+.create-garden-dialog {
+  @include mat.dialog-overrides(
+    (
+      content-padding: 10px,
+      with-actions-content-padding: 5px 15px 0,
+      headline-padding: 5px 15px,
+      //container-color: var(--mat-sys-surface-container-high),
+      container-shape: 5px,
+      container-max-width: initial,
+      container-min-width: 75%,
+    )
+  );
+  @include mat.button-overrides(
+    (
+      outlined-container-shape: 5px,
+    )
+  );
+  .mat-mdc-dialog-title {
+    //background-color: light-dark(#95a986, #344137);
+    //box-shadow: 0px 1px 3px 0px var(--mat-sys-inverse-surface);
+    box-shadow: 0px 1px 3px 0px var(--mat-sys-surface-variant);
   }
+  .mat-mdc-dialog-actions {
+    padding: 0px 15px;
+  }
+
+  .mat-mdc-dialog-title::before {
+    height: initial;
+  }
+
   .field {
     display: flex;
     flex-direction: column;

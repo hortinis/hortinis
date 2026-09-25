@@ -1,4 +1,4 @@
-<h2 mat-dialog-title>Créer un jardin</h2>
+<h2 mat-dialog-title class="mat-elevation-2">Créer un jardin</h2>
 <form [formGroup]="garden">
   <mat-dialog-content>
     <div class="field">
@@ -9,7 +9,7 @@
     </div>
   </mat-dialog-content>
   <mat-dialog-actions>
-    <button matButton>Annuler</button>
-    <button matButton type="submit" cdkFocusInitial>Ok</button>
+    <button matButton="outlined">Annuler</button>
+    <button matButton="outlined" type="submit" cdkFocusInitial>Ok</button>
   </mat-dialog-actions>
 </form>
