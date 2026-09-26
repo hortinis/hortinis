@@ -2,8 +2,7 @@
 
 This document maps the production guarantees selected by G1 to their wire evidence and implementation
 owners. It distinguishes accepted policy from behavior already demonstrated by the V0 walking skeleton.
-G1 remains specified rather than validated until E10 supplies the V0 readiness evidence required by the
-foundation plan.
+G1 is validated; E10 remains a separate V0 readiness-reporting prerequisite.
 
 | Required guarantee or failure case | Accepted decision | Contract or fixture evidence | Implementation and final validation |
 | --- | --- | --- | --- |
@@ -26,6 +25,7 @@ adapters exist. The other production models are emitted as standalone JSON Schem
 inputs to the existing operation and pull boundaries during G2 and G3. Until those tasks are complete,
 only the two V0 push and pull adapters described in the API documentation are runnable.
 
-Cross-runtime conformance currently covers the V0 corpus. Contract tests validate the G1 and G2a policy
-fixtures against generated schemas. G2b through G4 add TypeScript and Java consumers with each behavior; G5 runs
-the complete shared corpus through browser, service, PostgreSQL, restart, migration, and compaction paths.
+Cross-runtime conformance covers the V0 corpus and G2 deletion fixtures. Contract tests validate the G1
+and G2a policy fixtures against generated schemas. G2b and G2c consume tombstone results and changes in
+Java and TypeScript respectively; G3 and G4 add the remaining production-policy behavior. G5 runs the
+complete shared corpus through browser, service, PostgreSQL, restart, migration, and compaction paths.

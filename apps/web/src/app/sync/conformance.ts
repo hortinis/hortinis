@@ -4,18 +4,41 @@ export interface TechnicalRecord {
   value: string;
 }
 
-export interface OperationResult {
+export interface TechnicalTombstone {
+  recordId: string;
+  revision: string;
+  deletedAtSequence: string;
+}
+
+export interface RecordOperationResult {
   outcome: 'accepted';
   operationId: string;
   record: TechnicalRecord;
   sequence: string;
 }
 
-export interface TechnicalChange {
+export interface TombstoneOperationResult {
+  outcome: 'accepted';
+  operationId: string;
+  tombstone: TechnicalTombstone;
+  sequence: string;
+}
+
+export type OperationResult = RecordOperationResult | TombstoneOperationResult;
+
+export interface RecordTechnicalChange {
   operationId: string;
   record: TechnicalRecord;
   sequence: string;
 }
+
+export interface TombstoneTechnicalChange {
+  operationId: string;
+  tombstone: TechnicalTombstone;
+  sequence: string;
+}
+
+export type TechnicalChange = RecordTechnicalChange | TombstoneTechnicalChange;
 
 export interface ChangePage {
   changes: TechnicalChange[];
@@ -52,6 +75,13 @@ export interface RecordAlreadyExistsError {
   currentRecord: TechnicalRecord;
 }
 
+export interface RecordIdentifierRetiredError {
+  code: 'RECORD_IDENTIFIER_RETIRED';
+  message: string;
+  operationId: string;
+  recordId: string;
+}
+
 export interface RevisionConflictError {
   code: 'REVISION_CONFLICT';
   message: string;
@@ -61,7 +91,10 @@ export interface RevisionConflictError {
 }
 
 export type ConflictError =
-  OperationIdReusedError | RecordAlreadyExistsError | RevisionConflictError;
+  | OperationIdReusedError
+  | RecordAlreadyExistsError
+  | RecordIdentifierRetiredError
+  | RevisionConflictError;
 
 export type SynchronizationError = InvalidRequestError | RecordNotFoundError | ConflictError;
 
@@ -80,8 +113,15 @@ export interface ReplaceTechnicalRecordOperation {
   expectedRevision: string;
 }
 
+export interface DeleteTechnicalRecordOperation {
+  operationId: string;
+  recordId: string;
+  kind: 'delete';
+  expectedRevision: string;
+}
+
 export type TechnicalRecordOperation =
-  CreateTechnicalRecordOperation | ReplaceTechnicalRecordOperation;
+  CreateTechnicalRecordOperation | ReplaceTechnicalRecordOperation | DeleteTechnicalRecordOperation;
 
 const canonicalUuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const positiveDecimalPattern = /^[1-9][0-9]*$/;
@@ -97,21 +137,39 @@ export function isTechnicalRecordOperation(value: unknown): value is TechnicalRe
     !canonicalUuidPattern.test(value['operationId']) ||
     typeof value['recordId'] !== 'string' ||
     !canonicalUuidPattern.test(value['recordId']) ||
-    typeof value['value'] !== 'string' ||
     typeof value['kind'] !== 'string'
   ) {
     return false;
   }
 
   if (value['kind'] === 'create') {
-    return hasExactlyKeys(value, commonKeys);
+    return hasExactlyKeys(value, commonKeys) && typeof value['value'] === 'string';
   }
 
   return (
-    value['kind'] === 'replace' &&
-    hasExactlyKeys(value, [...commonKeys, 'expectedRevision']) &&
+    (value['kind'] === 'replace' || value['kind'] === 'delete') &&
+    hasExactlyKeys(
+      value,
+      value['kind'] === 'replace'
+        ? [...commonKeys, 'expectedRevision']
+        : ['kind', 'operationId', 'recordId', 'expectedRevision'],
+    ) &&
+    (value['kind'] === 'delete' || typeof value['value'] === 'string') &&
     typeof value['expectedRevision'] === 'string' &&
     positiveDecimalPattern.test(value['expectedRevision'])
+  );
+}
+
+export function isTechnicalTombstone(value: unknown): value is TechnicalTombstone {
+  return (
+    isRecord(value) &&
+    hasExactlyKeys(value, ['recordId', 'revision', 'deletedAtSequence']) &&
+    typeof value['recordId'] === 'string' &&
+    canonicalUuidPattern.test(value['recordId']) &&
+    typeof value['revision'] === 'string' &&
+    positiveDecimalPattern.test(value['revision']) &&
+    typeof value['deletedAtSequence'] === 'string' &&
+    positiveDecimalPattern.test(value['deletedAtSequence'])
   );
 }
 
@@ -130,11 +188,15 @@ export function isTechnicalRecord(value: unknown): value is TechnicalRecord {
 export function isOperationResult(value: unknown): value is OperationResult {
   return (
     isRecord(value) &&
-    hasExactlyKeys(value, ['outcome', 'operationId', 'record', 'sequence']) &&
+    (hasExactlyKeys(value, ['outcome', 'operationId', 'record', 'sequence']) ||
+      hasExactlyKeys(value, ['outcome', 'operationId', 'tombstone', 'sequence'])) &&
     value['outcome'] === 'accepted' &&
     typeof value['operationId'] === 'string' &&
     canonicalUuidPattern.test(value['operationId']) &&
-    isTechnicalRecord(value['record']) &&
+    (('record' in value && isTechnicalRecord(value['record'])) ||
+      ('tombstone' in value &&
+        isTechnicalTombstone(value['tombstone']) &&
+        value['tombstone'].deletedAtSequence === value['sequence'])) &&
     typeof value['sequence'] === 'string' &&
     positiveDecimalPattern.test(value['sequence'])
   );
@@ -143,10 +205,14 @@ export function isOperationResult(value: unknown): value is OperationResult {
 export function isTechnicalChange(value: unknown): value is TechnicalChange {
   return (
     isRecord(value) &&
-    hasExactlyKeys(value, ['operationId', 'record', 'sequence']) &&
+    (hasExactlyKeys(value, ['operationId', 'record', 'sequence']) ||
+      hasExactlyKeys(value, ['operationId', 'tombstone', 'sequence'])) &&
     typeof value['operationId'] === 'string' &&
     canonicalUuidPattern.test(value['operationId']) &&
-    isTechnicalRecord(value['record']) &&
+    (('record' in value && isTechnicalRecord(value['record'])) ||
+      ('tombstone' in value &&
+        isTechnicalTombstone(value['tombstone']) &&
+        value['tombstone'].deletedAtSequence === value['sequence'])) &&
     typeof value['sequence'] === 'string' &&
     positiveDecimalPattern.test(value['sequence'])
   );
@@ -207,6 +273,17 @@ export function isConflictError(value: unknown): value is ConflictError {
     );
   }
 
+  if (value['code'] === 'RECORD_IDENTIFIER_RETIRED') {
+    return (
+      hasExactlyKeys(value, ['code', 'message', 'operationId', 'recordId']) &&
+      isNonEmptyString(value['message']) &&
+      typeof value['operationId'] === 'string' &&
+      canonicalUuidPattern.test(value['operationId']) &&
+      typeof value['recordId'] === 'string' &&
+      canonicalUuidPattern.test(value['recordId'])
+    );
+  }
+
   return (
     value['code'] === 'REVISION_CONFLICT' &&
     hasExactlyKeys(value, [
@@ -236,10 +313,12 @@ export function equalTechnicalRecordOperations(left: unknown, right: unknown): b
   return (
     left.operationId === right.operationId &&
     left.recordId === right.recordId &&
-    left.value === right.value &&
+    (left.kind === 'delete'
+      ? true
+      : left.value === (right.kind === 'delete' ? undefined : right.value)) &&
     left.kind === right.kind &&
-    (left.kind === 'replace' ? left.expectedRevision : undefined) ===
-      (right.kind === 'replace' ? right.expectedRevision : undefined)
+    (left.kind === 'create' ? undefined : left.expectedRevision) ===
+      (right.kind === 'create' ? undefined : right.expectedRevision)
   );
 }
 

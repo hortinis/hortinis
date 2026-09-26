@@ -23,12 +23,10 @@ describe('TechnicalRecordSynchronizationService', () => {
 
   afterEach(async () => {
     TestBed.resetTestingModule();
-    await Promise.all(
-      databases.splice(0).map(async (database) => {
-        database.close();
-        await database.delete();
-      }),
-    );
+    for (const database of databases.splice(0).reverse()) {
+      database.close();
+      await database.delete();
+    }
   });
 
   it('pushes one pending operation and commits its stable result', async () => {
@@ -69,6 +67,90 @@ describe('TechnicalRecordSynchronizationService', () => {
     await expect(service.pullOnePage()).resolves.toEqual({ status: 'applied', page });
     expect(transport.pullChanges).toHaveBeenCalledOnce();
     await expect(persistence.synchronizationCursor()).resolves.toBe('opaque-cursor');
+  });
+
+  it('quarantines a deletion rejected because its record is missing', async () => {
+    const database = openDatabase();
+    await database.technicalRecords.add({
+      recordId: createOperation().recordId,
+      value: 'local',
+      lastAcceptedRevision: '1',
+    });
+    const error = {
+      code: 'RECORD_NOT_FOUND' as const,
+      message: 'missing',
+      operationId: createOperation().operationId,
+      recordId: createOperation().recordId,
+    };
+    const transport: SynchronizationTransport = {
+      submitOperation: vi.fn(async () => {
+        throw new SynchronizationProtocolError(404, error);
+      }),
+      pullChanges: vi.fn(async () => ({ changes: [], nextCursor: 'cursor', hasMore: false })),
+    };
+    const { persistence, service } = services(database, transport, onlineStatus(true));
+    await persistence.commitDelete(error.operationId, error.recordId);
+    await expect(service.pushOnePendingOperation()).resolves.toMatchObject({ status: 'conflict' });
+    await expect(database.outboxOperations.count()).resolves.toBe(1);
+    await expect(database.deletionConflicts.get(error.operationId)).resolves.toMatchObject({
+      reason: 'record-not-found',
+    });
+    await expect(persistence.firstPendingOperation()).resolves.toBeUndefined();
+  });
+
+  it('resumes a failed page from the last committed cursor after reopening', async () => {
+    const name = `hortinis-g2c-recovery-${crypto.randomUUID()}`;
+    const first = openDatabase(name);
+    const firstPage: ChangePage = { changes: [], nextCursor: 'committed-cursor', hasMore: true };
+    const invalidPage: ChangePage = {
+      changes: [
+        {
+          operationId: createOperation().operationId,
+          record: { recordId: createOperation().recordId, revision: '4', value: 'temporary' },
+          sequence: '40',
+        },
+        {
+          operationId: '01890f3e-7c5a-7b17-8abc-0123456789ab',
+          tombstone: {
+            recordId: createOperation().recordId,
+            revision: '3',
+            deletedAtSequence: '41',
+          },
+          sequence: '41',
+        },
+      ],
+      nextCursor: 'uncommitted-cursor',
+      hasMore: false,
+    };
+    const firstTransport: SynchronizationTransport = {
+      submitOperation: vi.fn(),
+      pullChanges: vi.fn(async (cursor) => (cursor ? invalidPage : firstPage)),
+    };
+    const firstServices = services(first, firstTransport, onlineStatus(true));
+    await expect(firstServices.service.recoverAfterReload()).resolves.toMatchObject({
+      status: 'failed',
+      pulled: 1,
+    });
+    await expect(firstServices.persistence.synchronizationCursor()).resolves.toBe(
+      'committed-cursor',
+    );
+    first.close();
+    TestBed.resetTestingModule();
+
+    const reopened = openDatabase(name);
+    const nextTransport: SynchronizationTransport = {
+      submitOperation: vi.fn(),
+      pullChanges: vi.fn(async (cursor) => {
+        expect(cursor).toBe('committed-cursor');
+        return { changes: [], nextCursor: 'finished-cursor', hasMore: false };
+      }),
+    };
+    const resumed = services(reopened, nextTransport, onlineStatus(true));
+    await expect(resumed.service.recoverAfterReload()).resolves.toMatchObject({
+      status: 'completed',
+      pulled: 1,
+    });
+    await expect(resumed.persistence.synchronizationCursor()).resolves.toBe('finished-cursor');
   });
 
   it('skips a pull while offline and retains the cursor', async () => {
@@ -529,6 +611,7 @@ function createOperation(): TechnicalRecordOperation & { kind: 'create' } {
 }
 
 function acceptedResult(operation: TechnicalRecordOperation): OperationResult {
+  if (operation.kind === 'delete') throw new Error('This fixture accepts live records only.');
   return {
     outcome: 'accepted',
     operationId: operation.operationId,

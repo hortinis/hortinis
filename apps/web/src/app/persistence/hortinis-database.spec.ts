@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 
 import Dexie from 'dexie';
 import { HortinisDatabase } from './hortinis-database';
+import { HORTINIS_DATABASE_SCHEMA_V1 } from './database-schema';
 import {
   LegacyMigrationFixtureDatabase,
   MigrationFixtureDatabase,
@@ -25,13 +26,16 @@ describe('HortinisDatabase', () => {
     await database.open();
 
     expect(database.isOpen()).toBe(true);
-    expect(database.verno).toBe(1);
+    expect(database.verno).toBe(2);
     expect(database.tables.map((table) => table.name)).toEqual([
       'technicalRecords',
       'outboxOperations',
       'acceptedOperationResults',
       'revisionConflicts',
       'synchronizationState',
+      'technicalTombstones',
+      'pendingDeletionRecords',
+      'deletionConflicts',
     ]);
   });
 
@@ -53,6 +57,39 @@ describe('HortinisDatabase', () => {
         migrationState: 'migrated',
       },
     ]);
+  });
+
+  it('upgrades a populated application database without losing pending work or its cursor', async () => {
+    const name = databaseName();
+    const oldDatabase = new Dexie(name);
+    oldDatabase.version(1).stores(HORTINIS_DATABASE_SCHEMA_V1);
+    await oldDatabase.open();
+    const record = { recordId: 'legacy-record', value: 'local value', lastAcceptedRevision: '1' };
+    const operation = {
+      operationId: 'legacy-operation',
+      recordId: record.recordId,
+      kind: 'replace',
+      value: 'local value',
+      expectedRevision: '1',
+    };
+    await oldDatabase.table('technicalRecords').add(record);
+    await oldDatabase.table('outboxOperations').add(operation);
+    await oldDatabase
+      .table('synchronizationState')
+      .add({ scope: 'technical-records', cursor: 'saved-cursor' });
+    oldDatabase.close();
+
+    const upgraded = track(new HortinisDatabase(name));
+    await upgraded.open();
+    expect(upgraded.verno).toBe(2);
+    await expect(upgraded.technicalRecords.toArray()).resolves.toEqual([record]);
+    await expect(upgraded.outboxOperations.toArray()).resolves.toEqual([operation]);
+    await expect(upgraded.synchronizationState.get('technical-records')).resolves.toMatchObject({
+      cursor: 'saved-cursor',
+    });
+    await expect(upgraded.technicalTombstones.count()).resolves.toBe(0);
+    await expect(upgraded.pendingDeletionRecords.count()).resolves.toBe(0);
+    await expect(upgraded.deletionConflicts.count()).resolves.toBe(0);
   });
 
   it('rolls back writes when a transaction fails', async () => {

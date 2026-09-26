@@ -37,6 +37,26 @@ describe('HttpSynchronizationTransport', () => {
     await expect(resultPromise).resolves.toEqual(acceptedResult());
   });
 
+  it('submits deletion and accepts its closed tombstone result', async () => {
+    const operation = {
+      operationId: operationId(),
+      recordId: recordId(),
+      kind: 'delete' as const,
+      expectedRevision: '1',
+    };
+    const result = {
+      outcome: 'accepted',
+      operationId: operationId(),
+      tombstone: { recordId: recordId(), revision: '2', deletedAtSequence: '41' },
+      sequence: '41',
+    };
+    const pending = transport.submitOperation(operation);
+    const request = http.expectOne('/api/v1/sync/operations');
+    expect(request.request.body).toEqual(operation);
+    request.flush(result);
+    await expect(pending).resolves.toEqual(result);
+  });
+
   it('pulls a page and preserves an opaque cursor', async () => {
     const resultPromise = transport.pullChanges('cursor / with spaces');
     const request = http.expectOne(
@@ -91,6 +111,15 @@ describe('HttpSynchronizationTransport', () => {
         message: 'exists',
         operationId: operationId(),
         currentRecord: { recordId: recordId(), revision: '1', value: 'server' },
+      },
+    ],
+    [
+      409,
+      {
+        code: 'RECORD_IDENTIFIER_RETIRED',
+        message: 'retired',
+        operationId: operationId(),
+        recordId: recordId(),
       },
     ],
     [

@@ -101,6 +101,8 @@ two domain operations are semantically equivalent remains a future domain-specif
 The contract does not define authentication, authorization, a production synchronization-scope
 identifier, batching, garden resources, or domain-specific conflict resolution. The V0 validation
 topology uses one test-only synchronization scope, retains all incremental history and idempotency
-receipts, and must not expose an unauthenticated production service. G2b activates deletion on the server;
-browser tombstone application remains in G2c. The production reconciliation endpoints remain unavailable
-at runtime until G3 and G4 implement their adapters.
+receipts, and must not expose an unauthenticated production service. G2b and G2c activate deletion on
+the server and browser respectively. The browser keeps accepted tombstones separately from live records,
+preserves pending deletion intent across reloads, and commits each pulled page with its cursor. The
+production reconciliation endpoints remain unavailable at runtime until G3 and G4 implement their
+adapters. Bounded background retry and manual recovery remain G2d work.

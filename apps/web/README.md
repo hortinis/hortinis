@@ -52,6 +52,8 @@ Run the browser smoke test; Playwright starts and stops the Angular development 
 pnpm --filter @hortinis/web test:e2e
 ```
 
-The smoke test verifies that the application shell responds and renders the Hortinis heading in Chromium. It does not validate PWA installation, offline behavior, persistence, synchronization, or business workflows.
+Browser tests cover the application shell, offline reload, persisted synchronization recovery, revision
+conflicts, and tombstone application after reload. They use a single Chromium project. Business workflow
+coverage belongs to the product increments.
 
 See the repository [development guide](../../docs/development/README.md) for toolchain requirements and repository-wide validation.

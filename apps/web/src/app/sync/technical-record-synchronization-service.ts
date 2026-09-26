@@ -2,6 +2,8 @@ import { inject, Injectable, signal } from '@angular/core';
 import type {
   ChangePage,
   OperationResult,
+  RecordNotFoundError,
+  RecordIdentifierRetiredError,
   RevisionConflictError,
   TechnicalRecordOperation,
 } from './conformance';
@@ -19,7 +21,11 @@ export type PushOutcome =
   | { status: 'empty' }
   | { status: 'offline' }
   | { status: 'accepted'; operation: TechnicalRecordOperation; result: OperationResult }
-  | { status: 'conflict'; operation: TechnicalRecordOperation; conflict: RevisionConflictError }
+  | {
+      status: 'conflict';
+      operation: TechnicalRecordOperation;
+      conflict: RevisionConflictError | RecordNotFoundError | RecordIdentifierRetiredError;
+    }
   | { status: 'failed'; operation: TechnicalRecordOperation; error: unknown };
 
 export type PullOutcome =
@@ -142,6 +148,14 @@ export class TechnicalRecordSynchronizationService {
           error.body.code === 'REVISION_CONFLICT'
         ) {
           await this.persistence.commitRevisionConflict(operation, error.body);
+          return { status: 'conflict', operation, conflict: error.body };
+        }
+        if (
+          error instanceof SynchronizationProtocolError &&
+          (error.body.code === 'RECORD_NOT_FOUND' ||
+            error.body.code === 'RECORD_IDENTIFIER_RETIRED')
+        ) {
+          await this.persistence.commitDeletionConflict(operation, error.body);
           return { status: 'conflict', operation, conflict: error.body };
         }
         if (!this.recoveryInProgress) {

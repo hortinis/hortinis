@@ -918,14 +918,27 @@ relies on them.
 
 ##### G2c. Implement browser tombstones and resumable exchange
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: G2a and G2b.
 - Scope: add the real Dexie schema migration, atomic local deletion and outbox persistence, accepted
   tombstone persistence, ordered tombstone pull application, and durable deletion conflicts that retain
   overlapping pending local intent.
+- Excludes: bounded background retry and manual recovery (G2d), generation rollover (G3), and full
+  reconciliation (G4).
 - Acceptance: interrupted page application never advances the cursor, repeated tombstone application is
   idempotent, stale live changes cannot resurrect a retired identity, and reload resumes from the last
   fully applied boundary.
+- Artifacts: Dexie version-two migration with technical tombstones, pending deletion bases, and deletion
+  conflicts; browser deletion and tombstone wire guards; atomic deletion outbox and accepted-result
+  transactions; ordered mixed-page application; TypeScript consumption of G2a fixtures; IndexedDB
+  migration, rollback, replay, conflict, and recovery tests; and Chromium tombstone reload coverage.
+- Validation evidence: on 2026-09-25, `pnpm validate` passed, including contract validation, formatting,
+  lint, architecture checks, strict type checks, 65 web unit tests, five Chromium tests, development and
+  production builds, the PostgreSQL-backed backend build, and repository checks.
+  `pnpm conformance:validate` also passed. Focused tests prove
+  populated version-one database upgrades, atomic local deletion, dependent deletion submission, stable
+  tombstone acknowledgment, mixed-page rollback, idempotent replay, durable overlapping-intent conflict,
+  and continuation from the last committed cursor after reload.
 
 ##### G2d. Implement bounded background retry and manual recovery
 

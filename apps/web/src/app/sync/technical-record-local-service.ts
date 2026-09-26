@@ -39,4 +39,10 @@ export class TechnicalRecordLocalService {
     void this.synchronization.pushOnePendingOperation();
     return result;
   }
+
+  async delete(recordId: string): Promise<LocalTechnicalRecordOperation> {
+    const operation = await this.persistence.commitDelete(generateUuidV7(), recordId);
+    void this.synchronization.pushOnePendingOperation();
+    return operation;
+  }
 }

@@ -150,6 +150,102 @@ test('resumes persisted synchronization work after reloading the application', a
   );
 });
 
+test('applies a tombstone after reload and resumes from its committed cursor', async ({
+  page,
+  context,
+}) => {
+  let ready = false;
+  const seenCursors: (string | null)[] = [];
+  const recordId = '01890f3e-7c5a-7b13-8abc-0123456789ab';
+  await context.route('**/api/v1/sync/**', async (route) => {
+    if (!ready) {
+      await route.abort();
+      return;
+    }
+    if (route.request().method() !== 'GET') {
+      await route.fulfill({ status: 400, body: 'unexpected push' });
+      return;
+    }
+    const cursor = new URL(route.request().url()).searchParams.get('cursor');
+    seenCursors.push(cursor);
+    const changes =
+      cursor === 'before-delete'
+        ? [
+            {
+              operationId: '01890f3e-7c5a-7b16-8abc-0123456789ab',
+              tombstone: { recordId, revision: '2', deletedAtSequence: '41' },
+              sequence: '41',
+            },
+          ]
+        : [];
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        changes,
+        nextCursor: cursor === 'before-delete' ? 'after-delete' : 'after-repeat',
+        hasMore: false,
+      }),
+    });
+  });
+
+  await page.goto('/');
+  await page.waitForTimeout(250);
+  await page.evaluate(async (id) => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('hortinis');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction(
+        ['technicalRecords', 'synchronizationState'],
+        'readwrite',
+      );
+      transaction
+        .objectStore('technicalRecords')
+        .put({ recordId: id, value: 'stale', lastAcceptedRevision: '1' });
+      transaction
+        .objectStore('synchronizationState')
+        .put({ scope: 'technical-records', cursor: 'before-delete' });
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error);
+    });
+    database.close();
+  }, recordId);
+
+  ready = true;
+  await page.reload();
+  await page.waitForFunction(async (id) => {
+    const database = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('hortinis');
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    return await new Promise<boolean>((resolve, reject) => {
+      const transaction = database.transaction(
+        ['technicalRecords', 'technicalTombstones', 'synchronizationState'],
+        'readonly',
+      );
+      const record = transaction.objectStore('technicalRecords').get(id);
+      const tombstone = transaction.objectStore('technicalTombstones').get(id);
+      const state = transaction.objectStore('synchronizationState').get('technical-records');
+      transaction.oncomplete = () => {
+        database.close();
+        resolve(
+          record.result === undefined &&
+            tombstone.result?.revision === '2' &&
+            state.result?.cursor === 'after-delete',
+        );
+      };
+      transaction.onerror = () => reject(transaction.error);
+    });
+  }, recordId);
+  await page.reload();
+  await expect.poll(() => seenCursors.length).toBeGreaterThanOrEqual(2);
+  expect(seenCursors.slice(-2)).toEqual(['before-delete', 'after-delete']);
+});
+
 test('persists a revision conflict and continues an independent operation', async ({ page }) => {
   const conflictedOperation = {
     operationId: '01890f3e-7c5a-7b11-8abc-0123456789ab',

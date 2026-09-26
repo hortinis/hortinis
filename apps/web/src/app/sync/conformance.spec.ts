@@ -46,6 +46,37 @@ const fixtureNames = [
 ];
 
 describe('technical synchronization conformance fixtures', () => {
+  it('consumes the shared deletion result, change, and retired-identifier fixtures', () => {
+    const directory = join(__dirname, '../../../../../contracts/sync/fixtures');
+    const fixtureValue = (name: string): unknown =>
+      (JSON.parse(readFileSync(join(directory, name), 'utf8')) as { value: unknown }).value;
+    const accepted = fixtureValue('delete-accepted.json');
+    const page = fixtureValue('tombstone-change-page.json');
+    const retired = fixtureValue('record-identifier-retired.json');
+    expect(isOperationResult(accepted)).toBe(true);
+    expect(isChangePage(page)).toBe(true);
+    expect(isSynchronizationError(retired)).toBe(true);
+    const deletion = {
+      kind: 'delete',
+      operationId: '01890f3e-7c5a-7b16-8abc-0123456789ab',
+      recordId: '01890f3e-7c5a-7b15-8abc-0123456789ab',
+      expectedRevision: '2',
+    };
+    expect(isTechnicalRecordOperation(deletion)).toBe(true);
+    expect(isTechnicalRecordOperation({ ...deletion, value: 'unexpected' })).toBe(false);
+    expect(isTechnicalRecordOperation({ ...deletion, expectedRevision: '0' })).toBe(false);
+    expect(
+      isOperationResult({
+        ...(accepted as object),
+        record: {
+          recordId: '01890f3e-7c5a-7b15-8abc-0123456789ab',
+          revision: '3',
+          value: 'invalid',
+        },
+      }),
+    ).toBe(false);
+  });
+
   it('consumes every shared scenario and agrees with its expected validity', () => {
     for (const fixture of loadFixtures()) {
       expect(fixture.description).not.toBe('');
