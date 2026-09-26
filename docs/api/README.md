@@ -105,4 +105,7 @@ receipts, and must not expose an unauthenticated production service. G2b and G2c
 the server and browser respectively. The browser keeps accepted tombstones separately from live records,
 preserves pending deletion intent across reloads, and commits each pulled page with its cursor. The
 production reconciliation endpoints remain unavailable at runtime until G3 and G4 implement their
-adapters. Bounded background retry and manual recovery remain G2d work.
+adapters. The browser implements ADR-0027 with durable, privacy-safe retry metadata, bounded full-jitter
+scheduling, reload-safe exhaustion, online-event continuation, observable recovery states, and explicit
+manual retry. It does not use the browser Background Sync API or claim execution while the application
+is closed or suspended.

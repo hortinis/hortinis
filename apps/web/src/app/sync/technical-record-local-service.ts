@@ -30,19 +30,19 @@ export class TechnicalRecordLocalService {
     };
 
     const record = await this.persistence.commitCreate(operation);
-    void this.synchronization.pushOnePendingOperation();
+    void this.synchronization.startBackgroundRecovery();
     return { record, operation };
   }
 
   async replace(recordId: string, value: string): Promise<LocalTechnicalRecordReplace> {
     const result = await this.persistence.commitReplace(generateUuidV7(), recordId, value);
-    void this.synchronization.pushOnePendingOperation();
+    void this.synchronization.startBackgroundRecovery();
     return result;
   }
 
   async delete(recordId: string): Promise<LocalTechnicalRecordOperation> {
     const operation = await this.persistence.commitDelete(generateUuidV7(), recordId);
-    void this.synchronization.pushOnePendingOperation();
+    void this.synchronization.startBackgroundRecovery();
     return operation;
   }
 }

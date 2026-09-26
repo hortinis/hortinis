@@ -942,13 +942,27 @@ relies on them.
 
 ##### G2d. Implement bounded background retry and manual recovery
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: G2c.
 - Scope: implement ADR-0027 with durable scheduling and exhaustion state, injectable clock, jitter, and
   scheduling boundaries, reload recovery, privacy-safe observable status, and explicit manual retry.
+- Excludes: browser Background Sync, periodic service-worker execution, generation rollover (G3), full
+  reconciliation (G4), and the complete cross-runtime G2 validation matrix (G2e).
 - Acceptance: one immediate attempt and at most four automatic retries follow the selected jitter bounds;
   offline periods consume no attempt; exhaustion survives reload without losing work; and manual recovery
   starts a fresh bounded cycle without changing operation identity or cursor.
+- Artifacts: Dexie version-three retry-state migration; privacy-safe push and pull retry records;
+  injectable clock, full-jitter, and scheduling boundaries; non-blocking online-event continuation;
+  scheduled, offline, running, exhausted, manual-recovery, and completed status; local-commit recovery
+  startup; and deterministic migration, delay, exhaustion, reload, cursor, classification, and manual
+  recovery tests.
+- Validation evidence: on 2026-09-26, `pnpm validate` passed, including contract validation, formatting,
+  lint, architecture checks, strict type checks, 71 web unit tests, five Chromium tests, development and
+  production builds, the PostgreSQL-backed backend build, and repository checks.
+  `pnpm conformance:validate` also passed. Focused tests prove the exact one-plus-four attempt budget,
+  1/2/4/8-second full-jitter caps, stable operation and cursor reuse, no offline budget consumption,
+  version-two database migration, scheduled and exhausted reload restoration, privacy-safe persisted
+  metadata, non-retryable malformed responses, and a fresh explicit manual-recovery cycle.
 
 ##### G2e. Validate complete tombstone and interrupted-exchange recovery
 

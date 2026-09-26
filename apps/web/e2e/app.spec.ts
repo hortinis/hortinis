@@ -216,31 +216,44 @@ test('applies a tombstone after reload and resumes from its committed cursor', a
 
   ready = true;
   await page.reload();
-  await page.waitForFunction(async (id) => {
-    const database = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open('hortinis');
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-    return await new Promise<boolean>((resolve, reject) => {
-      const transaction = database.transaction(
-        ['technicalRecords', 'technicalTombstones', 'synchronizationState'],
-        'readonly',
-      );
-      const record = transaction.objectStore('technicalRecords').get(id);
-      const tombstone = transaction.objectStore('technicalTombstones').get(id);
-      const state = transaction.objectStore('synchronizationState').get('technical-records');
-      transaction.oncomplete = () => {
-        database.close();
-        resolve(
-          record.result === undefined &&
-            tombstone.result?.revision === '2' &&
-            state.result?.cursor === 'after-delete',
-        );
-      };
-      transaction.onerror = () => reject(transaction.error);
-    });
-  }, recordId);
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async (id) => {
+          const database = await new Promise<IDBDatabase>((resolve, reject) => {
+            const request = indexedDB.open('hortinis');
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+          });
+          return await new Promise<boolean>((resolve, reject) => {
+            const transaction = database.transaction(
+              [
+                'technicalRecords',
+                'technicalTombstones',
+                'synchronizationState',
+                'synchronizationRetryState',
+              ],
+              'readonly',
+            );
+            const record = transaction.objectStore('technicalRecords').get(id);
+            const tombstone = transaction.objectStore('technicalTombstones').get(id);
+            const state = transaction.objectStore('synchronizationState').get('technical-records');
+            const retryState = transaction.objectStore('synchronizationRetryState').count();
+            transaction.oncomplete = () => {
+              database.close();
+              resolve(
+                record.result === undefined &&
+                  tombstone.result?.revision === '2' &&
+                  state.result?.cursor === 'after-delete' &&
+                  retryState.result === 0,
+              );
+            };
+            transaction.onerror = () => reject(transaction.error);
+          });
+        }, recordId),
+      { timeout: 10_000 },
+    )
+    .toBe(true);
   await page.reload();
   await expect.poll(() => seenCursors.length).toBeGreaterThanOrEqual(2);
   expect(seenCursors.slice(-2)).toEqual(['before-delete', 'after-delete']);

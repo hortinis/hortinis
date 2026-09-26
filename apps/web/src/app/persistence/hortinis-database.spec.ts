@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 
 import Dexie from 'dexie';
 import { HortinisDatabase } from './hortinis-database';
-import { HORTINIS_DATABASE_SCHEMA_V1 } from './database-schema';
+import { HORTINIS_DATABASE_SCHEMA, HORTINIS_DATABASE_SCHEMA_V1 } from './database-schema';
 import {
   LegacyMigrationFixtureDatabase,
   MigrationFixtureDatabase,
@@ -26,7 +26,7 @@ describe('HortinisDatabase', () => {
     await database.open();
 
     expect(database.isOpen()).toBe(true);
-    expect(database.verno).toBe(2);
+    expect(database.verno).toBe(3);
     expect(database.tables.map((table) => table.name)).toEqual([
       'technicalRecords',
       'outboxOperations',
@@ -36,6 +36,7 @@ describe('HortinisDatabase', () => {
       'technicalTombstones',
       'pendingDeletionRecords',
       'deletionConflicts',
+      'synchronizationRetryState',
     ]);
   });
 
@@ -81,7 +82,7 @@ describe('HortinisDatabase', () => {
 
     const upgraded = track(new HortinisDatabase(name));
     await upgraded.open();
-    expect(upgraded.verno).toBe(2);
+    expect(upgraded.verno).toBe(3);
     await expect(upgraded.technicalRecords.toArray()).resolves.toEqual([record]);
     await expect(upgraded.outboxOperations.toArray()).resolves.toEqual([operation]);
     await expect(upgraded.synchronizationState.get('technical-records')).resolves.toMatchObject({
@@ -90,6 +91,35 @@ describe('HortinisDatabase', () => {
     await expect(upgraded.technicalTombstones.count()).resolves.toBe(0);
     await expect(upgraded.pendingDeletionRecords.count()).resolves.toBe(0);
     await expect(upgraded.deletionConflicts.count()).resolves.toBe(0);
+    await expect(upgraded.synchronizationRetryState.count()).resolves.toBe(0);
+  });
+
+  it('adds retry state to a populated version-two database without losing tombstones', async () => {
+    const name = databaseName();
+    const oldDatabase = new Dexie(name);
+    oldDatabase.version(1).stores(HORTINIS_DATABASE_SCHEMA_V1);
+    oldDatabase.version(2).stores(HORTINIS_DATABASE_SCHEMA);
+    await oldDatabase.open();
+    const tombstone = {
+      recordId: 'retired-record',
+      revision: '2',
+      deletedAtSequence: '8',
+    };
+    await oldDatabase.table('technicalTombstones').add(tombstone);
+    await oldDatabase
+      .table('synchronizationState')
+      .add({ scope: 'technical-records', cursor: 'version-two-cursor' });
+    oldDatabase.close();
+
+    const upgraded = track(new HortinisDatabase(name));
+    await upgraded.open();
+
+    expect(upgraded.verno).toBe(3);
+    await expect(upgraded.technicalTombstones.toArray()).resolves.toEqual([tombstone]);
+    await expect(upgraded.synchronizationState.get('technical-records')).resolves.toMatchObject({
+      cursor: 'version-two-cursor',
+    });
+    await expect(upgraded.synchronizationRetryState.count()).resolves.toBe(0);
   });
 
   it('rolls back writes when a transaction fails', async () => {

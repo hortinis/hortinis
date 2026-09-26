@@ -12,3 +12,8 @@ export const HORTINIS_DATABASE_SCHEMA = {
   pendingDeletionRecords: 'recordId',
   deletionConflicts: 'operationId, recordId',
 };
+
+export const HORTINIS_DATABASE_SCHEMA_V3 = {
+  ...HORTINIS_DATABASE_SCHEMA,
+  synchronizationRetryState: 'workId, scope, phase, operationId, exhausted',
+};

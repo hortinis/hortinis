@@ -38,12 +38,12 @@ describe('technical record local persistence', () => {
   it('starts one synchronization push after a successful local commit', async () => {
     const database = openDatabase();
     const synchronization = {
-      pushOnePendingOperation: vi.fn(async () => ({ status: 'empty' as const })),
+      startBackgroundRecovery: vi.fn(async () => ({ status: 'completed' as const })),
     } as unknown as TechnicalRecordSynchronizationService;
     const service = localService(database, synchronization);
 
     await service.create('first value');
-    await vi.waitFor(() => expect(synchronization.pushOnePendingOperation).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(synchronization.startBackgroundRecovery).toHaveBeenCalledOnce());
   });
 
   it('rolls back the local projection when the outbox write fails', async () => {
@@ -220,7 +220,7 @@ describe('technical record local persistence', () => {
   it('exposes the dependent replacement through the local workflow', async () => {
     const database = openDatabase();
     const synchronization = {
-      pushOnePendingOperation: vi.fn(async () => ({ status: 'empty' as const })),
+      startBackgroundRecovery: vi.fn(async () => ({ status: 'completed' as const })),
     } as unknown as TechnicalRecordSynchronizationService;
     const service = localService(database, synchronization);
 
@@ -236,7 +236,7 @@ describe('technical record local persistence', () => {
       predecessorOperationId: created.operation.operationId,
     });
     await vi.waitFor(() =>
-      expect(synchronization.pushOnePendingOperation).toHaveBeenCalledTimes(2),
+      expect(synchronization.startBackgroundRecovery).toHaveBeenCalledTimes(2),
     );
   });
 
@@ -351,7 +351,7 @@ describe('technical record local persistence', () => {
   function localService(
     database: HortinisDatabase,
     synchronization: TechnicalRecordSynchronizationService = {
-      pushOnePendingOperation: vi.fn(async () => ({ status: 'empty' as const })),
+      startBackgroundRecovery: vi.fn(async () => ({ status: 'completed' as const })),
     } as unknown as TechnicalRecordSynchronizationService,
   ): TechnicalRecordLocalService {
     TestBed.configureTestingModule({

@@ -17,6 +17,14 @@ import type { NetworkStatus } from './network-status';
 import { SYNCHRONIZATION_TRANSPORT } from './synchronization-transport.token';
 import { NETWORK_STATUS } from './network-status';
 import type { DeferredReplaceTechnicalRecordOperation } from '../persistence/local-technical-record-operation';
+import {
+  SYNCHRONIZATION_CLOCK,
+  SYNCHRONIZATION_JITTER,
+  SYNCHRONIZATION_SCHEDULER,
+  type SynchronizationClock,
+  type SynchronizationJitter,
+  type SynchronizationScheduler,
+} from './synchronization-runtime';
 
 describe('TechnicalRecordSynchronizationService', () => {
   const databases: Dexie[] = [];
@@ -128,7 +136,7 @@ describe('TechnicalRecordSynchronizationService', () => {
     };
     const firstServices = services(first, firstTransport, onlineStatus(true));
     await expect(firstServices.service.recoverAfterReload()).resolves.toMatchObject({
-      status: 'failed',
+      status: 'scheduled',
       pulled: 1,
     });
     await expect(firstServices.persistence.synchronizationCursor()).resolves.toBe(
@@ -186,7 +194,7 @@ describe('TechnicalRecordSynchronizationService', () => {
     const operation = createOperation();
     const transport: SynchronizationTransport = {
       submitOperation: vi.fn(async () => {
-        throw new Error('service unavailable');
+        throw new SynchronizationUnavailableError();
       }),
       pullChanges: vi.fn(),
     };
@@ -237,19 +245,26 @@ describe('TechnicalRecordSynchronizationService', () => {
       }),
       pullChanges: vi.fn(async () => ({ changes: [], nextCursor: 'cursor', hasMore: false })),
     };
-    const { service } = services(database, transport, onlineStatus(true));
+    const { service } = services(database, transport, onlineStatus(true), {
+      jitter: { sample: () => 500 },
+    });
     const local = TestBed.inject(TechnicalRecordLocalService);
 
     const first = await local.create('failed first');
     await vi.waitFor(() =>
-      expect(service.status()).toEqual({ status: 'failed', reason: 'unavailable' }),
+      expect(service.status()).toMatchObject({
+        status: 'scheduled',
+        phase: 'push',
+        attemptCount: 1,
+      }),
     );
     const second = await local.create('after failure');
     await expect(database.outboxOperations.count()).resolves.toBe(2);
-    await vi.waitFor(() => expect(transport.submitOperation).toHaveBeenCalledTimes(2));
+    expect(transport.submitOperation).toHaveBeenCalledOnce();
 
     available = true;
-    await expect(service.recoverAfterReload()).resolves.toMatchObject({
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await expect(service.retryNow()).resolves.toMatchObject({
       status: 'completed',
       pushed: 2,
     });
@@ -537,7 +552,7 @@ describe('TechnicalRecordSynchronizationService', () => {
     const operation = createOperation();
     const transport: SynchronizationTransport = {
       submitOperation: vi.fn(async () => {
-        throw new Error('service unavailable');
+        throw new SynchronizationUnavailableError();
       }),
       pullChanges: vi.fn(),
     };
@@ -545,7 +560,7 @@ describe('TechnicalRecordSynchronizationService', () => {
     await persistence.commitCreate(operation);
 
     await expect(service.recoverAfterReload()).resolves.toMatchObject({
-      status: 'failed',
+      status: 'scheduled',
       pushed: 0,
       pulled: 0,
     });
@@ -586,12 +601,23 @@ describe('TechnicalRecordSynchronizationService', () => {
     database: HortinisDatabase,
     transport: SynchronizationTransport,
     network: NetworkStatus,
+    runtime: {
+      clock?: SynchronizationClock;
+      jitter?: SynchronizationJitter;
+      scheduler?: SynchronizationScheduler;
+    } = {},
   ): { persistence: TechnicalRecordPersistence; service: TechnicalRecordSynchronizationService } {
+    const clock = runtime.clock ?? { now: () => 0 };
+    const jitter = runtime.jitter ?? { sample: () => 0 };
+    const scheduler = runtime.scheduler ?? { schedule: () => () => undefined };
     TestBed.configureTestingModule({
       providers: [
         { provide: HortinisDatabase, useValue: database },
         { provide: SYNCHRONIZATION_TRANSPORT, useValue: transport },
         { provide: NETWORK_STATUS, useValue: network },
+        { provide: SYNCHRONIZATION_CLOCK, useValue: clock },
+        { provide: SYNCHRONIZATION_JITTER, useValue: jitter },
+        { provide: SYNCHRONIZATION_SCHEDULER, useValue: scheduler },
       ],
     });
     return {
