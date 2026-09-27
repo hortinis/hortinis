@@ -156,6 +156,28 @@ test("production synchronization policy fixtures satisfy their generated schemas
   }
 });
 
+test("synchronization capability manifest covers every fixture and required runtime", () => {
+  const fixtureDirectory = resolve(contractsRoot, "sync/fixtures");
+  const manifest = readSyncFixture("capabilities.json");
+  assert.equal(manifest.version, 1);
+  const declared = manifest.fixtures.map(({ file }) => file);
+  assert.equal(new Set(declared).size, declared.length, "fixture declarations must be unique");
+  const actual = readdirSync(fixtureDirectory)
+    .filter((name) => name.endsWith(".json") && name !== "capabilities.json")
+    .sort();
+  assert.deepEqual([...declared].sort(), actual);
+
+  for (const fixture of manifest.fixtures) {
+    assert.ok(fixture.capability.length > 0, `${fixture.file} needs a capability`);
+    assert.ok(["implemented", "planned"].includes(fixture.status), `${fixture.file} has a status`);
+    assert.ok(fixture.consumers.includes("contract"), `${fixture.file} needs contract validation`);
+    if (fixture.status === "implemented") {
+      assert.ok(fixture.consumers.includes("typescript"), `${fixture.file} needs TypeScript coverage`);
+      assert.ok(fixture.consumers.includes("java"), `${fixture.file} needs Java coverage`);
+    }
+  }
+});
+
 test("snapshot page variants and production operation envelopes remain closed", () => {
   const ajv = loadProductionSchemaValidators();
   const validateSnapshotPage = ajv.getSchema("SnapshotPage.json");

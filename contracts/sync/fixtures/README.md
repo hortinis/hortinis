@@ -35,6 +35,12 @@ Fixtures are intentionally ASCII-only where canonical bytes are asserted so the 
 consumers can focus on the protocol boundary. Generated TypeSpec artifacts and hand-maintained schema
 copies do not belong here.
 
+`capabilities.json` is the fixture inventory and consumer contract. Every JSON fixture in this directory
+must appear exactly once. Implemented behavioral fixtures name both `typescript` and `java` consumers;
+schema-oriented `value` fixtures name the contract consumer, and future capabilities remain explicitly
+`planned`. Contract validation fails on inventory drift, and runtime conformance suites derive their
+fixture lists from the manifest instead of maintaining separate hard-coded lists.
+
 G1 and G2a policy fixtures use a smaller schema-oriented shape:
 
 ```json
@@ -47,5 +53,5 @@ G1 and G2a policy fixtures use a smaller schema-oriented shape:
 ```
 
 A fixture may use `values` when several variants must satisfy the same generated schema. Contract tests
-consume these examples now; G2b through G5 extend cross-runtime consumers as the corresponding behavior
-is implemented.
+consume these examples now; G3 through G5 update the capability status and cross-runtime consumers as
+the corresponding behavior is implemented.

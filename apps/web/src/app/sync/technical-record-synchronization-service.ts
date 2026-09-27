@@ -31,9 +31,10 @@ import {
   SYNCHRONIZATION_JITTER,
   SYNCHRONIZATION_SCHEDULER,
 } from './synchronization-runtime';
+import { SynchronizationCoordinator } from './synchronization-coordinator';
 
 const MAXIMUM_ATTEMPTS = 5;
-const MAXIMUM_RETRY_DELAY_MILLISECONDS = 30_000;
+const MAXIMUM_RETRY_DELAY_MILLISECONDS = 8_000;
 
 export type PushOutcome =
   | { status: 'empty' }
@@ -117,15 +118,37 @@ export class TechnicalRecordSynchronizationService {
   private readonly clock = inject(SYNCHRONIZATION_CLOCK);
   private readonly jitter = inject(SYNCHRONIZATION_JITTER);
   private readonly scheduler = inject(SYNCHRONIZATION_SCHEDULER);
+  private readonly coordinator = inject(SynchronizationCoordinator);
   private pushInProgress = false;
   private pullInProgress = false;
   private recoveryInProgress = false;
+  private coordinationInProgress = false;
+  private coordinationCompletion: Promise<void> = Promise.resolve();
   private cancelScheduledRetry?: () => void;
   private cancelOnlineWait?: () => void;
+  private cancelCoordinationWait?: () => void;
   readonly status = signal<SynchronizationStatus>({ status: 'idle' });
 
   async recoverAfterReload(): Promise<RecoveryOutcome> {
-    if (this.recoveryInProgress) return { status: 'already-running' };
+    const currentStatus = this.status();
+    if (
+      this.coordinationInProgress &&
+      currentStatus.status !== 'synchronizing' &&
+      currentStatus.status !== 'manual-recovery'
+    ) {
+      await this.coordinationCompletion;
+    }
+    return this.withCoordination(async () => this.recoverWhileOwner(), true);
+  }
+
+  private async recoverWhileOwner(): Promise<RecoveryOutcome> {
+    while (this.recoveryInProgress) {
+      const currentStatus = this.status();
+      if (currentStatus.status === 'synchronizing' || currentStatus.status === 'manual-recovery') {
+        return { status: 'already-running' };
+      }
+      await Promise.resolve();
+    }
 
     const retry = await this.retryPersistence.current();
     if (retry?.exhausted) {
@@ -145,10 +168,17 @@ export class TechnicalRecordSynchronizationService {
   }
 
   async startBackgroundRecovery(): Promise<RecoveryOutcome> {
+    if (this.coordinationInProgress || this.recoveryInProgress) {
+      return { status: 'already-running' };
+    }
     return this.recoverAfterReload();
   }
 
   async retryNow(): Promise<RecoveryOutcome> {
+    return this.withCoordination(async () => this.retryNowWhileOwner(), false);
+  }
+
+  private async retryNowWhileOwner(): Promise<RecoveryOutcome> {
     if (this.recoveryInProgress) return { status: 'already-running' };
 
     const retry = await this.retryPersistence.current();
@@ -161,6 +191,64 @@ export class TechnicalRecordSynchronizationService {
       });
     }
     return this.runRecovery(true);
+  }
+
+  private async withCoordination(
+    work: () => Promise<RecoveryOutcome>,
+    scheduleWhenBusy: boolean,
+  ): Promise<RecoveryOutcome> {
+    while (this.coordinationInProgress) {
+      const currentStatus = this.status();
+      if (
+        this.recoveryInProgress &&
+        (currentStatus.status === 'synchronizing' || currentStatus.status === 'manual-recovery')
+      ) {
+        return { status: 'already-running' };
+      }
+      await this.coordinationCompletion;
+    }
+    while (this.recoveryInProgress) {
+      const currentStatus = this.status();
+      if (currentStatus.status === 'synchronizing' || currentStatus.status === 'manual-recovery') {
+        return { status: 'already-running' };
+      }
+      await Promise.resolve();
+    }
+    let completeCoordination!: () => void;
+    this.coordinationCompletion = new Promise<void>((resolve) => {
+      completeCoordination = resolve;
+    });
+    this.coordinationInProgress = true;
+    try {
+      const attempt = await this.coordinator.tryAcquire();
+      if (!attempt.acquired) {
+        if (scheduleWhenBusy) this.scheduleCoordinationRetry(attempt.retryAt);
+        return { status: 'already-running' };
+      }
+      this.cancelCoordinationWait?.();
+      this.cancelCoordinationWait = undefined;
+      const stopHeartbeat = this.coordinator.keepAlive(attempt.lease);
+      try {
+        return await work();
+      } finally {
+        stopHeartbeat();
+        await this.coordinator.release(attempt.lease);
+      }
+    } finally {
+      this.coordinationInProgress = false;
+      completeCoordination();
+    }
+  }
+
+  private scheduleCoordinationRetry(retryAt: number): void {
+    if (this.cancelCoordinationWait) return;
+    this.cancelCoordinationWait = this.scheduler.schedule(
+      () => {
+        this.cancelCoordinationWait = undefined;
+        void this.recoverAfterReload();
+      },
+      Math.max(0, retryAt - this.clock.now()),
+    );
   }
 
   private async runRecovery(manual: boolean): Promise<RecoveryOutcome> {
@@ -332,7 +420,7 @@ export class TechnicalRecordSynchronizationService {
       }
 
       try {
-        await this.persistence.commitPulledPage(page);
+        await this.persistence.commitPulledPage(page, { expectedCursor: cursor });
         return { status: 'applied', page };
       } catch (error) {
         if (!this.recoveryInProgress) {

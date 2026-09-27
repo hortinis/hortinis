@@ -74,6 +74,7 @@ Separate packages or modules require demonstrated reuse or a need for independen
 - [ADR-0025: Anchored reconciliation snapshots and continuation](decisions/0025-anchored-reconciliation-snapshots.md)
 - [ADR-0026: Indeterminate operation outcomes and full reconciliation](decisions/0026-indeterminate-outcomes-and-full-reconciliation.md)
 - [ADR-0027: Bounded synchronization retry and manual recovery](decisions/0027-bounded-synchronization-retry.md)
+- [ADR-0028: Browser synchronization coordination](decisions/0028-browser-synchronization-coordination.md)
 
 ## Open decisions
 

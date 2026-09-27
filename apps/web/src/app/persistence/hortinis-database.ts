@@ -4,6 +4,7 @@ import {
   HORTINIS_DATABASE_SCHEMA,
   HORTINIS_DATABASE_SCHEMA_V1,
   HORTINIS_DATABASE_SCHEMA_V3,
+  HORTINIS_DATABASE_SCHEMA_V4,
 } from './database-schema';
 import type { LocalTechnicalRecord } from './local-technical-record';
 import type {
@@ -15,6 +16,7 @@ import type { LocalTechnicalRecordOperation } from './local-technical-record-ope
 import type { LocalSynchronizationState } from './local-synchronization-state';
 import type { LocalDeletionConflict } from './local-deletion-conflict';
 import type { LocalSynchronizationRetryState } from './local-synchronization-retry-state';
+import type { LocalSynchronizationLease } from './local-synchronization-lease';
 
 export const HORTINIS_DATABASE_NAME = new InjectionToken<string>('Hortinis database name', {
   providedIn: 'root',
@@ -32,6 +34,7 @@ export class HortinisDatabase extends Dexie {
   readonly revisionConflicts!: Table<RevisionConflictError, string>;
   readonly synchronizationState!: Table<LocalSynchronizationState, string>;
   readonly synchronizationRetryState!: Table<LocalSynchronizationRetryState, string>;
+  readonly synchronizationLeases!: Table<LocalSynchronizationLease, string>;
 
   // The constructor must pass the injected name to Dexie before the database is initialized.
   // eslint-disable-next-line @angular-eslint/prefer-inject
@@ -41,5 +44,6 @@ export class HortinisDatabase extends Dexie {
     this.version(1).stores(HORTINIS_DATABASE_SCHEMA_V1);
     this.version(2).stores(HORTINIS_DATABASE_SCHEMA);
     this.version(3).stores(HORTINIS_DATABASE_SCHEMA_V3);
+    this.version(4).stores(HORTINIS_DATABASE_SCHEMA_V4);
   }
 }

@@ -53,7 +53,9 @@ pnpm --filter @hortinis/web test:e2e
 ```
 
 Browser tests cover the application shell, offline reload, persisted synchronization recovery, revision
-conflicts, and tombstone application after reload. They use a single Chromium project. Business workflow
-coverage belongs to the product increments.
+conflicts, and tombstone application after reload. They use a single Chromium project. The G2e
+integration suite is intentionally separate because it requires the real Compose service and PostgreSQL;
+run it from the repository root with `pnpm g2e:topology`. Business workflow coverage belongs to the
+product increments.
 
 See the repository [development guide](../../docs/development/README.md) for toolchain requirements and repository-wide validation.

@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "fixtures": [
+    {
+      "file": "change-page.json",
+      "capability": "incremental-pull",
+      "status": "implemented",
+      "consumers": ["contract", "typescript", "java"]
+    },
+    {
+      "file": "create-accepted.json",
+      "capability": "create",
+      "status": "implemented",
+      "consumers": ["contract", "typescript", "java"]
+    },
+    {
+      "file": "invalid-change-cursor.json",
+      "capability": "incremental-pull",
+      "status": "implemented",
+      "consumers": ["contract", "typescript", "java"]
+    },
+    {
+      "file": "invalid-identifiers-and-revision.json",
+      "capability": "operation-validation",
+      "status": "implemented",
+      "consumers": ["contract", "typescript", "java"]
+    },
+    {
+      "file": "invalid-operation-shape.json",
+      "capability": "operation-validation",
+      "status": "implemented",
+      "consumers": ["contract", "typescript", "java"]
+    },
+    {
+      "file": "invalid-request.json",
+      "capability": "error-classification",
+      "status": "implemented",
+      "consumers": ["contract", "typescript", "java"]
+    },
+    {
+      "file": "operation-id-reused.json",
+      "capability": "idempotency",
+      "status": "implemented",
+      "consumers": ["contract", "typescript", "java"]
+    },
+    {
+      "file": "record-already-exists.json",
+      "capability": "create-conflict",
+      "status": "implemented",
+      "consumers": ["contract", "typescript", "java"]
+    },
+    {
+      "file": "record-not-found.json",
+      "capability": "missing-record",
+      "status": "implemented",
+      "consumers": ["contract", "typescript", "java"]
+    },
+    {
+      "file": "replace-accepted.json",
+      "capability": "replace",
+      "status": "implemented",
+      "consumers": ["contract", "typescript", "java"]
+    },
+    {
+      "file": "replay-equivalent.json",
+      "capability": "idempotency",
+      "status": "implemented",
+      "consumers": ["contract", "typescript", "java"]
+    },
+    {
+      "file": "revision-conflict.json",
+      "capability": "revision-conflict",
+      "status": "implemented",
+      "consumers": ["contract", "typescript", "java"]
+    },
+    {
+      "file": "delete-accepted.json",
+      "capability": "tombstones",
+      "status": "implemented",
+      "suite": "value",
+      "consumers": ["contract", "typescript", "java"]
+    },
+    {
+      "file": "record-identifier-retired.json",
+      "capability": "identifier-retirement",
+      "status": "implemented",
+      "suite": "value",
+      "consumers": ["contract", "typescript", "java"]
+    },
+    {
+      "file": "tombstone-change-page.json",
+      "capability": "tombstones",
+      "status": "implemented",
+      "suite": "value",
+      "consumers": ["contract", "typescript", "java"]
+    },
+    {
+      "file": "generation-bound-delete.json",
+      "capability": "generation-bound-operations",
+      "status": "planned",
+      "consumers": ["contract"]
+    },
+    {
+      "file": "indeterminate-operation.json",
+      "capability": "indeterminate-outcomes",
+      "status": "planned",
+      "consumers": ["contract"]
+    },
+    {
+      "file": "reconciliation-outcomes.json",
+      "capability": "full-reconciliation",
+      "status": "planned",
+      "consumers": ["contract"]
+    },
+    {
+      "file": "reconciliation-required.json",
+      "capability": "generation-rollover",
+      "status": "planned",
+      "consumers": ["contract"]
+    },
+    {
+      "file": "reconciliation-session.json",
+      "capability": "anchored-snapshots",
+      "status": "planned",
+      "consumers": ["contract"]
+    },
+    {
+      "file": "snapshot-continuation-page.json",
+      "capability": "anchored-snapshots",
+      "status": "planned",
+      "consumers": ["contract"]
+    },
+    {
+      "file": "snapshot-final-page.json",
+      "capability": "anchored-snapshots",
+      "status": "planned",
+      "consumers": ["contract"]
+    }
+  ]
+}

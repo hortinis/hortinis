@@ -30,26 +30,27 @@ interface Fixture {
   };
 }
 
-const fixtureNames = [
-  'change-page.json',
-  'create-accepted.json',
-  'invalid-change-cursor.json',
-  'invalid-identifiers-and-revision.json',
-  'invalid-operation-shape.json',
-  'invalid-request.json',
-  'operation-id-reused.json',
-  'record-already-exists.json',
-  'record-not-found.json',
-  'replay-equivalent.json',
-  'replace-accepted.json',
-  'revision-conflict.json',
-];
+interface CapabilityManifest {
+  fixtures: {
+    file: string;
+    status: 'implemented' | 'planned';
+    suite?: 'value';
+    consumers: string[];
+  }[];
+}
+
+const fixtureDirectory = join(__dirname, '../../../../../contracts/sync/fixtures');
+const capabilityManifest = JSON.parse(
+  readFileSync(join(fixtureDirectory, 'capabilities.json'), 'utf8'),
+) as CapabilityManifest;
+const fixtureNames = capabilityManifest.fixtures
+  .filter(({ consumers, suite }) => consumers.includes('typescript') && suite !== 'value')
+  .map(({ file }) => file);
 
 describe('technical synchronization conformance fixtures', () => {
   it('consumes the shared deletion result, change, and retired-identifier fixtures', () => {
-    const directory = join(__dirname, '../../../../../contracts/sync/fixtures');
     const fixtureValue = (name: string): unknown =>
-      (JSON.parse(readFileSync(join(directory, name), 'utf8')) as { value: unknown }).value;
+      (JSON.parse(readFileSync(join(fixtureDirectory, name), 'utf8')) as { value: unknown }).value;
     const accepted = fixtureValue('delete-accepted.json');
     const page = fixtureValue('tombstone-change-page.json');
     const retired = fixtureValue('record-identifier-retired.json');
@@ -143,7 +144,6 @@ describe('technical synchronization conformance fixtures', () => {
 });
 
 function loadFixtures(): Fixture[] {
-  const fixtureDirectory = join(__dirname, '../../../../../contracts/sync/fixtures');
   return fixtureNames.map(
     (name) => JSON.parse(readFileSync(join(fixtureDirectory, name), 'utf8')) as Fixture,
   );

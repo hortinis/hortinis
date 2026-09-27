@@ -118,6 +118,57 @@ describe('technical record local persistence', () => {
     ]);
   });
 
+  it('does not regress a newer pulled revision when an older acknowledgement arrives', async () => {
+    const name = databaseName();
+    const database = openDatabase(name);
+    const persistence = persistenceFor(database);
+    const pending = operationWithIds(
+      '01890f3e-7c5a-7b21-8abc-0123456789ab',
+      '01890f3e-7c5a-7b22-8abc-0123456789ab',
+    );
+    await persistence.commitCreate(pending);
+    await persistence.commitPulledPage({
+      changes: [
+        {
+          operationId: '01890f3e-7c5a-7b23-8abc-0123456789ab',
+          record: { recordId: pending.recordId, revision: '2', value: 'newer server value' },
+          sequence: '2',
+        },
+      ],
+      nextCursor: 'after-revision-two',
+      hasMore: false,
+    });
+
+    const delayed = {
+      outcome: 'accepted' as const,
+      operationId: pending.operationId,
+      record: { recordId: pending.recordId, revision: '1', value: pending.value },
+      sequence: '1',
+    };
+    await persistence.commitAcceptedResult(pending, delayed);
+
+    await expect(database.technicalRecords.get(pending.recordId)).resolves.toEqual({
+      recordId: pending.recordId,
+      value: pending.value,
+      lastAcceptedRevision: '2',
+    });
+    await expect(database.acceptedOperationResults.get(pending.operationId)).resolves.toEqual(
+      delayed,
+    );
+    await expect(database.outboxOperations.count()).resolves.toBe(0);
+    database.close();
+    TestBed.resetTestingModule();
+
+    const reopened = openDatabase(name);
+    await expect(reopened.technicalRecords.get(pending.recordId)).resolves.toMatchObject({
+      lastAcceptedRevision: '2',
+    });
+    const reopenedPersistence = persistenceFor(reopened);
+    await expect(
+      reopenedPersistence.commitAcceptedResult(pending, delayed),
+    ).resolves.toBeUndefined();
+  });
+
   it('persists a revision conflict while retaining the exact local proposal', async () => {
     const database = openDatabase();
     const persistence = persistenceFor(database);

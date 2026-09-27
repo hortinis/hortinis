@@ -30,6 +30,7 @@ public class TechnicalRecordAcceptancePersistence {
 
   private static final int ONE_UPDATED_ROW = 1;
   private static final String TOMBSTONE_CHANGE_KIND = "tombstone";
+  private static final String TECHNICAL_SYNCHRONIZATION_SCOPE = "technical-records";
 
   private final JdbcClient jdbc;
 
@@ -84,6 +85,15 @@ public class TechnicalRecordAcceptancePersistence {
         .param(recordId)
         .query()
         .singleValue();
+  }
+
+  public void lockChangePublication() {
+    jdbc.sql(
+            "SELECT scope_id FROM technical_synchronization_scope "
+                + "WHERE scope_id = ? FOR UPDATE")
+        .param(TECHNICAL_SYNCHRONIZATION_SCOPE)
+        .query(String.class)
+        .single();
   }
 
   public void insertRecord(CreateTechnicalRecordOperation operation) {

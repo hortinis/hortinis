@@ -52,10 +52,12 @@ that build is running; it will contend for Gradle's cache lock. Follow the exist
 
 The topology applies versioned technical Flyway migrations at sync-service startup. V1 creates the
 walking-skeleton technical-record projection, accepted-operation receipts, and immutable change journal;
-V2 adds tombstone changes, a tombstone projection, and lifetime identifier reservations. PostgreSQL-backed
-integration tests assert deletion results, ordered pulls, identifier retirement, replay, and transaction
-rollback. Angular static-file serving, same-origin edge routing, and production image builds belong to F3
-and F2 respectively.
+V2 adds tombstone changes, a tombstone projection, and lifetime identifier reservations; V3 serializes
+change publication per synchronization scope so commit order cannot create a skipped journal entry.
+PostgreSQL-backed integration tests assert populated upgrades, deletion results, ordered pulls, identifier
+retirement, replay, restart persistence, transaction rollback, and controlled concurrent publication.
+Angular static-file serving, same-origin edge routing, and production image builds belong to F3 and F2
+respectively.
 
 ## Frontend workspace
 
@@ -145,6 +147,16 @@ pnpm --filter @hortinis/web test:e2e
 ```
 
 Playwright builds the production bundle, serves its static output on `http://127.0.0.1:4200`, and stops the server afterward. The PWA test waits until the service worker has cached the application shell, enables browser offline mode, and verifies that reloading returns the cached shell from the service worker. Tests currently cover Chromium only; the supported browser and device matrix remains part of the product quality-envelope work.
+
+G2e adds a separate real synchronization topology. It builds the production web bundle, starts the
+Compose Spring and PostgreSQL services, proxies the browser's same-origin API requests, and validates
+lost-acknowledgement replay plus cross-context tombstone propagation. Run it with a local-only database
+password; the command stops the containers but preserves the named database and Gradle-cache volumes:
+
+```shell
+export HORTINIS_POSTGRES_PASSWORD='choose-a-local-password'
+pnpm g2e:topology
+```
 
 Apply supported lint fixes followed by configured formatting with the ordered convenience command:
 

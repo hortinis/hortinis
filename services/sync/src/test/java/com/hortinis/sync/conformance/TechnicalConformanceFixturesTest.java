@@ -12,6 +12,7 @@ import com.hortinis.sync.protocol.TombstoneOperationResult;
 import com.hortinis.sync.protocol.TombstoneTechnicalChange;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
@@ -20,24 +21,11 @@ import tools.jackson.databind.json.JsonMapper;
 class TechnicalConformanceFixturesTest {
 
   private static final JsonMapper JSON = JsonMapper.builder().build();
-  private static final List<String> FIXTURES =
-      List.of(
-          "change-page.json",
-          "create-accepted.json",
-          "invalid-change-cursor.json",
-          "invalid-identifiers-and-revision.json",
-          "invalid-operation-shape.json",
-          "invalid-request.json",
-          "operation-id-reused.json",
-          "record-already-exists.json",
-          "record-not-found.json",
-          "replay-equivalent.json",
-          "replace-accepted.json",
-          "revision-conflict.json");
+  private static final String JAVA_CONSUMER = "java";
 
   @Test
   void consumesEverySharedScenarioAndAgreesWithExpectedValidity() throws IOException {
-    for (String fixtureName : FIXTURES) {
+    for (String fixtureName : fixtureNames()) {
       JsonNode fixture = readFixture(fixtureName);
       JsonNode request = fixture.get("request");
       JsonNode expected = fixture.get("expected");
@@ -108,12 +96,29 @@ class TechnicalConformanceFixturesTest {
 
   @Test
   void everyScenarioHasAnIdentifierAndDescription() throws IOException {
-    for (String fixtureName : FIXTURES) {
+    for (String fixtureName : fixtureNames()) {
       JsonNode fixture = readFixture(fixtureName);
       assertThat(fixture.get("id").textValue()).isEqualTo(fixtureName.replace(".json", ""));
       assertThat(fixture.get("description").textValue()).isNotBlank();
       assertThat(fixture.get("expected").isObject()).isTrue();
     }
+  }
+
+  private static List<String> fixtureNames() throws IOException {
+    JsonNode manifest = readFixture("capabilities.json");
+    List<String> names = new ArrayList<>();
+    for (JsonNode fixture : manifest.get("fixtures")) {
+      boolean consumedByJava = false;
+      for (JsonNode consumer : fixture.get("consumers")) {
+        if (JAVA_CONSUMER.equals(consumer.textValue())) {
+          consumedByJava = true;
+        }
+      }
+      if (consumedByJava && fixture.get("suite") == null) {
+        names.add(fixture.get("file").textValue());
+      }
+    }
+    return List.copyOf(names);
   }
 
   private static JsonNode readFixture(String name) throws IOException {

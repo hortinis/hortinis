@@ -868,7 +868,7 @@ relies on them.
 
 #### G2. Implement tombstones and interrupted-exchange recovery
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: G1.
 - Scope: complete G2a through G2e to add technical tombstones, resumable exchanges, bounded background
   retry, retry exhaustion, and observable manual recovery across Dexie, HTTP contracts, Spring, and
@@ -966,13 +966,28 @@ relies on them.
 
 ##### G2e. Validate complete tombstone and interrupted-exchange recovery
 
-- Initial status: `planned`.
+- Status: `validated`.
 - Depends on: G2d.
 - Scope: run the deletion, migration, rollback, restart, interrupted application, reload, retry,
   exhaustion, manual-recovery, and cross-runtime scenarios across contracts, Dexie, HTTP, Spring, and
   PostgreSQL; then update synchronization traceability.
 - Acceptance: G2's complete acceptance criteria pass through focused unit and integration tests plus the
   browser end-to-end topology. G3 depends on validated G2e.
+- Artifacts: serialized per-scope server journal publication; a populated V1-to-V3 migration test;
+  restart-safe tombstone, identifier-reservation, and receipt coverage; non-regressing late browser
+  acknowledgements; a fenced IndexedDB synchronization lease and cursor compare-and-set boundary;
+  request timeouts; a shared fixture capability manifest; and a real browser-to-Spring-to-PostgreSQL
+  Playwright topology.
+- Validation commands: `pnpm contracts:test`, `pnpm conformance:validate`, the independent web format,
+  lint, architecture, type-check, unit, build, and Playwright commands; the backend unit, PostgreSQL
+  integration, Spotless, Checkstyle, and PMD tasks; and `pnpm g2e:topology`.
+- Validation evidence: on 2026-09-27, 75 web unit tests, five standard Chromium tests, the Java unit and
+  PostgreSQL integration suites, contract and cross-runtime conformance validation, and all independent
+  quality gates passed. The integrated Chromium scenario ran the production web bundle against the real
+  Spring service and PostgreSQL, replaced one committed response with `503`, proved stable replay of the
+  same operation, completed create/replace/delete, and pulled the resulting tombstone into a second
+  browser context without restoring a live record. Controlled PostgreSQL coverage also proved that a
+  later publisher cannot overtake an earlier uncommitted publication.
 
 #### G3. Implement generation rollover and indeterminate outcomes
 

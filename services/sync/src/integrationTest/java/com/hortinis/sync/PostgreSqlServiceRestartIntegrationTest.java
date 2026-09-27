@@ -2,6 +2,11 @@ package com.hortinis.sync;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hortinis.sync.protocol.CreateTechnicalRecordOperation;
+import com.hortinis.sync.protocol.DeleteTechnicalRecordOperation;
+import com.hortinis.sync.protocol.OperationResult;
+import com.hortinis.sync.protocol.TombstoneTechnicalChange;
+import com.hortinis.sync.service.TechnicalRecordSynchronizationService;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.WebApplicationType;
@@ -22,38 +27,49 @@ class PostgreSqlServiceRestartIntegrationTest {
 
   @Test
   void restartRetainsDataAndDoesNotReapplyFlywayMigration() {
-    UUID operationId = UUID.randomUUID();
-    UUID recordId = UUID.randomUUID();
+    String createOperationId = UUID.randomUUID().toString();
+    String deleteOperationId = UUID.randomUUID().toString();
+    String recordId = UUID.randomUUID().toString();
     String jdbcUrl = POSTGRES.getJdbcUrl();
+    OperationResult deletionResult;
 
     try (ConfigurableApplicationContext first = startApplication(jdbcUrl)) {
-      JdbcTemplate jdbc = first.getBean(JdbcTemplate.class);
-      jdbc.update(
-          "INSERT INTO accepted_technical_record_operation "
-              + "(operation_id, operation_kind, record_id, operation_value) "
-              + "VALUES (?, 'create', ?, ?)",
-          operationId,
-          recordId,
-          "retained value");
-      jdbc.update(
-          "INSERT INTO technical_record (record_id, revision, value) VALUES (?, 1, ?)",
-          recordId,
-          "retained value");
+      TechnicalRecordSynchronizationService synchronization =
+          first.getBean(TechnicalRecordSynchronizationService.class);
+      synchronization.submit(
+          new CreateTechnicalRecordOperation(createOperationId, recordId, "retained value"));
+      deletionResult =
+          synchronization.submit(
+              new DeleteTechnicalRecordOperation(deleteOperationId, recordId, "1"));
     }
 
     try (ConfigurableApplicationContext second = startApplication(jdbcUrl)) {
       JdbcTemplate jdbc = second.getBean(JdbcTemplate.class);
-      assertThat(
-              jdbc.queryForObject(
-                  "SELECT value FROM technical_record WHERE record_id = ?", String.class, recordId))
-          .isEqualTo("retained value");
+      TechnicalRecordSynchronizationService synchronization =
+          second.getBean(TechnicalRecordSynchronizationService.class);
       assertThat(jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history", Integer.class))
-          .isEqualTo(2);
+          .isEqualTo(3);
       assertThat(
               jdbc.queryForObject("SELECT count(*) FROM technical_record_tombstone", Integer.class))
-          .isZero();
-      assertThat(jdbc.queryForObject("SELECT count(*) FROM technical_record", Integer.class))
           .isEqualTo(1);
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT count(*) FROM retired_technical_record_identifier", Integer.class))
+          .isEqualTo(1);
+      assertThat(
+              jdbc.queryForObject(
+                  "SELECT count(*) FROM accepted_technical_record_operation", Integer.class))
+          .isEqualTo(2);
+      assertThat(jdbc.queryForObject("SELECT count(*) FROM technical_record", Integer.class))
+          .isZero();
+      assertThat(
+              synchronization.submit(
+                  new DeleteTechnicalRecordOperation(deleteOperationId, recordId, "1")))
+          .isEqualTo(deletionResult);
+      assertThat(synchronization.pull(null).changes())
+          .hasSize(2)
+          .last()
+          .isInstanceOf(TombstoneTechnicalChange.class);
     }
   }
 

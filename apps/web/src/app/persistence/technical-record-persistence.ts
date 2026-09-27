@@ -367,16 +367,28 @@ export class TechnicalRecordPersistence {
         }
 
         if (pendingDeletion) {
-          await this.database.pendingDeletionRecords.put({
-            ...pendingDeletion,
-            lastAcceptedRevision: result.record.revision,
-          });
+          const currentRevision = pendingDeletion.lastAcceptedRevision;
+          if (
+            currentRevision === null ||
+            BigInt(result.record.revision) > BigInt(currentRevision)
+          ) {
+            await this.database.pendingDeletionRecords.put({
+              ...pendingDeletion,
+              lastAcceptedRevision: result.record.revision,
+            });
+          }
         } else if (localRecord) {
-          await this.database.technicalRecords.put({
-            ...localRecord,
-            value: successors.length === 0 ? result.record.value : localRecord.value,
-            lastAcceptedRevision: result.record.revision,
-          });
+          const currentRevision = localRecord.lastAcceptedRevision;
+          if (
+            currentRevision === null ||
+            BigInt(result.record.revision) > BigInt(currentRevision)
+          ) {
+            await this.database.technicalRecords.put({
+              ...localRecord,
+              value: successors.length === 0 ? result.record.value : localRecord.value,
+              lastAcceptedRevision: result.record.revision,
+            });
+          }
         }
         await this.database.outboxOperations.delete(operation.operationId);
       },
@@ -388,7 +400,10 @@ export class TechnicalRecordPersistence {
     return state?.cursor;
   }
 
-  async commitPulledPage(page: ChangePage): Promise<void> {
+  async commitPulledPage(
+    page: ChangePage,
+    boundary?: { expectedCursor: string | undefined },
+  ): Promise<void> {
     if (!isChangePage(page)) {
       throw new Error('The pulled change page does not satisfy the synchronization contract.');
     }
@@ -419,6 +434,14 @@ export class TechnicalRecordPersistence {
         this.database.synchronizationState,
       ],
       async () => {
+        if (boundary) {
+          const current = await this.database.synchronizationState.get(
+            TECHNICAL_SYNCHRONIZATION_SCOPE,
+          );
+          if (current?.cursor !== boundary.expectedCursor) {
+            throw new Error('Synchronization ownership changed before the page was committed.');
+          }
+        }
         for (const change of page.changes) {
           if ('tombstone' in change) {
             const tombstone = change.tombstone;

@@ -1,11 +1,12 @@
 import { createReadStream, promises as fs } from 'node:fs';
-import { createServer } from 'node:http';
+import { createServer, request as createProxyRequest } from 'node:http';
 import { extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(fileURLToPath(new URL('../dist/web/browser/', import.meta.url)));
 const host = '127.0.0.1';
 const port = 4200;
+const apiOrigin = process.env['HORTINIS_E2E_API_ORIGIN'];
 const contentTypes = new Map([
   ['.css', 'text/css; charset=utf-8'],
   ['.html', 'text/html; charset=utf-8'],
@@ -19,6 +20,21 @@ const contentTypes = new Map([
 ]);
 
 const server = createServer(async (request, response) => {
+  const requestUrl = new URL(request.url ?? '/', `http://${host}`);
+  if (apiOrigin && requestUrl.pathname.startsWith('/api/')) {
+    const upstreamUrl = new URL(`${requestUrl.pathname}${requestUrl.search}`, apiOrigin);
+    const upstream = createProxyRequest(
+      upstreamUrl,
+      { method: request.method, headers: { ...request.headers, host: upstreamUrl.host } },
+      (upstreamResponse) => {
+        response.writeHead(upstreamResponse.statusCode ?? 502, upstreamResponse.headers);
+        upstreamResponse.pipe(response);
+      },
+    );
+    upstream.on('error', () => response.writeHead(502).end());
+    request.pipe(upstream);
+    return;
+  }
   if (request.method !== 'GET' && request.method !== 'HEAD') {
     response.writeHead(405).end();
     return;
@@ -26,7 +42,7 @@ const server = createServer(async (request, response) => {
 
   let pathname;
   try {
-    pathname = decodeURIComponent(new URL(request.url ?? '/', `http://${host}`).pathname);
+    pathname = decodeURIComponent(requestUrl.pathname);
   } catch {
     response.writeHead(400).end();
     return;

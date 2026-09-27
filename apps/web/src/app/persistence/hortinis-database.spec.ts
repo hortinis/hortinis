@@ -26,7 +26,7 @@ describe('HortinisDatabase', () => {
     await database.open();
 
     expect(database.isOpen()).toBe(true);
-    expect(database.verno).toBe(3);
+    expect(database.verno).toBe(4);
     expect(database.tables.map((table) => table.name)).toEqual([
       'technicalRecords',
       'outboxOperations',
@@ -37,6 +37,7 @@ describe('HortinisDatabase', () => {
       'pendingDeletionRecords',
       'deletionConflicts',
       'synchronizationRetryState',
+      'synchronizationLeases',
     ]);
   });
 
@@ -82,7 +83,7 @@ describe('HortinisDatabase', () => {
 
     const upgraded = track(new HortinisDatabase(name));
     await upgraded.open();
-    expect(upgraded.verno).toBe(3);
+    expect(upgraded.verno).toBe(4);
     await expect(upgraded.technicalRecords.toArray()).resolves.toEqual([record]);
     await expect(upgraded.outboxOperations.toArray()).resolves.toEqual([operation]);
     await expect(upgraded.synchronizationState.get('technical-records')).resolves.toMatchObject({
@@ -92,6 +93,7 @@ describe('HortinisDatabase', () => {
     await expect(upgraded.pendingDeletionRecords.count()).resolves.toBe(0);
     await expect(upgraded.deletionConflicts.count()).resolves.toBe(0);
     await expect(upgraded.synchronizationRetryState.count()).resolves.toBe(0);
+    await expect(upgraded.synchronizationLeases.count()).resolves.toBe(0);
   });
 
   it('adds retry state to a populated version-two database without losing tombstones', async () => {
@@ -114,12 +116,13 @@ describe('HortinisDatabase', () => {
     const upgraded = track(new HortinisDatabase(name));
     await upgraded.open();
 
-    expect(upgraded.verno).toBe(3);
+    expect(upgraded.verno).toBe(4);
     await expect(upgraded.technicalTombstones.toArray()).resolves.toEqual([tombstone]);
     await expect(upgraded.synchronizationState.get('technical-records')).resolves.toMatchObject({
       cursor: 'version-two-cursor',
     });
     await expect(upgraded.synchronizationRetryState.count()).resolves.toBe(0);
+    await expect(upgraded.synchronizationLeases.count()).resolves.toBe(0);
   });
 
   it('rolls back writes when a transaction fails', async () => {

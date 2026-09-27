@@ -16,8 +16,14 @@ response bodies, credentials, tokens, precise locations, or other user-provided 
 
 One synchronization work item receives one immediate attempt followed by at most four automatic
 retries. The delay before automatic retry number `n`, starting with `n = 1`, is sampled with full jitter
-from zero through `min(30 seconds, 1 second * 2^(n - 1))`. Clock, jitter, and scheduling boundaries are
+from zero through `1 second * 2^(n - 1)`. The four upper bounds are therefore 1, 2, 4, and 8 seconds,
+with at most 15 seconds of scheduled waiting in one cycle. Clock, jitter, and scheduling boundaries are
 injectable so tests can be deterministic.
+
+Each HTTP attempt has a 10-second request timeout. A timeout is service unavailability and consumes an
+attempt because a response may have been lost; the stable operation identifier or unchanged pull cursor
+makes repetition safe. The timeout and scheduled delays provide bounded recovery for short outages, not
+an indefinite background availability mechanism.
 
 An offline observation does not consume an attempt. Service unavailability and a local result or page
 commit failure that is safe to repeat consume the budget. Stable operation identifiers and opaque pull
@@ -29,6 +35,11 @@ synchronization scope, push or pull phase, the operation identifier for push wor
 attempt count, next eligible time, failure category, and whether the item is exhausted. It contains no
 record value or response body. Reload restores the remaining schedule instead of resetting its budget.
 A successful work item clears its retry state.
+
+An online event resumes the existing non-exhausted cycle without resetting its attempt count. Window
+focus does not start or reset recovery. Neither online nor focus events clear exhaustion; only the
+explicit `Retry now` action starts a fresh cycle. Browser tabs coordinate recovery through the bounded
+lease selected by ADR-0028, and ownership transfer preserves the same retry record.
 
 Exhaustion keeps the exact pending work, current projection, conflicts, tombstones, and cursor intact.
 It does not block unrelated local transactions. The application exposes scheduled, offline, running,
@@ -45,6 +56,7 @@ suspended browser continues executing.
 - Reload cannot bypass an exhausted budget.
 - Users and tests can distinguish waiting, offline operation, and permanent failure.
 - Manual recovery is explicit and never discards local intent.
+- One cycle covers at most 15 seconds of scheduled delay plus the bounded request durations.
 - Implementing browser or service-worker background execution later requires a separate decision.
 
 ## Rejected alternatives

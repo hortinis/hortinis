@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse, HttpResponse } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, timeout } from 'rxjs';
 import {
   isChangePage,
   isConflictError,
@@ -20,12 +20,13 @@ import {
   SynchronizationUnavailableError,
   type SynchronizationTransport,
 } from './synchronization-transport';
-import { SYNC_API_BASE_URL } from './sync-api-config';
+import { SYNC_API_BASE_URL, SYNC_REQUEST_TIMEOUT_MILLISECONDS } from './sync-api-config';
 
 @Injectable({ providedIn: 'root' })
 export class HttpSynchronizationTransport implements SynchronizationTransport {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = inject(SYNC_API_BASE_URL);
+  private readonly requestTimeoutMilliseconds = inject(SYNC_REQUEST_TIMEOUT_MILLISECONDS);
 
   async submitOperation(operation: TechnicalRecordOperation): Promise<OperationResult> {
     if (!isTechnicalRecordOperation(operation)) {
@@ -38,7 +39,9 @@ export class HttpSynchronizationTransport implements SynchronizationTransport {
 
     try {
       const response = await firstValueFrom(
-        this.http.post<unknown>(`${this.baseUrl}/operations`, operation, { observe: 'response' }),
+        this.http
+          .post<unknown>(`${this.baseUrl}/operations`, operation, { observe: 'response' })
+          .pipe(timeout(this.requestTimeoutMilliseconds)),
       );
       return this.readSuccess(response, isOperationResult);
     } catch (error) {
@@ -57,10 +60,12 @@ export class HttpSynchronizationTransport implements SynchronizationTransport {
 
     try {
       const response = await firstValueFrom(
-        this.http.get<unknown>(`${this.baseUrl}/changes`, {
-          observe: 'response',
-          params: cursor === undefined ? undefined : { cursor },
-        }),
+        this.http
+          .get<unknown>(`${this.baseUrl}/changes`, {
+            observe: 'response',
+            params: cursor === undefined ? undefined : { cursor },
+          })
+          .pipe(timeout(this.requestTimeoutMilliseconds)),
       );
       return this.readSuccess(response, isChangePage);
     } catch (error) {

@@ -102,6 +102,10 @@ public class TechnicalRecordSynchronizationService {
       return replayOrReject(operation, receipt);
     }
 
+    // Every publisher takes the record lock before this scope lock. Holding the scope row through
+    // commit prevents a later sequence from becoming visible before an earlier sequence.
+    persistence.lockChangePublication();
+
     if (operation instanceof CreateTechnicalRecordOperation create) {
       persistence.insertRecord(create);
     } else if (operation instanceof ReplaceTechnicalRecordOperation replace) {

@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { beforeEach, afterEach, describe, expect, it } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import {
   SynchronizationBoundaryError,
   SynchronizationProtocolError,
@@ -10,6 +10,7 @@ import {
 } from './synchronization-transport';
 import { HttpSynchronizationTransport } from './http-synchronization-transport';
 import type { CreateTechnicalRecordOperation } from './conformance';
+import { SYNC_REQUEST_TIMEOUT_MILLISECONDS } from './sync-api-config';
 
 describe('HttpSynchronizationTransport', () => {
   let transport: HttpSynchronizationTransport;
@@ -17,13 +18,20 @@ describe('HttpSynchronizationTransport', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: SYNC_REQUEST_TIMEOUT_MILLISECONDS, useValue: 25 },
+      ],
     });
     transport = TestBed.inject(HttpSynchronizationTransport);
     http = TestBed.inject(HttpTestingController);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    vi.useRealTimers();
+    http.verify({ ignoreCancelled: true });
+  });
 
   it('submits a validated operation to the versioned endpoint', async () => {
     const operation = createOperation();
@@ -164,6 +172,17 @@ describe('HttpSynchronizationTransport', () => {
 
     await expect(resultPromise).rejects.toBeInstanceOf(SynchronizationUnavailableError);
     http.expectNone('/api/v1/sync/operations');
+  });
+
+  it('classifies a request timeout as unavailable', async () => {
+    vi.useFakeTimers();
+    const resultPromise = transport.pullChanges('saved-cursor');
+    const rejection = expect(resultPromise).rejects.toBeInstanceOf(SynchronizationUnavailableError);
+    http.expectOne('/api/v1/sync/changes?cursor=saved-cursor');
+
+    await vi.advanceTimersByTimeAsync(25);
+
+    await rejection;
   });
 });
 

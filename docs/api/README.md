@@ -20,8 +20,8 @@ unknown properties are invalid.
 
 The walking skeleton uses one deliberately technical record with a stable `recordId`, a server
 `revision`, and a string `value`. It is not a garden resource and does not imply a future garden model.
-G2a added deletion to the contract, and G2b implements it in the Spring and PostgreSQL adapters. Browser
-application of tombstones remains in G2c. The operations are:
+G2a added deletion to the contract, G2b implements it in the Spring and PostgreSQL adapters, and G2c
+implements browser tombstone application. G2e validates the combined topology. The operations are:
 
 - `create`, which has no `expectedRevision` and fails when the record already exists;
 - `replace`, which requires `expectedRevision` and fails when the record is absent or the current
@@ -106,6 +106,8 @@ the server and browser respectively. The browser keeps accepted tombstones separ
 preserves pending deletion intent across reloads, and commits each pulled page with its cursor. The
 production reconciliation endpoints remain unavailable at runtime until G3 and G4 implement their
 adapters. The browser implements ADR-0027 with durable, privacy-safe retry metadata, bounded full-jitter
-scheduling, reload-safe exhaustion, online-event continuation, observable recovery states, and explicit
-manual retry. It does not use the browser Background Sync API or claim execution while the application
-is closed or suspended.
+scheduling, a ten-second request timeout, reload-safe exhaustion, online-event continuation, observable
+recovery states, and explicit manual retry. ADR-0028 serializes each browser synchronization scope with
+an expiring IndexedDB lease and fencing token; pulled-page cursor commits also verify their starting
+cursor so a late former owner cannot regress progress. It does not use the browser Background Sync API
+or claim execution while the application is closed or suspended.

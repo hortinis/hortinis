@@ -1,7 +1,7 @@
 # Project review action plan
 
 - Created: 2026-09-25.
-- Status: proposed execution backlog; no fixes implemented by this document.
+- Status: active execution backlog; completed tasks carry validation evidence below.
 - Hortinis review baseline: `feat/d2-technical-sync-contracts` at `96be30a`.
 - Hortinis Plants review baseline: `feat/wfo-grow-reconciliation` at `d5b418c`.
 - This document is recorded on the reviewed Hortinis branch, `feat/d2-technical-sync-contracts`.
@@ -76,7 +76,7 @@ and **L** needs multiple reviewable implementation changes.
 
 ### R02 — Make server change ordering safe across commits
 
-- Status: `planned`.
+- Status: `validated`.
 - Problem: independent transactions can allocate journal sequences in one order and commit in another.
   A client can advance past an uncommitted lower sequence and never receive that change.
 - Start in: `TechnicalRecordAcceptancePersistence`, `TechnicalRecordSynchronizationService` and the
@@ -87,10 +87,14 @@ and **L** needs multiple reviewable implementation changes.
 - Acceptance: a controlled PostgreSQL test holds transaction A open while B attempts to publish a later
   change, pulls between commits, then proves neither change is skipped. Include rollback, deletion,
   pagination and independent record identities. Sequence gaps themselves need not be prohibited.
+- Validation evidence: G2e adds a per-scope publication row locked in the same transaction before a
+  journal sequence is allocated. A controlled PostgreSQL test blocks publisher B behind A, observes no
+  prematurely visible page, commits A, and then observes both independent identities in publication
+  order; the existing rollback, deletion, and pagination tests remain green.
 
 ### R03 — Preserve newer browser state on late acknowledgement
 
-- Status: `planned`.
+- Status: `validated`.
 - Problem: `commitAcceptedResult()` can replace a newer pulled revision with an older acknowledged
   value while leaving the incremental cursor advanced. This was reproduced in memory during review.
 - Start in: `apps/web/src/app/persistence/technical-record-persistence.ts`.
@@ -98,10 +102,13 @@ and **L** needs multiple reviewable implementation changes.
   preserve pending successors and local intent; validate that results correspond to the pending operation.
 - Acceptance: pull revision 2, then apply the delayed acknowledgement for revision 1; revision 2 remains
   current. Also cover a newer local successor, repeated acknowledgement, rollback and database reopen.
+- Validation evidence: G2e makes accepted-result projection updates revision-monotonic. The regression
+  test pulls revision 2 before acknowledging revision 1, repeats the acknowledgement after reopening
+  IndexedDB, and retains revision 2 while storing the receipt and completing the outbox operation.
 
 ### R04 — Coordinate synchronization across browser tabs
 
-- Status: `planned`.
+- Status: `validated`.
 - Problem: service-instance flags do not serialize work across tabs sharing the same IndexedDB database.
 - Work: select and document a bounded coordination mechanism for a synchronization scope, including
   ownership loss when a tab closes. Preserve transactional correctness even when a response arrives after
@@ -109,10 +116,14 @@ and **L** needs multiple reviewable implementation changes.
 - Acceptance: two tabs can edit and recover against the same database without regressing projections,
   losing outbox work or treating duplicate acknowledgements as unrecoverable failures. Closing or
   suspending the coordinating tab does not permanently block recovery.
+- Validation evidence: ADR-0028 and G2e add a renewable, expiring IndexedDB lease with fencing tokens.
+  Shared-database tests prove ownership transfer after expiry, prevent an old owner from releasing its
+  successor's lease, and reject a late page when another owner has already advanced the cursor. Local
+  edit/outbox tests remain independent of lease ownership.
 
 ### R05 — Complete browser/server deletion compatibility
 
-- Status: `planned`.
+- Status: `validated`.
 - Existing owner: G2c and the deletion portions of G2e.
 - Problem: the reviewed server emits tombstones that the browser's live-record-only validator rejects.
   This is documented unfinished work, but it blocks integrated use once a deletion exists.
@@ -122,6 +133,10 @@ and **L** needs multiple reviewable implementation changes.
 - Acceptance: create, replace and delete propagate through the real browser and server; repeated
   application is harmless; stale live changes cannot resurrect deleted identities; overlapping local
   work survives as an explicit conflict; interrupted page application cannot advance the cursor.
+- Validation evidence: G2c supplies the local tombstone, rollback, replay, conflict, and cursor tests.
+  G2e adds restart persistence and a real production-browser-to-Spring-to-PostgreSQL scenario that
+  completes create, replace, and delete, then pulls the tombstone into an independent browser context
+  and confirms that no live record remains.
 
 ### R06 — Prevent concurrent catalog decisions from losing edits
 
@@ -158,7 +173,7 @@ and **L** needs multiple reviewable implementation changes.
 
 ### R09 — Strengthen shared behavioral conformance
 
-- Status: `planned`.
+- Status: `validated` for the capabilities implemented through G2; G3–G5 extend the manifest.
 - Existing owner: E9 and G2e, with later generation/reconciliation cases owned by G3–G5.
 - Work: introduce an explicit fixture/capability manifest; detect fixtures without required runtime
   consumers; distinguish shape checks from state-transition checks. Run applicable cases through actual
@@ -166,6 +181,10 @@ and **L** needs multiple reviewable implementation changes.
 - Acceptance: missing coverage for an implemented capability fails validation; create, replace, replay,
   conflicts and deletion agree across runtimes. Planned capabilities remain explicitly labelled, rather
   than silently skipped or reported as implemented.
+- Validation evidence: G2e adds `contracts/sync/fixtures/capabilities.json`; contract validation rejects
+  missing or duplicate entries and requires TypeScript and Java consumers for implemented fixtures.
+  Both runtime suites select their behavioral corpus from that manifest, while future generation and
+  reconciliation fixtures remain explicitly `planned` and schema-only.
 
 ### R10 — Complete backend architecture enforcement
 
@@ -189,7 +208,7 @@ and **L** needs multiple reviewable implementation changes.
 
 ### R12 — Revise retry policy, then implement bounded recovery
 
-- Status: `planned`.
+- Status: `validated`.
 - Existing owners: ADR-0027, G2d and G2e.
 - Decision: the four specified retry delays have upper bounds of 1, 2, 4 and 8 seconds, only 15 seconds
   of total scheduled waiting; the stated 30-second cap is never reached. Specify the intended outage
@@ -199,6 +218,11 @@ and **L** needs multiple reviewable implementation changes.
   boundaries after browser deletion and multi-tab behavior are reliable.
 - Acceptance: deterministic tests cover the selected outage duration, offline periods, reload,
   exhaustion, manual retry and ownership transfer. No retry changes operation identity or loses intent.
+- Validation evidence: ADR-0027 now states the effective 1/2/4/8-second caps, 15-second total scheduled
+  wait, ten-second request timeout, online continuation, and manual-only exhaustion reset. G2d and G2e
+  tests cover durable scheduling, reload, exhaustion, timeout classification, manual recovery, and
+  fenced ownership transfer; the real topology proves stable replay after an ambiguous committed
+  response.
 
 ### R13 — Define access, ownership and local-data transitions
 

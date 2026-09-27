@@ -17,3 +17,8 @@ export const HORTINIS_DATABASE_SCHEMA_V3 = {
   ...HORTINIS_DATABASE_SCHEMA,
   synchronizationRetryState: 'workId, scope, phase, operationId, exhausted',
 };
+
+export const HORTINIS_DATABASE_SCHEMA_V4 = {
+  ...HORTINIS_DATABASE_SCHEMA_V3,
+  synchronizationLeases: 'scope, ownerId, expiresAt',
+};
