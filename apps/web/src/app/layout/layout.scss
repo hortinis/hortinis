@@ -94,4 +94,24 @@
       }
     }
   }
+
+  .nav__button {
+    @include mat.button-overrides(
+      (
+        outlined-label-text-color: var(--mat-sys-on-surface-variant),
+        outlined-outline-color: transparent,
+      )
+    );
+  }
+
+  .nav__button--active {
+    background: var(--mat-sys-primary-container);
+
+    @include mat.button-overrides(
+      (
+        outlined-label-text-color: var(--mat-sys-on-primary-container),
+        outlined-outline-color: transparent,
+      )
+    );
+  }
 }

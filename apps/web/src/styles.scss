@@ -3,10 +3,130 @@
 // components according to the Material 3 design spec.
 // Learn more about theming and how to use it for your application's
 // custom components at https://material.angular.dev/guide/theming
-@use '@angular/material' as mat;
 @use 'sass:map';
 
+@use '@angular/material' as mat;
+// @use './theme-colors2' as colors;
 @use './theme-colors' as colors;
+
+html[data-theme='light'] {
+  color-scheme: light;
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+}
+html {
+  color-scheme: light dark;
+
+  @include mat.theme(
+    (
+      color: (
+        primary: colors.$primary-palette,
+        tertiary: colors.$tertiary-palette,
+        theme-type: color-scheme,
+      ),
+      typography: Roboto,
+      density: 0,
+    )
+  );
+
+  // @include mat.theme-overrides(
+  //   (
+  //     // Canvas and neutral surface hierarchy.
+  //     background: light-dark(#fffef9, #1e2c24),
+  //     surface: light-dark(#fffef9, #1e2c24),
+  //     surface-dim: light-dark(#e6e0d6, #1e2c24),
+  //     surface-bright: light-dark(#fffef9, #3e4941),
+  //     surface-container-lowest: light-dark(#fffefb, #18231c),
+  //     surface-container-low: light-dark(#faf6ef, #252e28),
+  //     surface-container: light-dark(#f5f1eb, #2d3730),
+  //     surface-container-high: light-dark(#f0ebe3, #364039),
+  //     surface-container-highest: light-dark(#e9e3d9, #3e4941),
+  //     // Filled fields use this role in your installed version.
+  //     surface-variant: light-dark(#f0ebe3, #29332c),
+  //     // Text.
+  //     on-background: light-dark(#28382f, #e6e9df),
+  //     on-surface: light-dark(#28382f, #e6e9df),
+  //     on-surface-variant: light-dark(#686459, #c1bfb1),
+  //     // Clay actions and soft selection.
+  //     primary: light-dark(#886149, #cfb094),
+  //     on-primary: light-dark(#fffaf5, #35271d),
+  //     primary-container: light-dark(#eee2d5, #4b4337),
+  //     on-primary-container: light-dark(#493626, #eedfce),
+  //     surface-tint: light-dark(#886149, #cfb094),
+  //     // Strong control boundaries versus subtle separators.
+  //     outline: light-dark(#81796d, #979d8e),
+  //     outline-variant: light-dark(#ded5c9, #4c554a),
+  //     // Inverted surfaces, for example snackbars.
+  //     inverse-surface: light-dark(#303a32, #e6e9df),
+  //     inverse-on-surface: light-dark(#f6f1e8, #28382f),
+  //     inverse-primary: light-dark(#cfb094, #886149)
+  //   )
+  // );
+
+  // // Deliberate product-specific surfaces from the preview.
+  // --hortinis-navigation: light-dark(#f5f1eb, #252e28);
+  // --hortinis-card: light-dark(#faf6ef, #2d3730);
+  // --hortinis-dialog: light-dark(#fffaf3, #364039);
+
+  // @include mat.toolbar-overrides(
+  //   (
+  //     container-background-color: var(--hortinis-navigation),
+  //     container-text-color: var(--mat-sys-on-surface),
+  //   )
+  // );
+
+  // @include mat.card-overrides(
+  //   (
+  //     elevated-container-color: var(--hortinis-card),
+  //     filled-container-color: var(--hortinis-card),
+  //     outlined-container-color: var(--hortinis-card),
+  //     outlined-outline-color: var(--mat-sys-outline-variant),
+  //   )
+  // );
+
+  // @include mat.dialog-overrides(
+  //   (
+  //     container-color: var(--hortinis-dialog),
+  //     subhead-color: var(--mat-sys-on-surface),
+  //     supporting-text-color: var(--mat-sys-on-surface-variant),
+  //   )
+  // );
+
+  // @include mat.form-field-overrides(
+  //   (
+  //     filled-container-color: var(--mat-sys-surface-variant),
+  //     filled-active-indicator-color: var(--mat-sys-outline),
+  //     filled-focus-active-indicator-color: var(--mat-sys-primary),
+  //     filled-label-text-color: var(--mat-sys-on-surface-variant),
+  //   )
+  // );
+}
+
+.content-panel {
+  background: var(--hortinis-card);
+  color: var(--mat-sys-on-surface);
+}
+
+.description {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.divider {
+  border-color: var(--mat-sys-outline-variant);
+}
+
+.cdk-overlay-dark-backdrop {
+  background: light-dark(rgba(23, 40, 31, 0.22), rgba(16, 28, 23, 0.32));
+}
+
+body {
+  margin: 0;
+  background: var(--mat-sys-background);
+  color: var(--mat-sys-on-background);
+  font: var(--mat-sys-body-medium);
+}
 
 // Extract the generated primary tonal palette.
 $primary: colors.$primary-palette;
@@ -72,4 +192,4 @@ body {
   height: 100%;
 }
 
-/* You can add global styles to this file, and also import other style files */
+// /* You can add global styles to this file, and also import other style files */
