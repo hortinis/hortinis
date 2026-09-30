@@ -107,9 +107,18 @@ These items may proceed during foundation implementation. They produce specifica
 - Status: `planned`.
 - Depends on: P0.4.
 - Scope: standalone use, individual-server connection, shared-instance accounts, local-to-server transition, device enrollment and revocation, ownership/isolation, compatible merges, contradictory conflicts, and conflict resolution for relationships, corrections, and archiving.
+- Implementation handoff: accept and execute the applicable decision and implementation tasks in the
+  [access and synchronization-scope plan](access-and-synchronization-scope-implementation-plan.md). The
+  plan separates an offline local data-set identity, a server-controlled synchronization scope, account
+  authorization, device enrollment, and sessions; defines single-user no-auth, single-user authenticated,
+  and multi-user authenticated server modes; and makes security and personal-data review part of each
+  task's acceptance.
 - Acceptance: the access behavior is documented and any required technical selection is recorded in an
   ADR before production synchronized garden data is implemented. V0 may use only the constrained
-  test-only profile defined by P0.5a.
+  test-only profile defined by P0.5a. A shared instance requires authenticated, deny-by-default
+  authorization and verified account isolation; no client-provided scope, account, device, record, or
+  operation identifier grants access. The accepted design traces applicable OWASP ASVS requirements and
+  GDPR/CNIL data-protection obligations without claiming that software alone establishes legal compliance.
 
 #### P0.5a — Define the V0 synchronization scope
 
@@ -121,7 +130,9 @@ These items may proceed during foundation implementation. They produce specifica
 - Excludes: production authentication, connecting existing populated servers, domain merge rules,
   conflict-resolution UI, compaction and full reconciliation.
 - Acceptance: V0 uses the production outbox and wire boundaries, never silently applies last-write-wins,
-  and the test-only access profile cannot be enabled in a production build.
+  and the test-only access profile cannot be enabled in a production build. Fixtures use synthetic data,
+  ordinary logs contain no account, scope, device, record, operation, garden, precise-location, credential,
+  or request/response-body data, and the profile is never represented as secure multi-user isolation.
 
 ### P0.6 — Specify backup and restoration (O-10)
 
@@ -357,8 +368,14 @@ needed by M4.3, and P0.7 by M5; they need not block unrelated earlier implementa
 - Technical work: record the access technology decision before selection; define session, enrollment,
   bootstrap, revocation, and ownership contracts; implement secure browser and Spring adapters and
   persistence; migrate standalone state through the outbox/reconciliation boundary; add connection UI and
-  operational guidance; and test isolation, expiry, revocation, populated-server connection, and recovery.
-- Acceptance: a garden created without an account can be connected and retrieved on another device without loss or duplication.
+  operational guidance; execute S8 through S15 of the
+  [access and synchronization-scope plan](access-and-synchronization-scope-implementation-plan.md); and
+  test isolation, expiry, revocation, populated-server connection, and recovery.
+- Acceptance: a garden created without an account can be connected and retrieved on another device
+  without loss or duplication. Authenticated modes meet the accepted OWASP ASVS verification target and
+  the task-level GDPR/CNIL privacy, minimization, retention, rights, logging, and accountability criteria;
+  `single-user-no-auth` remains an explicit trusted-environment mode and cannot be mistaken for account
+  isolation.
 
 #### M4.2 — Domain conflict resolution
 

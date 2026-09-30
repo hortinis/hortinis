@@ -753,7 +753,7 @@ The first slice uses a deliberately technical record. It validates the mechanism
 - Acceptance: every item in the V0 technical readiness gate is traced to passing evidence; the report
   distinguishes demonstrated behavior from planned behavior and authorizes only the V0 product track.
 - Sequencing note: E10 remains required for readiness reporting and release authorization, including
-  G6, but does not block implementation of G1 through G5.
+  G6, but does not block implementation of G1 through G5 or G2f.
 
 ### Track F: packaging and continuous integration
 
@@ -840,8 +840,8 @@ This track may proceed alongside the web, server, contract, and synchronization 
 Track G turns the guarantees that are deliberately deferred from V0 into numbered prerequisites for
 production product work. It may proceed before E10 and alongside eligible Track F work. E10 remains a
 readiness-reporting and release prerequisite through G6 rather than an implementation-sequencing
-prerequisite for G1 through G5. G1 must resolve the open protocol policies before an implementation task
-relies on them.
+prerequisite for G1 through G5 or G2f. G1 must resolve the open protocol policies before an implementation
+task relies on them.
 
 #### G1. Resolve production synchronization policies
 
@@ -972,7 +972,7 @@ relies on them.
   exhaustion, manual-recovery, and cross-runtime scenarios across contracts, Dexie, HTTP, Spring, and
   PostgreSQL; then update synchronization traceability.
 - Acceptance: G2's complete acceptance criteria pass through focused unit and integration tests plus the
-  browser end-to-end topology. G3 depends on validated G2e.
+  browser end-to-end topology. G2f depends on validated G2e, and G3 depends on G2f.
 - Artifacts: serialized per-scope server journal publication; a populated V1-to-V3 migration test;
   restart-safe tombstone, identifier-reservation, and receipt coverage; non-regressing late browser
   acknowledgements; a fenced IndexedDB synchronization lease and cursor compare-and-set boundary;
@@ -989,15 +989,42 @@ relies on them.
   browser context without restoring a live record. Controlled PostgreSQL coverage also proved that a
   later publisher cannot overtake an earlier uncommitted publication.
 
+#### G2f. Partition synchronization by server-owned scope
+
+- Status: `planned`.
+- Depends on: G2e and the accepted S1 access/scope decision.
+- Scope: implement S2 through S7 of the
+  [access and synchronization-scope implementation plan](access-and-synchronization-scope-implementation-plan.md)
+  so the technical synchronization slice uses a trusted server-side access context, server-controlled
+  scopes, a durable offline local-data-set identity, explicit server binding, and complete scope
+  partitioning across browser, HTTP, Spring, and PostgreSQL boundaries.
+- Excludes: production authentication and device enrollment, populated-local/populated-server
+  reconciliation, generation rollover, and any claim that unauthenticated technical contexts provide
+  secure user isolation.
+- Security and data-protection boundary: use synthetic technical data and trusted test contexts; do not
+  expose a production scope-impersonation header, query parameter, body field, or permissive configuration
+  fallback. Apply the task-level OWASP, GDPR, and CNIL completion rule in the detailed plan.
+- Acceptance: two devices in scope A exchange G2 operations and tombstones while scope B remains isolated;
+  receipts, cursors, retired identifiers, retries, leases, locks, and identifiers cannot cross scopes; a
+  fully offline data set can bind safely to an empty server; production builds cannot enable the test
+  resolver; and diagnostics contain no prohibited user data or stable account, scope, or device
+  identifiers.
+- Artifacts: the accepted access/scope ADR and threat model; TypeSpec and generated-contract changes where
+  required; versioned Flyway and Dexie schemas; trusted server access-context resolution; explicit access
+  mode configuration; server discovery and local binding state; cross-runtime fixtures; PostgreSQL,
+  browser, configuration, negative-security, and real-topology validation.
+
 #### G3. Implement generation rollover and indeterminate outcomes
 
 - Initial status: `planned`.
-- Depends on: G2e.
+- Depends on: G2f.
 - Scope: associate client state and operations with a synchronization generation, reject expired
   incremental histories, and preserve operations whose acceptance can no longer be proven as explicit
-  indeterminate local work.
+  indeterminate local work. Implement one generation lifecycle per trusted synchronization scope as
+  detailed by S13 of the access and synchronization-scope plan.
 - Acceptance: a lost acknowledgement followed by receipt compaction and generation rollover cannot
-  duplicate, discard, or silently accept the pending intent.
+  duplicate, discard, or silently accept the pending intent; a cursor, receipt, generation, rollover, or
+  indeterminate outcome cannot be transferred between scopes.
 
 #### G4. Implement anchored snapshots and full reconciliation
 
@@ -1021,7 +1048,7 @@ relies on them.
 #### G6. Publish the foundation readiness report
 
 - Initial status: `planned`.
-- Depends on: E10, G1 through G5, F2, F3, F4, F5, and F6.
+- Depends on: E10, G1 through G5, G2f, F2, F3, F4, F5, and F6.
 - Scope: run the complete native, Compose, container-image, CI, migration, restart, synchronization, and
   autonomous-runtime validation matrix and record remaining risks.
 - Acceptance: every item in the foundation readiness gate is traced to passing evidence, no blocking
@@ -1084,11 +1111,13 @@ readiness gate above.
 ### Foundation readiness gate
 
 Production business-feature implementation may begin only when G6 is validated. G6 depends on G1 through
-G5 and on F2, F3, F4, F5, and F6; their transitive dependencies include the initial foundation milestone.
-Together they must demonstrate that:
+G5, G2f, and F2, F3, F4, F5, and F6; their transitive dependencies include the initial foundation
+milestone. Together they must demonstrate that:
 
 - the initial foundation milestone is validated;
-- causal operation chains, tombstones, interrupted exchanges, bounded retry behavior, generation rollover, anchored snapshots, full reconciliation, and indeterminate outcomes are implemented and tested;
+- causal operation chains, tombstones, interrupted exchanges, bounded retry behavior, trusted
+  synchronization-scope partitioning, generation rollover, anchored snapshots, full reconciliation, and
+  indeterminate outcomes are implemented and tested;
 - browser schema migration, transaction recovery, server migration, and restart behavior are demonstrated;
 - native, Compose, container-image, and CI validation pass; and
 - the foundation report contains no unresolved blocking foundation risk.

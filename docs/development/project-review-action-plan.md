@@ -231,10 +231,16 @@ and **L** needs multiple reviewable implementation changes.
 - Deliverable: an accepted specification for standalone use, individual-server access and shared-instance
   accounts; synchronization scope identity; device enrollment; session expiry; sign-out; revocation;
   server/account changes; and the treatment of local data and pending operations in each transition.
+- Implementation handoff: the
+  [access and synchronization-scope implementation plan](access-and-synchronization-scope-implementation-plan.md)
+  defines decision, contract, persistence, binding, isolation, authentication, enrollment, transition,
+  generation, reconciliation, and release-evidence tasks with explicit OWASP, GDPR, and CNIL acceptance
+  criteria.
 - Work: separate early access/ownership implementation from later bootstrap of the full garden model.
   Define enforcement that keeps the unauthenticated test-only scope out of production operation.
 - Acceptance: isolation and transition scenarios are testable before production domain adapters are
-  implemented. Do not infer a new authentication library or configuration default from this backlog.
+  implemented. Do not infer a new authentication library or configuration default from this backlog; S1
+  and S8 record those decisions before dependent adapters are implemented.
 
 ### R14 — Revise product sequencing and define the first useful journey
 

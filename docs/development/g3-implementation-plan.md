@@ -6,14 +6,17 @@ This document is the implementation handoff plan for G3, **Implement generation 
 indeterminate outcomes**. It is intentionally detailed enough for the work to be split across multiple
 development sessions without rediscovering protocol decisions or sequencing constraints.
 
-G3 must start from `origin/feat/g2e-validation` at commit `891dcae` (`Validate complete tombstone
-recovery`). That branch contains the validated G2 implementation and is the required predecessor for
-this work. Do not start G3 from the older `feat/d2-technical-sync-contracts` checkout.
+G3 planning starts from `origin/feat/g2e-validation`, which contains the validated G2 implementation.
+Runtime implementation starts only after foundation G2f has completed S1 through S7 of the
+[access and synchronization-scope implementation plan](access-and-synchronization-scope-implementation-plan.md).
+Do not start G3 runtime work from the older `feat/d2-technical-sync-contracts` checkout or from the global
+hard-coded technical scope.
 
 The authoritative scope remains the G3 entry in
 [`foundation-implementation-plan.md`](foundation-implementation-plan.md), ADR-0023, ADR-0026, and the
 production synchronization traceability matrix. This plan refines that scope; it does not authorize G4
-anchored snapshots or full reconciliation.
+anchored snapshots or full reconciliation. S13 in the access/scope plan adds the mandatory cross-scope
+security and privacy criteria without adding production authentication to G3.
 
 ## Outcome
 
@@ -75,6 +78,11 @@ G3 excludes:
 - configured retention scheduling and the complete forced-compaction operational matrix owned by G5;
 - a public or unauthenticated administrative rollover endpoint;
 - authentication, authorization, and production synchronization-scope selection.
+
+G3 nevertheless consumes the trusted `SynchronizationAccessContext` established by G2f and implements
+every generation, receipt, cursor, change, rollover, compaction, and indeterminate-outcome lookup within
+that context. It must never restore the earlier hard-coded global scope or accept a client-supplied scope
+as authorization.
 
 ## Contract decisions to record first
 
@@ -149,10 +157,10 @@ Add the next Flyway migration after G2's V3 schema. It should:
 
 - create a synchronization-generation table with an opaque generation identifier, lifecycle state, and
   server timestamp metadata;
-- add the active generation reference to `technical_synchronization_scope`;
-- create and activate one initial generation for the existing technical scope;
-- add a non-null generation reference to accepted operation receipts and technical changes;
-- backfill existing receipts and changes into the initial generation;
+- add the active generation reference to each G2f `technical_synchronization_scope` row;
+- create and activate one initial generation for every existing technical scope;
+- add a non-null generation reference to already-scoped accepted operation receipts and technical changes;
+- associate existing receipts and changes with the initial generation for their own scope;
 - add the constraints and indexes needed for receipt lookup, generation validation, ordered change pull,
   and bounded compaction;
 - retain lifetime record-identifier reservations independently from compactable tombstone details.
@@ -396,8 +404,8 @@ The following sequence keeps each session independently reviewable:
    - amend ADR/API documentation;
    - update TypeSpec, generated artifacts, fixtures, and contract tests.
 2. **Persist synchronization generations and rollover**
-   - add the Flyway migration, cursor codec, server protocol types, rollover service, and PostgreSQL
-     tests.
+   - add the Flyway migration, scope-bound cursor codec, server protocol types, per-scope rollover service,
+     and PostgreSQL tests, including cross-scope substitution and concurrency cases.
 3. **Bind browser synchronization state to generations**
    - add the Dexie migration, generation bootstrap, base persistence, and immutable envelope binding.
 4. **Preserve indeterminate operations durably**
