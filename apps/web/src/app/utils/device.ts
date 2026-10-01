@@ -11,6 +11,7 @@ export class Device {
   public readonly mobile = toSignal(
     this.bp.observe([Breakpoints.Handset, Breakpoints.Tablet]).pipe(this.matches),
   );
+  public readonly handset = toSignal(this.bp.observe([Breakpoints.Handset]).pipe(this.matches));
   public readonly landscape = toSignal(
     this.bp
       .observe([Breakpoints.Web, Breakpoints.HandsetLandscape, Breakpoints.TabletLandscape])

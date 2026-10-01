@@ -1,39 +1,8 @@
 @use '@angular/material' as mat;
 
-.create-garden-dialog {
-  @include mat.dialog-overrides(
-    (
-      content-padding: 10px,
-      with-actions-content-padding: 5px 15px 0,
-      headline-padding: 10px 15px,
-      //container-color: var(--mat-sys-surface-container-high),
-      container-shape: 10px,
-      container-max-width: initial,
-      container-min-width: 75%,
-    )
-  );
-  @include mat.button-overrides(
-    (
-      outlined-container-shape: 5px,
-    )
-  );
-  .mat-mdc-dialog-actions {
-    padding: 0px 15px;
-  }
-
-  .mat-mdc-dialog-title::before {
-    height: initial;
-  }
-
+.hortinis-dialog {
   .field {
     display: flex;
     flex-direction: column;
-
-    @include mat.form-field-overrides(
-      (
-        container-height: auto,
-        container-vertical-padding: 10px,
-      )
-    );
   }
 }

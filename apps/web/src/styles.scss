@@ -16,8 +16,31 @@ html[data-theme='light'] {
 html[data-theme='dark'] {
   color-scheme: dark;
 }
+
+body {
+  // Angular Material's system-level CSS variables. Learn more about these
+  // variables at https://material.angular.dev/guide/system-variables
+
+  font: var(--mat-sys-body-medium);
+
+  // Reset the user agent margin.
+  margin: 0;
+  height: 100%;
+}
+
+// // /* You can add global styles to this file, and also import other style files */
+
 html {
+  height: 100%;
   color-scheme: light dark;
+
+  // Hortinis global background roles
+  --hortinis-background: light-dark(#fffef9, #1e2c24);
+  --hortinis-navigation: light-dark(#f4f3ec, #252e28);
+  --hortinis-card: light-dark(#faf9f4, #2d3730);
+  --hortinis-dialog: light-dark(#fffefb, #364039);
+  --hortinis-field: light-dark(#f0f1e9, #29332c);
+  --hortinis-selection: light-dark(#e5ebdd, #4b4337);
 
   @include mat.theme(
     (
@@ -31,165 +54,144 @@ html {
     )
   );
 
-  // @include mat.theme-overrides(
-  //   (
-  //     // Canvas and neutral surface hierarchy.
-  //     background: light-dark(#fffef9, #1e2c24),
-  //     surface: light-dark(#fffef9, #1e2c24),
-  //     surface-dim: light-dark(#e6e0d6, #1e2c24),
-  //     surface-bright: light-dark(#fffef9, #3e4941),
-  //     surface-container-lowest: light-dark(#fffefb, #18231c),
-  //     surface-container-low: light-dark(#faf6ef, #252e28),
-  //     surface-container: light-dark(#f5f1eb, #2d3730),
-  //     surface-container-high: light-dark(#f0ebe3, #364039),
-  //     surface-container-highest: light-dark(#e9e3d9, #3e4941),
-  //     // Filled fields use this role in your installed version.
-  //     surface-variant: light-dark(#f0ebe3, #29332c),
-  //     // Text.
-  //     on-background: light-dark(#28382f, #e6e9df),
-  //     on-surface: light-dark(#28382f, #e6e9df),
-  //     on-surface-variant: light-dark(#686459, #c1bfb1),
-  //     // Clay actions and soft selection.
-  //     primary: light-dark(#886149, #cfb094),
-  //     on-primary: light-dark(#fffaf5, #35271d),
-  //     primary-container: light-dark(#eee2d5, #4b4337),
-  //     on-primary-container: light-dark(#493626, #eedfce),
-  //     surface-tint: light-dark(#886149, #cfb094),
-  //     // Strong control boundaries versus subtle separators.
-  //     outline: light-dark(#81796d, #979d8e),
-  //     outline-variant: light-dark(#ded5c9, #4c554a),
-  //     // Inverted surfaces, for example snackbars.
-  //     inverse-surface: light-dark(#303a32, #e6e9df),
-  //     inverse-on-surface: light-dark(#f6f1e8, #28382f),
-  //     inverse-primary: light-dark(#cfb094, #886149)
-  //   )
-  // );
+  @include mat.theme-overrides(
+    (
+      // Global application background
+      background: var(--hortinis-background),
+      on-background: light-dark(#28382f, #e6e9df),
+      // Default Material surface
+      surface: var(--hortinis-background),
+      on-surface: light-dark(#28382f, #e6e9df),
+      // Material surface hierarchy
+      surface-container-lowest: light-dark(#fffefb, #18231c),
+      surface-container-low: var(--hortinis-card),
+      surface-container: var(--hortinis-navigation),
+      surface-container-high: var(--hortinis-dialog),
+      surface-container-highest: light-dark(#e8eadf, #3e4941),
+      // Filled fields
+      surface-variant: var(--hortinis-field),
+      // Green light theme, clay dark theme
+      primary: light-dark(#536c52, #cfb094),
+      on-primary: light-dark(#fffef9, #35271d),
+      // Selected navigation and soft emphasis
+      primary-container: var(--hortinis-selection),
+      on-primary-container: light-dark(#314330, #eedfce),
+      // Secondary text and icons
+      on-surface-variant: light-dark(#59665b, #c1bfb1),
+      // Borders
+      outline: light-dark(#747e70, #979d8e),
+      outline-variant: light-dark(#dedfd4, #4c554a),
+      surface-tint: light-dark(#536c52, #cfb094),
+      inverse-surface: light-dark(#303a32, #e6e9df),
+      inverse-on-surface: light-dark(#f6f1e8, #28382f),
+      inverse-primary: light-dark(#b4c5a5, #886149)
+    )
+  );
+}
+html {
+  @include mat.toolbar-overrides(
+    (
+      container-background-color: var(--hortinis-navigation),
+      container-text-color: var(--mat-sys-on-surface),
+    )
+  );
 
-  // // Deliberate product-specific surfaces from the preview.
-  // --hortinis-navigation: light-dark(#f5f1eb, #252e28);
-  // --hortinis-card: light-dark(#faf6ef, #2d3730);
-  // --hortinis-dialog: light-dark(#fffaf3, #364039);
+  @include mat.card-overrides(
+    (
+      elevated-container-color: var(--hortinis-card),
+      filled-container-color: var(--hortinis-card),
+      outlined-container-color: var(--hortinis-card),
+      outlined-outline-color: var(--mat-sys-outline-variant),
+    )
+  );
 
-  // @include mat.toolbar-overrides(
-  //   (
-  //     container-background-color: var(--hortinis-navigation),
-  //     container-text-color: var(--mat-sys-on-surface),
-  //   )
-  // );
+  @include mat.dialog-overrides(
+    (
+      container-color: var(--hortinis-dialog),
+      subhead-color: var(--mat-sys-on-surface),
+      supporting-text-color: var(--mat-sys-on-surface-variant),
+    )
+  );
+  @include mat.dialog-overrides(
+    (
+      content-padding: 10px,
+      with-actions-content-padding: 5px 15px 0,
+      headline-padding: 10px 15px,
+      container-shape: 10px,
+      container-max-width: 100%,
+    )
+  );
 
-  // @include mat.card-overrides(
-  //   (
-  //     elevated-container-color: var(--hortinis-card),
-  //     filled-container-color: var(--hortinis-card),
-  //     outlined-container-color: var(--hortinis-card),
-  //     outlined-outline-color: var(--mat-sys-outline-variant),
-  //   )
-  // );
+  @include mat.form-field-overrides(
+    (
+      filled-container-color: var(--hortinis-field),
+      filled-active-indicator-color: var(--mat-sys-outline),
+      filled-focus-active-indicator-color: var(--mat-sys-primary),
+      filled-focus-label-text-color: var(--mat-sys-primary),
+    )
+  );
 
-  // @include mat.dialog-overrides(
-  //   (
-  //     container-color: var(--hortinis-dialog),
-  //     subhead-color: var(--mat-sys-on-surface),
-  //     supporting-text-color: var(--mat-sys-on-surface-variant),
-  //   )
-  // );
-
-  // @include mat.form-field-overrides(
-  //   (
-  //     filled-container-color: var(--mat-sys-surface-variant),
-  //     filled-active-indicator-color: var(--mat-sys-outline),
-  //     filled-focus-active-indicator-color: var(--mat-sys-primary),
-  //     filled-label-text-color: var(--mat-sys-on-surface-variant),
-  //   )
-  // );
+  @include mat.form-field-overrides(
+    (
+      container-height: auto,
+      container-vertical-padding: 10px,
+    )
+  );
 }
 
-.content-panel {
-  background: var(--hortinis-card);
-  color: var(--mat-sys-on-surface);
+.layout {
+  &.handset {
+    .hortinis-dialog {
+      @include mat.dialog-overrides(
+        (
+          container-min-width: 100%,
+        )
+      );
+    }
+  }
+  &:not(.handset) {
+    .hortinis-dialog {
+      @include mat.dialog-overrides(
+        (
+          container-min-width: 500px,
+        )
+      );
+    }
+  }
 }
 
-.description {
-  color: var(--mat-sys-on-surface-variant);
-}
+.hortinis-dialog {
+  .mat-mdc-dialog-actions {
+    padding: 0 15px 10px;
+  }
 
-.divider {
-  border-color: var(--mat-sys-outline-variant);
+  .mat-mdc-dialog-title::before {
+    height: initial;
+  }
 }
 
 .cdk-overlay-dark-backdrop {
-  background: light-dark(rgba(23, 40, 31, 0.22), rgba(16, 28, 23, 0.32));
+  background-color: light-dark(rgba(23, 40, 31, 0.22), rgba(10, 17, 13, 0.48));
 }
 
-body {
-  margin: 0;
-  background: var(--mat-sys-background);
-  color: var(--mat-sys-on-background);
-  font: var(--mat-sys-body-medium);
+.nav__button--active {
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+}
+.nav {
+  background: var(--hortinis-navigation);
 }
 
-// Extract the generated primary tonal palette.
-$primary: colors.$primary-palette;
-$secondary: colors.$secondary-palette;
-
-html {
-  height: 100%;
-  @include mat.theme(
-    (
-      color: (
-        primary: colors.$primary-palette,
-        secondary: colors.$secondary-palette,
-        tertiary: colors.$tertiary-palette,
-      ),
-      typography: Roboto,
-      density: 0,
-    )
-  );
-  .cdk-overlay-dark-backdrop {
-    background-color: light-dark(rgba(0, 0, 0, 0.32), rgba(0, 0, 0, 0.8));
-  }
-  // // A tinted background derived from the primary palette.
-  $app-background: light-dark(map.get($secondary, 95), map.get($primary, 10));
-  $app-background: light-dark(#fffef9, #1e2c24);
-
-  // A lighter surface derived from the same palette.
-  $app-surface: light-dark(map.get($secondary, 98), map.get($primary, 10));
-  @include mat.theme-overrides(
-    (
-      background: $app-background,
-      surface: $app-surface,
-      surface-container: light-dark(magenta, purple),
-      on-background: light-dark(map.get($primary, 10), map.get($secondary, 100)),
-      on-surface: light-dark(map.get($primary, 10), map.get($secondary, 100)),
-      surface-container-lowest: light-dark(red, pink),
-      // surface-container-low: light-dark(map.get($secondary, 80), map.get($primary, 10)),
-      surface-container-low: light-dark(#e8efe3, #2b4030),
-      // surface-container-high: light-dark(#306c45, #aedbb8),
-      //light-dark(cyan, darkblue),
-      surface-container-highest: light-dark(grey, orange),
-      // surface-variant: light-dark(darkred, yellow),
-      on-surface-variant: light-dark(map.get($primary, 60), map.get($secondary, 60)),
-      // primary-container: light-dark(map.get($secondary, 80), map.get($primary, 50)),
-    )
-  );
+.nav {
+  background-color: var(--hortinis-navigation);
+  color: var(--mat-sys-on-surface);
 }
 
-body {
-  // Default the application to a light color theme. This can be changed to
-  // `dark` to enable the dark color theme, or to `light dark` to defer to the
-  // user's system settings.
-  color-scheme: light dark;
-
-  // Set a default background, font and text colors for the application using
-  // Angular Material's system-level CSS variables. Learn more about these
-  // variables at https://material.angular.dev/guide/system-variables
-  background-color: var(--mat-sys-background);
-  color: var(--mat-sys-on-background);
-  font: var(--mat-sys-body-medium);
-
-  // Reset the user agent margin.
-  margin: 0;
-  height: 100%;
+.nav__button--active {
+  background-color: var(--hortinis-selection);
+  color: var(--mat-sys-on-primary-container);
 }
-
-// /* You can add global styles to this file, and also import other style files */
+.content-panel {
+  background-color: var(--hortinis-card);
+  color: var(--mat-sys-on-surface);
+}

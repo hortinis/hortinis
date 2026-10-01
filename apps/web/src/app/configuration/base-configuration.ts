@@ -42,7 +42,7 @@ export class BaseConfiguration {
   }
   protected newGarden() {
     const dialogRef = this.dialog.open(CreateGarden, {
-      panelClass: 'create-garden-dialog',
+      panelClass: 'hortinis-dialog',
     });
 
     dialogRef.afterClosed().subscribe(() => {

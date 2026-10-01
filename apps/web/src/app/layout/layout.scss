@@ -1,5 +1,100 @@
 @use '@angular/material' as mat;
 
+:root {
+  .layout {
+    &.landscape {
+      :host {
+        flex-direction: row;
+
+        .nav {
+          height: 100%;
+          flex-direction: column;
+          &:not(.nav--web) {
+            padding: 0;
+          }
+        }
+      }
+      &.mobile {
+        :host {
+          .nav {
+            min-width: 90px;
+
+            .nav__button {
+              width: 100%;
+              min-width: 0;
+            }
+          }
+        }
+      }
+    }
+
+    &:not(.landscape) {
+      :host {
+        flex-direction: column-reverse;
+
+        .nav {
+          height: auto;
+          padding: 5px;
+        }
+      }
+    }
+    &.mobile {
+      &:not(.landscape) {
+        :host {
+          .nav {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) auto repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 5px;
+            padding: 5px;
+          }
+        }
+      }
+      :host {
+        .nav {
+          justify-content: space-around;
+          align-items: stretch;
+          width: initial;
+          .nav__button {
+            border-color: transparent;
+            height: 100%;
+            flex: 1 1 0;
+            padding: 5px;
+            &--active {
+              font-weight: bold;
+            }
+          }
+        }
+        .nav {
+          .nav__button {
+            min-width: 0;
+            flex: 1 1 0;
+
+            &--active {
+              font-weight: bold;
+            }
+          }
+        }
+      }
+    }
+    &:not(.mobile) {
+      :host {
+        .nav {
+          gap: 10px;
+          padding: 10px;
+          align-items: start;
+          width: 150px;
+          align-items: stretch;
+          .nav__button {
+            justify-content: start;
+            gap: 5px;
+            padding: 5px;
+          }
+        }
+      }
+    }
+  }
+}
 :host {
   display: flex;
   height: 100%;
@@ -11,60 +106,7 @@
     flex: 1;
   }
 
-  &.landscape {
-    flex-direction: row;
-
-    .nav {
-      height: 100%;
-      flex-direction: column;
-      &:not(.nav--web) {
-        padding: 0;
-      }
-    }
-  }
-
-  &:not(.landscape) {
-    flex-direction: column-reverse;
-
-    .nav {
-      &:not(.nav--web) {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr) auto repeat(2, 1fr);
-        gap: 5px;
-        padding: 5px;
-      }
-      height: auto;
-      padding: 5px;
-    }
-  }
-
   .nav {
-    &:not(.nav--web) {
-      justify-content: space-around;
-      align-items: stretch;
-      width: initial;
-      .nav__button {
-        border-color: transparent;
-        height: 100%;
-        flex: 1 0;
-        &--active {
-          font-weight: bold;
-        }
-      }
-    }
-    &--web {
-      gap: 10px;
-      padding: 10px;
-      align-items: start;
-      width: 150px;
-      align-items: stretch;
-      .nav__button {
-        justify-content: start;
-        gap: 5px;
-        padding: 5px;
-      }
-    }
-
     &__button {
       display: flex;
       &--mobile {
