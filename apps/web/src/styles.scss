@@ -137,6 +137,9 @@ html {
       container-vertical-padding: 10px,
     )
   );
+  &:has(.layout:not(.moble)) {
+    font-size: 18px;
+  }
 }
 
 .layout {

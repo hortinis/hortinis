@@ -43,7 +43,6 @@
         :host {
           .nav {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr)) auto repeat(2, minmax(0, 1fr));
             grid-template-columns: repeat(5, minmax(0, 1fr));
             gap: 5px;
             padding: 5px;
@@ -107,6 +106,17 @@
   }
 
   .nav {
+    &__brand {
+      &__icon {
+        object-fit: contain;
+        position: relative !important;
+      }
+      position: relative;
+      display: grid;
+      grid-template-columns: auto auto;
+      grid-template-rows: 50px;
+      align-items: center;
+    }
     &__button {
       display: flex;
       &--mobile {

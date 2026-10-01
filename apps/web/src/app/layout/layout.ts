@@ -5,9 +5,18 @@ import { MatToolbar } from '@angular/material/toolbar';
 import { MatIcon } from '@angular/material/icon';
 import { RouterOutlet, RouterLinkWithHref, RouterLinkActive } from '@angular/router';
 import { MatButton } from '@angular/material/button';
+import { NgOptimizedImage } from '@angular/common';
 
 @Component({
-  imports: [MatToolbar, MatIcon, RouterOutlet, MatButton, RouterLinkWithHref, RouterLinkActive],
+  imports: [
+    MatToolbar,
+    NgOptimizedImage,
+    MatIcon,
+    RouterOutlet,
+    MatButton,
+    RouterLinkWithHref,
+    RouterLinkActive,
+  ],
   selector: 'hortinis-layout',
   styleUrl: './layout.scss',
   templateUrl: './layout.html',
