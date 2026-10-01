@@ -131,6 +131,14 @@ html {
     )
   );
 
+  @media (prefers-color-scheme: dark) {
+    @include mat.form-field-overrides(
+      (
+        hover-state-layer-opacity: 0.2,
+      )
+    );
+  }
+
   @include mat.form-field-overrides(
     (
       container-height: auto,
