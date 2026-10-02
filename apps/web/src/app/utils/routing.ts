@@ -29,31 +29,31 @@ export class Routing {
   });
   private readonly mainRoutes: Signal<MainRoute[]> = signal([
     {
-      icon: 'home',
+      icon: 'hortinis:home',
       name: 'Accueil',
       route: true,
       routerLink: 'home',
     },
     {
-      icon: 'local_florist',
+      icon: 'hortinis:garden',
       name: 'Jardin',
       route: true,
       routerLink: 'garden',
     },
     {
-      icon: 'add',
+      icon: 'hortinis:note',
       name: 'Noter',
       route: false,
       click: () => console.log('record event'),
     },
     {
-      icon: 'calendar_month',
+      icon: 'hortinis:schedule',
       name: 'Planifier',
       route: true,
       routerLink: 'schedule',
     },
     {
-      icon: 'history_2',
+      icon: 'hortinis:diary',
       name: 'Journal',
       route: true,
       routerLink: 'diary',
