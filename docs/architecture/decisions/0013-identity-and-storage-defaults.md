@@ -22,3 +22,11 @@ A default self-hosted installation must provide identity and file storage withou
 - Offline local access, credential recovery, session expiry, and device revocation need an explicit security design before implementation.
 - Provider-specific SDKs and errors remain in infrastructure adapters.
 
+## Relationship to the access design
+
+[ADR-0029](0029-access-and-synchronization-scope.md) extends this baseline for DF-12: standalone use
+requires no account, an explicitly selected individual server may omit application authentication,
+and authenticated/shared servers retain built-in accounts and protected cookie sessions. It defines
+scope ownership, binding, sign-out with retained offline data, revocation, and mode transitions.
+Authentication-library selection, factor/recovery mechanisms, and numeric session limits remain S8
+decisions; an optional-account mode is not a permissive runtime fallback.

@@ -75,6 +75,18 @@ Separate packages or modules require demonstrated reuse or a need for independen
 - [ADR-0026: Indeterminate operation outcomes and full reconciliation](decisions/0026-indeterminate-outcomes-and-full-reconciliation.md)
 - [ADR-0027: Bounded synchronization retry and manual recovery](decisions/0027-bounded-synchronization-retry.md)
 - [ADR-0028: Browser synchronization coordination](decisions/0028-browser-synchronization-coordination.md)
+- [ADR-0029: Access and synchronization-scope ownership](decisions/0029-access-and-synchronization-scope.md)
+
+## Access design and implementation handoff
+
+The accepted [access and synchronization-scope specification](access-and-synchronization-scope.md)
+defines standalone use, explicit server modes, trusted scope authorization, local binding, sign-out,
+revocation, configuration transitions, and complete deletion. Its
+[threat model](../security/access-threat-model.md),
+[ASVS 5.0.0 applicability register](../security/asvs-5.0.0-applicability.md), and
+[data inventory and lifecycle](../privacy/access-data-lifecycle.md) form S1's design baseline.
+The [implementation plan](../development/access-and-synchronization-scope-implementation-plan.md)
+tracks the remaining contracts, scope isolation, authentication, recovery, and release evidence.
 
 ## Open decisions
 

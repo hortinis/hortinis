@@ -226,7 +226,7 @@ and **L** needs multiple reviewable implementation changes.
 
 ### R13 — Define access, ownership and local-data transitions
 
-- Status: `planned`.
+- Status: `validated` (S1 design deliverable, 2026-10-02).
 - Existing owners: P0.5, P0.5a, ADR-0013 and the access portion of M4.1.
 - Deliverable: an accepted specification for standalone use, individual-server access and shared-instance
   accounts; synchronization scope identity; device enrollment; session expiry; sign-out; revocation;
@@ -239,8 +239,13 @@ and **L** needs multiple reviewable implementation changes.
 - Work: separate early access/ownership implementation from later bootstrap of the full garden model.
   Define enforcement that keeps the unauthenticated test-only scope out of production operation.
 - Acceptance: isolation and transition scenarios are testable before production domain adapters are
-  implemented. Do not infer a new authentication library or configuration default from this backlog; S1
-  and S8 record those decisions before dependent adapters are implemented.
+  implemented. ADR-0029 records explicit modes with no runtime fallback; S8 still selects authentication
+  mechanisms before dependent adapters. The accepted access specification defines AC-AS-01 through
+  AC-AS-14, and the threat/ASVS/privacy records identify remaining security and real-data release blockers.
+- Validation evidence: S1 records ownership, local binding, operator-confirmed scope claim, retained
+  offline access after logout, account/server/revocation outcomes, rejected authentication downgrades,
+  and complete deletion/restore rules. Runtime scope isolation, authentication, enrollment mechanisms,
+  and production/privacy evidence remain planned under S2-S15; R13 validation is not deployment readiness.
 
 ### R14 — Revise product sequencing and define the first useful journey
 

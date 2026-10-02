@@ -113,6 +113,9 @@ These items may proceed during foundation implementation. They produce specifica
   authorization, device enrollment, and sessions; defines single-user no-auth, single-user authenticated,
   and multi-user authenticated server modes; and makes security and personal-data review part of each
   task's acceptance.
+- Access design evidence: S1/R13 are validated by ADR-0029 and the accepted access, threat/ASVS, and
+  privacy lifecycle records linked from that plan. P0.5 remains planned because business merge/conflict
+  design and the implementing tasks are incomplete; no authentication or production readiness is claimed.
 - Acceptance: the access behavior is documented and any required technical selection is recorded in an
   ADR before production synchronized garden data is implemented. V0 may use only the constrained
   test-only profile defined by P0.5a. A shared instance requires authenticated, deny-by-default

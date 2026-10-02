@@ -12,9 +12,13 @@ an individual server can run with or without application authentication, a share
 accounts, and collaboration between gardeners remains deferred. ADR-0010, ADR-0013, and ADR-0015 remain
 authoritative for synchronization, built-in identity, cookies, privacy, and observability.
 
-This plan starts from the validated G2e implementation on `origin/feat/g2e-validation`. It does not
-declare any task complete, select an authentication library, or by itself authorize processing real user
-data.
+This plan starts from the validated G2e implementation on `origin/feat/g2e-validation`. S1's accepted
+design is recorded in [ADR-0029](../architecture/decisions/0029-access-and-synchronization-scope.md),
+the [access specification](../architecture/access-and-synchronization-scope.md),
+[threat model](../security/access-threat-model.md),
+[ASVS applicability register](../security/asvs-5.0.0-applicability.md), and
+[privacy lifecycle](../privacy/access-data-lifecycle.md). Runtime tasks remain planned. The design does
+not select an authentication library or authorize processing real user data.
 
 ## Required outcome
 
@@ -138,7 +142,7 @@ preserves local data and pending intent.
 
 ### S1 — Accept the access, scope, security, and privacy design
 
-- Status: `planned`.
+- Status: `validated` (design only, 2026-10-02).
 - Depends on: accepted product decisions DF-11 through DF-13 and accepted ADR-0010, ADR-0013, and
   ADR-0015. R13 and P0.5 own this task rather than acting as prerequisites to it.
 - Scope: record an ADR and implementation-neutral specification for the identifier model, three access
@@ -156,6 +160,25 @@ preserves local data and pending intent.
 - Acceptance: every transition has a deny-by-default outcome; no client-controlled identifier grants
   access; each personal-data category has a purpose and proposed lifecycle; unresolved legal or security
   choices are explicit blockers rather than permissive defaults.
+- Artifacts: accepted ADR-0029 and access specification; AC-AS-01 through AC-AS-14 acceptance scenarios;
+  T01 through T15 threat/control mapping; all 345 pinned ASVS 5.0.0 requirements classified; initial
+  data inventory/flow, retention matrix, complete deletion/restore lifecycle, and operator rights,
+  incident, and DPIA procedures.
+- Accepted product outcomes: explicit operator claim preserves the existing sole scope when enabling
+  login; logout preserves local offline access and pauses synchronization; complete account/scope
+  deletion is specified now; authenticated-to-no-auth downgrades are rejected in the first release.
+  Multi-user-to-single-user changes are also unsupported and fail closed.
+- Remaining gates: authentication strength/mechanisms and numeric session limits belong to S8;
+  production retention, transport, service credentials, deletion execution, and operator legal evidence
+  belong to S12/S15 and deployment work. Offline retention/browser persistence and source-address
+  logging deviations are explicit and preclude an unqualified ASVS Level 2 claim. S2-S15 are not
+  marked implemented by this design validation.
+- Validation evidence (2026-10-02): the documented `pnpm validate` suite passed, including contracts,
+  frontend checks/tests/browser smoke tests, builds, and backend tests/PostgreSQL integration checks.
+  Documentation review verified all 91 relative links in the 15 affected Markdown files, English
+  content/path consistency, the pinned ASVS checksum, all 345 unique IDs/levels/dispositions, and the
+  complete scenario/threat identifiers. Whitespace, ignore rules, and line-ending checks passed.
+  Existing-code validation does not claim execution of the future AC-AS scenarios or ASVS controls.
 
 ### S2 — Define scope-neutral application boundaries and wire contracts
 
@@ -328,16 +351,21 @@ preserves local data and pending intent.
 - Depends on: S6 and S9 through S11.
 - Scope: implement explicit transitions from `single-user-no-auth` to `single-user-auth`, from
   `single-user-auth` to `multi-user-auth`, sign-out, account change, server change, server replacement, and
-  local-data-set cloning or disconnection. Reject a transition to a single-user mode while multiple owned
-  scopes exist. Never infer ownership from whichever user logs in first unless the accepted setup contract
-  explicitly performs and confirms that claim.
+  local-data-set cloning or disconnection under ADR-0029. Reject authenticated-to-no-auth and
+  multi-user-to-single-user transitions in the first release, including direct configuration edits and
+  restored older modes. Never infer ownership from whichever user logs in first; controlled operator
+  setup must explicitly perform and confirm the claim of the existing sole scope.
+- Deletion scope: implement complete account/scope access invalidation and resumable purge across all
+  inventory categories. Coordinate backup/restore suppression with P0.6 and S15; delete a local data set
+  only by a separate explicit action. A deleted sole account never changes the server to no-auth mode.
 - Security and privacy acceptance: sensitive transitions require recent authentication or controlled
   operator setup; use atomic, auditable state changes and generic external errors; preserve pending local
   intent without exposing it to another account; define local data retention or deletion on shared devices
   and implement the user's selected outcome without presenting deletion as secure erasure when browser or
   backup limitations prevent that guarantee.
 - Validation: interrupted transition, rollback, stale session, concurrent administrator, wrong-account,
-  replaced-server, backup, and reload scenarios pass.
+  replaced-server, offline pending logout, in-flight binding change, interrupted purge, backup/restore
+  suppression, direct mode downgrade, and reload scenarios pass (AC-AS-06 through AC-AS-14).
 
 ### S13 — Make G3 generations scope-aware
 
@@ -376,6 +404,9 @@ preserves local data and pending intent.
   access-control and session tests, configuration review, penetration-test scope, retention/purge checks,
   backup/restore review, operator hardening guidance, privacy information, rights procedures, incident and
   breach runbooks, processing-record template, and DPIA screening result.
+- Design baseline: consume the complete S1 applicability register and B01-B05 blockers rather than
+  starting a new checklist. Verify complete deletion and restoration suppression, review D01-D03
+  deviations explicitly, and distinguish verification target from requirements actually satisfied.
 - Acceptance: no known blocking cross-account, session, configuration, logging, retention, recovery, or
   personal-data risk remains undocumented; `single-user-no-auth` limitations are prominent; authenticated
   modes fail closed; personal-data use in `single-user-no-auth` has a tested and documented compensating

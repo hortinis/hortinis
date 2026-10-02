@@ -86,17 +86,28 @@ Recommendations must be able to request an observation. An absent recorded event
 
 Accepted decision: account-free application use, optional accounts on individual servers, required accounts on shared instances; collaborative gardens deferred.
 
-[ADR-0013](../architecture/decisions/0013-identity-and-storage-defaults.md) provides built-in local accounts, cookie sessions, and optional federation. An addition or revision must formalize individual mode without an account, its access control, data scope, and possible transition to an instance with accounts. Authentication-library selection remains open.
+[ADR-0029](../architecture/decisions/0029-access-and-synchronization-scope.md) and the
+[access specification](../architecture/access-and-synchronization-scope.md) resolve the individual
+no-auth mode, explicit configuration with no runtime fallback, account/scope separation, controlled
+claim when enabling login, and retained offline data after sign-out. Authentication downgrades are
+rejected in the first release. ADR-0013's built-in accounts, cookie sessions, and optional federation
+remain the authenticated baseline. Authentication-library/factor selection, recovery mechanisms,
+numeric session limits, and enrollment mechanisms remain S8/S11 work.
 
-This work reconciles an accepted product decision with the architecture; it does not ask again whether accounts must be mandatory everywhere. The server's default setting has not been selected.
-
-Also specify session expiry, offline local access, sign-out, device revocation, and consequences for local data, consistently with existing technical questions.
+S1/R13's design deliverable is validated; runtime implementation remains planned. No implicit runtime
+mode is selected. Expiry/revocation pause synchronization without erasing local work; complete
+account/scope deletion and backup/local-copy boundaries are defined by the access privacy lifecycle.
+Deployment safeguards, retention values, rights/incident procedures, and ASVS deviations still require
+S15 evidence before real personal-data use.
 
 ### O-09 — Connecting existing data and handling conflicts
 
 Accepted decisions: DF-11 through DF-13.
 
-Determine how local data connects to an empty or already-used server, adding devices, changing servers, ownership identity, and isolation between accounts on a shared instance.
+The accepted access specification defines ownership, account isolation, first-binding outcomes,
+server/account replacement, and device-revocation behavior. S2-S14 implement those boundaries; populated
+server bootstrap/reconciliation remains gated on its complete anchored path. Detailed enrollment is
+S8/S11 work; export/import/cloning requires P0.6/S12 contracts.
 
 Establish business compatibility rules, the visible state during a conflict, offered choices, and conflicts involving relationships, corrections, or archiving. Two different fields can form an invalid combination.
 

@@ -8,7 +8,8 @@ Operators need enough diagnostics to maintain a self-hosted installation, while 
 
 ## Decision
 
-- Emit structured JSON logs with random request, trace, and synchronization operation identifiers.
+- Emit structured JSON logs with fresh random request, trace, and event correlation identifiers. Do not
+  use a persisted synchronization operation identifier as an ordinary diagnostic correlation field.
 - Provide health and readiness endpoints without exposing user data.
 - Keep OpenTelemetry integration optional and disabled by default.
 - Ship without telemetry, external crash reporting, advertising, optional trackers, third-party analytics, or third-party runtime assets. Local first-party analytics may be enabled by default only within the privacy boundary and activation gates defined by ADR-0017.
@@ -29,3 +30,11 @@ Operators need enough diagnostics to maintain a self-hosted installation, while 
 ## Relationship to later decisions
 
 ADR-0017 supersedes only this record's former prohibition on default analytics and its former consequence that the default application performed no analytics. All other decisions in this record continue to apply.
+
+ADR-0029 refines identifier logging for access and synchronization: raw account, scope, device, record,
+operation, and session identifiers do not belong in ordinary logs. Credentials, garden content,
+request/response bodies, precise locations, and raw source addresses are not logged. A separate
+security log may use only a documented, minimized, purpose-limited pseudonymous subject reference with
+restricted access and automatic retention; it is personal data and never an analytics dimension.
+The [access data lifecycle](../../privacy/access-data-lifecycle.md) supplies the initial inventory and
+proposed periods. S15 must accept effective periods and verify each logging layer before real-data use.
