@@ -27,8 +27,9 @@ namespace Hortinis.Sync.Models {
   @maxLength(2048)
   scalar ServerOrigin extends string;
 
-  model G2SynchronizationBoundary {
-    kind: "g2";
+  @doc("Synchronization without a server generation identifier.")
+  model GenerationlessSynchronizationBoundary {
+    kind: "generationless";
   }
 
   model GenerationSynchronizationBoundary {
@@ -38,7 +39,7 @@ namespace Hortinis.Sync.Models {
 
   @TypeSpec.JsonSchema.oneOf
   union SynchronizationBoundary {
-    g2: G2SynchronizationBoundary,
+    generationless: GenerationlessSynchronizationBoundary,
     generation: GenerationSynchronizationBoundary,
   }
 
@@ -51,7 +52,7 @@ namespace Hortinis.Sync.Models {
     @maxItems(2)
     @TypeSpec.JsonSchema.uniqueItems
     @TypeSpec.OpenAPI.extension("uniqueItems", true)
-    supportedBoundaries: ("g2" | "generation")[];
+    supportedBoundaries: ("generationless" | "generation")[];
 
     anchoredSnapshots: boolean;
   }

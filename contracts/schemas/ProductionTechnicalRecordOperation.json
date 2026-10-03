@@ -12,5 +12,5 @@
             "$ref": "DeleteTechnicalRecordOperation.json"
         }
     ],
-    "description": "The production operation union activated before generation envelopes become mandatory."
+    "description": "One create, replacement, or deletion operation carried by a generation-bound envelope."
 }

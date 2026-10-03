@@ -1,11 +1,11 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "G2SynchronizationBoundary.json",
+    "$id": "GenerationlessSynchronizationBoundary.json",
     "type": "object",
     "properties": {
         "kind": {
             "type": "string",
-            "const": "g2"
+            "const": "generationless"
         }
     },
     "required": [
@@ -13,5 +13,6 @@
     ],
     "unevaluatedProperties": {
         "not": {}
-    }
+    },
+    "description": "Synchronization without a server generation identifier."
 }

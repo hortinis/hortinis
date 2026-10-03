@@ -11,10 +11,10 @@ import java.util.List;
 public interface AccessWireContracts {
 
   /** Boundary variants keep generation presence explicit. */
-  public sealed interface Boundary permits G2Boundary, GenerationBoundary {}
+  public sealed interface Boundary permits GenerationlessBoundary, GenerationBoundary {}
 
-  /** The current G2 boundary makes no generation claim. */
-  public record G2Boundary() implements Boundary {}
+  /** Synchronization without a server generation identifier. */
+  public record GenerationlessBoundary() implements Boundary {}
 
   /** Future generation metadata does not advance a client cursor. */
   public record GenerationBoundary(String generation) implements Boundary {}

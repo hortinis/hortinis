@@ -45,7 +45,7 @@ namespace Hortinis.Sync {
     @route("/capabilities")
     @TypeSpec.OpenAPI.operationId("readServerCapabilities")
     @summary("Read public server compatibility information")
-    @doc("Contract-only until S6. Never return account/scope identity, content, or setup secrets.")
+    @doc("Return public server compatibility information without account or scope identity, content, or setup secrets.")
     readCapabilities(): ServerCapabilitiesResponse | AccessUnavailableResponse;
   }
 
@@ -55,7 +55,7 @@ namespace Hortinis.Sync {
     @route("/bootstrap")
     @TypeSpec.OpenAPI.operationId("readSynchronizationBootstrap")
     @summary("Observe the currently authorized synchronization destination")
-    @doc("Contract-only until S6. Resolve current access before reading population or identity. This observation does not authorize later exchange or advance a cursor.")
+    @doc("Resolve current access before reading population or identity. This observation does not authorize later exchange or advance a cursor.")
     readBootstrap():
       | SynchronizationBootstrapResponse
       | AuthenticationRequiredResponse
@@ -66,7 +66,7 @@ namespace Hortinis.Sync {
     @route("/bindings/confirm")
     @TypeSpec.OpenAPI.operationId("confirmEmptySynchronizationBinding")
     @summary("Confirm an observed empty synchronization destination")
-    @doc("Contract-only until S6. Revalidate current access, expectation, and empty population atomically. Never provision a scope from this request.")
+    @doc("Revalidate current access, expectation, and empty population atomically. Never provision a scope from this request.")
     confirmBinding(@body request: Models.ConfirmEmptyBindingRequest):
       | SynchronizationBootstrapResponse
       | InvalidRequestResponse

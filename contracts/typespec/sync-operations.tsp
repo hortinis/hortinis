@@ -62,7 +62,7 @@ namespace Hortinis.Sync {
     @route("/operations")
     @TypeSpec.OpenAPI.operationId("submitTechnicalRecordOperation")
     @summary("Submit one technical-record operation")
-    @doc("Accept or identically replay one create, replacement, or deletion operation. Generation binding becomes mandatory in G3.")
+    @doc("Accept or identically replay one create, replacement, or deletion operation.")
     submitOperation(
       @body operation: Models.TechnicalRecordOperation,
       @header("Sync-Expectation") expectation?: Models.ExchangeExpectation,

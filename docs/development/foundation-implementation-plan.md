@@ -980,7 +980,7 @@ task relies on them.
   Playwright topology.
 - Validation commands: `pnpm contracts:test`, `pnpm conformance:validate`, the independent web format,
   lint, architecture, type-check, unit, build, and Playwright commands; the backend unit, PostgreSQL
-  integration, Spotless, Checkstyle, and PMD tasks; and `pnpm g2e:topology`.
+  integration, Spotless, Checkstyle, and PMD tasks; and `pnpm test:e2e:topology`.
 - Validation evidence: on 2026-09-27, 75 web unit tests, five standard Chromium tests, the Java unit and
   PostgreSQL integration suites, contract and cross-runtime conformance validation, and all independent
   quality gates passed. The integrated Chromium scenario ran the production web bundle against the real
@@ -1215,7 +1215,7 @@ Validation on 2026-10-03:
   PostgreSQL integration tests, Spotless, Checkstyle, and PMD. Existing Checkstyle warnings remain.
   The temporary init script sets each project's build directory beneath `/tmp/hortinis-h0-gradle-build`;
   it does not change repository build configuration.
-- `pnpm g2e:topology`: could not start because `HORTINIS_POSTGRES_PASSWORD` is unset. Configure the local
+- `pnpm g2e:topology` (the former topology runner): could not start because `HORTINIS_POSTGRES_PASSWORD` is unset. Configure the local
   password matching the existing topology volume before rerunning; H0 is not yet fully validated under
   the plan's definition of done.
 - Repository whitespace, tracked-ignore rules, English language consistency, local link resolution,
@@ -1250,7 +1250,7 @@ Validation on 2026-10-03:
   the standard build subsequently passed after the Compose backend rebuild.
 - `pnpm conformance:validate` and `pnpm docs:validate`: passed; the response fixture is consumed by
   both runtimes and validates against the closed standalone and OpenAPI schemas.
-- `pnpm g2e:topology`: passed both real Chromium/Spring/PostgreSQL scenarios in an isolated test
+- `pnpm g2e:topology` (the former topology runner): passed both real Chromium/Spring/PostgreSQL scenarios in an isolated test
   project. PostgreSQL was stopped, the browser observed the fixed `503` and headers, PostgreSQL
   restarted, and automatic retry preserved the complete operation and produced one journal change.
   The lost-acknowledgement test blocks service workers for route injection and explicitly asserts

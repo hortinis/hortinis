@@ -200,7 +200,7 @@ preserves local data and pending intent.
   discovery/bootstrap/confirmation and closed local/error models, generated OpenAPI/JSON Schemas,
   branded browser identities, validating Java identities, internal immutable access context, and
   strict parsers. One shared `access-contract-parsing` fixture contains eighteen schema groups and
-  285 synthetic positive/negative cases; HTTP shapes exercise both emitters and local-only metadata stays outside
+  286 synthetic positive/negative cases; HTTP shapes exercise both emitters and local-only metadata stays outside
   public HTTP DTOs. Fixed generic errors and `no-store` headers are contract declarations.
 - Handoff: S3/S4/S5 consume the identities and application types. S6 must implement expectation
   lifecycle, destination validation, empty-admission concurrency, local binding transactions, and

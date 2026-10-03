@@ -83,7 +83,7 @@ class AccessConformanceFixturesTest {
     assertThat(parsed.serverInstanceId().value())
         .isEqualTo(value.get("serverInstanceId").textValue());
     assertThat(parsed.identity()).isInstanceOf(AccessWireContracts.ConfiguredIdentity.class);
-    assertThat(parsed.boundary()).isInstanceOf(AccessWireContracts.G2Boundary.class);
+    assertThat(parsed.boundary()).isInstanceOf(AccessWireContracts.GenerationlessBoundary.class);
     assertThat(parsed.toString()).doesNotContain(parsed.expectation());
   }
 

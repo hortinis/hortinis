@@ -19,7 +19,7 @@
                 "anyOf": [
                     {
                         "type": "string",
-                        "const": "g2"
+                        "const": "generationless"
                     },
                     {
                         "type": "string",

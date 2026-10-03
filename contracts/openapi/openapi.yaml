@@ -9,7 +9,7 @@ paths:
     get:
       operationId: readServerCapabilities
       summary: Read public server compatibility information
-      description: Contract-only until S6. Never return account/scope identity, content, or setup secrets.
+      description: Return public server compatibility information without account or scope identity, content, or setup secrets.
       parameters: []
       responses:
         '200':
@@ -42,7 +42,7 @@ paths:
     post:
       operationId: confirmEmptySynchronizationBinding
       summary: Confirm an observed empty synchronization destination
-      description: Contract-only until S6. Revalidate current access, expectation, and empty population atomically. Never provision a scope from this request.
+      description: Revalidate current access, expectation, and empty population atomically. Never provision a scope from this request.
       parameters: []
       responses:
         '200':
@@ -133,7 +133,7 @@ paths:
     get:
       operationId: readSynchronizationBootstrap
       summary: Observe the currently authorized synchronization destination
-      description: Contract-only until S6. Resolve current access before reading population or identity. This observation does not authorize later exchange or advance a cursor.
+      description: Resolve current access before reading population or identity. This observation does not authorize later exchange or advance a cursor.
       parameters: []
       responses:
         '200':
@@ -297,7 +297,7 @@ paths:
     post:
       operationId: submitTechnicalRecordOperation
       summary: Submit one technical-record operation
-      description: Accept or identically replay one create, replacement, or deletion operation. Generation binding becomes mandatory in G3.
+      description: Accept or identically replay one create, replacement, or deletion operation.
       parameters:
         - name: Sync-Expectation
           in: header
@@ -852,17 +852,6 @@ components:
       type: string
       pattern: ^[A-Za-z0-9_-]{1,256}$
       description: A non-secret expectation checked after independent authorization; never carried in URLs.
-    Models.G2SynchronizationBoundary:
-      type: object
-      required:
-        - kind
-      properties:
-        kind:
-          type: string
-          enum:
-            - g2
-      unevaluatedProperties:
-        not: {}
     Models.GenerationSynchronizationBoundary:
       type: object
       required:
@@ -877,6 +866,18 @@ components:
           $ref: '#/components/schemas/Models.SyncGeneration'
       unevaluatedProperties:
         not: {}
+    Models.GenerationlessSynchronizationBoundary:
+      type: object
+      required:
+        - kind
+      properties:
+        kind:
+          type: string
+          enum:
+            - generationless
+      unevaluatedProperties:
+        not: {}
+      description: Synchronization without a server generation identifier.
     Models.InvalidRequestError:
       type: object
       required:
@@ -1144,7 +1145,7 @@ components:
           items:
             type: string
             enum:
-              - g2
+              - generationless
               - generation
           minItems: 1
           maxItems: 2
@@ -1317,7 +1318,7 @@ components:
         not: {}
     Models.SynchronizationBoundary:
       anyOf:
-        - $ref: '#/components/schemas/Models.G2SynchronizationBoundary'
+        - $ref: '#/components/schemas/Models.GenerationlessSynchronizationBoundary'
         - $ref: '#/components/schemas/Models.GenerationSynchronizationBoundary'
     Models.SynchronizationScopeId:
       type: string

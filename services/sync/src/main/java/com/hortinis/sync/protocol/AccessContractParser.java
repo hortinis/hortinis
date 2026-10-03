@@ -24,7 +24,7 @@ public final class AccessContractParser {
   private static final String EXPECTATION_FIELD = "expectation";
   private static final String SYNCHRONIZATION_SCOPE_ID = "synchronizationScopeId";
   private static final String CONFIGURED = "configured";
-  private static final String G2 = "g2";
+  private static final String GENERATIONLESS = "generationless";
 
   private static final Pattern EXPECTATION_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{1,256}$");
   private static final Pattern ORIGIN_PATTERN = Pattern.compile("^https?://[a-z0-9.\\[\\]:%-]+$");
@@ -89,7 +89,7 @@ public final class AccessContractParser {
     List<String> supported = new ArrayList<>();
     for (JsonNode item : boundaries) {
       String kind = text(item);
-      require(G2.equals(kind) || GENERATION.equals(kind));
+      require(GENERATIONLESS.equals(kind) || GENERATION.equals(kind));
       require(!supported.contains(kind));
       supported.add(kind);
     }
@@ -148,9 +148,9 @@ public final class AccessContractParser {
   private static AccessWireContracts.Boundary boundary(JsonNode value) {
     require(value != null && value.isObject());
     String kind = text(value.get("kind"));
-    if (G2.equals(kind)) {
+    if (GENERATIONLESS.equals(kind)) {
       fields(value, "kind");
-      return new AccessWireContracts.G2Boundary();
+      return new AccessWireContracts.GenerationlessBoundary();
     }
     fields(value, "kind", GENERATION);
     require(GENERATION.equals(kind));

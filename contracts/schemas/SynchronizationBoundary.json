@@ -3,7 +3,7 @@
     "$id": "SynchronizationBoundary.json",
     "oneOf": [
         {
-            "$ref": "G2SynchronizationBoundary.json"
+            "$ref": "GenerationlessSynchronizationBoundary.json"
         },
         {
             "$ref": "GenerationSynchronizationBoundary.json"

@@ -39,7 +39,7 @@ boundary. S6 must serialize empty-path admission with publication; it may not le
 gap between confirmation and first transfer. An expired/stale admission requires recovery, preserving
 operation identity and local intent.
 
-The closed boundary variants are `g2` (no generation claim) and `generation` (a non-empty opaque
+The closed boundary variants are `generationless` (no generation claim) and `generation` (a non-empty opaque
 generation). Bootstrap metadata does not advance the local cursor. G3 still obtains/persists its initial
 generation and cursor together through a complete-history initial pull. Neither bootstrap nor
 confirmation implements G4 snapshots. Capabilities describe implemented server paths, not all paths

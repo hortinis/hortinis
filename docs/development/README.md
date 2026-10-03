@@ -156,22 +156,29 @@ pnpm --filter @hortinis/web test:e2e
 
 Playwright builds the production bundle, serves its static output on `http://127.0.0.1:4200`, and stops the server afterward. The PWA test waits until the service worker has cached the application shell, enables browser offline mode, and verifies that reloading returns the cached shell from the service worker. Tests currently cover Chromium only; the supported browser and device matrix remains part of the product quality-envelope work.
 
-G2e adds a separate real synchronization topology. It builds the production web bundle, starts the
-Compose Spring and PostgreSQL services, proxies the browser's same-origin API requests, and validates
-lost-acknowledgement replay, cross-context tombstone propagation, and recovery after a real PostgreSQL
-outage. The test-only Compose override bounds pool acquisition to one second so the server's `503`
-arrives before the browser request timeout. The outage test stops and restarts only PostgreSQL in its
-selected test project. Run it with a local-only database
-password; the command stops the containers but preserves the named database and Gradle-cache volumes:
+The full `pnpm validate` suite includes the real synchronization topology. Run it independently with:
 
 ```shell
-export HORTINIS_POSTGRES_PASSWORD='choose-a-local-password'
-pnpm g2e:topology
+pnpm test:e2e:topology
 ```
 
-`HORTINIS_G2E_PROJECT_NAME` defaults to `hortinis-g2e`. Set a different project name and a new local
-password to validate in isolated named volumes without touching an existing topology's data. The
-script stops that project's containers afterwards and preserves its volumes.
+The command builds the production web bundle, starts the Compose Spring and PostgreSQL services,
+proxies the browser's same-origin API requests, and validates lost-acknowledgement replay,
+cross-context tombstone propagation, and recovery after a real PostgreSQL outage. The test-only
+Compose override bounds pool acquisition to one second so the server's `503` arrives before the
+browser request timeout. The outage test stops and restarts only PostgreSQL in its test project.
+
+Each invocation generates a unique Compose project name and an ephemeral database password;
+no password configuration is required. Existing project-name and password environment values are
+ignored. Containers, networks, and that project's database and Gradle-cache volumes are removed
+on normal exit, failure, or handled interruption. Container build output and project caches stay in
+container-local temporary directories, leaving native Gradle output untouched. Existing development
+topology volumes remain intact.
+Docker Engine with Compose, installed workspace dependencies, and Playwright Chromium are required.
+Ports 4200 and 8080 must be available; concurrent topology runs are not supported.
+
+This command replaces `pnpm g2e:topology`. Historical G2e validation evidence refers to the earlier
+runner, which required a configured password and retained named volumes.
 
 Apply supported lint fixes followed by configured formatting with the ordered convenience command:
 

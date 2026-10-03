@@ -17,5 +17,5 @@
     "unevaluatedProperties": {
         "not": {}
     },
-    "description": "A production operation bound immutably to the generation of its first submission."
+    "description": "An operation bound immutably to the generation of its first submission."
 }

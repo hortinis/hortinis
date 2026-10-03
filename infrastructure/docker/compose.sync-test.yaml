@@ -1,0 +1,13 @@
+# Test-only request bounds make database-outage responses observable within the browser timeout.
+services:
+  sync:
+    command:
+      - gradle
+      - :services:sync:bootRun
+      - --no-daemon
+      - --project-cache-dir
+      - /tmp/hortinis-topology-project-cache
+      - --init-script
+      - /workspace/infrastructure/docker/topology-build.gradle.kts
+    environment:
+      SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT: "1000"

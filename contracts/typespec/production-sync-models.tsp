@@ -12,7 +12,7 @@ namespace Hortinis.Sync.Models {
   @minLength(1)
   scalar SnapshotCursor extends string;
 
-  @doc("The production operation union activated before generation envelopes become mandatory.")
+  @doc("One create, replacement, or deletion operation carried by a generation-bound envelope.")
   @discriminated(#{ envelope: "none", discriminatorPropertyName: "kind" })
   @TypeSpec.JsonSchema.oneOf
   union ProductionTechnicalRecordOperation {
@@ -21,7 +21,7 @@ namespace Hortinis.Sync.Models {
     delete: DeleteTechnicalRecordOperation,
   }
 
-  @doc("A production operation bound immutably to the generation of its first submission.")
+  @doc("An operation bound immutably to the generation of its first submission.")
   model GenerationBoundOperation {
     generation: SyncGeneration;
     operation: ProductionTechnicalRecordOperation;
@@ -164,12 +164,11 @@ namespace Hortinis.Sync.Models {
   }
 
   @doc("A domain-neutral per-record result of three-way full reconciliation.")
-  @discriminated(#{ envelope: "none", discriminatorPropertyName: "outcome" })
   @TypeSpec.JsonSchema.oneOf
   union ReconciliationOutcome {
-    adopt_server: AdoptServerReconciliationOutcome,
-    preserve_pending: PreservePendingReconciliationOutcome,
+    adoptServer: AdoptServerReconciliationOutcome,
+    preservePending: PreservePendingReconciliationOutcome,
     conflict: ConflictReconciliationOutcome,
-    keep_indeterminate: KeepIndeterminateReconciliationOutcome,
+    keepIndeterminate: KeepIndeterminateReconciliationOutcome,
   }
 }

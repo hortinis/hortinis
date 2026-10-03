@@ -76,7 +76,7 @@ H5 (no behavior change) --> H6 --> H7 ... G3 ... --> H8 (after G3)
   `503`, no partial writes, and a successful replay of the same operation afterwards; a browser
   transport test confirms `503` classification, and real HTTP recovery tests confirm one reserved
   attempt per dispatch, exhaustion, and manual recovery; add a shared fixture for the response.
-- Acceptance: stopping PostgreSQL during `pnpm g2e:topology` recovers through bounded retry after restart.
+- Acceptance: stopping PostgreSQL during `pnpm test:e2e:topology` recovers through bounded retry after restart.
 
 Implementation also covers recognized JDBC availability causes wrapped by transaction-start failure,
 and translates PostgreSQL lock timeout `55P03` in the JDBC adapter. The existing access-service `503`
@@ -147,7 +147,7 @@ Validation evidence is recorded in the foundation implementation plan.
 - Guardrails: add ESLint `max-lines` and `complexity` limits for `src/app/sync` and
   `src/app/persistence` so the files cannot regrow.
 - Acceptance: public API and persisted data unchanged; the facade is under about 150 lines; each
-  collaborator has direct unit tests; `pnpm validate` and `pnpm g2e:topology` pass.
+  collaborator has direct unit tests; `pnpm validate` and `pnpm test:e2e:topology` pass.
 
 ### H6. Outbox chains, coalescing, and persistence split
 
@@ -216,7 +216,7 @@ Validation evidence is recorded in the foundation implementation plan.
 ## 5. Definition of done for every increment
 
 - `pnpm validate`, `pnpm conformance:validate`, `pnpm docs:validate` (after H0), the backend
-  `integrationTest`, Spotless, Checkstyle, and PMD tasks, and `pnpm g2e:topology` pass.
+  `integrationTest`, Spotless, Checkstyle, and PMD tasks, and `pnpm test:e2e:topology` pass.
 - Contract changes regenerate artifacts and update fixtures for both runtimes in the same change.
 - `docs/development/foundation-implementation-plan.md`, `synchronization-policy-traceability.md`, and
   `project-review-action-plan.md` record status and validation evidence with the date.

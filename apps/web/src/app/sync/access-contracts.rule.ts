@@ -7,7 +7,8 @@ export type SynchronizationScopeId = Identity<'SynchronizationScopeId'>;
 export type AccountId = Identity<'AccountId'>;
 export type ServerAccessMode = 'single-user-no-auth' | 'single-user-auth' | 'multi-user-auth';
 export type SynchronizationBoundary =
-  { readonly kind: 'g2' } | { readonly kind: 'generation'; readonly generation: string };
+  | { readonly kind: 'generationless' }
+  | { readonly kind: 'generation'; readonly generation: string };
 export type AuthorizedScopeIdentity =
   | {
       readonly authority: 'configured';
@@ -25,7 +26,7 @@ export interface ServerCapabilities {
   readonly contractVersion: '1';
   readonly serverInstanceId: ServerInstanceId;
   readonly accessMode: ServerAccessMode;
-  readonly supportedBoundaries: readonly ('g2' | 'generation')[];
+  readonly supportedBoundaries: readonly ('generationless' | 'generation')[];
   readonly anchoredSnapshots: boolean;
 }
 
@@ -186,7 +187,7 @@ function origin(value: unknown): boolean {
 
 function boundary(value: unknown): boolean {
   return (
-    (object(value, ['kind']) && value['kind'] === 'g2') ||
+    (object(value, ['kind']) && value['kind'] === 'generationless') ||
     (object(value, ['kind', 'generation']) &&
       value['kind'] === 'generation' &&
       typeof value['generation'] === 'string' &&
@@ -223,7 +224,9 @@ function capabilities(value: unknown): boolean {
     Array.isArray(value['supportedBoundaries']) &&
     value['supportedBoundaries'].length >= 1 &&
     value['supportedBoundaries'].length <= 2 &&
-    value['supportedBoundaries'].every((item: unknown) => item === 'g2' || item === 'generation') &&
+    value['supportedBoundaries'].every(
+      (item: unknown) => item === 'generationless' || item === 'generation',
+    ) &&
     new Set(value['supportedBoundaries']).size === value['supportedBoundaries'].length &&
     typeof value['anchoredSnapshots'] === 'boolean'
   );

@@ -36,6 +36,10 @@ run_check ./gradlew --version
 run_check ./gradlew projects
 run_check ./gradlew build
 
+printf '\n%s\n' 'Synchronization topology validation'
+run_check node --test scripts/topology/*.test.mjs
+run_check pnpm test:e2e:topology
+
 printf '\n%s\n' 'Repository validation'
 run_check git diff --check
 run_check git ls-files -ci --exclude-standard

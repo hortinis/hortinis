@@ -110,15 +110,21 @@ async function journalOperationCount(
   }
 }
 
+function topologyProjectName(): string {
+  const project = process.env['HORTINIS_TOPOLOGY_PROJECT_NAME'];
+  if (!project) throw new Error('Run this suite through pnpm test:e2e:topology.');
+  return project;
+}
+
 async function postgresCommand(command: 'stop' | 'start'): Promise<void> {
   await execute('docker', [
     'compose',
     '--project-name',
-    process.env['HORTINIS_G2E_PROJECT_NAME'] ?? 'hortinis-g2e',
+    topologyProjectName(),
     '--file',
     resolve(__dirname, '../../../infrastructure/docker/compose.yaml'),
     '--file',
-    resolve(__dirname, '../../../infrastructure/docker/compose.g2e.yaml'),
+    resolve(__dirname, '../../../infrastructure/docker/compose.sync-test.yaml'),
     command,
     'postgres',
   ]);
