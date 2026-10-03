@@ -248,10 +248,12 @@ async function waitForLeaseRelease(page: import('@playwright/test').Page): Promi
           });
           return new Promise<boolean>((resolve, reject) => {
             const transaction = database.transaction('synchronizationLeases', 'readonly');
-            const request = transaction.objectStore('synchronizationLeases').count();
+            const request = transaction
+              .objectStore('synchronizationLeases')
+              .get('technical-records');
             transaction.oncomplete = () => {
               database.close();
-              resolve(request.result === 0);
+              resolve(!request.result || request.result.expiresAt <= Date.now());
             };
             transaction.onerror = () => reject(transaction.error);
           });

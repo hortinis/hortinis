@@ -1,6 +1,20 @@
 import { inject, Injectable } from '@angular/core';
 import { HortinisDatabase } from './hortinis-database';
-import type { LocalSynchronizationRetryState } from './local-synchronization-retry-state';
+import { MAXIMUM_SYNCHRONIZATION_ATTEMPTS } from './local-synchronization-retry-state';
+import type {
+  LocalSynchronizationRetryState,
+  SynchronizationRetryPhase,
+} from './local-synchronization-retry-state';
+import {
+  assertSynchronizationOwnership,
+  type SynchronizationOwnership,
+} from './synchronization-ownership';
+
+export class SynchronizationRetryBlockedError extends Error {
+  constructor(readonly state: LocalSynchronizationRetryState) {
+    super('Synchronization retry is not eligible.');
+  }
+}
 
 @Injectable({ providedIn: 'root' })
 export class SynchronizationRetryPersistence {
@@ -14,11 +28,77 @@ export class SynchronizationRetryPersistence {
     return this.database.synchronizationRetryState.get(workId);
   }
 
-  async put(state: LocalSynchronizationRetryState): Promise<void> {
-    await this.database.synchronizationRetryState.put(state);
+  async reserveAttempt(
+    workId: string,
+    phase: SynchronizationRetryPhase,
+    operationId: string | undefined,
+    ownership: SynchronizationOwnership,
+    timeoutMilliseconds: number,
+  ): Promise<void> {
+    const blocked = await this.database.transaction(
+      'rw',
+      this.database.synchronizationRetryState,
+      this.database.synchronizationLeases,
+      async () => {
+        await assertSynchronizationOwnership(this.database, ownership);
+        const current = await this.get(workId);
+        if (
+          current &&
+          (current.exhausted || current.attemptCount >= MAXIMUM_SYNCHRONIZATION_ATTEMPTS)
+        ) {
+          const exhausted = { ...current, exhausted: true, nextEligibleAt: null };
+          delete exhausted.inFlight;
+          await this.database.synchronizationRetryState.put(exhausted);
+          return exhausted;
+        }
+        if (
+          current?.nextEligibleAt !== null &&
+          current?.nextEligibleAt !== undefined &&
+          current.nextEligibleAt > ownership.now()
+        ) {
+          return current;
+        }
+        await this.database.synchronizationRetryState.put({
+          workId,
+          scope: 'technical-records',
+          phase,
+          ...(operationId ? { operationId } : {}),
+          attemptCount: (current?.attemptCount ?? 0) + 1,
+          nextEligibleAt: ownership.now() + timeoutMilliseconds,
+          failureCategory: current?.failureCategory ?? 'unavailable',
+          exhausted: false,
+          inFlight: true,
+        });
+        return undefined;
+      },
+    );
+    if (blocked) throw new SynchronizationRetryBlockedError(blocked);
   }
 
-  async delete(workId: string): Promise<void> {
-    await this.database.synchronizationRetryState.delete(workId);
+  async put(
+    state: LocalSynchronizationRetryState,
+    ownership?: SynchronizationOwnership,
+  ): Promise<void> {
+    await this.database.transaction(
+      'rw',
+      this.database.synchronizationRetryState,
+      this.database.synchronizationLeases,
+      async () => {
+        await assertSynchronizationOwnership(this.database, ownership);
+        await this.database.synchronizationRetryState.put(state);
+      },
+    );
+  }
+
+  async delete(workId: string, ownership?: SynchronizationOwnership): Promise<void> {
+    await this.database.transaction(
+      'rw',
+      this.database.synchronizationRetryState,
+      this.database.synchronizationLeases,
+      async () => {
+        await assertSynchronizationOwnership(this.database, ownership);
+        await this.database.synchronizationRetryState.delete(workId);
+      },
+    );
   }
 }

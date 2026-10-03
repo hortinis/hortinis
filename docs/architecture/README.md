@@ -76,6 +76,7 @@ Separate packages or modules require demonstrated reuse or a need for independen
 - [ADR-0027: Bounded synchronization retry and manual recovery](decisions/0027-bounded-synchronization-retry.md)
 - [ADR-0028: Browser synchronization coordination](decisions/0028-browser-synchronization-coordination.md)
 - [ADR-0029: Access and synchronization-scope ownership](decisions/0029-access-and-synchronization-scope.md)
+- [ADR-0030: Browser accepted state and recovery completion](decisions/0030-browser-accepted-state-and-recovery.md)
 
 ## Access design and implementation handoff
 

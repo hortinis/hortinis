@@ -26,7 +26,7 @@ describe('HortinisDatabase', () => {
     await database.open();
 
     expect(database.isOpen()).toBe(true);
-    expect(database.verno).toBe(4);
+    expect(database.verno).toBe(5);
     expect(database.tables.map((table) => table.name)).toEqual([
       'technicalRecords',
       'outboxOperations',
@@ -38,6 +38,7 @@ describe('HortinisDatabase', () => {
       'deletionConflicts',
       'synchronizationRetryState',
       'synchronizationLeases',
+      'acceptedTechnicalRecords',
     ]);
   });
 
@@ -83,11 +84,12 @@ describe('HortinisDatabase', () => {
 
     const upgraded = track(new HortinisDatabase(name));
     await upgraded.open();
-    expect(upgraded.verno).toBe(4);
+    expect(upgraded.verno).toBe(5);
     await expect(upgraded.technicalRecords.toArray()).resolves.toEqual([record]);
     await expect(upgraded.outboxOperations.toArray()).resolves.toEqual([operation]);
     await expect(upgraded.synchronizationState.get('technical-records')).resolves.toMatchObject({
       cursor: 'saved-cursor',
+      repairRequired: true,
     });
     await expect(upgraded.technicalTombstones.count()).resolves.toBe(0);
     await expect(upgraded.pendingDeletionRecords.count()).resolves.toBe(0);
@@ -116,10 +118,11 @@ describe('HortinisDatabase', () => {
     const upgraded = track(new HortinisDatabase(name));
     await upgraded.open();
 
-    expect(upgraded.verno).toBe(4);
+    expect(upgraded.verno).toBe(5);
     await expect(upgraded.technicalTombstones.toArray()).resolves.toEqual([tombstone]);
     await expect(upgraded.synchronizationState.get('technical-records')).resolves.toMatchObject({
       cursor: 'version-two-cursor',
+      repairRequired: true,
     });
     await expect(upgraded.synchronizationRetryState.count()).resolves.toBe(0);
     await expect(upgraded.synchronizationLeases.count()).resolves.toBe(0);

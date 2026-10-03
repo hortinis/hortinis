@@ -151,7 +151,8 @@ describe('bounded synchronization retry', () => {
     await expect(
       database.synchronizationRetryState.get(pushRetryWorkId(operation.operationId)),
     ).resolves.toMatchObject({
-      attemptCount: 0,
+      attemptCount: 1,
+      inFlight: true,
       exhausted: false,
       operationId: operation.operationId,
     });

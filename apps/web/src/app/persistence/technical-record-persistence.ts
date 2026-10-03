@@ -7,6 +7,7 @@ import type {
   RecordIdentifierRetiredError,
   RevisionConflictError,
   TechnicalRecordOperation,
+  TechnicalRecord,
 } from '../sync/conformance';
 import { equalTechnicalRecordOperations, isChangePage } from '../sync/conformance';
 import { HortinisDatabase } from './hortinis-database';
@@ -20,6 +21,11 @@ import type {
 } from './local-technical-record-operation';
 import { toSubmittedTechnicalRecordOperation } from './local-technical-record-operation';
 import type { LocalSynchronizationState } from './local-synchronization-state';
+import { pushRetryWorkId, TECHNICAL_PULL_RETRY_WORK_ID } from './local-synchronization-retry-state';
+import {
+  assertSynchronizationOwnership,
+  type SynchronizationOwnership,
+} from './synchronization-ownership';
 
 const TECHNICAL_SYNCHRONIZATION_SCOPE = 'technical-records';
 
@@ -196,6 +202,7 @@ export class TechnicalRecordPersistence {
   async commitRevisionConflict(
     operation: TechnicalRecordOperation,
     conflict: RevisionConflictError,
+    ownership?: SynchronizationOwnership,
   ): Promise<void> {
     if (
       operation.kind === 'create' ||
@@ -208,11 +215,16 @@ export class TechnicalRecordPersistence {
 
     await this.database.transaction(
       'rw',
-      this.database.technicalRecords,
-      this.database.pendingDeletionRecords,
-      this.database.outboxOperations,
-      this.database.revisionConflicts,
+      [
+        this.database.technicalRecords,
+        this.database.pendingDeletionRecords,
+        this.database.outboxOperations,
+        this.database.revisionConflicts,
+        this.database.synchronizationLeases,
+        this.database.synchronizationRetryState,
+      ],
       async () => {
+        await assertSynchronizationOwnership(this.database, ownership);
         const pending = await this.database.outboxOperations.get(operation.operationId);
         if (!pending) {
           throw new Error('The conflicted operation is no longer pending.');
@@ -229,6 +241,9 @@ export class TechnicalRecordPersistence {
         }
 
         await this.database.revisionConflicts.put(conflict);
+        await this.database.synchronizationRetryState.delete(
+          pushRetryWorkId(operation.operationId),
+        );
       },
     );
   }
@@ -236,6 +251,7 @@ export class TechnicalRecordPersistence {
   async commitDeletionConflict(
     operation: TechnicalRecordOperation,
     error: RecordNotFoundError | RecordIdentifierRetiredError,
+    ownership?: SynchronizationOwnership,
   ): Promise<void> {
     if (
       error.operationId !== operation.operationId ||
@@ -249,7 +265,10 @@ export class TechnicalRecordPersistence {
       'rw',
       this.database.outboxOperations,
       this.database.deletionConflicts,
+      this.database.synchronizationLeases,
+      this.database.synchronizationRetryState,
       async () => {
+        await assertSynchronizationOwnership(this.database, ownership);
         const pending = await this.database.outboxOperations.get(operation.operationId);
         if (
           !pending ||
@@ -262,6 +281,9 @@ export class TechnicalRecordPersistence {
           recordId: operation.recordId,
           reason: error.code === 'RECORD_NOT_FOUND' ? 'record-not-found' : 'identifier-retired',
         });
+        await this.database.synchronizationRetryState.delete(
+          pushRetryWorkId(operation.operationId),
+        );
       },
     );
   }
@@ -269,6 +291,7 @@ export class TechnicalRecordPersistence {
   async commitAcceptedResult(
     operation: TechnicalRecordOperation,
     result: OperationResult,
+    ownership?: SynchronizationOwnership,
   ): Promise<void> {
     if (
       result.operationId !== operation.operationId ||
@@ -291,9 +314,16 @@ export class TechnicalRecordPersistence {
         this.database.outboxOperations,
         this.database.acceptedOperationResults,
         this.database.deletionConflicts,
+        this.database.acceptedTechnicalRecords,
+        this.database.synchronizationLeases,
+        this.database.synchronizationRetryState,
       ],
       async () => {
+        await assertSynchronizationOwnership(this.database, ownership);
         const pending = await this.database.outboxOperations.get(operation.operationId);
+        await this.database.synchronizationRetryState.delete(
+          pushRetryWorkId(operation.operationId),
+        );
         if (!pending) {
           const stored = await this.database.acceptedOperationResults.get(operation.operationId);
           if (stored && sameAcceptedResult(stored, result)) return;
@@ -318,6 +348,7 @@ export class TechnicalRecordPersistence {
             throw new Error('The pending deletion record is missing.');
           }
           await this.database.technicalTombstones.put(result.tombstone);
+          await this.database.acceptedTechnicalRecords.delete(operation.recordId);
           await this.database.pendingDeletionRecords.delete(operation.recordId);
           await this.database.technicalRecords.delete(operation.recordId);
           await this.database.outboxOperations.delete(operation.operationId);
@@ -366,31 +397,9 @@ export class TechnicalRecordPersistence {
           await this.database.outboxOperations.put(readySuccessor);
         }
 
-        if (pendingDeletion) {
-          const currentRevision = pendingDeletion.lastAcceptedRevision;
-          if (
-            currentRevision === null ||
-            BigInt(result.record.revision) > BigInt(currentRevision)
-          ) {
-            await this.database.pendingDeletionRecords.put({
-              ...pendingDeletion,
-              lastAcceptedRevision: result.record.revision,
-            });
-          }
-        } else if (localRecord) {
-          const currentRevision = localRecord.lastAcceptedRevision;
-          if (
-            currentRevision === null ||
-            BigInt(result.record.revision) > BigInt(currentRevision)
-          ) {
-            await this.database.technicalRecords.put({
-              ...localRecord,
-              value: successors.length === 0 ? result.record.value : localRecord.value,
-              lastAcceptedRevision: result.record.revision,
-            });
-          }
-        }
+        await this.storeAcceptedRecord(result.record);
         await this.database.outboxOperations.delete(operation.operationId);
+        await this.projectAcceptedRecord(operation.recordId);
       },
     );
   }
@@ -402,7 +411,8 @@ export class TechnicalRecordPersistence {
 
   async commitPulledPage(
     page: ChangePage,
-    boundary?: { expectedCursor: string | undefined },
+    boundary?: { expectedCursor: string | undefined; repair?: boolean },
+    ownership?: SynchronizationOwnership,
   ): Promise<void> {
     if (!isChangePage(page)) {
       throw new Error('The pulled change page does not satisfy the synchronization contract.');
@@ -432,13 +442,24 @@ export class TechnicalRecordPersistence {
         this.database.acceptedOperationResults,
         this.database.deletionConflicts,
         this.database.synchronizationState,
+        this.database.acceptedTechnicalRecords,
+        this.database.synchronizationLeases,
+        this.database.synchronizationRetryState,
       ],
       async () => {
+        await assertSynchronizationOwnership(this.database, ownership);
+        const previousState = await this.database.synchronizationState.get(
+          TECHNICAL_SYNCHRONIZATION_SCOPE,
+        );
+        const repairing = boundary?.repair === true;
+        if (repairing && !previousState?.repairRequired) {
+          throw new Error('The accepted-state repair is no longer active.');
+        }
         if (boundary) {
           const current = await this.database.synchronizationState.get(
             TECHNICAL_SYNCHRONIZATION_SCOPE,
           );
-          if (current?.cursor !== boundary.expectedCursor) {
+          if ((repairing ? current?.repairCursor : current?.cursor) !== boundary.expectedCursor) {
             throw new Error('Synchronization ownership changed before the page was committed.');
           }
         }
@@ -469,6 +490,7 @@ export class TechnicalRecordPersistence {
               throw new Error('The pulled tombstone precedes the accepted local revision.');
             }
             await this.database.technicalTombstones.put(tombstone);
+            await this.database.acceptedTechnicalRecords.delete(tombstone.recordId);
             await this.database.technicalRecords.delete(tombstone.recordId);
             for (const operation of pending) {
               if (operation.operationId === change.operationId && operation.kind === 'delete') {
@@ -487,16 +509,22 @@ export class TechnicalRecordPersistence {
                   sequence: change.sequence,
                 });
                 await this.database.outboxOperations.delete(operation.operationId);
+                await this.database.synchronizationRetryState.delete(
+                  pushRetryWorkId(operation.operationId),
+                );
                 await this.database.pendingDeletionRecords.delete(tombstone.recordId);
               } else {
+                const previousConflict = await this.database.deletionConflicts.get(
+                  operation.operationId,
+                );
+                const preservedLocalRecord =
+                  localRecord ?? deletionBase ?? previousConflict?.localRecord;
                 await this.database.deletionConflicts.put({
                   operationId: operation.operationId,
                   recordId: tombstone.recordId,
                   reason: 'remote-deletion',
                   tombstone,
-                  ...(localRecord || deletionBase
-                    ? { localRecord: localRecord ?? deletionBase }
-                    : {}),
+                  ...(preservedLocalRecord ? { localRecord: preservedLocalRecord } : {}),
                 });
               }
             }
@@ -505,41 +533,60 @@ export class TechnicalRecordPersistence {
 
           const record = change.record;
           if (await this.database.technicalTombstones.get(record.recordId)) continue;
-          const localRecord = await this.database.technicalRecords.get(record.recordId);
-          const deletionBase = await this.database.pendingDeletionRecords.get(record.recordId);
-          const currentRevision =
-            localRecord?.lastAcceptedRevision ?? deletionBase?.lastAcceptedRevision;
-          if (
-            currentRevision !== null &&
-            currentRevision !== undefined &&
-            BigInt(record.revision) <= BigInt(currentRevision)
-          )
-            continue;
-          const pending = await this.database.outboxOperations
-            .where('recordId')
-            .equals(record.recordId)
-            .count();
-          if (deletionBase) {
-            await this.database.pendingDeletionRecords.put({
-              ...deletionBase,
-              lastAcceptedRevision: record.revision,
-            });
-          } else {
-            await this.database.technicalRecords.put({
-              recordId: record.recordId,
-              value: pending > 0 && localRecord ? localRecord.value : record.value,
-              lastAcceptedRevision: record.revision,
-            });
-          }
+          await this.storeAcceptedRecord(record);
+          if (!repairing) await this.projectAcceptedRecord(record.recordId);
         }
 
-        const state: LocalSynchronizationState = {
-          scope: TECHNICAL_SYNCHRONIZATION_SCOPE,
-          cursor: page.nextCursor,
-        };
+        const state: LocalSynchronizationState =
+          repairing && page.hasMore
+            ? { ...previousState!, repairCursor: page.nextCursor }
+            : { scope: TECHNICAL_SYNCHRONIZATION_SCOPE, cursor: page.nextCursor };
+        if (repairing && !page.hasMore) {
+          for (const record of await this.database.acceptedTechnicalRecords.toArray()) {
+            await this.projectAcceptedRecord(record.recordId);
+          }
+        }
         await this.database.synchronizationState.put(state);
+        await this.database.synchronizationRetryState.delete(TECHNICAL_PULL_RETRY_WORK_ID);
       },
     );
+  }
+  async pullBoundary(): Promise<{ expectedCursor: string | undefined; repair: boolean }> {
+    const state = await this.database.synchronizationState.get(TECHNICAL_SYNCHRONIZATION_SCOPE);
+    return {
+      expectedCursor: state?.repairRequired ? state.repairCursor : state?.cursor,
+      repair: state?.repairRequired === true,
+    };
+  }
+
+  private async storeAcceptedRecord(record: TechnicalRecord): Promise<void> {
+    const current = await this.database.acceptedTechnicalRecords.get(record.recordId);
+    if (current && BigInt(current.revision) > BigInt(record.revision)) return;
+    if (current?.revision === record.revision && current.value !== record.value) {
+      throw new Error('Equal accepted revisions contain different values.');
+    }
+    await this.database.acceptedTechnicalRecords.put(record);
+  }
+
+  private async projectAcceptedRecord(recordId: string): Promise<void> {
+    if (await this.database.technicalTombstones.get(recordId)) return;
+    const accepted = await this.database.acceptedTechnicalRecords.get(recordId);
+    if (!accepted) return;
+    const deletion = await this.database.pendingDeletionRecords.get(recordId);
+    if (deletion) {
+      await this.database.pendingDeletionRecords.put({
+        ...deletion,
+        lastAcceptedRevision: accepted.revision,
+      });
+      return;
+    }
+    const local = await this.database.technicalRecords.get(recordId);
+    const pending = await this.database.outboxOperations.where('recordId').equals(recordId).count();
+    await this.database.technicalRecords.put({
+      recordId,
+      value: pending > 0 && local ? local.value : accepted.value,
+      lastAcceptedRevision: accepted.revision,
+    });
   }
 }
 

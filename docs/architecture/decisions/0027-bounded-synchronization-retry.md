@@ -34,7 +34,16 @@ The browser persists privacy-safe retry state before scheduling another attempt.
 synchronization scope, push or pull phase, the operation identifier for push work where applicable, the
 attempt count, next eligible time, failure category, and whether the item is exhausted. It contains no
 record value or response body. Reload restores the remaining schedule instead of resetting its budget.
-A successful work item clears its retry state.
+A successful work item clears its retry state in the same transaction that commits its result or page.
+
+Reserve each attempt durably before dispatch, under the current lease, rather than incrementing only
+when a failure returns. An in-flight marker and request deadline preserve the reservation across reload
+or ownership transfer. Interrupted requests remain counted because their server acceptance may be
+unknown. After an interrupted fifth attempt, automatic recovery is exhausted until manual retry.
+Failure settlement replaces the in-flight marker with its bounded jitter schedule or exhaustion; offline
+observations reserve no attempt. Non-retryable responses stop the cycle without scheduling repetition.
+Lease-fenced transaction checks apply to reservation, settlement, reset, and deletion. A former owner
+cannot change the successor's retry state.
 
 An online event resumes the existing non-exhausted cycle without resetting its attempt count. Window
 focus does not start or reset recovery. Neither online nor focus events clear exhaustion; only the
@@ -75,7 +84,8 @@ suspended browser continues executing.
 - The immediate attempt and at most four automatic retries reuse the exact operation or cursor.
 - Full-jitter delays stay within the selected exponential cap.
 - Offline periods consume no attempt and do not block local commits.
-- Reload restores a scheduled or exhausted item without resetting its attempt count.
+- Reload restores a scheduled, in-flight, or exhausted item without resetting its attempt count.
+- Ownership takeover cannot submit a sixth attempt or clear exhaustion without manual recovery.
 - Exhaustion is observable and leaves pending work intact.
 - Manual recovery starts a fresh bounded cycle without changing operation identity or cursor.
 - Persisted and logged retry metadata contains no user-provided content.

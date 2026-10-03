@@ -102,9 +102,11 @@ and **L** needs multiple reviewable implementation changes.
   preserve pending successors and local intent; validate that results correspond to the pending operation.
 - Acceptance: pull revision 2, then apply the delayed acknowledgement for revision 1; revision 2 remains
   current. Also cover a newer local successor, repeated acknowledgement, rollback and database reopen.
-- Validation evidence: G2e makes accepted-result projection updates revision-monotonic. The regression
-  test pulls revision 2 before acknowledging revision 1, repeats the acknowledgement after reopening
-  IndexedDB, and retains revision 2 while storing the receipt and completing the outbox operation.
+- Validation evidence: ADR-0030 separates accepted server values from pending proposals. Regression
+  tests retain both revision 2 and its value after a delayed revision-1 acknowledgement, preserve
+  replacement/deletion successors, reject contradictory equal revisions, and repeat acknowledgement
+  after reopening. Version-5 legacy repair preserves local work and the normal cursor across offline
+  operation, a failed page, and reopening before rebuilding accepted state and permitting upload.
 
 ### R04 — Coordinate synchronization across browser tabs
 
@@ -118,8 +120,10 @@ and **L** needs multiple reviewable implementation changes.
   suspending the coordinating tab does not permanently block recovery.
 - Validation evidence: ADR-0028 and G2e add a renewable, expiring IndexedDB lease with fencing tokens.
   Shared-database tests prove ownership transfer after expiry, prevent an old owner from releasing its
-  successor's lease, and reject a late page when another owner has already advanced the cursor. Local
-  edit/outbox tests remain independent of lease ownership.
+  successor's lease, and reject late success, failure, conflict, and page responses even when the cursor
+  has not advanced. Durable pre-dispatch reservations prevent a resumed former owner from making a
+  sixth automatic attempt. Tests also cover expired/failed renewal, fencing-token continuity, local
+  edits during pulling or release, shared-context edits, and manual-only exhaustion reset.
 
 ### R05 — Complete browser/server deletion compatibility
 

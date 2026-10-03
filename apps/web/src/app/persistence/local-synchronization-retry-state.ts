@@ -1,3 +1,5 @@
+export const MAXIMUM_SYNCHRONIZATION_ATTEMPTS = 5;
+
 export type SynchronizationRetryPhase = 'push' | 'pull';
 
 export type SynchronizationRetryFailureCategory = 'unavailable' | 'local-persistence';
@@ -11,6 +13,7 @@ export interface LocalSynchronizationRetryState {
   nextEligibleAt: number | null;
   failureCategory: SynchronizationRetryFailureCategory;
   exhausted: boolean;
+  inFlight?: true;
 }
 
 export function pushRetryWorkId(operationId: string): string {

@@ -2,6 +2,10 @@ import { inject, Injectable, InjectionToken } from '@angular/core';
 import { HortinisDatabase } from '../persistence/hortinis-database';
 import type { LocalSynchronizationLease } from '../persistence/local-synchronization-lease';
 import {
+  assertSynchronizationOwnership,
+  type SynchronizationOwnership,
+} from '../persistence/synchronization-ownership';
+import {
   BrowserSynchronizationScheduler,
   SYNCHRONIZATION_CLOCK,
   type SynchronizationScheduler,
@@ -52,14 +56,21 @@ export class SynchronizationCoordinator {
     });
   }
 
-  keepAlive(lease: LocalSynchronizationLease): () => void {
+  keepAlive(lease: LocalSynchronizationLease, onLost: () => void = () => undefined): () => void {
     let cancelled = false;
     let cancelScheduled: (() => void) | undefined;
     const schedule = () => {
       cancelScheduled = this.scheduler.schedule(() => {
-        void this.renew(lease).then((renewed) => {
-          if (!cancelled && renewed) schedule();
-        });
+        if (cancelled) return;
+        void this.renew(lease)
+          .then((renewed) => {
+            if (cancelled) return;
+            if (renewed) schedule();
+            else onLost();
+          })
+          .catch(() => {
+            if (!cancelled) onLost();
+          });
       }, LEASE_RENEWAL_MILLISECONDS);
     };
     schedule();
@@ -73,15 +84,25 @@ export class SynchronizationCoordinator {
     await this.database.transaction('rw', this.database.synchronizationLeases, async () => {
       const current = await this.database.synchronizationLeases.get(SCOPE);
       if (current?.ownerId === lease.ownerId && current.fencingToken === lease.fencingToken) {
-        await this.database.synchronizationLeases.delete(SCOPE);
+        await this.database.synchronizationLeases.put({ ...current, expiresAt: 0 });
       }
     });
+  }
+
+  async assertOwner(ownership: SynchronizationOwnership): Promise<void> {
+    await this.database.transaction('r', this.database.synchronizationLeases, () =>
+      assertSynchronizationOwnership(this.database, ownership),
+    );
   }
 
   private async renew(lease: LocalSynchronizationLease): Promise<boolean> {
     return this.database.transaction('rw', this.database.synchronizationLeases, async () => {
       const current = await this.database.synchronizationLeases.get(SCOPE);
-      if (current?.ownerId !== lease.ownerId || current.fencingToken !== lease.fencingToken) {
+      if (
+        current?.ownerId !== lease.ownerId ||
+        current.fencingToken !== lease.fencingToken ||
+        current.expiresAt <= this.clock.now()
+      ) {
         return false;
       }
       current.expiresAt = this.clock.now() + LEASE_DURATION_MILLISECONDS;

@@ -149,7 +149,7 @@ describe('technical record local persistence', () => {
 
     await expect(database.technicalRecords.get(pending.recordId)).resolves.toEqual({
       recordId: pending.recordId,
-      value: pending.value,
+      value: 'newer server value',
       lastAcceptedRevision: '2',
     });
     await expect(database.acceptedOperationResults.get(pending.operationId)).resolves.toEqual(
@@ -162,6 +162,7 @@ describe('technical record local persistence', () => {
     const reopened = openDatabase(name);
     await expect(reopened.technicalRecords.get(pending.recordId)).resolves.toMatchObject({
       lastAcceptedRevision: '2',
+      value: 'newer server value',
     });
     const reopenedPersistence = persistenceFor(reopened);
     await expect(

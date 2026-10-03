@@ -117,3 +117,12 @@ recovery states, and explicit manual retry. ADR-0028 serializes each browser syn
 an expiring IndexedDB lease and fencing token; pulled-page cursor commits also verify their starting
 cursor so a late former owner cannot regress progress. It does not use the browser Background Sync API
 or claim execution while the application is closed or suspended.
+
+The browser stores accepted live server values separately from visible pending proposals as specified
+by ADR-0030. Dexie version 5 repairs legacy accepted state by resumably replaying the current G2 complete
+history before upload. The normal cursor and live projection remain retained until repair completes;
+local intent and deletion evidence survive failure or reload. Recovery drains local edits made during
+pulling and preserves requests received during lease release. Lease ownership is checked in each
+synchronization transaction, and request attempts are reserved durably before dispatch. A former owner
+returns `ownership-lost` locally and cannot bypass the retry budget. These changes introduce no HTTP
+wire-contract changes; generation-aware repair after compaction remains assigned to G3/G4.

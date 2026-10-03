@@ -22,3 +22,8 @@ export const HORTINIS_DATABASE_SCHEMA_V4 = {
   ...HORTINIS_DATABASE_SCHEMA_V3,
   synchronizationLeases: 'scope, ownerId, expiresAt',
 };
+
+export const HORTINIS_DATABASE_SCHEMA_V5 = {
+  ...HORTINIS_DATABASE_SCHEMA_V4,
+  acceptedTechnicalRecords: 'recordId',
+};
