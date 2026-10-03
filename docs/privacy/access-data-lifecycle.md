@@ -80,6 +80,14 @@ real-data use. Account inactivity alone does not discard garden history or unres
 
 ## Complete deletion and restoration
 
+S2 refines metadata representations without activating new processing: local version-one binding and
+exchange fences remain browser-only, public discovery excludes account/scope identity, and authorized
+bootstrap exposes only the required destination identity. The non-secret exchange expectation is
+transient, excluded from local binding persistence and all logs. S6 must specify its bounded handshake
+lifecycle and purge before persisting it. S2 fixed errors expose no identity or content and declare
+`Cache-Control: no-store`; actual transport/caching behavior remains adapter evidence. All parsing
+fixtures are synthetic. See [access contracts](../api/access-and-binding-contracts.md).
+
 Separate account closure from scope erasure, local browser deletion, and user-managed export disposal.
 Explain these boundaries before confirmation. Offer export and identify the destination being deleted;
 do not make keeping a backup a prerequisite to exercising deletion rights.

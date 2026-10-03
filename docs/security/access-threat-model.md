@@ -59,6 +59,12 @@ stronger controls, not a claim of Level 3 verification. Scenario IDs refer to th
 
 ## Verification target, deviations, and blockers
 
+S2 adds contract/parsing evidence for T01/T02/T09/T15 in the
+[access contracts](../api/access-and-binding-contracts.md): closed synthetic fixtures, distinct identity
+types, generic fixed errors, non-cacheable HTTP declarations, and internal-only context construction.
+Destination expectations are non-secret and never authorize a request. Their runtime authorization,
+race/replay checks, HTTP headers, and log handling remain S4/S6/S7 and authenticated-task evidence.
+
 Target all applicable Level 1 and Level 2 controls in ASVS 5.0.0. The catalog register distinguishes
 applicability from implemented/verified state. Conditional features cannot be enabled without resolving
 their controls. No Level 2 certification/completion claim follows from this design.

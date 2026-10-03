@@ -91,6 +91,9 @@ test("the committed OpenAPI contract exposes the versioned technical synchroniza
   assert.equal(document.openapi, "3.1.0");
   assert.equal(document.info.version, "1.0.0");
   assert.deepEqual(Object.keys(document.paths).sort(), [
+    "/api/v1/server/capabilities",
+    "/api/v1/sync/bindings/confirm",
+    "/api/v1/sync/bootstrap",
     "/api/v1/sync/changes",
     "/api/v1/sync/operations",
     "/api/v1/sync/reconciliations",
@@ -102,7 +105,7 @@ test("the committed OpenAPI contract exposes the versioned technical synchroniza
   );
   assert.deepEqual(
     Object.keys(document.paths["/api/v1/sync/operations"].post.responses).sort(),
-    ["200", "400", "404", "409"],
+    ["200", "400", "401", "403", "404", "409", "503"],
   );
   assert.equal(
     document.paths["/api/v1/sync/changes"].get.parameters[0].schema.$ref,
@@ -111,6 +114,10 @@ test("the committed OpenAPI contract exposes the versioned technical synchroniza
   assert.deepEqual(Object.keys(document.paths["/api/v1/sync/changes"].get.responses).sort(), [
     "200",
     "400",
+    "401",
+    "403",
+    "409",
+    "503",
   ]);
   assert.equal(
     document.paths["/api/v1/sync/reconciliations"].post.requestBody.content["application/json"]
@@ -119,13 +126,13 @@ test("the committed OpenAPI contract exposes the versioned technical synchroniza
   );
   assert.deepEqual(
     Object.keys(document.paths["/api/v1/sync/reconciliations"].post.responses).sort(),
-    ["201", "400"],
+    ["201", "400", "401", "403", "409", "503"],
   );
   assert.deepEqual(
     Object.keys(
       document.paths["/api/v1/sync/reconciliations/{reconciliationId}/snapshot"].get.responses,
     ).sort(),
-    ["200", "400", "410"],
+    ["200", "400", "401", "403", "409", "410", "503"],
   );
   assertLocalReferences(document, openApiPath);
 });

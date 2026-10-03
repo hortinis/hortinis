@@ -994,8 +994,9 @@ task relies on them.
 - Status: `planned`.
 - Depends on: G2e and the accepted S1 access/scope decision.
 - Design prerequisite: S1 is validated by ADR-0029 and its access, threat/ASVS, and privacy lifecycle
-  records. This satisfies G2f's design dependency; scope contracts/adapters and isolation evidence remain
-  planned, using synthetic data only.
+  records. S2's contract/application-type and cross-runtime parsing boundaries are also validated;
+  scope adapters and isolation evidence remain planned, using synthetic data only. See the
+  [access contract handoff](../api/access-and-binding-contracts.md).
 - Scope: implement S2 through S7 of the
   [access and synchronization-scope implementation plan](access-and-synchronization-scope-implementation-plan.md)
   so the technical synchronization slice uses a trusted server-side access context, server-controlled

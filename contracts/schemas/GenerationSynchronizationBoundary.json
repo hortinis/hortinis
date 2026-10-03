@@ -1,0 +1,21 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "GenerationSynchronizationBoundary.json",
+    "type": "object",
+    "properties": {
+        "kind": {
+            "type": "string",
+            "const": "generation"
+        },
+        "generation": {
+            "$ref": "SyncGeneration.json"
+        }
+    },
+    "required": [
+        "kind",
+        "generation"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

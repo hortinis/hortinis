@@ -1,0 +1,2592 @@
+{
+  "id": "access-contracts",
+  "description": "Synthetic S2 contract parsing examples; no runtime authorization is asserted.",
+  "groups": [
+    {
+      "schema": "LocalDataSetId.json",
+      "cases": [
+        {
+          "id": "valid-1",
+          "valid": true,
+          "value": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+        },
+        {
+          "id": "valid-2",
+          "valid": true,
+          "value": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+        },
+        {
+          "id": "invalid-1",
+          "valid": false,
+          "value": null
+        },
+        {
+          "id": "invalid-2",
+          "valid": false,
+          "value": 1
+        },
+        {
+          "id": "invalid-3",
+          "valid": false,
+          "value": {}
+        },
+        {
+          "id": "invalid-4",
+          "valid": false,
+          "value": ""
+        },
+        {
+          "id": "invalid-5",
+          "valid": false,
+          "value": "01890F3E-7C5A-7B12-8ABC-0123456789AB"
+        },
+        {
+          "id": "invalid-6",
+          "valid": false,
+          "value": "01890f3e-7c5a-7b12-8abc-0123456789a"
+        },
+        {
+          "id": "invalid-7",
+          "valid": false,
+          "value": "01890f3e-7c5a-7b12-7abc-0123456789ab"
+        },
+        {
+          "id": "invalid-8",
+          "valid": false,
+          "value": "01890f3e-7c5a-7b12-8abc-0123456789ab\n"
+        },
+        {
+          "id": "invalid-9",
+          "valid": false,
+          "value": "00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    },
+    {
+      "schema": "ServerInstanceId.json",
+      "cases": [
+        {
+          "id": "valid-1",
+          "valid": true,
+          "value": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+        },
+        {
+          "id": "valid-2",
+          "valid": true,
+          "value": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+        },
+        {
+          "id": "invalid-1",
+          "valid": false,
+          "value": null
+        },
+        {
+          "id": "invalid-2",
+          "valid": false,
+          "value": 1
+        },
+        {
+          "id": "invalid-3",
+          "valid": false,
+          "value": {}
+        },
+        {
+          "id": "invalid-4",
+          "valid": false,
+          "value": ""
+        },
+        {
+          "id": "invalid-5",
+          "valid": false,
+          "value": "01890F3E-7C5A-7B12-8ABC-0123456789AB"
+        },
+        {
+          "id": "invalid-6",
+          "valid": false,
+          "value": "01890f3e-7c5a-7b12-8abc-0123456789a"
+        },
+        {
+          "id": "invalid-7",
+          "valid": false,
+          "value": "01890f3e-7c5a-7b12-7abc-0123456789ab"
+        },
+        {
+          "id": "invalid-8",
+          "valid": false,
+          "value": "01890f3e-7c5a-7b12-8abc-0123456789ab\n"
+        },
+        {
+          "id": "invalid-9",
+          "valid": false,
+          "value": "00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    },
+    {
+      "schema": "SynchronizationScopeId.json",
+      "cases": [
+        {
+          "id": "valid-1",
+          "valid": true,
+          "value": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+        },
+        {
+          "id": "valid-2",
+          "valid": true,
+          "value": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+        },
+        {
+          "id": "invalid-1",
+          "valid": false,
+          "value": null
+        },
+        {
+          "id": "invalid-2",
+          "valid": false,
+          "value": 1
+        },
+        {
+          "id": "invalid-3",
+          "valid": false,
+          "value": {}
+        },
+        {
+          "id": "invalid-4",
+          "valid": false,
+          "value": ""
+        },
+        {
+          "id": "invalid-5",
+          "valid": false,
+          "value": "01890F3E-7C5A-7B12-8ABC-0123456789AB"
+        },
+        {
+          "id": "invalid-6",
+          "valid": false,
+          "value": "01890f3e-7c5a-7b12-8abc-0123456789a"
+        },
+        {
+          "id": "invalid-7",
+          "valid": false,
+          "value": "01890f3e-7c5a-7b12-7abc-0123456789ab"
+        },
+        {
+          "id": "invalid-8",
+          "valid": false,
+          "value": "01890f3e-7c5a-7b12-8abc-0123456789ab\n"
+        },
+        {
+          "id": "invalid-9",
+          "valid": false,
+          "value": "00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    },
+    {
+      "schema": "AccountId.json",
+      "cases": [
+        {
+          "id": "valid-1",
+          "valid": true,
+          "value": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+        },
+        {
+          "id": "valid-2",
+          "valid": true,
+          "value": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+        },
+        {
+          "id": "invalid-1",
+          "valid": false,
+          "value": null
+        },
+        {
+          "id": "invalid-2",
+          "valid": false,
+          "value": 1
+        },
+        {
+          "id": "invalid-3",
+          "valid": false,
+          "value": {}
+        },
+        {
+          "id": "invalid-4",
+          "valid": false,
+          "value": ""
+        },
+        {
+          "id": "invalid-5",
+          "valid": false,
+          "value": "01890F3E-7C5A-7B12-8ABC-0123456789AB"
+        },
+        {
+          "id": "invalid-6",
+          "valid": false,
+          "value": "01890f3e-7c5a-7b12-8abc-0123456789a"
+        },
+        {
+          "id": "invalid-7",
+          "valid": false,
+          "value": "01890f3e-7c5a-7b12-7abc-0123456789ab"
+        },
+        {
+          "id": "invalid-8",
+          "valid": false,
+          "value": "01890f3e-7c5a-7b12-8abc-0123456789ab\n"
+        },
+        {
+          "id": "invalid-9",
+          "valid": false,
+          "value": "00000000-0000-0000-0000-000000000000"
+        }
+      ]
+    },
+    {
+      "schema": "ServerAccessMode.json",
+      "cases": [
+        {
+          "id": "valid-1",
+          "valid": true,
+          "value": "single-user-no-auth"
+        },
+        {
+          "id": "valid-2",
+          "valid": true,
+          "value": "single-user-auth"
+        },
+        {
+          "id": "valid-3",
+          "valid": true,
+          "value": "multi-user-auth"
+        },
+        {
+          "id": "invalid-1",
+          "valid": false,
+          "value": ""
+        },
+        {
+          "id": "invalid-2",
+          "valid": false,
+          "value": null
+        },
+        {
+          "id": "invalid-3",
+          "valid": false,
+          "value": 0
+        },
+        {
+          "id": "invalid-4",
+          "valid": false,
+          "value": "automatic"
+        },
+        {
+          "id": "invalid-5",
+          "valid": false,
+          "value": "SINGLE_USER_AUTH"
+        }
+      ]
+    },
+    {
+      "schema": "ExchangeExpectation.json",
+      "cases": [
+        {
+          "id": "valid-1",
+          "valid": true,
+          "value": "synthetic_expectation-1"
+        },
+        {
+          "id": "valid-2",
+          "valid": true,
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        {
+          "id": "invalid-1",
+          "valid": false,
+          "value": ""
+        },
+        {
+          "id": "invalid-2",
+          "valid": false,
+          "value": null
+        },
+        {
+          "id": "invalid-3",
+          "valid": false,
+          "value": 1
+        },
+        {
+          "id": "invalid-4",
+          "valid": false,
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        {
+          "id": "invalid-5",
+          "valid": false,
+          "value": "secret?token=synthetic"
+        },
+        {
+          "id": "invalid-6",
+          "valid": false,
+          "value": "x\n"
+        },
+        {
+          "id": "invalid-7",
+          "valid": false,
+          "value": "x y"
+        }
+      ]
+    },
+    {
+      "schema": "ServerOrigin.json",
+      "cases": [
+        {
+          "id": "valid-1",
+          "valid": true,
+          "value": "https://sync.example.invalid"
+        },
+        {
+          "id": "valid-2",
+          "valid": true,
+          "value": "http://127.0.0.1:8080"
+        },
+        {
+          "id": "valid-3",
+          "valid": true,
+          "value": "http://[::1]:8080"
+        },
+        {
+          "id": "invalid-1",
+          "valid": false,
+          "value": ""
+        },
+        {
+          "id": "invalid-2",
+          "valid": false,
+          "value": null
+        },
+        {
+          "id": "invalid-3",
+          "valid": false,
+          "value": 2
+        },
+        {
+          "id": "invalid-4",
+          "valid": false,
+          "value": "ftp://example.invalid"
+        },
+        {
+          "id": "invalid-5",
+          "valid": false,
+          "value": "https://user@example.invalid"
+        },
+        {
+          "id": "invalid-6",
+          "valid": false,
+          "value": "https://example.invalid/path"
+        },
+        {
+          "id": "invalid-7",
+          "valid": false,
+          "value": "https://example.invalid?token=synthetic"
+        },
+        {
+          "id": "invalid-8",
+          "valid": false,
+          "value": "https://example.invalid#fragment"
+        },
+        {
+          "id": "invalid-9",
+          "valid": false,
+          "value": "https://example.invalid\n"
+        },
+        {
+          "id": "invalid-10",
+          "valid": false,
+          "value": "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        {
+          "id": "invalid-normalized-origin-1",
+          "valid": false,
+          "value": "https://example.invalid\u00a0"
+        },
+        {
+          "id": "invalid-normalized-origin-2",
+          "valid": false,
+          "value": "https://example.invalid\ufeff"
+        },
+        {
+          "id": "invalid-normalized-origin-3",
+          "valid": false,
+          "value": "https://example.invalid\u0085"
+        },
+        {
+          "id": "invalid-normalized-origin-4",
+          "valid": false,
+          "value": "https://Example.invalid"
+        },
+        {
+          "id": "valid-punycode-origin",
+          "valid": true,
+          "value": "https://xn--bcher-kva.example.invalid"
+        }
+      ]
+    },
+    {
+      "schema": "SynchronizationBoundary.json",
+      "cases": [
+        {
+          "id": "valid-1",
+          "valid": true,
+          "value": {
+            "kind": "g2"
+          }
+        },
+        {
+          "id": "valid-2",
+          "valid": true,
+          "value": {
+            "kind": "generation",
+            "generation": "synthetic-generation-1"
+          }
+        },
+        {
+          "id": "invalid-1",
+          "valid": false,
+          "value": null
+        },
+        {
+          "id": "invalid-2",
+          "valid": false,
+          "value": []
+        },
+        {
+          "id": "invalid-3",
+          "valid": false,
+          "value": "invalid"
+        },
+        {
+          "id": "invalid-4",
+          "valid": false,
+          "value": {
+            "kind": "g2",
+            "sessionId": "synthetic-forbidden-field"
+          }
+        },
+        {
+          "id": "invalid-5",
+          "valid": false,
+          "value": {}
+        },
+        {
+          "id": "invalid-6",
+          "valid": false,
+          "value": {
+            "kind": null
+          }
+        },
+        {
+          "id": "invalid-7",
+          "valid": false,
+          "value": null
+        },
+        {
+          "id": "invalid-8",
+          "valid": false,
+          "value": []
+        },
+        {
+          "id": "invalid-9",
+          "valid": false,
+          "value": "invalid"
+        },
+        {
+          "id": "invalid-10",
+          "valid": false,
+          "value": {
+            "kind": "generation",
+            "generation": "synthetic-generation-1",
+            "sessionId": "synthetic-forbidden-field"
+          }
+        },
+        {
+          "id": "invalid-11",
+          "valid": false,
+          "value": {
+            "generation": "synthetic-generation-1"
+          }
+        },
+        {
+          "id": "invalid-12",
+          "valid": false,
+          "value": {
+            "kind": null,
+            "generation": "synthetic-generation-1"
+          }
+        },
+        {
+          "id": "invalid-13",
+          "valid": false,
+          "value": {
+            "kind": "generation"
+          }
+        },
+        {
+          "id": "invalid-14",
+          "valid": false,
+          "value": {
+            "kind": "generation",
+            "generation": null
+          }
+        },
+        {
+          "id": "invalid-15",
+          "valid": false,
+          "value": {
+            "kind": "g2",
+            "generation": "synthetic"
+          }
+        },
+        {
+          "id": "invalid-16",
+          "valid": false,
+          "value": {
+            "kind": "generation"
+          }
+        },
+        {
+          "id": "invalid-17",
+          "valid": false,
+          "value": {
+            "kind": "generation",
+            "generation": ""
+          }
+        },
+        {
+          "id": "invalid-18",
+          "valid": false,
+          "value": {
+            "kind": "future"
+          }
+        }
+      ]
+    },
+    {
+      "schema": "AuthorizedScopeIdentity.json",
+      "cases": [
+        {
+          "id": "valid-1",
+          "valid": true,
+          "value": {
+            "authority": "configured",
+            "accessMode": "single-user-no-auth",
+            "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+          }
+        },
+        {
+          "id": "valid-2",
+          "valid": true,
+          "value": {
+            "authority": "authenticated",
+            "accessMode": "multi-user-auth",
+            "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+          }
+        },
+        {
+          "id": "valid-3",
+          "valid": true,
+          "value": {
+            "authority": "authenticated",
+            "accessMode": "single-user-auth",
+            "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+          }
+        },
+        {
+          "id": "invalid-1",
+          "valid": false,
+          "value": null
+        },
+        {
+          "id": "invalid-2",
+          "valid": false,
+          "value": []
+        },
+        {
+          "id": "invalid-3",
+          "valid": false,
+          "value": "invalid"
+        },
+        {
+          "id": "invalid-4",
+          "valid": false,
+          "value": {
+            "authority": "configured",
+            "accessMode": "single-user-no-auth",
+            "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "sessionId": "synthetic-forbidden-field"
+          }
+        },
+        {
+          "id": "invalid-5",
+          "valid": false,
+          "value": {
+            "accessMode": "single-user-no-auth",
+            "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+          }
+        },
+        {
+          "id": "invalid-6",
+          "valid": false,
+          "value": {
+            "authority": null,
+            "accessMode": "single-user-no-auth",
+            "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+          }
+        },
+        {
+          "id": "invalid-7",
+          "valid": false,
+          "value": {
+            "authority": "configured",
+            "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+          }
+        },
+        {
+          "id": "invalid-8",
+          "valid": false,
+          "value": {
+            "authority": "configured",
+            "accessMode": null,
+            "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+          }
+        },
+        {
+          "id": "invalid-9",
+          "valid": false,
+          "value": {
+            "authority": "configured",
+            "accessMode": "single-user-no-auth"
+          }
+        },
+        {
+          "id": "invalid-10",
+          "valid": false,
+          "value": {
+            "authority": "configured",
+            "accessMode": "single-user-no-auth",
+            "synchronizationScopeId": null
+          }
+        },
+        {
+          "id": "invalid-11",
+          "valid": false,
+          "value": null
+        },
+        {
+          "id": "invalid-12",
+          "valid": false,
+          "value": []
+        },
+        {
+          "id": "invalid-13",
+          "valid": false,
+          "value": "invalid"
+        },
+        {
+          "id": "invalid-14",
+          "valid": false,
+          "value": {
+            "authority": "authenticated",
+            "accessMode": "multi-user-auth",
+            "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac",
+            "sessionId": "synthetic-forbidden-field"
+          }
+        },
+        {
+          "id": "invalid-15",
+          "valid": false,
+          "value": {
+            "accessMode": "multi-user-auth",
+            "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+          }
+        },
+        {
+          "id": "invalid-16",
+          "valid": false,
+          "value": {
+            "authority": null,
+            "accessMode": "multi-user-auth",
+            "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+          }
+        },
+        {
+          "id": "invalid-17",
+          "valid": false,
+          "value": {
+            "authority": "authenticated",
+            "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+          }
+        },
+        {
+          "id": "invalid-18",
+          "valid": false,
+          "value": {
+            "authority": "authenticated",
+            "accessMode": null,
+            "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+          }
+        },
+        {
+          "id": "invalid-19",
+          "valid": false,
+          "value": {
+            "authority": "authenticated",
+            "accessMode": "multi-user-auth",
+            "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+          }
+        },
+        {
+          "id": "invalid-20",
+          "valid": false,
+          "value": {
+            "authority": "authenticated",
+            "accessMode": "multi-user-auth",
+            "synchronizationScopeId": null,
+            "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+          }
+        },
+        {
+          "id": "invalid-21",
+          "valid": false,
+          "value": {
+            "authority": "authenticated",
+            "accessMode": "multi-user-auth",
+            "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+          }
+        },
+        {
+          "id": "invalid-22",
+          "valid": false,
+          "value": {
+            "authority": "authenticated",
+            "accessMode": "multi-user-auth",
+            "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accountId": null
+          }
+        },
+        {
+          "id": "invalid-23",
+          "valid": false,
+          "value": {
+            "authority": "configured",
+            "accessMode": "single-user-no-auth",
+            "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+          }
+        },
+        {
+          "id": "invalid-24",
+          "valid": false,
+          "value": {
+            "authority": "authenticated",
+            "accessMode": "single-user-no-auth",
+            "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+          }
+        },
+        {
+          "id": "invalid-25",
+          "valid": false,
+          "value": {
+            "authority": "configured",
+            "accessMode": "multi-user-auth",
+            "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+          }
+        },
+        {
+          "id": "invalid-26",
+          "valid": false,
+          "value": {
+            "authority": "configured",
+            "accessMode": "single-user-no-auth",
+            "synchronizationScopeId": "01890F3E-7C5A-7B12-8ABC-0123456789AB"
+          }
+        }
+      ]
+    },
+    {
+      "schema": "ServerCapabilities.json",
+      "cases": [
+        {
+          "id": "valid-1",
+          "valid": true,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accessMode": "single-user-no-auth",
+            "supportedBoundaries": [
+              "g2"
+            ],
+            "anchoredSnapshots": false
+          }
+        },
+        {
+          "id": "valid-2",
+          "valid": true,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accessMode": "multi-user-auth",
+            "supportedBoundaries": [
+              "g2",
+              "generation"
+            ],
+            "anchoredSnapshots": true
+          }
+        },
+        {
+          "id": "invalid-1",
+          "valid": false,
+          "value": null
+        },
+        {
+          "id": "invalid-2",
+          "valid": false,
+          "value": []
+        },
+        {
+          "id": "invalid-3",
+          "valid": false,
+          "value": "invalid"
+        },
+        {
+          "id": "invalid-4",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accessMode": "single-user-no-auth",
+            "supportedBoundaries": [
+              "g2"
+            ],
+            "anchoredSnapshots": false,
+            "sessionId": "synthetic-forbidden-field"
+          }
+        },
+        {
+          "id": "invalid-5",
+          "valid": false,
+          "value": {
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accessMode": "single-user-no-auth",
+            "supportedBoundaries": [
+              "g2"
+            ],
+            "anchoredSnapshots": false
+          }
+        },
+        {
+          "id": "invalid-6",
+          "valid": false,
+          "value": {
+            "contractVersion": null,
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accessMode": "single-user-no-auth",
+            "supportedBoundaries": [
+              "g2"
+            ],
+            "anchoredSnapshots": false
+          }
+        },
+        {
+          "id": "invalid-7",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "accessMode": "single-user-no-auth",
+            "supportedBoundaries": [
+              "g2"
+            ],
+            "anchoredSnapshots": false
+          }
+        },
+        {
+          "id": "invalid-8",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": null,
+            "accessMode": "single-user-no-auth",
+            "supportedBoundaries": [
+              "g2"
+            ],
+            "anchoredSnapshots": false
+          }
+        },
+        {
+          "id": "invalid-9",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "supportedBoundaries": [
+              "g2"
+            ],
+            "anchoredSnapshots": false
+          }
+        },
+        {
+          "id": "invalid-10",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accessMode": null,
+            "supportedBoundaries": [
+              "g2"
+            ],
+            "anchoredSnapshots": false
+          }
+        },
+        {
+          "id": "invalid-11",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accessMode": "single-user-no-auth",
+            "anchoredSnapshots": false
+          }
+        },
+        {
+          "id": "invalid-12",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accessMode": "single-user-no-auth",
+            "supportedBoundaries": null,
+            "anchoredSnapshots": false
+          }
+        },
+        {
+          "id": "invalid-13",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accessMode": "single-user-no-auth",
+            "supportedBoundaries": [
+              "g2"
+            ]
+          }
+        },
+        {
+          "id": "invalid-14",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accessMode": "single-user-no-auth",
+            "supportedBoundaries": [
+              "g2"
+            ],
+            "anchoredSnapshots": null
+          }
+        },
+        {
+          "id": "invalid-15",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accessMode": "single-user-no-auth",
+            "supportedBoundaries": [],
+            "anchoredSnapshots": false
+          }
+        },
+        {
+          "id": "invalid-16",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accessMode": "single-user-no-auth",
+            "supportedBoundaries": [
+              "g2",
+              "g2"
+            ],
+            "anchoredSnapshots": false
+          }
+        },
+        {
+          "id": "invalid-17",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accessMode": "single-user-no-auth",
+            "supportedBoundaries": [
+              "future"
+            ],
+            "anchoredSnapshots": false
+          }
+        },
+        {
+          "id": "invalid-18",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accessMode": "single-user-no-auth",
+            "supportedBoundaries": [
+              "g2"
+            ],
+            "anchoredSnapshots": "false"
+          }
+        },
+        {
+          "id": "invalid-19",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accessMode": "single-user-no-auth",
+            "supportedBoundaries": [
+              "g2"
+            ],
+            "anchoredSnapshots": false,
+            "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+          }
+        },
+        {
+          "id": "invalid-20",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accessMode": "single-user-no-auth",
+            "supportedBoundaries": [
+              "g2"
+            ],
+            "anchoredSnapshots": false,
+            "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+          }
+        },
+        {
+          "id": "invalid-21",
+          "valid": false,
+          "value": {
+            "contractVersion": "2",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "accessMode": "single-user-no-auth",
+            "supportedBoundaries": [
+              "g2"
+            ],
+            "anchoredSnapshots": false
+          }
+        }
+      ]
+    },
+    {
+      "schema": "SynchronizationBootstrap.json",
+      "cases": [
+        {
+          "id": "valid-1",
+          "valid": true,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "configured",
+              "accessMode": "single-user-no-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+            },
+            "population": "empty",
+            "boundary": {
+              "kind": "g2"
+            },
+            "expectation": "synthetic_expectation_1"
+          }
+        },
+        {
+          "id": "valid-2",
+          "valid": true,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "authenticated",
+              "accessMode": "multi-user-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+              "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+            },
+            "population": "populated",
+            "boundary": {
+              "kind": "generation",
+              "generation": "synthetic-generation-1"
+            },
+            "expectation": "synthetic_expectation_1"
+          }
+        },
+        {
+          "id": "invalid-1",
+          "valid": false,
+          "value": null
+        },
+        {
+          "id": "invalid-2",
+          "valid": false,
+          "value": []
+        },
+        {
+          "id": "invalid-3",
+          "valid": false,
+          "value": "invalid"
+        },
+        {
+          "id": "invalid-4",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "configured",
+              "accessMode": "single-user-no-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+            },
+            "population": "empty",
+            "boundary": {
+              "kind": "g2"
+            },
+            "expectation": "synthetic_expectation_1",
+            "sessionId": "synthetic-forbidden-field"
+          }
+        },
+        {
+          "id": "invalid-5",
+          "valid": false,
+          "value": {
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "configured",
+              "accessMode": "single-user-no-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+            },
+            "population": "empty",
+            "boundary": {
+              "kind": "g2"
+            },
+            "expectation": "synthetic_expectation_1"
+          }
+        },
+        {
+          "id": "invalid-6",
+          "valid": false,
+          "value": {
+            "contractVersion": null,
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "configured",
+              "accessMode": "single-user-no-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+            },
+            "population": "empty",
+            "boundary": {
+              "kind": "g2"
+            },
+            "expectation": "synthetic_expectation_1"
+          }
+        },
+        {
+          "id": "invalid-7",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "identity": {
+              "authority": "configured",
+              "accessMode": "single-user-no-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+            },
+            "population": "empty",
+            "boundary": {
+              "kind": "g2"
+            },
+            "expectation": "synthetic_expectation_1"
+          }
+        },
+        {
+          "id": "invalid-8",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": null,
+            "identity": {
+              "authority": "configured",
+              "accessMode": "single-user-no-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+            },
+            "population": "empty",
+            "boundary": {
+              "kind": "g2"
+            },
+            "expectation": "synthetic_expectation_1"
+          }
+        },
+        {
+          "id": "invalid-9",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "population": "empty",
+            "boundary": {
+              "kind": "g2"
+            },
+            "expectation": "synthetic_expectation_1"
+          }
+        },
+        {
+          "id": "invalid-10",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": null,
+            "population": "empty",
+            "boundary": {
+              "kind": "g2"
+            },
+            "expectation": "synthetic_expectation_1"
+          }
+        },
+        {
+          "id": "invalid-11",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "configured",
+              "accessMode": "single-user-no-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+            },
+            "boundary": {
+              "kind": "g2"
+            },
+            "expectation": "synthetic_expectation_1"
+          }
+        },
+        {
+          "id": "invalid-12",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "configured",
+              "accessMode": "single-user-no-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+            },
+            "population": null,
+            "boundary": {
+              "kind": "g2"
+            },
+            "expectation": "synthetic_expectation_1"
+          }
+        },
+        {
+          "id": "invalid-13",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "configured",
+              "accessMode": "single-user-no-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+            },
+            "population": "empty",
+            "expectation": "synthetic_expectation_1"
+          }
+        },
+        {
+          "id": "invalid-14",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "configured",
+              "accessMode": "single-user-no-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+            },
+            "population": "empty",
+            "boundary": null,
+            "expectation": "synthetic_expectation_1"
+          }
+        },
+        {
+          "id": "invalid-15",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "configured",
+              "accessMode": "single-user-no-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+            },
+            "population": "empty",
+            "boundary": {
+              "kind": "g2"
+            }
+          }
+        },
+        {
+          "id": "invalid-16",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "configured",
+              "accessMode": "single-user-no-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+            },
+            "population": "empty",
+            "boundary": {
+              "kind": "g2"
+            },
+            "expectation": null
+          }
+        },
+        {
+          "id": "invalid-17",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "configured",
+              "accessMode": "single-user-no-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+              "sessionId": "synthetic"
+            },
+            "population": "empty",
+            "boundary": {
+              "kind": "g2"
+            },
+            "expectation": "synthetic_expectation_1"
+          }
+        },
+        {
+          "id": "invalid-18",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "configured",
+              "accessMode": "single-user-no-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+            },
+            "population": "empty",
+            "boundary": {
+              "kind": "generation",
+              "generation": "synthetic-generation-1",
+              "cursor": "synthetic"
+            },
+            "expectation": "synthetic_expectation_1"
+          }
+        },
+        {
+          "id": "invalid-19",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "configured",
+              "accessMode": "single-user-no-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+            },
+            "population": "unknown",
+            "boundary": {
+              "kind": "g2"
+            },
+            "expectation": "synthetic_expectation_1"
+          }
+        },
+        {
+          "id": "invalid-20",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "configured",
+              "accessMode": "single-user-no-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+            },
+            "population": "empty",
+            "boundary": {
+              "kind": "g2"
+            },
+            "expectation": ""
+          }
+        },
+        {
+          "id": "invalid-21",
+          "valid": false,
+          "value": {
+            "contractVersion": 1,
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "configured",
+              "accessMode": "single-user-no-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+            },
+            "population": "empty",
+            "boundary": {
+              "kind": "g2"
+            },
+            "expectation": "synthetic_expectation_1"
+          }
+        },
+        {
+          "id": "invalid-22",
+          "valid": false,
+          "value": {
+            "contractVersion": "1",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "authenticated",
+              "accessMode": "multi-user-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+              "accountId": "01890F3E-7C5A-7B12-8ABC-0123456789AB"
+            },
+            "population": "empty",
+            "boundary": {
+              "kind": "g2"
+            },
+            "expectation": "synthetic_expectation_1"
+          }
+        }
+      ]
+    },
+    {
+      "schema": "ConfirmEmptyBindingRequest.json",
+      "cases": [
+        {
+          "id": "valid-1",
+          "valid": true,
+          "value": {
+            "expectation": "synthetic_expectation_1",
+            "expectedPopulation": "empty"
+          }
+        },
+        {
+          "id": "invalid-1",
+          "valid": false,
+          "value": null
+        },
+        {
+          "id": "invalid-2",
+          "valid": false,
+          "value": []
+        },
+        {
+          "id": "invalid-3",
+          "valid": false,
+          "value": "invalid"
+        },
+        {
+          "id": "invalid-4",
+          "valid": false,
+          "value": {
+            "expectation": "synthetic_expectation_1",
+            "expectedPopulation": "empty",
+            "sessionId": "synthetic-forbidden-field"
+          }
+        },
+        {
+          "id": "invalid-5",
+          "valid": false,
+          "value": {
+            "expectedPopulation": "empty"
+          }
+        },
+        {
+          "id": "invalid-6",
+          "valid": false,
+          "value": {
+            "expectation": null,
+            "expectedPopulation": "empty"
+          }
+        },
+        {
+          "id": "invalid-7",
+          "valid": false,
+          "value": {
+            "expectation": "synthetic_expectation_1"
+          }
+        },
+        {
+          "id": "invalid-8",
+          "valid": false,
+          "value": {
+            "expectation": "synthetic_expectation_1",
+            "expectedPopulation": null
+          }
+        },
+        {
+          "id": "invalid-9",
+          "valid": false,
+          "value": {
+            "expectation": "synthetic_expectation_1",
+            "expectedPopulation": "populated"
+          }
+        },
+        {
+          "id": "invalid-10",
+          "valid": false,
+          "value": {
+            "expectation": "synthetic_expectation_1",
+            "expectedPopulation": "empty",
+            "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+          }
+        },
+        {
+          "id": "invalid-11",
+          "valid": false,
+          "value": {
+            "expectation": "bad url",
+            "expectedPopulation": "empty"
+          }
+        }
+      ]
+    },
+    {
+      "schema": "LocalServerBinding.json",
+      "cases": [
+        {
+          "id": "valid-1",
+          "valid": true,
+          "value": {
+            "version": "1",
+            "localDataSetId": "01890f3e-7c5a-4b13-8abc-0123456789ac",
+            "serverOrigin": "https://sync.example.invalid",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "authenticated",
+              "accessMode": "multi-user-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+              "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+            },
+            "boundary": {
+              "kind": "generation",
+              "generation": "synthetic-generation-1"
+            }
+          }
+        },
+        {
+          "id": "valid-2",
+          "valid": true,
+          "value": {
+            "version": "1",
+            "localDataSetId": "01890f3e-7c5a-4b13-8abc-0123456789ac",
+            "serverOrigin": "https://sync.example.invalid",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "configured",
+              "accessMode": "single-user-no-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+            },
+            "boundary": {
+              "kind": "g2"
+            }
+          }
+        },
+        {
+          "id": "invalid-1",
+          "valid": false,
+          "value": null
+        },
+        {
+          "id": "invalid-2",
+          "valid": false,
+          "value": []
+        },
+        {
+          "id": "invalid-3",
+          "valid": false,
+          "value": "invalid"
+        },
+        {
+          "id": "invalid-4",
+          "valid": false,
+          "value": {
+            "version": "1",
+            "localDataSetId": "01890f3e-7c5a-4b13-8abc-0123456789ac",
+            "serverOrigin": "https://sync.example.invalid",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "authenticated",
+              "accessMode": "multi-user-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+              "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+            },
+            "boundary": {
+              "kind": "generation",
+              "generation": "synthetic-generation-1"
+            },
+            "sessionId": "synthetic-forbidden-field"
+          }
+        },
+        {
+          "id": "invalid-5",
+          "valid": false,
+          "value": {
+            "localDataSetId": "01890f3e-7c5a-4b13-8abc-0123456789ac",
+            "serverOrigin": "https://sync.example.invalid",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "authenticated",
+              "accessMode": "multi-user-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+              "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+            },
+            "boundary": {
+              "kind": "generation",
+              "generation": "synthetic-generation-1"
+            }
+          }
+        },
+        {
+          "id": "invalid-6",
+          "valid": false,
+          "value": {
+            "version": null,
+            "localDataSetId": "01890f3e-7c5a-4b13-8abc-0123456789ac",
+            "serverOrigin": "https://sync.example.invalid",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "authenticated",
+              "accessMode": "multi-user-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+              "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+            },
+            "boundary": {
+              "kind": "generation",
+              "generation": "synthetic-generation-1"
+            }
+          }
+        },
+        {
+          "id": "invalid-7",
+          "valid": false,
+          "value": {
+            "version": "1",
+            "serverOrigin": "https://sync.example.invalid",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "authenticated",
+              "accessMode": "multi-user-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+              "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+            },
+            "boundary": {
+              "kind": "generation",
+              "generation": "synthetic-generation-1"
+            }
+          }
+        },
+        {
+          "id": "invalid-8",
+          "valid": false,
+          "value": {
+            "version": "1",
+            "localDataSetId": null,
+            "serverOrigin": "https://sync.example.invalid",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "authenticated",
+              "accessMode": "multi-user-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+              "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+            },
+            "boundary": {
+              "kind": "generation",
+              "generation": "synthetic-generation-1"
+            }
+          }
+        },
+        {
+          "id": "invalid-9",
+          "valid": false,
+          "value": {
+            "version": "1",
+            "localDataSetId": "01890f3e-7c5a-4b13-8abc-0123456789ac",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "authenticated",
+              "accessMode": "multi-user-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+              "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+            },
+            "boundary": {
+              "kind": "generation",
+              "generation": "synthetic-generation-1"
+            }
+          }
+        },
+        {
+          "id": "invalid-10",
+          "valid": false,
+          "value": {
+            "version": "1",
+            "localDataSetId": "01890f3e-7c5a-4b13-8abc-0123456789ac",
+            "serverOrigin": null,
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "authenticated",
+              "accessMode": "multi-user-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+              "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+            },
+            "boundary": {
+              "kind": "generation",
+              "generation": "synthetic-generation-1"
+            }
+          }
+        },
+        {
+          "id": "invalid-11",
+          "valid": false,
+          "value": {
+            "version": "1",
+            "localDataSetId": "01890f3e-7c5a-4b13-8abc-0123456789ac",
+            "serverOrigin": "https://sync.example.invalid",
+            "identity": {
+              "authority": "authenticated",
+              "accessMode": "multi-user-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+              "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+            },
+            "boundary": {
+              "kind": "generation",
+              "generation": "synthetic-generation-1"
+            }
+          }
+        },
+        {
+          "id": "invalid-12",
+          "valid": false,
+          "value": {
+            "version": "1",
+            "localDataSetId": "01890f3e-7c5a-4b13-8abc-0123456789ac",
+            "serverOrigin": "https://sync.example.invalid",
+            "serverInstanceId": null,
+            "identity": {
+              "authority": "authenticated",
+              "accessMode": "multi-user-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+              "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+            },
+            "boundary": {
+              "kind": "generation",
+              "generation": "synthetic-generation-1"
+            }
+          }
+        },
+        {
+          "id": "invalid-13",
+          "valid": false,
+          "value": {
+            "version": "1",
+            "localDataSetId": "01890f3e-7c5a-4b13-8abc-0123456789ac",
+            "serverOrigin": "https://sync.example.invalid",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "boundary": {
+              "kind": "generation",
+              "generation": "synthetic-generation-1"
+            }
+          }
+        },
+        {
+          "id": "invalid-14",
+          "valid": false,
+          "value": {
+            "version": "1",
+            "localDataSetId": "01890f3e-7c5a-4b13-8abc-0123456789ac",
+            "serverOrigin": "https://sync.example.invalid",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": null,
+            "boundary": {
+              "kind": "generation",
+              "generation": "synthetic-generation-1"
+            }
+          }
+        },
+        {
+          "id": "invalid-15",
+          "valid": false,
+          "value": {
+            "version": "1",
+            "localDataSetId": "01890f3e-7c5a-4b13-8abc-0123456789ac",
+            "serverOrigin": "https://sync.example.invalid",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "authenticated",
+              "accessMode": "multi-user-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+              "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+            }
+          }
+        },
+        {
+          "id": "invalid-16",
+          "valid": false,
+          "value": {
+            "version": "1",
+            "localDataSetId": "01890f3e-7c5a-4b13-8abc-0123456789ac",
+            "serverOrigin": "https://sync.example.invalid",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "authenticated",
+              "accessMode": "multi-user-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+              "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+            },
+            "boundary": null
+          }
+        },
+        {
+          "id": "invalid-17",
+          "valid": false,
+          "value": {
+            "version": "2",
+            "localDataSetId": "01890f3e-7c5a-4b13-8abc-0123456789ac",
+            "serverOrigin": "https://sync.example.invalid",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "authenticated",
+              "accessMode": "multi-user-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+              "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+            },
+            "boundary": {
+              "kind": "generation",
+              "generation": "synthetic-generation-1"
+            }
+          }
+        },
+        {
+          "id": "invalid-18",
+          "valid": false,
+          "value": {
+            "version": "1",
+            "localDataSetId": "01890f3e-7c5a-4b13-8abc-0123456789ac",
+            "serverOrigin": "https://sync.example.invalid",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "authenticated",
+              "accessMode": "multi-user-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+              "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac",
+              "deviceId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+            },
+            "boundary": {
+              "kind": "generation",
+              "generation": "synthetic-generation-1"
+            }
+          }
+        },
+        {
+          "id": "invalid-19",
+          "valid": false,
+          "value": {
+            "version": "1",
+            "localDataSetId": "01890f3e-7c5a-4b13-8abc-0123456789ac",
+            "serverOrigin": "https://sync.example.invalid",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "authenticated",
+              "accessMode": "multi-user-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+              "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+            },
+            "boundary": {
+              "kind": "generation",
+              "generation": "synthetic-generation-1",
+              "extra": true
+            }
+          }
+        },
+        {
+          "id": "invalid-20",
+          "valid": false,
+          "value": {
+            "version": "1",
+            "localDataSetId": "01890f3e-7c5a-4b13-8abc-0123456789ac",
+            "serverOrigin": "https://user@example.invalid",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "authenticated",
+              "accessMode": "multi-user-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+              "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+            },
+            "boundary": {
+              "kind": "generation",
+              "generation": "synthetic-generation-1"
+            }
+          }
+        },
+        {
+          "id": "invalid-21",
+          "valid": false,
+          "value": {
+            "version": "1",
+            "localDataSetId": "01890F3E-7C5A-7B12-8ABC-0123456789AB",
+            "serverOrigin": "https://sync.example.invalid",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "authenticated",
+              "accessMode": "multi-user-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+              "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+            },
+            "boundary": {
+              "kind": "generation",
+              "generation": "synthetic-generation-1"
+            }
+          }
+        },
+        {
+          "id": "invalid-22",
+          "valid": false,
+          "value": {
+            "version": "1",
+            "localDataSetId": "01890f3e-7c5a-4b13-8abc-0123456789ac",
+            "serverOrigin": "https://sync.example.invalid",
+            "serverInstanceId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+            "identity": {
+              "authority": "authenticated",
+              "accessMode": "multi-user-auth",
+              "synchronizationScopeId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+              "accountId": "01890f3e-7c5a-4b13-8abc-0123456789ac"
+            },
+            "boundary": {
+              "kind": "generation",
+              "generation": "synthetic-generation-1"
+            },
+            "expectation": "synthetic_expectation"
+          }
+        }
+      ]
+    },
+    {
+      "schema": "LocalExchangeState.json",
+      "cases": [
+        {
+          "id": "valid-1",
+          "valid": true,
+          "value": {
+            "state": "offline",
+            "exchangeFence": "9007199254740993",
+            "logoutPending": false
+          }
+        },
+        {
+          "id": "valid-2",
+          "valid": true,
+          "value": {
+            "state": "binding_pending",
+            "exchangeFence": "9007199254740993",
+            "logoutPending": false
+          }
+        },
+        {
+          "id": "valid-3",
+          "valid": true,
+          "value": {
+            "state": "bound",
+            "exchangeFence": "9007199254740993",
+            "logoutPending": false
+          }
+        },
+        {
+          "id": "valid-4",
+          "valid": true,
+          "value": {
+            "state": "auth_required",
+            "exchangeFence": "9007199254740993",
+            "logoutPending": false
+          }
+        },
+        {
+          "id": "valid-5",
+          "valid": true,
+          "value": {
+            "state": "binding_mismatch",
+            "exchangeFence": "9007199254740993",
+            "logoutPending": false
+          }
+        },
+        {
+          "id": "valid-6",
+          "valid": true,
+          "value": {
+            "state": "revoked",
+            "exchangeFence": "9007199254740993",
+            "logoutPending": false
+          }
+        },
+        {
+          "id": "valid-7",
+          "valid": true,
+          "value": {
+            "state": "reconciliation_required",
+            "exchangeFence": "9007199254740993",
+            "logoutPending": false
+          }
+        },
+        {
+          "id": "valid-8",
+          "valid": true,
+          "value": {
+            "state": "scope_deleted",
+            "exchangeFence": "9007199254740993",
+            "logoutPending": false
+          }
+        },
+        {
+          "id": "valid-9",
+          "valid": true,
+          "value": {
+            "state": "disconnected",
+            "exchangeFence": "9007199254740993",
+            "logoutPending": false
+          }
+        },
+        {
+          "id": "valid-10",
+          "valid": true,
+          "value": {
+            "state": "auth_required",
+            "exchangeFence": "9007199254740993",
+            "logoutPending": true
+          }
+        },
+        {
+          "id": "invalid-1",
+          "valid": false,
+          "value": null
+        },
+        {
+          "id": "invalid-2",
+          "valid": false,
+          "value": []
+        },
+        {
+          "id": "invalid-3",
+          "valid": false,
+          "value": "invalid"
+        },
+        {
+          "id": "invalid-4",
+          "valid": false,
+          "value": {
+            "state": "offline",
+            "exchangeFence": "9007199254740993",
+            "logoutPending": false,
+            "sessionId": "synthetic-forbidden-field"
+          }
+        },
+        {
+          "id": "invalid-5",
+          "valid": false,
+          "value": {
+            "exchangeFence": "9007199254740993",
+            "logoutPending": false
+          }
+        },
+        {
+          "id": "invalid-6",
+          "valid": false,
+          "value": {
+            "state": null,
+            "exchangeFence": "9007199254740993",
+            "logoutPending": false
+          }
+        },
+        {
+          "id": "invalid-7",
+          "valid": false,
+          "value": {
+            "state": "offline",
+            "logoutPending": false
+          }
+        },
+        {
+          "id": "invalid-8",
+          "valid": false,
+          "value": {
+            "state": "offline",
+            "exchangeFence": null,
+            "logoutPending": false
+          }
+        },
+        {
+          "id": "invalid-9",
+          "valid": false,
+          "value": {
+            "state": "offline",
+            "exchangeFence": "9007199254740993"
+          }
+        },
+        {
+          "id": "invalid-10",
+          "valid": false,
+          "value": {
+            "state": "offline",
+            "exchangeFence": "9007199254740993",
+            "logoutPending": null
+          }
+        },
+        {
+          "id": "invalid-11",
+          "valid": false,
+          "value": {
+            "state": "future",
+            "exchangeFence": "9007199254740993",
+            "logoutPending": false
+          }
+        },
+        {
+          "id": "invalid-12",
+          "valid": false,
+          "value": {
+            "state": "offline",
+            "exchangeFence": "0",
+            "logoutPending": false
+          }
+        },
+        {
+          "id": "invalid-13",
+          "valid": false,
+          "value": {
+            "state": "offline",
+            "exchangeFence": 1,
+            "logoutPending": false
+          }
+        },
+        {
+          "id": "invalid-14",
+          "valid": false,
+          "value": {
+            "state": "offline",
+            "exchangeFence": "01",
+            "logoutPending": false
+          }
+        },
+        {
+          "id": "invalid-15",
+          "valid": false,
+          "value": {
+            "state": "offline",
+            "exchangeFence": "9007199254740993",
+            "logoutPending": true
+          }
+        },
+        {
+          "id": "invalid-16",
+          "valid": false,
+          "value": {
+            "state": "bound",
+            "exchangeFence": "9007199254740993",
+            "logoutPending": true
+          }
+        }
+      ]
+    },
+    {
+      "schema": "AuthenticationRequiredError.json",
+      "cases": [
+        {
+          "id": "valid-1",
+          "valid": true,
+          "value": {
+            "code": "AUTHENTICATION_REQUIRED",
+            "message": "Authentication is required."
+          }
+        },
+        {
+          "id": "invalid-1",
+          "valid": false,
+          "value": null
+        },
+        {
+          "id": "invalid-2",
+          "valid": false,
+          "value": []
+        },
+        {
+          "id": "invalid-3",
+          "valid": false,
+          "value": "invalid"
+        },
+        {
+          "id": "invalid-4",
+          "valid": false,
+          "value": {
+            "code": "AUTHENTICATION_REQUIRED",
+            "message": "Authentication is required.",
+            "sessionId": "synthetic-forbidden-field"
+          }
+        },
+        {
+          "id": "invalid-5",
+          "valid": false,
+          "value": {
+            "message": "Authentication is required."
+          }
+        },
+        {
+          "id": "invalid-6",
+          "valid": false,
+          "value": {
+            "code": null,
+            "message": "Authentication is required."
+          }
+        },
+        {
+          "id": "invalid-7",
+          "valid": false,
+          "value": {
+            "code": "AUTHENTICATION_REQUIRED"
+          }
+        },
+        {
+          "id": "invalid-8",
+          "valid": false,
+          "value": {
+            "code": "AUTHENTICATION_REQUIRED",
+            "message": null
+          }
+        },
+        {
+          "id": "invalid-9",
+          "valid": false,
+          "value": {
+            "code": "AUTHENTICATION_REQUIRED",
+            "message": "Another account exists."
+          }
+        },
+        {
+          "id": "invalid-10",
+          "valid": false,
+          "value": {
+            "code": "SCOPE_DELETED",
+            "message": "Authentication is required."
+          }
+        },
+        {
+          "id": "invalid-11",
+          "valid": false,
+          "value": {
+            "code": "AUTHENTICATION_REQUIRED",
+            "message": "Authentication is required.",
+            "accountId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+          }
+        }
+      ]
+    },
+    {
+      "schema": "AccessDeniedError.json",
+      "cases": [
+        {
+          "id": "valid-1",
+          "valid": true,
+          "value": {
+            "code": "ACCESS_DENIED",
+            "message": "Access is denied."
+          }
+        },
+        {
+          "id": "invalid-1",
+          "valid": false,
+          "value": null
+        },
+        {
+          "id": "invalid-2",
+          "valid": false,
+          "value": []
+        },
+        {
+          "id": "invalid-3",
+          "valid": false,
+          "value": "invalid"
+        },
+        {
+          "id": "invalid-4",
+          "valid": false,
+          "value": {
+            "code": "ACCESS_DENIED",
+            "message": "Access is denied.",
+            "sessionId": "synthetic-forbidden-field"
+          }
+        },
+        {
+          "id": "invalid-5",
+          "valid": false,
+          "value": {
+            "message": "Access is denied."
+          }
+        },
+        {
+          "id": "invalid-6",
+          "valid": false,
+          "value": {
+            "code": null,
+            "message": "Access is denied."
+          }
+        },
+        {
+          "id": "invalid-7",
+          "valid": false,
+          "value": {
+            "code": "ACCESS_DENIED"
+          }
+        },
+        {
+          "id": "invalid-8",
+          "valid": false,
+          "value": {
+            "code": "ACCESS_DENIED",
+            "message": null
+          }
+        },
+        {
+          "id": "invalid-9",
+          "valid": false,
+          "value": {
+            "code": "ACCESS_DENIED",
+            "message": "Another account exists."
+          }
+        },
+        {
+          "id": "invalid-10",
+          "valid": false,
+          "value": {
+            "code": "SCOPE_DELETED",
+            "message": "Access is denied."
+          }
+        },
+        {
+          "id": "invalid-11",
+          "valid": false,
+          "value": {
+            "code": "ACCESS_DENIED",
+            "message": "Access is denied.",
+            "accountId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+          }
+        }
+      ]
+    },
+    {
+      "schema": "BindingPreconditionFailedError.json",
+      "cases": [
+        {
+          "id": "valid-1",
+          "valid": true,
+          "value": {
+            "code": "BINDING_PRECONDITION_FAILED",
+            "message": "The binding precondition no longer holds."
+          }
+        },
+        {
+          "id": "invalid-1",
+          "valid": false,
+          "value": null
+        },
+        {
+          "id": "invalid-2",
+          "valid": false,
+          "value": []
+        },
+        {
+          "id": "invalid-3",
+          "valid": false,
+          "value": "invalid"
+        },
+        {
+          "id": "invalid-4",
+          "valid": false,
+          "value": {
+            "code": "BINDING_PRECONDITION_FAILED",
+            "message": "The binding precondition no longer holds.",
+            "sessionId": "synthetic-forbidden-field"
+          }
+        },
+        {
+          "id": "invalid-5",
+          "valid": false,
+          "value": {
+            "message": "The binding precondition no longer holds."
+          }
+        },
+        {
+          "id": "invalid-6",
+          "valid": false,
+          "value": {
+            "code": null,
+            "message": "The binding precondition no longer holds."
+          }
+        },
+        {
+          "id": "invalid-7",
+          "valid": false,
+          "value": {
+            "code": "BINDING_PRECONDITION_FAILED"
+          }
+        },
+        {
+          "id": "invalid-8",
+          "valid": false,
+          "value": {
+            "code": "BINDING_PRECONDITION_FAILED",
+            "message": null
+          }
+        },
+        {
+          "id": "invalid-9",
+          "valid": false,
+          "value": {
+            "code": "BINDING_PRECONDITION_FAILED",
+            "message": "Another account exists."
+          }
+        },
+        {
+          "id": "invalid-10",
+          "valid": false,
+          "value": {
+            "code": "SCOPE_DELETED",
+            "message": "The binding precondition no longer holds."
+          }
+        },
+        {
+          "id": "invalid-11",
+          "valid": false,
+          "value": {
+            "code": "BINDING_PRECONDITION_FAILED",
+            "message": "The binding precondition no longer holds.",
+            "accountId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+          }
+        }
+      ]
+    },
+    {
+      "schema": "AccessUnavailableError.json",
+      "cases": [
+        {
+          "id": "valid-1",
+          "valid": true,
+          "value": {
+            "code": "ACCESS_UNAVAILABLE",
+            "message": "The access service is unavailable."
+          }
+        },
+        {
+          "id": "invalid-1",
+          "valid": false,
+          "value": null
+        },
+        {
+          "id": "invalid-2",
+          "valid": false,
+          "value": []
+        },
+        {
+          "id": "invalid-3",
+          "valid": false,
+          "value": "invalid"
+        },
+        {
+          "id": "invalid-4",
+          "valid": false,
+          "value": {
+            "code": "ACCESS_UNAVAILABLE",
+            "message": "The access service is unavailable.",
+            "sessionId": "synthetic-forbidden-field"
+          }
+        },
+        {
+          "id": "invalid-5",
+          "valid": false,
+          "value": {
+            "message": "The access service is unavailable."
+          }
+        },
+        {
+          "id": "invalid-6",
+          "valid": false,
+          "value": {
+            "code": null,
+            "message": "The access service is unavailable."
+          }
+        },
+        {
+          "id": "invalid-7",
+          "valid": false,
+          "value": {
+            "code": "ACCESS_UNAVAILABLE"
+          }
+        },
+        {
+          "id": "invalid-8",
+          "valid": false,
+          "value": {
+            "code": "ACCESS_UNAVAILABLE",
+            "message": null
+          }
+        },
+        {
+          "id": "invalid-9",
+          "valid": false,
+          "value": {
+            "code": "ACCESS_UNAVAILABLE",
+            "message": "Another account exists."
+          }
+        },
+        {
+          "id": "invalid-10",
+          "valid": false,
+          "value": {
+            "code": "SCOPE_DELETED",
+            "message": "The access service is unavailable."
+          }
+        },
+        {
+          "id": "invalid-11",
+          "valid": false,
+          "value": {
+            "code": "ACCESS_UNAVAILABLE",
+            "message": "The access service is unavailable.",
+            "accountId": "01890f3e-7c5a-7b12-8abc-0123456789ab"
+          }
+        }
+      ]
+    }
+  ]
+}

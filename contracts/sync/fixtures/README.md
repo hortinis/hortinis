@@ -4,7 +4,7 @@ This directory contains the language-neutral examples consumed by protocol and c
 fixtures exercise the technical synchronization contract defined by D2 and the production policy wire
 shapes selected by G1; they do not define garden resources or persistence behavior.
 
-Each JSON file is one scenario with this shape:
+Operation fixtures use this scenario shape:
 
 ```json
 {
@@ -55,3 +55,11 @@ G1 and G2a policy fixtures use a smaller schema-oriented shape:
 A fixture may use `values` when several variants must satisfy the same generated schema. Contract tests
 consume these examples now; G3 through G5 update the capability status and cross-runtime consumers as
 the corresponding behavior is implemented.
+
+The shared S2 fixture `access-contracts.json` uses `suite: "access"` and capability
+`access-contract-parsing`. Its `groups` each contain a generated `schema` name and `cases` with a
+unique case ID, boolean `valid`, and JSON `value`. Schema tests and
+dedicated TypeScript/Java parsers consume every case, including rejection examples. The manifest's
+`implemented` status refers only to parsing; discovery, access resolution, and binding adapters remain
+planned. HTTP models are checked against both emitters; local-only metadata is checked against its
+standalone schema and both parsers. Legacy operation suites explicitly exclude other fixture suites.

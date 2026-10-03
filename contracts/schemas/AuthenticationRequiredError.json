@@ -1,0 +1,22 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "AuthenticationRequiredError.json",
+    "type": "object",
+    "properties": {
+        "code": {
+            "type": "string",
+            "const": "AUTHENTICATION_REQUIRED"
+        },
+        "message": {
+            "type": "string",
+            "const": "Authentication is required."
+        }
+    },
+    "required": [
+        "code",
+        "message"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

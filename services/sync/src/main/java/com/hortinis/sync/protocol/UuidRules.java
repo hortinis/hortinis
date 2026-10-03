@@ -1,6 +1,6 @@
 package com.hortinis.sync.protocol;
 
-import java.util.UUID;
+import com.hortinis.sync.identity.CanonicalUuid;
 import java.util.regex.Pattern;
 
 public final class UuidRules {
@@ -10,15 +10,7 @@ public final class UuidRules {
   private UuidRules() {}
 
   public static boolean isCanonicalUuid(String value) {
-    if (value == null) {
-      return false;
-    }
-    try {
-      UUID parsed = UUID.fromString(value);
-      return parsed.variant() == 2 && parsed.toString().equals(value);
-    } catch (IllegalArgumentException exception) {
-      return false;
-    }
+    return CanonicalUuid.isValid(value);
   }
 
   public static boolean isPositiveDecimal(String value) {

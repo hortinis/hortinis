@@ -1,6 +1,6 @@
 # Access and synchronization-scope specification
 
-- Status: Accepted design for S1; runtime implementation remains planned.
+- Status: Accepted S1 design with S2 contract/parsing boundaries; runtime adapters remain planned.
 - Decision: [ADR-0029](decisions/0029-access-and-synchronization-scope.md).
 - Owners: [S2 through S15](../development/access-and-synchronization-scope-implementation-plan.md),
   P0.6 for export/restore, and the applicable foundation/deployment gates.
@@ -201,7 +201,8 @@ These are required future executable scenarios, not claims of tests added by S1.
 
 ## Deferred decisions and release blockers
 
-S2 selects wire contracts and binding versioning before adapters. S8 selects the authentication library,
+S2 defines [wire contracts and binding versioning](../api/access-and-binding-contracts.md) before
+adapters, with strict shared parsing fixtures. S8 selects the authentication library,
 factor strength, password/recovery policy, CSRF mechanism, exact session limits, and concurrent-session
 limits. No authenticated path ships while these decisions are unresolved. Device enrollment follows
 S11; additional-account/server imports and anchored recovery follow S12/S14 and P0.6.
@@ -209,4 +210,5 @@ S11; additional-account/server imports and anchored recovery follow S12/S14 and 
 S15 closes the ASVS implementation/evidence register, assesses offline-storage deviations, and verifies
 production TLS, service credentials, secrets, logs, backups, erasure, rights handling, breach readiness,
 and operator legal decisions. Synthetic G2f scope validation is permitted before those gates; real
-personal-data trials and shared production use are not. No new library or public API is selected here.
+personal-data trials and shared production use are not. S2 selects contract-first public API shapes;
+their runtime adapters and authentication mechanisms remain gated by their owning tasks.

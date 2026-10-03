@@ -1,0 +1,26 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "PendingLogoutExchangeState.json",
+    "type": "object",
+    "properties": {
+        "state": {
+            "type": "string",
+            "const": "auth_required"
+        },
+        "exchangeFence": {
+            "$ref": "PositiveDecimal.json"
+        },
+        "logoutPending": {
+            "type": "boolean",
+            "const": true
+        }
+    },
+    "required": [
+        "state",
+        "exchangeFence",
+        "logoutPending"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

@@ -1,0 +1,48 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "ServerCapabilities.json",
+    "type": "object",
+    "properties": {
+        "contractVersion": {
+            "type": "string",
+            "const": "1"
+        },
+        "serverInstanceId": {
+            "$ref": "ServerInstanceId.json"
+        },
+        "accessMode": {
+            "$ref": "ServerAccessMode.json"
+        },
+        "supportedBoundaries": {
+            "type": "array",
+            "items": {
+                "anyOf": [
+                    {
+                        "type": "string",
+                        "const": "g2"
+                    },
+                    {
+                        "type": "string",
+                        "const": "generation"
+                    }
+                ]
+            },
+            "minItems": 1,
+            "maxItems": 2,
+            "uniqueItems": true
+        },
+        "anchoredSnapshots": {
+            "type": "boolean"
+        }
+    },
+    "required": [
+        "contractVersion",
+        "serverInstanceId",
+        "accessMode",
+        "supportedBoundaries",
+        "anchoredSnapshots"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

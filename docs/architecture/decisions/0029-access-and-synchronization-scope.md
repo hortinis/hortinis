@@ -138,6 +138,13 @@ blocking work for their implementing tasks.
 
 ## Relationship to existing decisions
 
+S2 records the concrete wire and application-boundary refinement in
+[access and binding contracts](../../api/access-and-binding-contracts.md): canonical distinct
+identifiers, internal-only context factories, public discovery versus authorized bootstrap,
+empty-destination confirmation, exchange expectations, local version-one metadata, and non-cacheable
+generic access errors. No authentication library or session mechanism is selected. S2 parsing evidence
+does not activate the corresponding S4/S6 or authenticated adapters.
+
 This decision extends ADR-0013 for DF-12's optional application authentication and refines ADR-0015's
 identifier logging rules. ADR-0010 and ADR-0023 through ADR-0028 remain authoritative for operation
 identity, retention, tombstones, generations, reconciliation, retry, and browser coordination. Scope

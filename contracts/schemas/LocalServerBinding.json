@@ -1,0 +1,38 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "LocalServerBinding.json",
+    "type": "object",
+    "properties": {
+        "version": {
+            "type": "string",
+            "const": "1"
+        },
+        "localDataSetId": {
+            "$ref": "LocalDataSetId.json"
+        },
+        "serverOrigin": {
+            "$ref": "ServerOrigin.json"
+        },
+        "serverInstanceId": {
+            "$ref": "ServerInstanceId.json"
+        },
+        "identity": {
+            "$ref": "AuthorizedScopeIdentity.json"
+        },
+        "boundary": {
+            "$ref": "SynchronizationBoundary.json"
+        }
+    },
+    "required": [
+        "version",
+        "localDataSetId",
+        "serverOrigin",
+        "serverInstanceId",
+        "identity",
+        "boundary"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "Versioned local-only provenance; never a request authorizing server access."
+}

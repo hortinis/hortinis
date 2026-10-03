@@ -1,0 +1,38 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "AuthenticatedScopeIdentity.json",
+    "type": "object",
+    "properties": {
+        "authority": {
+            "type": "string",
+            "const": "authenticated"
+        },
+        "accessMode": {
+            "anyOf": [
+                {
+                    "type": "string",
+                    "const": "single-user-auth"
+                },
+                {
+                    "type": "string",
+                    "const": "multi-user-auth"
+                }
+            ]
+        },
+        "synchronizationScopeId": {
+            "$ref": "SynchronizationScopeId.json"
+        },
+        "accountId": {
+            "$ref": "AccountId.json"
+        }
+    },
+    "required": [
+        "authority",
+        "accessMode",
+        "synchronizationScopeId",
+        "accountId"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

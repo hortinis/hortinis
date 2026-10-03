@@ -1,0 +1,22 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "AccessDeniedError.json",
+    "type": "object",
+    "properties": {
+        "code": {
+            "type": "string",
+            "const": "ACCESS_DENIED"
+        },
+        "message": {
+            "type": "string",
+            "const": "Access is denied."
+        }
+    },
+    "required": [
+        "code",
+        "message"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

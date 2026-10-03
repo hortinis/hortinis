@@ -1,0 +1,22 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "AccessUnavailableError.json",
+    "type": "object",
+    "properties": {
+        "code": {
+            "type": "string",
+            "const": "ACCESS_UNAVAILABLE"
+        },
+        "message": {
+            "type": "string",
+            "const": "The access service is unavailable."
+        }
+    },
+    "required": [
+        "code",
+        "message"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

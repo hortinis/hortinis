@@ -154,6 +154,8 @@ test('applies a tombstone after reload and resumes from its committed cursor', a
   page,
   context,
 }) => {
+  // A reload can leave the previous owner's 15-second lease until its bounded expiry.
+  test.setTimeout(45_000);
   let ready = false;
   const seenCursors: (string | null)[] = [];
   const recordId = '01890f3e-7c5a-7b13-8abc-0123456789ab';
@@ -251,12 +253,13 @@ test('applies a tombstone after reload and resumes from its committed cursor', a
             transaction.onerror = () => reject(transaction.error);
           });
         }, recordId),
-      { timeout: 10_000 },
+      { timeout: 20_000 },
     )
     .toBe(true);
   await page.reload();
-  await expect.poll(() => seenCursors.length).toBeGreaterThanOrEqual(2);
-  expect(seenCursors.slice(-2)).toEqual(['before-delete', 'after-delete']);
+  await expect
+    .poll(() => seenCursors.slice(-2), { timeout: 20_000 })
+    .toEqual(['before-delete', 'after-delete']);
 });
 
 test('persists a revision conflict and continues an independent operation', async ({ page }) => {

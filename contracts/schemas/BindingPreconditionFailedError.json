@@ -1,0 +1,22 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "BindingPreconditionFailedError.json",
+    "type": "object",
+    "properties": {
+        "code": {
+            "type": "string",
+            "const": "BINDING_PRECONDITION_FAILED"
+        },
+        "message": {
+            "type": "string",
+            "const": "The binding precondition no longer holds."
+        }
+    },
+    "required": [
+        "code",
+        "message"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

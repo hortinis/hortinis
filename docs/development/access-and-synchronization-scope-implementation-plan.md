@@ -17,7 +17,8 @@ design is recorded in [ADR-0029](../architecture/decisions/0029-access-and-synch
 the [access specification](../architecture/access-and-synchronization-scope.md),
 [threat model](../security/access-threat-model.md),
 [ASVS applicability register](../security/asvs-5.0.0-applicability.md), and
-[privacy lifecycle](../privacy/access-data-lifecycle.md). Runtime tasks remain planned. The design does
+[privacy lifecycle](../privacy/access-data-lifecycle.md). S2 contract/parsing boundaries are validated;
+runtime scope and access adapters remain planned. The design does
 not select an authentication library or authorize processing real user data.
 
 ## Required outcome
@@ -182,7 +183,7 @@ preserves local data and pending intent.
 
 ### S2 — Define scope-neutral application boundaries and wire contracts
 
-- Status: `planned`.
+- Status: `validated` (contracts and parsing only, 2026-10-02).
 - Depends on: S1.
 - Scope: define `LocalDataSetId`, `ServerInstanceId`, `SynchronizationScopeId`,
   `SynchronizationAccessContext`, server-capability discovery, binding states, and closed bootstrap/error
@@ -195,6 +196,31 @@ preserves local data and pending intent.
   examples contain synthetic data only.
 - Validation: generation drift, OpenAPI lint, JSON Schema validation, focused negative cases, and shared
   TypeScript/Java parsing fixtures pass.
+- Artifacts: [access and binding contract refinement](../api/access-and-binding-contracts.md), TypeSpec
+  discovery/bootstrap/confirmation and closed local/error models, generated OpenAPI/JSON Schemas,
+  branded browser identities, validating Java identities, internal immutable access context, and
+  strict parsers. One shared `access-contract-parsing` fixture contains eighteen schema groups and
+  285 synthetic positive/negative cases; HTTP shapes exercise both emitters and local-only metadata stays outside
+  public HTTP DTOs. Fixed generic errors and `no-store` headers are contract declarations.
+- Handoff: S3/S4/S5 consume the identities and application types. S6 must implement expectation
+  lifecycle, destination validation, empty-admission concurrency, local binding transactions, and
+  actual response headers before advertising binding-aware exchange. Authentication/session/CSRF
+  mechanisms remain S8 decisions. No scope resolver, migration, network adapter, or data transfer
+  workflow is activated by S2; no runtime AC-AS or ASVS pass is asserted.
+- Validation evidence (2026-10-02): the documented `pnpm validate` suite passed, including generated
+  drift/lint/schema checks, frontend quality/type/architecture checks, 78 web unit tests, five browser
+  smoke/offline tests, builds, 12 Java unit tests, and 25 PostgreSQL integration tests. The final ASCII
+  origin refinement also passed contract validation and focused frontend/Java quality and parsing
+  checks; all 285 shared cases agree. Documentation links, English content/path consistency, whitespace,
+  ignore rules, and line-ending conventions were reviewed. Existing Checkstyle warnings remain in
+  unchanged baseline code; new Java types/parsers introduce no such warnings.
+- Cleanup validation (2026-10-03): consolidated the eighteen schema groups into one fixture without
+  changing their 285 cases, removed repeated documentation additions, and reran `pnpm validate`
+  successfully. All three consumers reject duplicate or unsupported schema groups and consume every
+  declared case. Relative file links, UTF-8/LF conventions, and whitespace checks passed.
+- Validation repair: the existing tombstone reload test now permits the coordinator's 15-second lease
+  expiry and waits for the actual resumed cursor pair rather than an earlier request count. Runtime
+  synchronization behavior is unchanged by this test correction.
 
 ### S3 — Partition the PostgreSQL synchronization model
 

@@ -1,0 +1,46 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "SynchronizationBootstrap.json",
+    "type": "object",
+    "properties": {
+        "contractVersion": {
+            "type": "string",
+            "const": "1"
+        },
+        "serverInstanceId": {
+            "$ref": "ServerInstanceId.json"
+        },
+        "identity": {
+            "$ref": "AuthorizedScopeIdentity.json"
+        },
+        "population": {
+            "anyOf": [
+                {
+                    "type": "string",
+                    "const": "empty"
+                },
+                {
+                    "type": "string",
+                    "const": "populated"
+                }
+            ]
+        },
+        "boundary": {
+            "$ref": "SynchronizationBoundary.json"
+        },
+        "expectation": {
+            "$ref": "ExchangeExpectation.json"
+        }
+    },
+    "required": [
+        "contractVersion",
+        "serverInstanceId",
+        "identity",
+        "population",
+        "boundary",
+        "expectation"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

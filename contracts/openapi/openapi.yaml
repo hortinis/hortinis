@@ -5,6 +5,189 @@ info:
   description: The contract-first HTTP API for the Hortinis synchronization service.
 tags: []
 paths:
+  /api/v1/server/capabilities:
+    get:
+      operationId: readServerCapabilities
+      summary: Read public server compatibility information
+      description: Contract-only until S6. Never return account/scope identity, content, or setup secrets.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.ServerCapabilities'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+  /api/v1/sync/bindings/confirm:
+    post:
+      operationId: confirmEmptySynchronizationBinding
+      summary: Confirm an observed empty synchronization destination
+      description: Contract-only until S6. Revalidate current access, expectation, and empty population atomically. Never provision a scope from this request.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.SynchronizationBootstrap'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.BindingPreconditionFailedError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Models.ConfirmEmptyBindingRequest'
+  /api/v1/sync/bootstrap:
+    get:
+      operationId: readSynchronizationBootstrap
+      summary: Observe the currently authorized synchronization destination
+      description: Contract-only until S6. Resolve current access before reading population or identity. This observation does not authorize later exchange or advance a cursor.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.SynchronizationBootstrap'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
   /api/v1/sync/changes:
     get:
       operationId: pullTechnicalRecordChanges
@@ -17,50 +200,195 @@ paths:
           schema:
             $ref: '#/components/schemas/Models.SyncCursor'
           explode: false
+        - name: Sync-Expectation
+          in: header
+          required: false
+          schema:
+            $ref: '#/components/schemas/Models.ExchangeExpectation'
       responses:
         '200':
           description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Models.ChangePage'
         '400':
           description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.BindingPreconditionFailedError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
   /api/v1/sync/operations:
     post:
       operationId: submitTechnicalRecordOperation
       summary: Submit one technical-record operation
       description: Accept or identically replay one create, replacement, or deletion operation. Generation binding becomes mandatory in G3.
-      parameters: []
+      parameters:
+        - name: Sync-Expectation
+          in: header
+          required: false
+          schema:
+            $ref: '#/components/schemas/Models.ExchangeExpectation'
       responses:
         '200':
           description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Models.OperationResult'
         '400':
           description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
         '404':
           description: The server cannot find the requested resource.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Models.RecordNotFoundError'
         '409':
           description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Models.ConflictError'
+                anyOf:
+                  - $ref: '#/components/schemas/Models.ConflictError'
+                  - $ref: '#/components/schemas/Models.BindingPreconditionFailedError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
       requestBody:
         required: true
         content:
@@ -72,20 +400,91 @@ paths:
       operationId: startTechnicalRecordReconciliation
       summary: Start one anchored full-reconciliation session
       description: Capture an internally consistent technical-record snapshot at one server sequence.
-      parameters: []
+      parameters:
+        - name: Sync-Expectation
+          in: header
+          required: false
+          schema:
+            $ref: '#/components/schemas/Models.ExchangeExpectation'
       responses:
         '201':
           description: The request has succeeded and a new resource has been created as a result.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Models.ReconciliationSession'
         '400':
           description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.BindingPreconditionFailedError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
       requestBody:
         required: true
         content:
@@ -109,27 +508,201 @@ paths:
           schema:
             $ref: '#/components/schemas/Models.SnapshotCursor'
           explode: false
+        - name: Sync-Expectation
+          in: header
+          required: false
+          schema:
+            $ref: '#/components/schemas/Models.ExchangeExpectation'
       responses:
         '200':
           description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Models.SnapshotPage'
         '400':
           description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.BindingPreconditionFailedError'
         '410':
           description: Client error
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Models.SnapshotExpiredError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
 components:
   schemas:
+    Models.AccessDeniedError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - ACCESS_DENIED
+        message:
+          type: string
+          enum:
+            - Access is denied.
+      unevaluatedProperties:
+        not: {}
+    Models.AccessUnavailableError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - ACCESS_UNAVAILABLE
+        message:
+          type: string
+          enum:
+            - The access service is unavailable.
+      unevaluatedProperties:
+        not: {}
+    Models.AccountId:
+      type: string
+      pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+      format: uuid
+      description: A server-owned account identity, distinct from its scope.
+    Models.AuthenticatedScopeIdentity:
+      type: object
+      required:
+        - authority
+        - accessMode
+        - synchronizationScopeId
+        - accountId
+      properties:
+        authority:
+          type: string
+          enum:
+            - authenticated
+        accessMode:
+          type: string
+          enum:
+            - single-user-auth
+            - multi-user-auth
+        synchronizationScopeId:
+          $ref: '#/components/schemas/Models.SynchronizationScopeId'
+        accountId:
+          $ref: '#/components/schemas/Models.AccountId'
+      unevaluatedProperties:
+        not: {}
+    Models.AuthenticationRequiredError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - AUTHENTICATION_REQUIRED
+        message:
+          type: string
+          enum:
+            - Authentication is required.
+      unevaluatedProperties:
+        not: {}
+    Models.AuthorizedScopeIdentity:
+      anyOf:
+        - $ref: '#/components/schemas/Models.ConfiguredScopeIdentity'
+        - $ref: '#/components/schemas/Models.AuthenticatedScopeIdentity'
+    Models.BindingPreconditionFailedError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - BINDING_PRECONDITION_FAILED
+        message:
+          type: string
+          enum:
+            - The binding precondition no longer holds.
+      unevaluatedProperties:
+        not: {}
     Models.ChangePage:
       type: object
       required:
@@ -148,6 +721,39 @@ components:
       unevaluatedProperties:
         not: {}
       description: A page of accepted changes and the opaque cursor following the complete page.
+    Models.ConfiguredScopeIdentity:
+      type: object
+      required:
+        - authority
+        - accessMode
+        - synchronizationScopeId
+      properties:
+        authority:
+          type: string
+          enum:
+            - configured
+        accessMode:
+          type: string
+          enum:
+            - single-user-no-auth
+        synchronizationScopeId:
+          $ref: '#/components/schemas/Models.SynchronizationScopeId'
+      unevaluatedProperties:
+        not: {}
+    Models.ConfirmEmptyBindingRequest:
+      type: object
+      required:
+        - expectation
+        - expectedPopulation
+      properties:
+        expectation:
+          $ref: '#/components/schemas/Models.ExchangeExpectation'
+        expectedPopulation:
+          type: string
+          enum:
+            - empty
+      unevaluatedProperties:
+        not: {}
     Models.ConflictError:
       type: object
       oneOf:
@@ -206,6 +812,35 @@ components:
       unevaluatedProperties:
         not: {}
       description: Delete an existing technical record at its expected server revision.
+    Models.ExchangeExpectation:
+      type: string
+      pattern: ^[A-Za-z0-9_-]{1,256}$
+      description: A non-secret expectation checked after independent authorization; never carried in URLs.
+    Models.G2SynchronizationBoundary:
+      type: object
+      required:
+        - kind
+      properties:
+        kind:
+          type: string
+          enum:
+            - g2
+      unevaluatedProperties:
+        not: {}
+    Models.GenerationSynchronizationBoundary:
+      type: object
+      required:
+        - kind
+        - generation
+      properties:
+        kind:
+          type: string
+          enum:
+            - generation
+        generation:
+          $ref: '#/components/schemas/Models.SyncGeneration'
+      unevaluatedProperties:
+        not: {}
     Models.InvalidRequestError:
       type: object
       required:
@@ -445,6 +1080,48 @@ components:
       unevaluatedProperties:
         not: {}
       description: Replacement failed because the expected and current revisions differ.
+    Models.ServerAccessMode:
+      type: string
+      enum:
+        - single-user-no-auth
+        - single-user-auth
+        - multi-user-auth
+    Models.ServerCapabilities:
+      type: object
+      required:
+        - contractVersion
+        - serverInstanceId
+        - accessMode
+        - supportedBoundaries
+        - anchoredSnapshots
+      properties:
+        contractVersion:
+          type: string
+          enum:
+            - '1'
+        serverInstanceId:
+          $ref: '#/components/schemas/Models.ServerInstanceId'
+        accessMode:
+          $ref: '#/components/schemas/Models.ServerAccessMode'
+        supportedBoundaries:
+          type: array
+          items:
+            type: string
+            enum:
+              - g2
+              - generation
+          minItems: 1
+          maxItems: 2
+          uniqueItems: true
+        anchoredSnapshots:
+          type: boolean
+      unevaluatedProperties:
+        not: {}
+    Models.ServerInstanceId:
+      type: string
+      pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+      format: uuid
+      description: A stable, non-secret server installation identity.
     Models.SnapshotContinuationPage:
       type: object
       required:
@@ -573,6 +1250,44 @@ components:
       type: string
       minLength: 1
       description: An opaque, non-empty synchronization-generation identifier controlled by the server.
+    Models.SynchronizationBootstrap:
+      type: object
+      required:
+        - contractVersion
+        - serverInstanceId
+        - identity
+        - population
+        - boundary
+        - expectation
+      properties:
+        contractVersion:
+          type: string
+          enum:
+            - '1'
+        serverInstanceId:
+          $ref: '#/components/schemas/Models.ServerInstanceId'
+        identity:
+          $ref: '#/components/schemas/Models.AuthorizedScopeIdentity'
+        population:
+          type: string
+          enum:
+            - empty
+            - populated
+        boundary:
+          $ref: '#/components/schemas/Models.SynchronizationBoundary'
+        expectation:
+          $ref: '#/components/schemas/Models.ExchangeExpectation'
+      unevaluatedProperties:
+        not: {}
+    Models.SynchronizationBoundary:
+      anyOf:
+        - $ref: '#/components/schemas/Models.G2SynchronizationBoundary'
+        - $ref: '#/components/schemas/Models.GenerationSynchronizationBoundary'
+    Models.SynchronizationScopeId:
+      type: string
+      pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+      format: uuid
+      description: A server-owned synchronization partition identity; never a credential.
     Models.TechnicalChange:
       anyOf:
         - $ref: '#/components/schemas/Models.RecordTechnicalChange'

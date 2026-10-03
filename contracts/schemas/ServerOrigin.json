@@ -1,0 +1,8 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "ServerOrigin.json",
+    "type": "string",
+    "maxLength": 2048,
+    "pattern": "^https?://[a-z0-9.\\[\\]:%-]+$",
+    "description": "ASCII origin syntax; international hostnames use normalized punycode. The binding adapter additionally validates the URL authority."
+}

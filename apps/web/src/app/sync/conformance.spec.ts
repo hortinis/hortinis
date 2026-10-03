@@ -34,7 +34,7 @@ interface CapabilityManifest {
   fixtures: {
     file: string;
     status: 'implemented' | 'planned';
-    suite?: 'value';
+    suite?: 'value' | 'access';
     consumers: string[];
   }[];
 }
@@ -44,7 +44,7 @@ const capabilityManifest = JSON.parse(
   readFileSync(join(fixtureDirectory, 'capabilities.json'), 'utf8'),
 ) as CapabilityManifest;
 const fixtureNames = capabilityManifest.fixtures
-  .filter(({ consumers, suite }) => consumers.includes('typescript') && suite !== 'value')
+  .filter(({ consumers, suite }) => consumers.includes('typescript') && suite === undefined)
   .map(({ file }) => file);
 
 describe('technical synchronization conformance fixtures', () => {

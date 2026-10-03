@@ -8,6 +8,11 @@ committed OpenAPI 3.1 document under `contracts/openapi/` and standalone JSON Sc
 Contracts are defined before their Spring MVC adapters. If generated clients or boundary types are
 introduced, they must be reproducible and must not be edited by hand.
 
+S2 defines the [access and binding contracts](access-and-binding-contracts.md): public capabilities,
+authorized bootstrap, empty-destination confirmation, versioned local metadata, generic access errors,
+and a non-authorizing exchange expectation. Their TypeSpec and parsing boundaries are implemented;
+their server/browser workflow adapters remain assigned to S4/S6 and authenticated tasks.
+
 ## Implemented V0 technical synchronization API
 
 The V0 walking-skeleton adapters implement these operations:
@@ -98,8 +103,9 @@ two domain operations are semantically equivalent remains a future domain-specif
 
 ## Deliberate limitations
 
-The contract does not define authentication, authorization, a production synchronization-scope
-identifier, batching, garden resources, or domain-specific conflict resolution. The V0 validation
+The contract defines scope identity and access-boundary shapes without implementing authorization or
+selecting authentication/session mechanisms. Batching, garden resources, and domain-specific conflict
+resolution remain undefined. The V0 validation
 topology uses one test-only synchronization scope, retains all incremental history and idempotency
 receipts, and must not expose an unauthenticated production service. G2b and G2c activate deletion on
 the server and browser respectively. The browser keeps accepted tombstones separately from live records,

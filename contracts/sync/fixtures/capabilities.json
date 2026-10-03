@@ -135,6 +135,13 @@
       "capability": "anchored-snapshots",
       "status": "planned",
       "consumers": ["contract"]
+    },
+    {
+      "file": "access-contracts.json",
+      "capability": "access-contract-parsing",
+      "status": "implemented",
+      "suite": "access",
+      "consumers": ["contract", "typescript", "java"]
     }
   ]
 }

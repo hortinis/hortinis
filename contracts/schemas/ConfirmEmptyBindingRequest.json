@@ -1,0 +1,21 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "ConfirmEmptyBindingRequest.json",
+    "type": "object",
+    "properties": {
+        "expectation": {
+            "$ref": "ExchangeExpectation.json"
+        },
+        "expectedPopulation": {
+            "type": "string",
+            "const": "empty"
+        }
+    },
+    "required": [
+        "expectation",
+        "expectedPopulation"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

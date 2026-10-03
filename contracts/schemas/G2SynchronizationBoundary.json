@@ -1,0 +1,17 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "G2SynchronizationBoundary.json",
+    "type": "object",
+    "properties": {
+        "kind": {
+            "type": "string",
+            "const": "g2"
+        }
+    },
+    "required": [
+        "kind"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

@@ -1,0 +1,26 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "ConfiguredScopeIdentity.json",
+    "type": "object",
+    "properties": {
+        "authority": {
+            "type": "string",
+            "const": "configured"
+        },
+        "accessMode": {
+            "type": "string",
+            "const": "single-user-no-auth"
+        },
+        "synchronizationScopeId": {
+            "$ref": "SynchronizationScopeId.json"
+        }
+    },
+    "required": [
+        "authority",
+        "accessMode",
+        "synchronizationScopeId"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

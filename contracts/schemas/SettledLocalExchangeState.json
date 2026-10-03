@@ -1,0 +1,63 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "SettledLocalExchangeState.json",
+    "type": "object",
+    "properties": {
+        "state": {
+            "anyOf": [
+                {
+                    "type": "string",
+                    "const": "offline"
+                },
+                {
+                    "type": "string",
+                    "const": "binding_pending"
+                },
+                {
+                    "type": "string",
+                    "const": "bound"
+                },
+                {
+                    "type": "string",
+                    "const": "auth_required"
+                },
+                {
+                    "type": "string",
+                    "const": "binding_mismatch"
+                },
+                {
+                    "type": "string",
+                    "const": "revoked"
+                },
+                {
+                    "type": "string",
+                    "const": "reconciliation_required"
+                },
+                {
+                    "type": "string",
+                    "const": "scope_deleted"
+                },
+                {
+                    "type": "string",
+                    "const": "disconnected"
+                }
+            ]
+        },
+        "exchangeFence": {
+            "$ref": "PositiveDecimal.json"
+        },
+        "logoutPending": {
+            "type": "boolean",
+            "const": false
+        }
+    },
+    "required": [
+        "state",
+        "exchangeFence",
+        "logoutPending"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "Local exchange readiness is separate from persisted binding and current server permission."
+}

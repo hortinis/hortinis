@@ -1,0 +1,18 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "ServerAccessMode.json",
+    "anyOf": [
+        {
+            "type": "string",
+            "const": "single-user-no-auth"
+        },
+        {
+            "type": "string",
+            "const": "single-user-auth"
+        },
+        {
+            "type": "string",
+            "const": "multi-user-auth"
+        }
+    ]
+}
