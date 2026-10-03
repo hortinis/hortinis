@@ -1,6 +1,7 @@
 # ADR-0024: Synchronization tombstones and identifier retirement
 
 - Status: Accepted
+- Date: 2026-09-21
 
 ## Context
 

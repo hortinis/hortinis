@@ -32,3 +32,12 @@ manifest. Contract validation fails when a fixture is unlisted or an implemented
 TypeScript or Java consumer. G2e also runs deletion and interrupted acknowledgement recovery through the
 real browser, service, and PostgreSQL topology. G3 and G4 add the remaining production-policy behavior;
 G5 repeats the complete shared corpus across compaction and reconciliation boundaries.
+
+## H0 review hardening — 2026-10-03
+
+The [G2e review hardening plan](g2e-review-hardening-plan.md) H0 increment is implemented.
+Documentation checks, ADR dates, development guidance, and privacy-safe synchronization route naming
+are updated; no wire contract changed. The [validation evidence](foundation-implementation-plan.md#h0-review-hardening-evidence--2026-10-03)
+records passing documentation/frontend checks and the backend build using temporary output directories.
+Full validation remains pending because the default backend output has ownership conflicts and the G2e
+topology database password is not configured.

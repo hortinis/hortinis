@@ -1,6 +1,7 @@
 # ADR-0016: Project name and license
 
 - Status: Accepted
+- Date: 2026-09-09
 
 ## Context
 

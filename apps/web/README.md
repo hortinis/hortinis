@@ -1,6 +1,6 @@
 # Hortinis web application
 
-This directory contains the Angular browser application for Hortinis. It will contain the user interface, browser-side rules, synchronization, and local persistence as those capabilities are introduced.
+This directory contains the Angular browser application for Hortinis. It includes the application shell, browser persistence, technical-record synchronization, and bounded recovery. Business workflows remain planned.
 
 Run frontend commands from the repository root using the pnpm workspace.
 
@@ -46,7 +46,7 @@ Install the Playwright Chromium binary once for the local environment:
 pnpm --filter @hortinis/web exec playwright install chromium
 ```
 
-Run the browser smoke test; Playwright starts and stops the Angular development server automatically:
+Run the browser tests; Playwright builds the production bundle and starts and stops its static server automatically:
 
 ```shell
 pnpm --filter @hortinis/web test:e2e

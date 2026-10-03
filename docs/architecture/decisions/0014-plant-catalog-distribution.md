@@ -1,6 +1,7 @@
 # ADR-0014: Plant catalog distribution contract
 
 - Status: Accepted
+- Date: 2026-09-09
 
 ## Context
 

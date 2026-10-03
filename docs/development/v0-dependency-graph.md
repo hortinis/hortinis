@@ -4,7 +4,7 @@
   including the local-validation artifact produced by `hortinis-plants`.
 - Sources: [technical foundation plan](foundation-implementation-plan.md),
   [product implementation plan](product-implementation-plan.md), and the
-  [`hortinis-plants` catalog implementation plan](../../../hortinis-plants/docs/development/implementation-plan.md).
+  [`hortinis-plants` catalog implementation plan](https://github.com/hortinis/hortinis-plants/blob/main/docs/development/implementation-plan.md).
 - Legend: `validated` is complete; `planned` and `in progress` still require completion; an arrow means the
   source is a prerequisite of the target.
 

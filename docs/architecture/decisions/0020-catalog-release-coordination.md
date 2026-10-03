@@ -1,6 +1,7 @@
 # ADR-0020: Catalog release coordination
 
 - Status: Accepted
+- Date: 2026-09-11
 
 ## Context
 

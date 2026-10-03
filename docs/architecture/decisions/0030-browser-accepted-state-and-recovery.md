@@ -1,6 +1,7 @@
 # ADR-0030: Browser accepted state and recovery completion
 
 - Status: Accepted
+- Date: 2026-10-03
 
 ## Context
 

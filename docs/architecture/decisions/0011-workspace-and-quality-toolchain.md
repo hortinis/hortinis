@@ -1,6 +1,7 @@
 # ADR-0011: Workspace and quality toolchain
 
 - Status: Accepted
+- Date: 2026-09-09
 
 ## Context
 
@@ -14,6 +15,7 @@ Hortinis is a polyglot monorepo. Contributors need reproducible commands and foc
 - Use strict TypeScript, Angular ESLint, Prettier, Vitest, and Playwright for the web application.
 - Use the Java compiler, JUnit 5, AssertJ, ArchUnit, Testcontainers, Checkstyle, and Spotless for the backend application.
 - Make formatting, linting, type checking, unit tests, integration tests, architecture tests, and builds independently runnable.
+- Validate documentation with `pnpm docs:validate`, using Node built-ins and `node:test` fixtures to check local links and anchors, ADR headers and index coverage, and an explicit cross-repository URL allowlist. Run it in the root validation sequence without fetching external pages or adding dependencies.
 
 ## Consequences
 

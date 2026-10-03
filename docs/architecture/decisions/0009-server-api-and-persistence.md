@@ -1,6 +1,7 @@
 # ADR-0009: Server API and persistence
 
 - Status: Accepted
+- Date: 2026-09-09
 
 ## Context
 

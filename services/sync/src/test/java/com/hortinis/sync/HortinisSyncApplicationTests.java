@@ -2,6 +2,7 @@ package com.hortinis.sync;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -53,6 +54,24 @@ class HortinisSyncApplicationTests {
         .andExpect(status().isOk())
         .andExpect(content().json("{\"status\":\"UP\"}", true));
     mockMvc.perform(get("/actuator/info")).andExpect(status().isNotFound());
+  }
+
+  @Test
+  void synchronizationRoutesHavePrivacySafeNames(CapturedOutput output) throws Exception {
+    String canary = "route-sensitive-" + UUID.randomUUID();
+    mockMvc.perform(post("/api/v1/sync/operations").queryParam("secret", canary));
+    mockMvc.perform(get("/api/v1/sync/changes").queryParam("secret", canary));
+    mockMvc.perform(get("/private/" + canary));
+
+    var routes =
+        output
+            .getOut()
+            .lines()
+            .filter(line -> line.contains("\"event\":\"request_completed\""))
+            .map(line -> JsonMapper.builder().build().readTree(line).path("route").textValue())
+            .toList();
+    assertThat(routes).contains("/api/v1/sync/operations", "/api/v1/sync/changes", "/unknown");
+    assertThat(output.getOut()).doesNotContain(canary);
   }
 
   @Test

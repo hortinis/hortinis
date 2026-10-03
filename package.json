@@ -18,7 +18,8 @@
     "contracts:check-generated": "node scripts/contracts/check-generated.mjs",
     "contracts:lint": "node scripts/contracts/lint-local.mjs && bash scripts/contracts/lint-openapi.sh",
     "contracts:test": "node --test scripts/contracts/*.test.mjs && bash scripts/contracts/test-openapi.sh",
-    "contracts:validate": "pnpm contracts:format:check && pnpm contracts:check-generated && pnpm contracts:lint && pnpm contracts:test"
+    "contracts:validate": "pnpm contracts:format:check && pnpm contracts:check-generated && pnpm contracts:lint && pnpm contracts:test",
+    "docs:validate": "node --test scripts/docs/*.test.mjs && node scripts/docs/check-docs.mjs"
   },
   "devDependencies": {
     "@redocly/cli": "2.52.0",

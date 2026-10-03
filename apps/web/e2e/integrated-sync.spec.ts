@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('propagates a retried deletion through the real service and PostgreSQL', async ({
+test('replays a lost create acknowledgement and propagates deletion through the real service and PostgreSQL', async ({
   browser,
 }) => {
   const firstContext = await browser.newContext();

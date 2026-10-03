@@ -1,6 +1,7 @@
 # ADR-0028: Browser synchronization coordination
 
 - Status: Accepted
+- Date: 2026-09-27
 
 ## Context
 

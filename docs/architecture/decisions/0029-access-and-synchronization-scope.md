@@ -1,6 +1,7 @@
 # ADR-0029: Access and synchronization-scope ownership
 
 - Status: Accepted
+- Date: 2026-10-02
 - Accepted on: 2026-10-02.
 - Implementation owner: S1 through S15 of the
   [access and synchronization-scope plan](../../development/access-and-synchronization-scope-implementation-plan.md).

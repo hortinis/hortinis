@@ -50,7 +50,12 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
   private static String routeTemplate(HttpServletRequest request) {
     String path = request.getRequestURI();
     return switch (path) {
-      case "/actuator/health", "/actuator/health/liveness", "/actuator/health/readiness" -> path;
+      case "/actuator/health",
+          "/actuator/health/liveness",
+          "/actuator/health/readiness",
+          "/api/v1/sync/operations",
+          "/api/v1/sync/changes" ->
+          path;
       default -> "/unknown";
     };
   }

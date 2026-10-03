@@ -1,6 +1,7 @@
 # ADR-0015: Privacy and observability
 
 - Status: Accepted
+- Date: 2026-09-09
 
 ## Context
 

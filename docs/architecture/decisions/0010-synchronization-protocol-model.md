@@ -1,6 +1,7 @@
 # ADR-0010: Synchronization protocol model
 
 - Status: Accepted
+- Date: 2026-09-09
 
 ## Context
 

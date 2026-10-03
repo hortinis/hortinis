@@ -1,6 +1,7 @@
 # ADR-0017: Privacy-preserving web analytics
 
 - Status: Accepted; activation gated
+- Date: 2026-09-09
 
 ## Context
 

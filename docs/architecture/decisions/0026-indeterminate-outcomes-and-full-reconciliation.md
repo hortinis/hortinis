@@ -1,6 +1,7 @@
 # ADR-0026: Indeterminate operation outcomes and full reconciliation
 
 - Status: Accepted
+- Date: 2026-09-21
 
 ## Context
 

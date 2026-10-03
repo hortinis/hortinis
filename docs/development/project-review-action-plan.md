@@ -391,3 +391,12 @@ reproduced the delayed-acknowledgement regression and browser rejection of a ser
 The server ordering and catalog publication findings came from code analysis; their task acceptance
 criteria require deterministic reproductions. Full Gradle, Vitest, Playwright, container and deployment
 validation were not rerun during the review. Preserve that distinction in future completion claims.
+
+## H0 review hardening — 2026-10-03
+
+The [G2e review hardening plan](g2e-review-hardening-plan.md) H0 increment is implemented.
+Documentation checks, ADR dates, development guidance, and privacy-safe synchronization route naming
+are updated; no wire contract changed. The [validation evidence](foundation-implementation-plan.md#h0-review-hardening-evidence--2026-10-03)
+records passing documentation/frontend checks and the backend build using temporary output directories.
+Full validation remains pending because the default backend output has ownership conflicts and the G2e
+topology database password is not configured.

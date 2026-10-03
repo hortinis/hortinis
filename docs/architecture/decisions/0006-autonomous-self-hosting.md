@@ -1,6 +1,7 @@
 # ADR-0006: Autonomous self-hosting
 
 - Status: Accepted
+- Date: 2026-09-09
 
 ## Context
 

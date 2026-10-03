@@ -1,6 +1,7 @@
 # ADR-0003: Synchronization boundary
 
 - Status: Accepted
+- Date: 2026-09-09
 
 ## Context
 

@@ -1190,3 +1190,32 @@ Every foundation change must be reviewed for:
 - absence of business functionality, secrets, generated credentials, local data, and environment-specific configuration.
 
 Before executable validation exists, use the [pre-scaffold development checks](README.md). As each increment introduces runnable checks, document and execute those checks in addition to the pre-scaffold review.
+
+## H0 review hardening evidence — 2026-10-03
+
+H0 from the [G2e review hardening plan](g2e-review-hardening-plan.md) is implemented; full topology
+validation remains pending. Updated stale root/web README descriptions, documented Docker and existing
+volume password behavior, replaced the sibling-checkout catalog link with its repository URL, added
+28 missing ADR dates from their first-addition Git history, and clarified ADR-0027's online hint.
+The integrated scenario title now identifies lost-create-acknowledgement replay and deletion propagation.
+Sync request logs name the two fixed technical routes while retaining `/unknown` for unrecognized paths;
+a regression test verifies route names and omission of a sensitive path/query sentinel.
+
+Validation on 2026-10-03:
+
+- `pnpm docs:validate`: passed all six fixtures, including broken-link/anchor rejection, invalid ADR
+  headers, missing index entries, and cross-repository allowlist enforcement; repository check passed.
+  The command is included in `pnpm validate` and uses only Node built-ins without fetching external pages.
+- `pnpm validate`: documentation, contracts, frontend formatting/lint/architecture/type checks,
+  98 unit tests, five browser tests, development/production builds, and Wrapper checksum passed.
+  The default backend build failed because pre-existing build output is owned by another user.
+- `./gradlew --init-script /tmp/hortinis-h0-validation.gradle --dependency-verification=strict build`:
+  passed with outputs redirected to a temporary directory, including backend unit/conformance tests,
+  PostgreSQL integration tests, Spotless, Checkstyle, and PMD. Existing Checkstyle warnings remain.
+  The temporary init script sets each project's build directory beneath `/tmp/hortinis-h0-gradle-build`;
+  it does not change repository build configuration.
+- `pnpm g2e:topology`: could not start because `HORTINIS_POSTGRES_PASSWORD` is unset. Configure the local
+  password matching the existing topology volume before rerunning; H0 is not yet fully validated under
+  the plan's definition of done.
+- Repository whitespace, tracked-ignore rules, English language consistency, local link resolution,
+  and line-ending checks passed. No dependency, public wire contract, or business feature was added.

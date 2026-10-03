@@ -1,6 +1,7 @@
 # ADR-0027: Bounded synchronization retry and manual recovery
 
 - Status: Accepted
+- Date: 2026-09-22
 
 ## Context
 
@@ -24,6 +25,8 @@ Each HTTP attempt has a 10-second request timeout. A timeout is service unavaila
 attempt because a response may have been lost; the stable operation identifier or unchanged pull cursor
 makes repetition safe. The timeout and scheduled delays provide bounded recovery for short outages, not
 an indefinite background availability mechanism.
+
+`navigator.onLine` is a hint only; request failure remains the authoritative offline signal.
 
 An offline observation does not consume an attempt. Service unavailability and a local result or page
 commit failure that is safe to repeat consume the budget. Stable operation identifiers and opaque pull

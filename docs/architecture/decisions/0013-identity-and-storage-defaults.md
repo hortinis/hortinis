@@ -1,6 +1,7 @@
 # ADR-0013: Identity and storage defaults
 
 - Status: Accepted
+- Date: 2026-09-09
 
 ## Context
 

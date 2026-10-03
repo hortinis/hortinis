@@ -1,6 +1,7 @@
 # ADR-0022: UUIDv7 generation library
 
 - Status: Accepted
+- Date: 2026-09-15
 
 ## Context
 

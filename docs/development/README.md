@@ -1,5 +1,8 @@
 # Development
 
+The proposed [G2e review hardening plan](g2e-review-hardening-plan.md) records findings from an external
+review, implementation dependencies, and decisions to resolve before the affected work begins.
+
 The selected development toolchain is:
 
 - Node.js 24 LTS, pnpm, Angular, and strict TypeScript for the PWA;
@@ -29,7 +32,8 @@ document independently from the repository root:
 pnpm compose:validate
 ```
 
-With Docker available, export a local database password and start the topology:
+Docker Engine with the Compose plugin is required for this topology and for PostgreSQL-backed
+integration tests. With Docker available, export a local database password and start the topology:
 
 ```shell
 export HORTINIS_POSTGRES_PASSWORD='choose-a-local-password'
@@ -44,6 +48,10 @@ predictably with:
 ```shell
 docker compose --file infrastructure/docker/compose.yaml down --remove-orphans
 ```
+
+PostgreSQL initializes its password only when the data volume is empty. Changing
+`HORTINIS_POSTGRES_PASSWORD` does not update credentials in an existing `postgres-data` volume;
+update the database role password to match before restarting with a new value.
 
 The first startup can take several minutes while Gradle and the application dependencies populate the
 named `gradle-cache` volume. Do not start a second Gradle command using the same Compose service while
@@ -219,7 +227,8 @@ git ls-files --eol
 These commands cover whitespace, tracked-file ignore rules, and the repository's text and line-ending conventions. For repository areas that do not yet have executable validation, also:
 
 - reviewing all added or modified content and descriptive paths for English language consistency, as required by [ADR-0018](../architecture/decisions/0018-repository-language.md);
-- verifying that every relative documentation link resolves to an existing file and anchor;
+- running `pnpm docs:validate` to check documentation links, heading anchors, ADR headers, the ADR
+  index, and the explicit cross-repository URL allowlist;
 - checking that referenced repository paths agree with the planned layout in the root README and with accepted architecture decisions;
 - reviewing the change for consistency with the dependency, offline-first, synchronization, privacy, and self-hosting rules;
 - confirming that the change introduces no business functionality, secrets, generated credentials, local data, or environment-specific configuration.

@@ -1,6 +1,7 @@
 # ADR-0001: Offline-first operation
 
 - Status: Accepted
+- Date: 2026-09-09
 
 ## Context
 

@@ -1,6 +1,7 @@
 # ADR-0008: Web application and local persistence
 
 - Status: Accepted
+- Date: 2026-09-09
 
 ## Context
 

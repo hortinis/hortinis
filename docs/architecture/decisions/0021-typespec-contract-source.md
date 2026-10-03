@@ -1,6 +1,7 @@
 # ADR-0021: TypeSpec contract source
 
 - Status: Accepted
+- Date: 2026-09-14
 
 ## Context
 

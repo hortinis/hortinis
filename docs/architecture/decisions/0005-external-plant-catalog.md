@@ -1,6 +1,7 @@
 # ADR-0005: External plant catalog
 
 - Status: Accepted
+- Date: 2026-09-09
 
 ## Context
 

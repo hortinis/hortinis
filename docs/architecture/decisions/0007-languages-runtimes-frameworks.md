@@ -1,6 +1,7 @@
 # ADR-0007: Languages, runtimes, and frameworks
 
 - Status: Accepted
+- Date: 2026-09-09
 
 ## Context
 

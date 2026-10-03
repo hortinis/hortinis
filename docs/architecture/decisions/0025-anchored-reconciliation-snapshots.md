@@ -1,6 +1,7 @@
 # ADR-0025: Anchored reconciliation snapshots and continuation
 
 - Status: Accepted
+- Date: 2026-09-21
 
 ## Context
 

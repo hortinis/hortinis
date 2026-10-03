@@ -1,6 +1,7 @@
 # ADR-0023: Synchronization retention, compaction, and generations
 
 - Status: Accepted
+- Date: 2026-09-21
 
 ## Context
 

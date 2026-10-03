@@ -1,6 +1,7 @@
 # ADR-0002: Lightweight dependency boundaries
 
 - Status: Accepted
+- Date: 2026-09-09
 
 ## Context
 

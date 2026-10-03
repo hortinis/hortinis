@@ -11,6 +11,8 @@ run_check() {
 
 printf '%s\n' 'Validating Hortinis workspace'
 
+run_check pnpm docs:validate
+
 run_check node --version
 run_check pnpm --version
 run_check pnpm list --recursive --depth -1

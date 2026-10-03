@@ -1,6 +1,7 @@
 # ADR-0012: Containers and continuous integration
 
 - Status: Accepted
+- Date: 2026-09-09
 
 ## Context
 
