@@ -11,6 +11,15 @@ import {
 import { HttpSynchronizationTransport } from './http-synchronization-transport';
 import type { CreateTechnicalRecordOperation } from './conformance';
 import { SYNC_REQUEST_TIMEOUT_MILLISECONDS } from './sync-api-config';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+const unavailableFixture = JSON.parse(
+  readFileSync(
+    join(__dirname, '../../../../../contracts/sync/fixtures/synchronization-unavailable.json'),
+    'utf8',
+  ),
+) as { value: Record<string, string>; status: number; headers: Record<string, string> };
 
 describe('HttpSynchronizationTransport', () => {
   let transport: HttpSynchronizationTransport;
@@ -182,6 +191,40 @@ describe('HttpSynchronizationTransport', () => {
 
     await vi.advanceTimersByTimeAsync(25);
 
+    await rejection;
+  });
+
+  it.each(['push', 'pull'] as const)(
+    'classifies a %s 503 without dispatching another request',
+    async (phase) => {
+      for (const body of [unavailableFixture.value, null]) {
+        const pending =
+          phase === 'push'
+            ? transport.submitOperation(createOperation())
+            : transport.pullChanges('saved-cursor');
+        const rejection = expect(pending).rejects.toBeInstanceOf(SynchronizationUnavailableError);
+        const request = http.expectOne(
+          phase === 'push' ? '/api/v1/sync/operations' : '/api/v1/sync/changes?cursor=saved-cursor',
+        );
+        request.flush(body, {
+          status: unavailableFixture.status,
+          statusText: 'Service Unavailable',
+          headers: unavailableFixture.headers,
+        });
+        await rejection;
+        http.expectNone((candidate) => candidate.url.startsWith('/api/v1/sync/'));
+      }
+    },
+  );
+
+  it('classifies 500 as an unexpected response', async () => {
+    const pending = transport.submitOperation(createOperation());
+    const rejection = expect(pending).rejects.toBeInstanceOf(
+      SynchronizationUnexpectedResponseError,
+    );
+    http
+      .expectOne('/api/v1/sync/operations')
+      .flush(null, { status: 500, statusText: 'Internal Server Error' });
     await rejection;
   });
 });

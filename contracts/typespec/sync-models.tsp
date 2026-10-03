@@ -1,5 +1,11 @@
 @TypeSpec.JsonSchema.jsonSchema
 namespace Hortinis.Sync.Models {
+  @doc("Temporary synchronization persistence unavailability. Retry unchanged work within the bounded retry budget.")
+  model SynchronizationUnavailableError {
+    code: "SYNCHRONIZATION_UNAVAILABLE";
+    message: "The synchronization service is unavailable.";
+  }
+
   @doc("A canonical lowercase UUID identifier.")
   @format("uuid")
   @pattern("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")

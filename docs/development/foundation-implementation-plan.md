@@ -1194,7 +1194,8 @@ Before executable validation exists, use the [pre-scaffold development checks](R
 ## H0 review hardening evidence — 2026-10-03
 
 H0 from the [G2e review hardening plan](g2e-review-hardening-plan.md) is implemented; full topology
-validation remains pending. Updated stale root/web README descriptions, documented Docker and existing
+validation was pending in its initial run and subsequently passed alongside H1 below. Updated stale
+root/web README descriptions, documented Docker and existing
 volume password behavior, replaced the sibling-checkout catalog link with its repository URL, added
 28 missing ADR dates from their first-addition Git history, and clarified ADR-0027's online hint.
 The integrated scenario title now identifies lost-create-acknowledgement replay and deletion propagation.
@@ -1219,3 +1220,46 @@ Validation on 2026-10-03:
   the plan's definition of done.
 - Repository whitespace, tracked-ignore rules, English language consistency, local link resolution,
   and line-ending checks passed. No dependency, public wire contract, or business feature was added.
+
+## H1 review hardening evidence — 2026-10-03
+
+H1 from the [G2e review hardening plan](g2e-review-hardening-plan.md) maps recognized temporary
+synchronization persistence failures to a fixed `503 SYNCHRONIZATION_UNAVAILABLE` response with
+`Retry-After: 1` and `Cache-Control: no-store`. Spring transient/resource exceptions and recognized
+JDBC causes of transaction-start failure are covered. PostgreSQL lock timeout `55P03` is translated
+in the JDBC adapter. Unexpected failures retain empty `500` responses. ADR-0010 and the generated
+TypeSpec contracts record the boundary separately from access-service unavailability.
+
+The shared response fixture is consumed by contract, Java HTTP, and TypeScript transport tests.
+PostgreSQL integration tests cover pool exhaustion, a real connection outage, publication-lock timeout,
+and serialization failure after earlier acceptance writes, followed by unchanged submission and
+stable replay. Browser tests cover actual HTTP classification, one attempt per request, retained work,
+five-attempt exhaustion, explicit manual recovery, and non-retryable `500`. The topology adds an actual
+PostgreSQL stop/restart scenario with unchanged automatic recovery and one accepted journal change.
+The test-only Compose override bounds connection acquisition to one second; production settings and
+ADR-0027's full-jitter schedule are unchanged.
+
+Validation on 2026-10-03:
+
+- `pnpm validate`: passed documentation/contract validation, frontend formatting/lint/architecture/type
+  checks, 105 unit tests, five browser smoke/offline tests, development/production builds, Wrapper
+  checksum, the standard backend build, and repository whitespace/ignore/attribute/line-ending checks.
+- Backend results: 34 unit/conformance tests and 29 PostgreSQL integration tests passed; Spotless,
+  Checkstyle, and PMD passed. Existing Checkstyle warnings remain. An initial native invocation hit
+  the pre-existing generated-output ownership issue; the build with temporary outputs passed, and
+  the standard build subsequently passed after the Compose backend rebuild.
+- `pnpm conformance:validate` and `pnpm docs:validate`: passed; the response fixture is consumed by
+  both runtimes and validates against the closed standalone and OpenAPI schemas.
+- `pnpm g2e:topology`: passed both real Chromium/Spring/PostgreSQL scenarios in an isolated test
+  project. PostgreSQL was stopped, the browser observed the fixed `503` and headers, PostgreSQL
+  restarted, and automatic retry preserved the complete operation and produced one journal change.
+  The lost-acknowledgement test blocks service workers for route injection and explicitly asserts
+  that the acknowledgement was intercepted before accepting stable replay.
+- Post-review pagination regression: the outage test counts the recovered operation across every
+  journal page using opaque cursors and seeds more than 100 retained changes when needed. Both
+  topology scenarios passed twice against the same retained database volume. Frontend type checking,
+  lint, and test formatting passed after the correction.
+- Combined base/test Compose configuration validation passed. Containers were stopped and removed;
+  the temporary test database volume was removed separately, preserving existing topology volumes.
+- English language consistency and privacy review passed. No dependency, database migration, business
+  feature, credential, or environment-specific production configuration was added.

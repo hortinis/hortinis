@@ -35,6 +35,11 @@ Fixtures are intentionally ASCII-only where canonical bytes are asserted so the 
 consumers can focus on the protocol boundary. Generated TypeSpec artifacts and hand-maintained schema
 copies do not belong here.
 
+`synchronization-unavailable.json` is a schema-oriented value fixture with HTTP status and header
+expectations. Contract tests validate its generated schema and the shared `503` union; the Java HTTP
+mapping tests and TypeScript transport tests consume its response and retry guidance. It describes
+temporary persistence unavailability separately from the access-contract fixture.
+
 `capabilities.json` is the fixture inventory and consumer contract. Every JSON fixture in this directory
 must appear exactly once. Implemented behavioral fixtures name both `typescript` and `java` consumers;
 schema-oriented `value` fixtures name the contract consumer, and future capabilities remain explicitly

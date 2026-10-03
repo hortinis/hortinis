@@ -1,9 +1,134 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type APIRequestContext } from '@playwright/test';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { resolve } from 'node:path';
+
+const execute = promisify(execFile);
+
+test('recovers unchanged pending work after a real PostgreSQL outage', async ({ browser }) => {
+  test.setTimeout(60_000);
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  // Use the existing maximum jitter delays to leave time for PostgreSQL to restart.
+  await page.addInitScript(() => {
+    Math.random = () => 1 - Number.EPSILON;
+  });
+  const operation = {
+    operationId: crypto.randomUUID(),
+    recordId: crypto.randomUUID(),
+    value: 'outage recovery',
+    kind: 'create' as const,
+  };
+  const submitted: unknown[] = [];
+  page.on('response', (response) => {
+    if (
+      response.url().endsWith('/api/v1/sync/operations') &&
+      response.request().method() === 'POST'
+    ) {
+      submitted.push(response.request().postDataJSON());
+    }
+  });
+  try {
+    await ensurePaginatedJournal(page.request);
+    const initialPull = page.waitForResponse(
+      (response) => response.url().endsWith('/api/v1/sync/changes') && response.status() === 200,
+    );
+    await page.goto('/');
+    await initialPull;
+    await waitForLeaseRelease(page);
+    await seedCreate(page, operation);
+    await postgresCommand('stop');
+    try {
+      const unavailable = page.waitForResponse(
+        (response) =>
+          response.url().endsWith('/api/v1/sync/operations') && response.status() === 503,
+      );
+      await page.reload();
+      const response = await unavailable;
+      expect(response.headers()['retry-after']).toBe('1');
+      expect(response.headers()['cache-control']).toBe('no-store');
+      expect(await response.json()).toEqual({
+        code: 'SYNCHRONIZATION_UNAVAILABLE',
+        message: 'The synchronization service is unavailable.',
+      });
+    } finally {
+      await postgresCommand('start');
+    }
+    await expect
+      .poll(() => acceptedRevision(page, operation.operationId), { timeout: 25_000 })
+      .toBe('1');
+    await waitForLeaseRelease(page);
+    expect(submitted.length).toBeGreaterThanOrEqual(2);
+    for (const request of submitted) expect(request).toEqual(operation);
+    expect(await journalOperationCount(page.request, operation.operationId)).toBe(1);
+  } finally {
+    await context.close();
+  }
+});
+
+interface JournalPage {
+  changes: { operationId: string }[];
+  nextCursor: string;
+  hasMore: boolean;
+}
+
+async function ensurePaginatedJournal(request: APIRequestContext): Promise<void> {
+  const response = await request.get('/api/v1/sync/changes');
+  expect(response.status()).toBe(200);
+  const firstPage = (await response.json()) as JournalPage;
+  if (firstPage.hasMore) return;
+  // Keep existing history; seed enough accepted changes to cross the server's 100-entry page.
+  for (let index = firstPage.changes.length; index <= 100; index++) {
+    const accepted = await request.post('/api/v1/sync/operations', {
+      data: {
+        operationId: crypto.randomUUID(),
+        recordId: crypto.randomUUID(),
+        kind: 'create',
+        value: 'journal pagination regression',
+      },
+    });
+    expect(accepted.status()).toBe(200);
+  }
+}
+
+async function journalOperationCount(
+  request: APIRequestContext,
+  operationId: string,
+): Promise<number> {
+  let cursor: string | undefined;
+  let count = 0;
+  for (;;) {
+    const response = await request.get('/api/v1/sync/changes', {
+      params: cursor === undefined ? {} : { cursor },
+    });
+    expect(response.status()).toBe(200);
+    const page = (await response.json()) as JournalPage;
+    count += page.changes.filter((change) => change.operationId === operationId).length;
+    if (!page.hasMore) return count;
+    expect(page.nextCursor).not.toBe(cursor);
+    cursor = page.nextCursor;
+  }
+}
+
+async function postgresCommand(command: 'stop' | 'start'): Promise<void> {
+  await execute('docker', [
+    'compose',
+    '--project-name',
+    process.env['HORTINIS_G2E_PROJECT_NAME'] ?? 'hortinis-g2e',
+    '--file',
+    resolve(__dirname, '../../../infrastructure/docker/compose.yaml'),
+    '--file',
+    resolve(__dirname, '../../../infrastructure/docker/compose.g2e.yaml'),
+    command,
+    'postgres',
+  ]);
+}
 
 test('replays a lost create acknowledgement and propagates deletion through the real service and PostgreSQL', async ({
   browser,
 }) => {
-  const firstContext = await browser.newContext();
+  // Route-based acknowledgement loss must reach Playwright rather than the service worker.
+  const firstContext = await browser.newContext({ serviceWorkers: 'block' });
   const firstPage = await firstContext.newPage();
   const recordId = crypto.randomUUID();
   const createId = crypto.randomUUID();
@@ -35,6 +160,7 @@ test('replays a lost create acknowledgement and propagates deletion through the 
   });
   await firstPage.reload();
   await expect.poll(() => acceptedRevision(firstPage, createId), { timeout: 15_000 }).toBe('1');
+  expect(loseCreateAcknowledgement).toBe(false);
   await waitForLeaseRelease(firstPage);
 
   await seedReplace(firstPage, {

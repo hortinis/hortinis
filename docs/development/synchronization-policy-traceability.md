@@ -11,7 +11,7 @@ G1 is validated; E10 remains a separate V0 readiness-reporting prerequisite.
 | A lost acknowledgement whose receipt is gone is not submitted as new | ADR-0023 and ADR-0026 | `IndeterminateOperationOutcome`; `indeterminate-operation.json` | G3; G5 |
 | Deletion propagates and stale clients cannot resurrect an identity | ADR-0024 | `DeleteTechnicalRecordOperation`, tombstone result and change variants, `TechnicalTombstone`, and `RecordIdentifierRetiredError`; deletion and snapshot fixtures | G2 validated end to end; G5 repeats across retention |
 | Interrupted incremental exchange can resume without advancing past unapplied work | ADR-0010 and ADR-0023 | Existing opaque `SyncCursor` and tombstone-capable `ChangePage` | G2 validated rollback, restart, reload, and real topology; G5 repeats after compaction |
-| Transient failure uses bounded retry without hiding permanent failure | ADR-0010, ADR-0027, and ADR-0028 | Durable retry-state and fenced-lease rules; operation and cursor contracts remain stable across attempts | G2 validated retry, durable dispatch reservation, exhaustion, manual recovery, timeout, and stale-owner rejection; G5 repeats across retention |
+| Transient failure uses bounded retry without hiding permanent failure | ADR-0010, ADR-0027, and ADR-0028 | `SynchronizationUnavailableError`; `synchronization-unavailable.json`; durable retry-state and fenced-lease rules | H1 adds HTTP 503 mapping, PostgreSQL rollback/replay and real HTTP retry coverage; G2 validated durable dispatch reservation, exhaustion, manual recovery and stale-owner rejection; G5 repeats across retention |
 | A delayed acknowledgement preserves the newer accepted value and pending intent | ADR-0030 | Existing record, operation, and cursor contracts | Separate accepted-state persistence, successor and rollback regressions, resumable G2 legacy repair |
 | Local edits made during exchange remain eligible for recovery | ADR-0027 and ADR-0030 | Existing outbox operation contracts | Final-pull and lease-release recovery draining; conflicts do not cause a busy loop |
 | Paginated snapshot pages all represent one server point in time | ADR-0025 | `ReconciliationSession` and `SnapshotPage`; snapshot fixtures | G4; G5 |
@@ -39,5 +39,15 @@ The [G2e review hardening plan](g2e-review-hardening-plan.md) H0 increment is im
 Documentation checks, ADR dates, development guidance, and privacy-safe synchronization route naming
 are updated; no wire contract changed. The [validation evidence](foundation-implementation-plan.md#h0-review-hardening-evidence--2026-10-03)
 records passing documentation/frontend checks and the backend build using temporary output directories.
-Full validation remains pending because the default backend output has ownership conflicts and the G2e
-topology database password is not configured.
+Initial full validation was pending because the default backend output had ownership conflicts and the
+G2e topology database password was not configured. These checks subsequently passed alongside H1.
+
+## H1 review hardening — 2026-10-03
+
+The [H1 validation evidence](foundation-implementation-plan.md#h1-review-hardening-evidence--2026-10-03)
+records passing repository, contract, cross-runtime, PostgreSQL, browser, and topology checks.
+`SYNCHRONIZATION_UNAVAILABLE` is distinct from access failure and carries fixed, privacy-safe text.
+Real lock/connection failures roll back acceptance writes; unchanged submission and stable replay
+produce one journal entry. Actual HTTP `503` consumes one reserved browser attempt, preserves the
+operation or cursor, and supports bounded exhaustion and explicit manual recovery. Unexpected `500`
+does not schedule retry. `Retry-After: 1` is published without changing ADR-0027's full-jitter policy.

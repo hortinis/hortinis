@@ -158,13 +158,20 @@ Playwright builds the production bundle, serves its static output on `http://127
 
 G2e adds a separate real synchronization topology. It builds the production web bundle, starts the
 Compose Spring and PostgreSQL services, proxies the browser's same-origin API requests, and validates
-lost-acknowledgement replay plus cross-context tombstone propagation. Run it with a local-only database
+lost-acknowledgement replay, cross-context tombstone propagation, and recovery after a real PostgreSQL
+outage. The test-only Compose override bounds pool acquisition to one second so the server's `503`
+arrives before the browser request timeout. The outage test stops and restarts only PostgreSQL in its
+selected test project. Run it with a local-only database
 password; the command stops the containers but preserves the named database and Gradle-cache volumes:
 
 ```shell
 export HORTINIS_POSTGRES_PASSWORD='choose-a-local-password'
 pnpm g2e:topology
 ```
+
+`HORTINIS_G2E_PROJECT_NAME` defaults to `hortinis-g2e`. Set a different project name and a new local
+password to validate in isolated named volumes without touching an existing topology's data. The
+script stops that project's containers afterwards and preserves its volumes.
 
 Apply supported lint fixes followed by configured formatting with the ordered convenience command:
 

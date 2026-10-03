@@ -1,6 +1,9 @@
 import 'fake-indexeddb/auto';
 
 import { TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { HttpSynchronizationTransport } from './http-synchronization-transport';
 import Dexie from 'dexie';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HortinisDatabase } from '../persistence/hortinis-database';
@@ -325,6 +328,146 @@ describe('bounded synchronization retry', () => {
     await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
   });
 
+  it.each(['push', 'pull'] as const)(
+    'counts one real HTTP 503 attempt for %s and recovers unchanged work',
+    async (phase) => {
+      const database = openDatabase();
+      const clock = new TestClock(0);
+      const scheduler = new ControlledScheduler(clock);
+      const { persistence, service, http } = httpServices(database, scheduler, clock);
+      const operation = createOperation();
+      if (phase === 'push') await persistence.commitCreate(operation);
+      else
+        await persistence.commitPulledPage({
+          changes: [],
+          nextCursor: 'saved-cursor',
+          hasMore: false,
+        });
+
+      const recovery = service.recoverAfterReload();
+      const path =
+        phase === 'push' ? '/api/v1/sync/operations' : '/api/v1/sync/changes?cursor=saved-cursor';
+      let request: ReturnType<HttpTestingController['expectOne']> | undefined;
+      await vi.waitFor(() => {
+        request = http.expectOne(path);
+      });
+      request!.flush(
+        {
+          code: 'SYNCHRONIZATION_UNAVAILABLE',
+          message: 'The synchronization service is unavailable.',
+        },
+        {
+          status: 503,
+          statusText: 'Service Unavailable',
+          headers: { 'Retry-After': '1', 'Cache-Control': 'no-store' },
+        },
+      );
+      await expect(recovery).resolves.toMatchObject({
+        status: 'scheduled',
+        phase,
+        attemptCount: 1,
+      });
+      expect(scheduler.delays()).toEqual([250]);
+      expect((await database.synchronizationRetryState.toArray())[0]).toMatchObject({
+        attemptCount: 1,
+        failureCategory: 'unavailable',
+      });
+      if (phase === 'push')
+        await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
+      else await expect(persistence.synchronizationCursor()).resolves.toBe('saved-cursor');
+      http.verify();
+
+      scheduler.runNext();
+      await vi.waitFor(() => {
+        request = http.expectOne(path);
+      });
+      if (phase === 'push') {
+        expect(request!.request.body).toEqual(operation);
+        request!.flush(acceptedResult(operation));
+        await vi.waitFor(() => {
+          request = http.expectOne('/api/v1/sync/changes');
+        });
+      }
+      request!.flush({ changes: [], nextCursor: 'recovered-cursor', hasMore: false });
+      await vi.waitFor(() =>
+        expect(service.status()).toEqual({
+          status: 'completed',
+          pushed: phase === 'push' ? 1 : 0,
+          pulled: 1,
+        }),
+      );
+      await expect(database.synchronizationRetryState.count()).resolves.toBe(0);
+      await expect(database.outboxOperations.count()).resolves.toBe(0);
+      await expect(persistence.synchronizationCursor()).resolves.toBe('recovered-cursor');
+      http.verify();
+    },
+  );
+
+  it('exhausts five real HTTP 503 attempts and permits explicit manual recovery', async () => {
+    const database = openDatabase();
+    const clock = new TestClock(0);
+    const scheduler = new ControlledScheduler(clock);
+    const { persistence, service, http } = httpServices(database, scheduler, clock);
+    const operation = createOperation();
+    await persistence.commitCreate(operation);
+    const recovery = service.recoverAfterReload();
+    for (let attemptCount = 1; attemptCount <= 5; attemptCount++) {
+      const request = await nextHttpRequest(http, '/api/v1/sync/operations');
+      expect(request.request.body).toEqual(operation);
+      request.flush(null, { status: 503, statusText: 'Service Unavailable' });
+      if (attemptCount === 1) await recovery;
+      await vi.waitFor(() =>
+        expect(service.status()).toMatchObject({
+          status: attemptCount === 5 ? 'exhausted' : 'scheduled',
+          attemptCount,
+        }),
+      );
+      if (attemptCount < 5) scheduler.runNext();
+    }
+    expect(scheduler.delays()).toEqual([]);
+    await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
+    expect((await database.synchronizationRetryState.toArray())[0]).toMatchObject({
+      attemptCount: 5,
+      exhausted: true,
+    });
+    http.verify();
+
+    const manual = service.retryNow();
+    const replay = await nextHttpRequest(http, '/api/v1/sync/operations');
+    expect(replay.request.body).toEqual(operation);
+    replay.flush(acceptedResult(operation));
+    (await nextHttpRequest(http, '/api/v1/sync/changes')).flush({
+      changes: [],
+      nextCursor: 'manual-cursor',
+      hasMore: false,
+    });
+    await expect(manual).resolves.toEqual({ status: 'completed', pushed: 1, pulled: 1 });
+    await expect(database.synchronizationRetryState.count()).resolves.toBe(0);
+    await expect(database.outboxOperations.count()).resolves.toBe(0);
+    http.verify();
+  });
+
+  it('does not retry a real HTTP 500 response', async () => {
+    const database = openDatabase();
+    const clock = new TestClock(0);
+    const scheduler = new ControlledScheduler(clock);
+    const { persistence, service, http } = httpServices(database, scheduler, clock);
+    const operation = createOperation();
+    await persistence.commitCreate(operation);
+    const recovery = service.recoverAfterReload();
+    let request: ReturnType<HttpTestingController['expectOne']> | undefined;
+    await vi.waitFor(() => {
+      request = http.expectOne('/api/v1/sync/operations');
+    });
+    request!.flush(null, { status: 500, statusText: 'Internal Server Error' });
+    await expect(recovery).resolves.toMatchObject({ status: 'failed' });
+    expect(service.status()).toEqual({ status: 'failed', reason: 'unexpected-response' });
+    expect(scheduler.delays()).toEqual([]);
+    await expect(database.synchronizationRetryState.count()).resolves.toBe(0);
+    await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
+    http.verify();
+  });
+
   function openDatabase(name = databaseName()): HortinisDatabase {
     const database = new HortinisDatabase(name);
     databases.push(database);
@@ -334,7 +477,7 @@ describe('bounded synchronization retry', () => {
 
 function services(
   database: HortinisDatabase,
-  transport: SynchronizationTransport,
+  transport: SynchronizationTransport | undefined,
   network: NetworkStatus,
   runtime: {
     clock?: SynchronizationClock;
@@ -344,8 +487,11 @@ function services(
 ): { persistence: TechnicalRecordPersistence; service: TechnicalRecordSynchronizationService } {
   TestBed.configureTestingModule({
     providers: [
+      ...(transport ? [] : [provideHttpClient(), provideHttpClientTesting()]),
       { provide: HortinisDatabase, useValue: database },
-      { provide: SYNCHRONIZATION_TRANSPORT, useValue: transport },
+      transport
+        ? { provide: SYNCHRONIZATION_TRANSPORT, useValue: transport }
+        : { provide: SYNCHRONIZATION_TRANSPORT, useClass: HttpSynchronizationTransport },
       { provide: NETWORK_STATUS, useValue: network },
       { provide: SYNCHRONIZATION_CLOCK, useValue: runtime.clock ?? new TestClock(0) },
       { provide: SYNCHRONIZATION_JITTER, useValue: runtime.jitter ?? { sample: () => 0 } },
@@ -359,6 +505,27 @@ function services(
     persistence: TestBed.inject(TechnicalRecordPersistence),
     service: TestBed.inject(TechnicalRecordSynchronizationService),
   };
+}
+
+function httpServices(
+  database: HortinisDatabase,
+  scheduler: ControlledScheduler,
+  clock: TestClock,
+) {
+  const result = services(database, undefined, onlineStatus(true), {
+    clock,
+    scheduler,
+    jitter: { sample: () => 250 },
+  });
+  return { ...result, http: TestBed.inject(HttpTestingController) };
+}
+
+async function nextHttpRequest(http: HttpTestingController, path: string) {
+  let request: ReturnType<HttpTestingController['expectOne']> | undefined;
+  await vi.waitFor(() => {
+    request = http.expectOne(path);
+  });
+  return request!;
 }
 
 class TestClock implements SynchronizationClock {

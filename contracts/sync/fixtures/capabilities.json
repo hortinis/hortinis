@@ -2,6 +2,13 @@
   "version": 1,
   "fixtures": [
     {
+      "file": "synchronization-unavailable.json",
+      "capability": "transient-failure-mapping",
+      "status": "implemented",
+      "suite": "value",
+      "consumers": ["contract", "typescript", "java"]
+    },
+    {
       "file": "change-page.json",
       "capability": "incremental-pull",
       "status": "implemented",

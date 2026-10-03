@@ -150,6 +150,7 @@ test("production synchronization policy fixtures satisfy their generated schemas
     "snapshot-continuation-page.json",
     "snapshot-final-page.json",
     "tombstone-change-page.json",
+    "synchronization-unavailable.json",
   ];
 
   for (const name of fixtureNames) {
@@ -160,6 +161,43 @@ test("production synchronization policy fixtures satisfy their generated schemas
     for (const value of values) {
       assert.equal(validate(value), true, `${fixture.id}: ${JSON.stringify(validate.errors)}`);
     }
+  }
+});
+
+test("synchronization 503 distinguishes persistence and access failures with retry guidance", () => {
+  const document = readYamlFile(resolve(contractsRoot, "openapi/openapi.yaml"));
+  const fixture = readSyncFixture("synchronization-unavailable.json");
+  const standalone = loadProductionSchemaValidators().getSchema(fixture.schema);
+  const wire = compileSchema(document.components.schemas["Models.SynchronizationUnavailableError"]);
+  for (const validate of [standalone, wire]) {
+    assert.equal(validate(fixture.value), true);
+    for (const invalid of [
+      { code: fixture.value.code },
+      { ...fixture.value, code: "ACCESS_UNAVAILABLE" },
+      { ...fixture.value, message: "private database detail" },
+      { ...fixture.value, detail: "private value" },
+    ]) {
+      assert.equal(validate(invalid), false);
+    }
+  }
+  for (const path of [
+    "/api/v1/sync/operations",
+    "/api/v1/sync/changes",
+    "/api/v1/sync/reconciliations",
+    "/api/v1/sync/reconciliations/{reconciliationId}/snapshot",
+  ]) {
+    const operation = document.paths[path].post ?? document.paths[path].get;
+    const response = operation.responses[fixture.status];
+    const schema = response.content["application/json"].schema;
+    assert.deepEqual(schema.anyOf.map(({ $ref }) => $ref).sort(), [
+      "#/components/schemas/Models.AccessUnavailableError",
+      "#/components/schemas/Models.SynchronizationUnavailableError",
+    ]);
+    assert.deepEqual(response.headers["Retry-After"].schema.enum, [fixture.headers["Retry-After"]]);
+    // Access failures do not require persistence retry guidance.
+    assert.notEqual(response.headers["Retry-After"].required, true);
+    assert.deepEqual(response.headers["Cache-Control"].schema.enum, [fixture.headers["Cache-Control"]]);
+    assert.equal(response.headers["Cache-Control"].required, true);
   }
 });
 

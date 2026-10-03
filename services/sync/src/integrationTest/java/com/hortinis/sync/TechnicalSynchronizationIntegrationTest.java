@@ -433,7 +433,7 @@ class TechnicalSynchronizationIntegrationTest {
             post(OPERATIONS_PATH)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(deleteRequest(DELETE_OPERATION_ID, "1")))
-        .andExpect(status().is5xxServerError());
+        .andExpect(status().isInternalServerError());
 
     assertThat(count(TECHNICAL_RECORD_TABLE)).isEqualTo(1);
     assertThat(count(ACCEPTED_OPERATION_TABLE)).isEqualTo(1);
@@ -617,7 +617,7 @@ class TechnicalSynchronizationIntegrationTest {
             post(OPERATIONS_PATH)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createRequest("rolled back")))
-        .andExpect(status().is5xxServerError());
+        .andExpect(status().isInternalServerError());
 
     assertThat(count(TECHNICAL_RECORD_TABLE)).isZero();
     assertThat(count(ACCEPTED_OPERATION_TABLE)).isZero();

@@ -1,6 +1,17 @@
 using TypeSpec.Http;
 
 namespace Hortinis.Sync {
+  @error
+  model SynchronizationUnavailableResponse extends NonCacheableResponse {
+    @statusCode statusCode: 503;
+
+    @doc("Always sent for synchronization persistence failures; optional in the shared 503 response because access failures have no retry guidance.")
+    @header("Retry-After")
+    retryAfter?: "1";
+
+    @body body: Models.SynchronizationUnavailableError;
+  }
+
   model OperationResultResponse extends NonCacheableResponse {
     @statusCode statusCode: 200;
     @body body: Models.OperationResult;
@@ -63,6 +74,7 @@ namespace Hortinis.Sync {
       | AuthenticationRequiredResponse
       | AccessDeniedResponse
       | BindingPreconditionFailedResponse
+      | SynchronizationUnavailableResponse
       | AccessUnavailableResponse;
 
     @get
@@ -79,6 +91,7 @@ namespace Hortinis.Sync {
       | AuthenticationRequiredResponse
       | AccessDeniedResponse
       | BindingPreconditionFailedResponse
+      | SynchronizationUnavailableResponse
       | AccessUnavailableResponse;
 
     @post
@@ -95,6 +108,7 @@ namespace Hortinis.Sync {
       | AuthenticationRequiredResponse
       | AccessDeniedResponse
       | BindingPreconditionFailedResponse
+      | SynchronizationUnavailableResponse
       | AccessUnavailableResponse;
 
     @get
@@ -113,6 +127,7 @@ namespace Hortinis.Sync {
       | AuthenticationRequiredResponse
       | AccessDeniedResponse
       | BindingPreconditionFailedResponse
+      | SynchronizationUnavailableResponse
       | AccessUnavailableResponse;
   }
 }

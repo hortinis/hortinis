@@ -274,6 +274,13 @@ paths:
         '503':
           description: Service unavailable.
           headers:
+            Retry-After:
+              required: false
+              description: Always sent for synchronization persistence failures; optional in the shared 503 response because access failures have no retry guidance.
+              schema:
+                type: string
+                enum:
+                  - '1'
             Cache-Control:
               required: true
               schema:
@@ -283,7 +290,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Models.AccessUnavailableError'
+                anyOf:
+                  - $ref: '#/components/schemas/Models.SynchronizationUnavailableError'
+                  - $ref: '#/components/schemas/Models.AccessUnavailableError'
   /api/v1/sync/operations:
     post:
       operationId: submitTechnicalRecordOperation
@@ -379,6 +388,13 @@ paths:
         '503':
           description: Service unavailable.
           headers:
+            Retry-After:
+              required: false
+              description: Always sent for synchronization persistence failures; optional in the shared 503 response because access failures have no retry guidance.
+              schema:
+                type: string
+                enum:
+                  - '1'
             Cache-Control:
               required: true
               schema:
@@ -388,7 +404,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Models.AccessUnavailableError'
+                anyOf:
+                  - $ref: '#/components/schemas/Models.SynchronizationUnavailableError'
+                  - $ref: '#/components/schemas/Models.AccessUnavailableError'
       requestBody:
         required: true
         content:
@@ -475,6 +493,13 @@ paths:
         '503':
           description: Service unavailable.
           headers:
+            Retry-After:
+              required: false
+              description: Always sent for synchronization persistence failures; optional in the shared 503 response because access failures have no retry guidance.
+              schema:
+                type: string
+                enum:
+                  - '1'
             Cache-Control:
               required: true
               schema:
@@ -484,7 +509,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Models.AccessUnavailableError'
+                anyOf:
+                  - $ref: '#/components/schemas/Models.SynchronizationUnavailableError'
+                  - $ref: '#/components/schemas/Models.AccessUnavailableError'
       requestBody:
         required: true
         content:
@@ -595,6 +622,13 @@ paths:
         '503':
           description: Service unavailable.
           headers:
+            Retry-After:
+              required: false
+              description: Always sent for synchronization persistence failures; optional in the shared 503 response because access failures have no retry guidance.
+              schema:
+                type: string
+                enum:
+                  - '1'
             Cache-Control:
               required: true
               schema:
@@ -604,7 +638,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Models.AccessUnavailableError'
+                anyOf:
+                  - $ref: '#/components/schemas/Models.SynchronizationUnavailableError'
+                  - $ref: '#/components/schemas/Models.AccessUnavailableError'
 components:
   schemas:
     Models.AccessDeniedError:
@@ -1288,6 +1324,23 @@ components:
       pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       format: uuid
       description: A server-owned synchronization partition identity; never a credential.
+    Models.SynchronizationUnavailableError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - SYNCHRONIZATION_UNAVAILABLE
+        message:
+          type: string
+          enum:
+            - The synchronization service is unavailable.
+      unevaluatedProperties:
+        not: {}
+      description: Temporary synchronization persistence unavailability. Retry unchanged work within the bounded retry budget.
     Models.TechnicalChange:
       anyOf:
         - $ref: '#/components/schemas/Models.RecordTechnicalChange'

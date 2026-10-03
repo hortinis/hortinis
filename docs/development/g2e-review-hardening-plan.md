@@ -45,7 +45,7 @@ H5 (no behavior change) --> H6 --> H7 ... G3 ... --> H8 (after G3)
 
 ### H0. Documentation corrections and automated documentation checks
 
-- Status: `implemented`; topology validation pending (2026-10-03). Effort: small. Depends on: none.
+- Status: `implemented`; validated alongside H1 (2026-10-03). Effort: small. Depends on: none.
 - Apply `g2e-review-fixes.patch`: root and web README corrections, development README (Gradle in Compose,
   Docker requirement, volume password note), integration-test title, sync route names in request logs.
 - Replace the broken `../../../hortinis-plants/...` link in `v0-dependency-graph.md` with the repository
@@ -64,16 +64,27 @@ H5 (no behavior change) --> H6 --> H7 ... G3 ... --> H8 (after G3)
 
 ### H1. Transient failure mapping (`503`)
 
-- Status: `planned`. Effort: small-medium. Depends on: none.
+- Status: `implemented`; validated (2026-10-03).
+  Effort: small-medium. Depends on: none.
 - Map Spring `TransientDataAccessException` and `DataAccessResourceFailureException` (connection loss,
   pool exhaustion, query timeout, deadlock, serialization failure) to `503` with `Retry-After: 1`.
   Unexpected non-transient exceptions stay `500` and are deliberately not retried.
-- Add `503` to the TypeSpec operations, regenerate OpenAPI and schemas, and document it in
+- Extend the existing access-service `503` TypeSpec response with distinct synchronization
+  unavailability, regenerate OpenAPI and schemas, and document it in
   `docs/api/README.md` and ADR-0010 (the browser already treats 502/503/504 as unavailable).
 - Tests: PostgreSQL integration tests with a forced connection failure and a forced lock failure expect
   `503`, no partial writes, and a successful replay of the same operation afterwards; a browser
-  transport test confirms `503` consumes one retry attempt; add a shared fixture for the response.
+  transport test confirms `503` classification, and real HTTP recovery tests confirm one reserved
+  attempt per dispatch, exhaustion, and manual recovery; add a shared fixture for the response.
 - Acceptance: stopping PostgreSQL during `pnpm g2e:topology` recovers through bounded retry after restart.
+
+Implementation also covers recognized JDBC availability causes wrapped by transaction-start failure,
+and translates PostgreSQL lock timeout `55P03` in the JDBC adapter. The existing access-service `503`
+contract is preserved alongside the new `SYNCHRONIZATION_UNAVAILABLE` body; generated schemas and
+the shared fixture distinguish them. Persistence failures always send `Retry-After: 1` and
+`Cache-Control: no-store`. Browser scheduling retains ADR-0027's full jitter and bounded budget;
+the header does not change that policy. The isolated topology uses a test-only one-second pool timeout.
+Validation evidence is recorded in the foundation implementation plan.
 
 ### H2. Input bounds and unsendable operations
 

@@ -25,6 +25,12 @@ Offline clients must retry safely, exchange locally retained changes after an un
 - Represent deletions with retained tombstones.
 - Return concurrent changes as explicit conflicts; do not resolve them silently with last-write-wins.
 - Retry transient failures with bounded exponential backoff and jitter.
+- Synchronization persistence unavailability returns `503 SYNCHRONIZATION_UNAVAILABLE` with
+  `Retry-After: 1` and `Cache-Control: no-store`. This includes Spring transient data-access and
+  resource-failure exceptions, recognized JDBC availability failures while starting a transaction,
+  and PostgreSQL lock timeout `55P03`, translated in the JDBC adapter. Unexpected failures remain
+  `500`. Error bodies use fixed text and expose no database diagnostics. The browser retains
+  ADR-0027's bounded full-jitter schedule; it does not interpret `Retry-After` as a minimum delay.
 - Associate incremental synchronization state and submitted operations with a synchronization generation. Reject operations from a generation whose required server history has been compacted and require full reconciliation instead of treating them as new submissions.
 - Anchor every full reconciliation to a server sequence. Read an internally consistent snapshot at that sequence, then resume incremental synchronization strictly after it so writes accepted while the snapshot is transferred cannot be missed.
 - During full reconciliation, compare the anchored server snapshot with the client's last-synchronized base and pending operation journal. Preserve pending local intent, merge non-overlapping changes, and represent concurrent changes as explicit conflicts.

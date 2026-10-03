@@ -1,0 +1,14 @@
+{
+  "id": "synchronization-unavailable",
+  "description": "Temporary synchronization persistence failure preserves unchanged retryable work.",
+  "schema": "SynchronizationUnavailableError.json",
+  "value": {
+    "code": "SYNCHRONIZATION_UNAVAILABLE",
+    "message": "The synchronization service is unavailable."
+  },
+  "status": 503,
+  "headers": {
+    "Retry-After": "1",
+    "Cache-Control": "no-store"
+  }
+}

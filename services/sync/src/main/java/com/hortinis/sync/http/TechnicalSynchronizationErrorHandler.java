@@ -1,19 +1,56 @@
 package com.hortinis.sync.http;
 
+import com.hortinis.sync.persistence.PostgreSqlExceptionTranslator;
 import com.hortinis.sync.protocol.InvalidRequestException;
 import com.hortinis.sync.protocol.OperationIdReusedException;
 import com.hortinis.sync.protocol.RecordAlreadyExistsException;
 import com.hortinis.sync.protocol.RecordIdentifierRetiredException;
 import com.hortinis.sync.protocol.RecordNotFoundException;
 import com.hortinis.sync.protocol.RevisionConflictException;
+import java.sql.SQLException;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.dao.TransientDataAccessException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class TechnicalSynchronizationErrorHandler {
+
+  @ExceptionHandler({TransientDataAccessException.class, DataAccessResourceFailureException.class})
+  ResponseEntity<SynchronizationUnavailableError> synchronizationUnavailable() {
+    return ResponseEntity.status(503)
+        .header(HttpHeaders.RETRY_AFTER, "1")
+        .header(HttpHeaders.CACHE_CONTROL, "no-store")
+        .body(
+            new SynchronizationUnavailableError(
+                "SYNCHRONIZATION_UNAVAILABLE", "The synchronization service is unavailable."));
+  }
+
+  @ExceptionHandler(CannotCreateTransactionException.class)
+  ResponseEntity<?> transactionUnavailable(CannotCreateTransactionException exception) {
+    for (Throwable cause = exception.getCause(); cause != null; cause = cause.getCause()) {
+      if (cause instanceof TransientDataAccessException
+          || cause instanceof DataAccessResourceFailureException) {
+        return synchronizationUnavailable();
+      }
+      if (cause instanceof SQLException sqlException) {
+        DataAccessException translated =
+            new PostgreSqlExceptionTranslator().translate("Begin transaction", null, sqlException);
+        if (translated instanceof TransientDataAccessException
+            || translated instanceof DataAccessResourceFailureException) {
+          return synchronizationUnavailable();
+        }
+        return unexpectedFailure();
+      }
+    }
+    return unexpectedFailure();
+  }
 
   @ExceptionHandler({InvalidRequestException.class, HttpMessageNotReadableException.class})
   ResponseEntity<InvalidRequestError> invalidRequest(Exception exception) {
@@ -87,6 +124,9 @@ public class TechnicalSynchronizationErrorHandler {
   }
 
   public record InvalidRequestError(String code, String message) {}
+
+  /** Fixed, privacy-safe synchronization persistence failure. */
+  public record SynchronizationUnavailableError(String code, String message) {}
 
   public record RecordNotFoundError(
       String code, String message, String operationId, String recordId) {}

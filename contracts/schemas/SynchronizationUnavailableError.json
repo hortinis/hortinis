@@ -1,0 +1,23 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "SynchronizationUnavailableError.json",
+    "type": "object",
+    "properties": {
+        "code": {
+            "type": "string",
+            "const": "SYNCHRONIZATION_UNAVAILABLE"
+        },
+        "message": {
+            "type": "string",
+            "const": "The synchronization service is unavailable."
+        }
+    },
+    "required": [
+        "code",
+        "message"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "Temporary synchronization persistence unavailability. Retry unchanged work within the bounded retry budget."
+}

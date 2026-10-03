@@ -398,5 +398,18 @@ The [G2e review hardening plan](g2e-review-hardening-plan.md) H0 increment is im
 Documentation checks, ADR dates, development guidance, and privacy-safe synchronization route naming
 are updated; no wire contract changed. The [validation evidence](foundation-implementation-plan.md#h0-review-hardening-evidence--2026-10-03)
 records passing documentation/frontend checks and the backend build using temporary output directories.
-Full validation remains pending because the default backend output has ownership conflicts and the G2e
-topology database password is not configured.
+Initial full validation was pending because the default backend output had ownership conflicts and the
+G2e topology database password was not configured. The standard validation and isolated topology
+subsequently passed alongside H1; the original H0 evidence is retained as run history.
+
+## H1 review hardening — 2026-10-03
+
+The [G2e review hardening plan](g2e-review-hardening-plan.md) H1 increment implements temporary
+persistence failure mapping to `503 SYNCHRONIZATION_UNAVAILABLE`, preserving permanent `500`
+classification and access-service error semantics. The TypeSpec/OpenAPI/schema contract, shared
+fixture, JDBC lock-timeout translation, rollback/replay tests, real HTTP retry tests, and PostgreSQL
+outage topology scenario are implemented. See the
+[validation evidence](foundation-implementation-plan.md#h1-review-hardening-evidence--2026-10-03).
+Repository validation, cross-runtime conformance, the complete backend build and static checks, and
+both real topology scenarios passed. Existing Checkstyle warnings remain; existing topology volumes
+were preserved.

@@ -63,6 +63,20 @@ The protocol defines the following explicit errors:
 | `409` | `RECORD_ALREADY_EXISTS` | A creation targets an existing technical record. |
 | `409` | `RECORD_IDENTIFIER_RETIRED` | A creation targets an identifier reserved by an accepted deletion. |
 | `409` | `REVISION_CONFLICT` | The expected revision differs from the current revision. |
+| `503` | `SYNCHRONIZATION_UNAVAILABLE` | Synchronization persistence is temporarily unavailable. Retry unchanged work within the existing budget. |
+
+Persistence-unavailable responses include `Retry-After: 1` and `Cache-Control: no-store`, with the
+fixed message `The synchronization service is unavailable.` They include recognized connection/pool
+failures, query timeouts, lock failures, and serialization failures. Their bodies contain no database
+diagnostics or submitted content. Unclassified failures retain an empty `500` response and are not
+automatically retried. A response does not prove whether an interrupted operation committed; retries
+must reuse the complete operation and its identifier so retained receipts prevent duplicate effects.
+
+Synchronization operations also declare `503 ACCESS_UNAVAILABLE` for the future access adapters.
+OpenAPI combines the two bodies under one status; `Retry-After` is optional there because access
+failures need not send persistence retry guidance. The implemented persistence response always sends
+it. The current browser classifies `503` by status, including empty gateway responses, and retains
+ADR-0027's full-jitter schedule without interpreting `Retry-After` as a minimum delay.
 
 Record-existence and revision conflicts include the current accepted technical record where it exists.
 This preserves enough information for the walking skeleton to represent server state and pending local
