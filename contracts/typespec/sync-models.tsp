@@ -19,11 +19,16 @@ namespace Hortinis.Sync.Models {
   @minLength(1)
   scalar SyncCursor extends string;
 
+  @doc("At most 4096 Unicode code points; no NUL or unpaired surrogates. Empty strings are valid. Values are never normalized or truncated.")
+  @maxLength(4096)
+  @pattern("^[^\\u0000\\uD800-\\uDFFF]*$")
+  scalar TechnicalRecordValue extends string;
+
   @doc("The deliberately technical record used to validate the synchronization mechanism.")
   model TechnicalRecord {
     recordId: Uuid;
     revision: PositiveDecimal;
-    value: string;
+    value: TechnicalRecordValue;
   }
 
   @doc("Create a technical record that does not yet exist.")
@@ -32,7 +37,7 @@ namespace Hortinis.Sync.Models {
     operationId: Uuid;
 
     recordId: Uuid;
-    value: string;
+    value: TechnicalRecordValue;
     kind: "create";
   }
 
@@ -42,7 +47,7 @@ namespace Hortinis.Sync.Models {
     operationId: Uuid;
 
     recordId: Uuid;
-    value: string;
+    value: TechnicalRecordValue;
     kind: "replace";
     expectedRevision: PositiveDecimal;
   }

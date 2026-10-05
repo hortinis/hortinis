@@ -11,7 +11,7 @@
             "$ref": "Uuid.json"
         },
         "value": {
-            "type": "string"
+            "$ref": "TechnicalRecordValue.json"
         },
         "kind": {
             "type": "string",

@@ -3,6 +3,13 @@ spring:
     name: hortinis-sync
   main:
     log-startup-info: false
+  jackson:
+    factory:
+      constraints:
+        read:
+          max-document-length: 65536
+          max-nesting-depth: 8
+          max-token-count: 64
 
 logging:
   structured:

@@ -5,6 +5,7 @@ import com.hortinis.sync.protocol.DeleteTechnicalRecordOperation;
 import com.hortinis.sync.protocol.InvalidRequestException;
 import com.hortinis.sync.protocol.ReplaceTechnicalRecordOperation;
 import com.hortinis.sync.protocol.TechnicalRecordOperation;
+import com.hortinis.sync.protocol.TechnicalRecordValueRules;
 import com.hortinis.sync.protocol.UuidRules;
 import java.util.HashSet;
 import java.util.Set;
@@ -32,13 +33,13 @@ final class TechnicalOperationParser {
     }
     String value = text(body, VALUE);
     if ("create".equals(kind)
-        && value != null
+        && TechnicalRecordValueRules.isValid(value)
         && fields(body).equals(Set.of(KIND, OPERATION_ID, RECORD_ID, VALUE))) {
       return new CreateTechnicalRecordOperation(operationId, recordId, value);
     }
     String expectedRevision = text(body, EXPECTED_REVISION);
     if ("replace".equals(kind)
-        && value != null
+        && TechnicalRecordValueRules.isValid(value)
         && fields(body).equals(Set.of(EXPECTED_REVISION, KIND, OPERATION_ID, RECORD_ID, VALUE))
         && UuidRules.isPositiveDecimal(expectedRevision)) {
       return new ReplaceTechnicalRecordOperation(operationId, recordId, value, expectedRevision);

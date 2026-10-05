@@ -10,7 +10,7 @@
             "$ref": "PositiveDecimal.json"
         },
         "value": {
-            "type": "string"
+            "$ref": "TechnicalRecordValue.json"
         }
     },
     "required": [

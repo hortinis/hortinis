@@ -62,7 +62,7 @@ namespace Hortinis.Sync {
     @route("/operations")
     @TypeSpec.OpenAPI.operationId("submitTechnicalRecordOperation")
     @summary("Submit one technical-record operation")
-    @doc("Accept or identically replay one create, replacement, or deletion operation.")
+    @doc("Accept or identically replay one create, replacement, or deletion operation. The complete request body is limited to 65536 bytes, including whitespace. Oversized or invalid input returns 400 INVALID_REQUEST.")
     submitOperation(
       @body operation: Models.TechnicalRecordOperation,
       @header("Sync-Expectation") expectation?: Models.ExchangeExpectation,

@@ -1,0 +1,18 @@
+{
+  "id": "invalid-value-high-surrogate",
+  "description": "Lone high surrogates are lossy at the JDBC boundary.",
+  "request": {
+    "operationId": "01890f3e-7c5a-7b12-8abc-0123456789ab",
+    "recordId": "01890f3e-7c5a-7b13-8abc-0123456789ab",
+    "kind": "create",
+    "value": "\ud800"
+  },
+  "expected": {
+    "valid": false,
+    "errorCode": "INVALID_REQUEST",
+    "response": {
+      "code": "INVALID_REQUEST",
+      "message": "The request is invalid."
+    }
+  }
+}

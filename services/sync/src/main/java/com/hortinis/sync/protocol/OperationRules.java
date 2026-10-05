@@ -12,11 +12,12 @@ public final class OperationRules {
         || !UuidRules.isCanonicalUuid(operation.recordId())) {
       throw new IllegalArgumentException("The operation is invalid.");
     }
-    if (operation instanceof CreateTechnicalRecordOperation create && create.value() != null) {
+    if (operation instanceof CreateTechnicalRecordOperation create
+        && TechnicalRecordValueRules.isValid(create.value())) {
       return;
     }
     if (operation instanceof ReplaceTechnicalRecordOperation replace
-        && replace.value() != null
+        && TechnicalRecordValueRules.isValid(replace.value())
         && UuidRules.isPositiveDecimal(replace.expectedRevision())) {
       return;
     }

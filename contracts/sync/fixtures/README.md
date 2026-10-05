@@ -68,3 +68,9 @@ dedicated TypeScript/Java parsers consume every case, including rejection exampl
 `implemented` status refers only to parsing; discovery, access resolution, and binding adapters remain
 planned. HTTP models are checked against both emitters; local-only metadata is checked against its
 standalone schema and both parsers. Legacy operation suites explicitly exclude other fixture suites.
+
+H2 adds `technical-value-bounds` operation fixtures for NUL, excessive length, lone high/low surrogates,
+and 4,096 supplementary code points. Unicode is escaped in these JSON files; no canonical byte
+assertions are made for them. Java and TypeScript consume the same cases, and contract tests check
+both create and replacement shapes against standalone and OpenAPI schemas. Value constraints also
+apply to returned records. See ADR-0031 for code-point counting and unchanged-value requirements.

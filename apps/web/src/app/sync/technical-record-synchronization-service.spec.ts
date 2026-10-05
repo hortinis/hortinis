@@ -10,6 +10,7 @@ import { TechnicalRecordLocalService } from './technical-record-local-service';
 import type { ChangePage, OperationResult, TechnicalRecordOperation } from './conformance';
 import type { SynchronizationTransport } from './synchronization-transport';
 import {
+  SynchronizationBoundaryError,
   SynchronizationProtocolError,
   SynchronizationUnavailableError,
 } from './synchronization-transport';
@@ -55,6 +56,56 @@ describe('TechnicalRecordSynchronizationService', () => {
       result,
     );
   });
+
+  it.each(['protocol', 'boundary'])(
+    'keeps a permanently rejected %s head pending and blocks later work after reopening (H6)',
+    async (reason) => {
+      const name = `hortinis-rejected-head-${crypto.randomUUID()}`;
+      const database = openDatabase(name);
+      const first = createOperation();
+      const second = {
+        ...first,
+        operationId: '01890f3e-7c5a-7b14-8abc-0123456789ab',
+        recordId: '01890f3e-7c5a-7b15-8abc-0123456789ab',
+      };
+      const transport: SynchronizationTransport = {
+        submitOperation: vi.fn(async () => {
+          if (reason === 'boundary')
+            throw new SynchronizationBoundaryError('The request is invalid.', 'request');
+          throw new SynchronizationProtocolError(400, {
+            code: 'INVALID_REQUEST',
+            message: 'The request is invalid.',
+          });
+        }),
+        pullChanges: vi.fn(),
+      };
+      const { persistence, service } = services(database, transport, onlineStatus(true));
+      if (reason === 'boundary') first.value = '\u0000';
+      await database.technicalRecords.add({
+        recordId: first.recordId,
+        value: first.value,
+        lastAcceptedRevision: null,
+      });
+      await database.outboxOperations.add(first);
+      await persistence.commitCreate(second);
+      await expect(service.recoverAfterReload()).resolves.toMatchObject({ status: 'failed' });
+      await expect(service.recoverAfterReload()).resolves.toMatchObject({ status: 'failed' });
+      database.close();
+      TestBed.resetTestingModule();
+      const reopened = openDatabase(name);
+      const resumed = services(reopened, transport, onlineStatus(true));
+      await expect(resumed.service.recoverAfterReload()).resolves.toMatchObject({
+        status: 'failed',
+      });
+      expect(transport.submitOperation).toHaveBeenCalledTimes(3);
+      for (const [submitted] of vi.mocked(transport.submitOperation).mock.calls) {
+        expect(submitted).toEqual(first);
+      }
+      expect(transport.pullChanges).not.toHaveBeenCalled();
+      await expect(reopened.outboxOperations.toArray()).resolves.toEqual([first, second]);
+      await expect(reopened.synchronizationRetryState.count()).resolves.toBe(0);
+    },
+  );
 
   it('pulls a page using the persisted cursor and commits the page', async () => {
     const database = openDatabase();

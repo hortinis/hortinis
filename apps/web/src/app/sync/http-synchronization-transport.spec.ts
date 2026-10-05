@@ -102,6 +102,16 @@ describe('HttpSynchronizationTransport', () => {
     http.expectNone('/api/v1/sync/changes');
   });
 
+  it.each(['\u0000', '\uD800', '\uDC00', 'x'.repeat(4097), '🌱'.repeat(4097)])(
+    'rejects legacy invalid values before making an HTTP call',
+    async (value) => {
+      await expect(
+        transport.submitOperation({ ...createOperation(), value }),
+      ).rejects.toBeInstanceOf(SynchronizationBoundaryError);
+      http.expectNone('/api/v1/sync/operations');
+    },
+  );
+
   it.each([
     [400, { code: 'INVALID_REQUEST', message: 'invalid request' }],
     [

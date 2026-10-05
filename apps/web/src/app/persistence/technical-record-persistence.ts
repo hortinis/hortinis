@@ -27,6 +27,8 @@ import {
   type SynchronizationOwnership,
 } from './synchronization-ownership';
 
+import { assertTechnicalRecordValue } from '../sync/technical-record-value';
+
 const TECHNICAL_SYNCHRONIZATION_SCOPE = 'technical-records';
 
 @Injectable({ providedIn: 'root' })
@@ -34,6 +36,7 @@ export class TechnicalRecordPersistence {
   private readonly database = inject(HortinisDatabase);
 
   async commitCreate(operation: CreateTechnicalRecordOperation): Promise<LocalTechnicalRecord> {
+    assertTechnicalRecordValue(operation.value);
     const localRecord: LocalTechnicalRecord = {
       recordId: operation.recordId,
       value: operation.value,
@@ -113,6 +116,7 @@ export class TechnicalRecordPersistence {
     recordId: string,
     value: string,
   ): Promise<{ record: LocalTechnicalRecord; operation: LocalTechnicalRecordOperation }> {
+    assertTechnicalRecordValue(value);
     let committedOperation: LocalTechnicalRecordOperation;
     let committedRecord: LocalTechnicalRecord;
 

@@ -25,6 +25,20 @@ unknown properties are invalid.
 
 The walking skeleton uses one deliberately technical record with a stable `recordId`, a server
 `revision`, and a string `value`. It is not a garden resource and does not imply a future garden model.
+Values contain at most 4,096 Unicode code points after JSON decoding. Empty strings, whitespace,
+newlines, and valid supplementary characters are permitted; U+0000 and unpaired surrogates are rejected.
+Values are never trimmed, normalized, or truncated. These constraints also apply to returned records.
+The operation endpoint limits the complete body to 65,536 bytes, including leading/trailing whitespace
+and chunked requests. Invalid values, malformed JSON, parser-resource limits, and oversized bodies
+return fixed `400 INVALID_REQUEST` text with `Cache-Control: no-store`, without acceptance writes.
+
+The browser enforces the same value rule before a local create or replacement transaction. An invalid
+commit leaves the projection and outbox unchanged and does not start background recovery. Existing
+invalid pending operations remain retained; a permanent HTTP rejection or request-boundary failure
+currently blocks later outbox work. Quarantine and recovery are assigned to H6. Before rollout against
+an existing technical dataset, audit value lengths in projections, journals, receipts, and local stores;
+see [ADR-0031](../architecture/decisions/0031-technical-record-input-bounds.md) for the compatibility gate.
+
 G2a added deletion to the contract, G2b implements it in the Spring and PostgreSQL adapters, and G2c
 implements browser tombstone application. G2e validates the combined topology. The operations are:
 

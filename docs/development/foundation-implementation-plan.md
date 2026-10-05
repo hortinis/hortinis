@@ -1263,3 +1263,47 @@ Validation on 2026-10-03:
   the temporary test database volume was removed separately, preserving existing topology volumes.
 - English language consistency and privacy review passed. No dependency, database migration, business
   feature, credential, or environment-specific production configuration was added.
+
+## H2 review hardening evidence — 2026-10-04
+
+H2 from the [G2e review hardening plan](g2e-review-hardening-plan.md) implements
+[ADR-0031](../architecture/decisions/0031-technical-record-input-bounds.md): a 4,096-code-point technical
+value limit, NUL and unpaired-surrogate rejection, and a 65,536-byte complete operation-body ceiling.
+TypeSpec uses one scalar for operations and returned records; both generated contract formats and both
+runtime conformance suites consume the shared invalid and supplementary-boundary fixtures.
+
+Before implementation, PostgreSQL probes reproduced an HTTP `500` for NUL with transaction rollback
+and confirmed that the pinned JDBC driver converts lone high/low surrogates to `?`. The retained probe
+records this lossy boundary; production parsing now rejects malformed values before persistence.
+Browser tests confirm rejected local create/replacement commits preserve projections and outboxes and
+do not trigger recovery, including deferred replacements. Boundary values round-trip unchanged.
+
+The request filter checks known lengths and reads at most 65,537 bytes for unknown lengths before
+passing a bounded body to Jackson. Boot read constraints additionally bound nesting and token count.
+MockMvc and real HTTP/PostgreSQL tests cover both operation kinds, escaped supplementary values,
+unchanged replay, malformed JSON, exact-byte acceptance, oversized leading/trailing whitespace, and
+chunked rejection. Captured operational output and fixed responses exclude a private sentinel.
+
+F3 is confirmed: permanent HTTP `400` and legacy invalid request-boundary failures keep the head pending
+and block independent later operations across recovery and reopening. H6 owns quarantine; H2 prevents
+new invalid value commits and does not rewrite existing pending work. Existing oversized server/local
+history remains subject to ADR-0031's rollout audit and explicit compatibility decision.
+
+Validation on 2026-10-04:
+
+- `pnpm validate`: passed the complete sequential suite: documentation and generated contracts,
+  frontend formatting/lint/architecture/type checks, 135 unit tests, five Chromium smoke/offline tests,
+  development/production builds, Wrapper checksum, the backend build, topology, and repository checks.
+- Backend results: 43 unit/conformance tests and 38 PostgreSQL integration tests passed; Spotless,
+  Checkstyle, and PMD passed. Existing Checkstyle warnings remain (89 main-source warnings and the
+  existing test package/directory warning); new H2 files introduce no Checkstyle warnings.
+- `pnpm conformance:validate` and `pnpm docs:validate`: passed. The five H2 shared fixtures are consumed
+  by both runtimes; standalone and OpenAPI schemas agree on create, replace, and returned record bounds.
+- `pnpm test:e2e:topology` (included in `pnpm validate`): both lost-acknowledgement/tombstone and real
+  PostgreSQL outage recovery scenarios passed. The isolated test containers, network, and database/cache
+  volumes were removed automatically; existing development datasets were not modified.
+- The real HTTP tests also reject an encoded route's oversized chunked body, preventing raw-URI
+  spelling from bypassing the decoded servlet-route byte ceiling.
+- Final whitespace, documentation links, ADR index, English language consistency, and privacy review
+  passed. No dependency, storage migration, business feature, secret, or environment-specific
+  configuration was introduced.

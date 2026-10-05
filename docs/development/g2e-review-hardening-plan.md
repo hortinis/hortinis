@@ -88,7 +88,7 @@ Validation evidence is recorded in the foundation implementation plan.
 
 ### H2. Input bounds and unsendable operations
 
-- Status: `planned`. Effort: medium. Depends on: decision D1.
+- Status: `implemented`; validated (2026-10-04). Effort: medium. Decision D1 is recorded in ADR-0031.
 - Contract: add `@maxLength` for `value` (value from D1) and exclude U+0000 with a pattern; regenerate.
 - Server: enforce the same limit and NUL rule in the parser (`400 INVALID_REQUEST`), and bound request
   size with Jackson stream-read constraints or a body-size filter (verify the Spring Boot 4 property
@@ -99,7 +99,19 @@ Validation evidence is recorded in the foundation implementation plan.
   forever. If confirmed, H6 adds a quarantine path; until then the commit-boundary guard prevents the case.
 - Tests: shared fixtures `invalid-value-nul.json` and `invalid-value-too-long.json` run by both runtimes;
   a regression test that previously produced `500`.
-- Acceptance: no input reachable through the HTTP contract produces `500`.
+- Acceptance: invalid input produces a controlled rejection without partial writes; valid bounded values round-trip unchanged. Unexpected infrastructure failures may still return `500`.
+
+Implementation uses a shared TypeSpec scalar and equivalent pure runtime rules: at most 4,096 Unicode
+code points, no NUL, and no unpaired surrogates. The JDBC probe confirmed that lone surrogates silently
+become `?`; H2 therefore rejects them before persistence. A bounded servlet filter enforces the complete
+65,536-byte body ceiling, including whitespace and chunked input; Boot 4.1.1 Jackson read constraints
+bound nesting and token count. Both local commit boundaries reject invalid values before writes.
+
+F3 is reproduced across recovery and database reopening for permanent HTTP `400` and legacy invalid
+request-boundary failures. The head stays retained and blocks later work; H6 still owns quarantine.
+H2 does not claim to repair existing invalid outboxes. Existing oversized accepted history also requires
+the compatibility gate in [ADR-0031](../architecture/decisions/0031-technical-record-input-bounds.md).
+Validation evidence is recorded in the [foundation implementation plan](foundation-implementation-plan.md#h2-review-hardening-evidence--2026-10-04).
 
 ### H3. Observability corrections
 
@@ -206,7 +218,7 @@ Validation evidence is recorded in the foundation implementation plan.
 
 | ID | Question | Recommendation |
 | --- | --- | --- |
-| D1 | Maximum `value` length for the technical record | Pick a small bound (for example 4,096 code points); it is a walking-skeleton record |
+| D1 | Maximum `value` length for the technical record | Resolved by ADR-0031: 4,096 Unicode code points, no NUL or unpaired surrogates |
 | D2 | Adopt RFC 9457 `application/problem+json` for errors | Defer; record "not now" in an ADR and decide before the first public release |
 | D3 | Keep hand-written `JsonNode` parsing or move to records plus validation | Keep; add table-driven parser tests; revisit at about five operation kinds |
 | D4 | Refresh policy: interval, spacing, and whether to add server-sent events later | Poll first (about 30-60 s while visible); defer server push |
@@ -226,7 +238,7 @@ Validation evidence is recorded in the foundation implementation plan.
 - H5 touches concurrency behavior; mitigate with the characterization tests and small commits.
 - H6 can corrupt idempotent replay if a submitted operation is ever mutated; the `submittedAt` invariant
   and its dedicated test are mandatory.
-- H1/H2 change the public contract; ship them together to regenerate once and keep fixtures aligned.
+- H1/H2 change the public contract. H1 has already landed; H2 regenerates independently and keeps both runtime fixtures aligned.
 - Effort figures are rough relative sizes, not estimates in days.
 
 ## 7. H0 implementation status

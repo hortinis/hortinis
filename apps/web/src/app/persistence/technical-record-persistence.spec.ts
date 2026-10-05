@@ -9,6 +9,7 @@ import { TechnicalRecordSynchronizationService } from '../sync/technical-record-
 import type { CreateTechnicalRecordOperation } from '../sync/conformance';
 import type { DeferredReplaceTechnicalRecordOperation } from './local-technical-record-operation';
 import { vi } from 'vitest';
+import { InvalidTechnicalRecordValueError } from '../sync/technical-record-value';
 
 describe('technical record local persistence', () => {
   const databases: Dexie[] = [];
@@ -21,6 +22,61 @@ describe('technical record local persistence', () => {
         await database.delete();
       }),
     );
+  });
+
+  it.each(['\u0000', '\uD800', '\uDC00', 'x'.repeat(4097), '🌱'.repeat(4097)])(
+    'rejects invalid creates before any write or background recovery',
+    async (value) => {
+      const database = openDatabase();
+      const synchronization = {
+        startBackgroundRecovery: vi.fn(),
+      } as unknown as TechnicalRecordSynchronizationService;
+      const service = localService(database, synchronization);
+      await expect(service.create(value)).rejects.toThrow(InvalidTechnicalRecordValueError);
+      await expect(database.technicalRecords.count()).resolves.toBe(0);
+      await expect(database.outboxOperations.count()).resolves.toBe(0);
+      expect(synchronization.startBackgroundRecovery).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([null, '1'])(
+    'rejects invalid replacements without changing an accepted or deferred local proposal',
+    async (lastAcceptedRevision) => {
+      const database = openDatabase();
+      const synchronization = {
+        startBackgroundRecovery: vi.fn(),
+      } as unknown as TechnicalRecordSynchronizationService;
+      const service = localService(database, synchronization);
+      const existing = operation('existing-record', 'existing-operation');
+      const record = { recordId: existing.recordId, value: existing.value, lastAcceptedRevision };
+      await database.technicalRecords.add(record);
+      if (lastAcceptedRevision === null) await database.outboxOperations.add(existing);
+      const before = await database.outboxOperations.toArray();
+      for (const value of ['\u0000', '\uD800', 'x'.repeat(4097)]) {
+        await expect(service.replace(record.recordId, value)).rejects.toThrow(
+          InvalidTechnicalRecordValueError,
+        );
+      }
+      await expect(database.technicalRecords.get(record.recordId)).resolves.toEqual(record);
+      await expect(database.outboxOperations.toArray()).resolves.toEqual(before);
+      expect(synchronization.startBackgroundRecovery).not.toHaveBeenCalled();
+    },
+  );
+
+  it('persists a maximum length supplementary value unchanged', async () => {
+    const database = openDatabase();
+    const service = localService(database);
+    const value = '🌱'.repeat(4096);
+    const result = await service.create(value);
+    await expect(database.technicalRecords.get(result.record.recordId)).resolves.toMatchObject({
+      value,
+    });
+    await service.replace(result.record.recordId, value);
+    const pending = await database.outboxOperations.toArray();
+    expect(pending).toHaveLength(2);
+    expect(
+      pending.every((operation) => operation.kind !== 'delete' && operation.value === value),
+    ).toBe(true);
   });
 
   it('commits a local projection and its outbox operation together', async () => {

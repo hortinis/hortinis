@@ -37,6 +37,7 @@ class TechnicalSynchronizationIntegrationTest {
   private static final String CHANGE_TABLE = "technical_record_change";
   private static final String TOMBSTONE_TABLE = "technical_record_tombstone";
   private static final String RETIRED_IDENTIFIER_TABLE = "retired_technical_record_identifier";
+  private static final String RECORD_VALUE_PATH = "$.record.value";
   private static final String FIRST_VALUE = "first value";
   private static final String REPLACEMENT_VALUE = "replacement value";
   private static final String VALUE_FIELD = "\",\"value\":\"";
@@ -62,6 +63,143 @@ class TechnicalSynchronizationIntegrationTest {
 
   @Autowired private MockMvc mockMvc;
   @Autowired private JdbcTemplate jdbc;
+
+  @Test
+  void characterizesLoneSurrogateEncodingAtTheJdbcBoundary() {
+    for (String value :
+        new String[] {
+          String.valueOf(Character.MIN_HIGH_SURROGATE), String.valueOf(Character.MIN_LOW_SURROGATE)
+        }) {
+      assertThat(jdbc.queryForObject("SELECT CAST(? AS TEXT)", String.class, value)).isEqualTo("?");
+    }
+  }
+
+  @Test
+  void rejectsNulWithoutPersistingAnyAcceptanceState() throws Exception {
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createRequest("\\u0000")))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().json(INVALID_REQUEST_RESPONSE));
+    assertThat(count(TECHNICAL_RECORD_TABLE)).isZero();
+    assertThat(count(ACCEPTED_OPERATION_TABLE)).isZero();
+    assertThat(count(CHANGE_TABLE)).isZero();
+  }
+
+  @Test
+  void rejectsOversizedAndMalformedValuesForBothOperationKindsWithoutPartialWrites()
+      throws Exception {
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createRequest(FIRST_VALUE)))
+        .andExpect(status().isOk());
+    for (String value :
+        new String[] {"\\u0000", "\\ud800", "\\udc00", "x".repeat(4097), "🌱".repeat(4097)}) {
+      for (String body :
+          new String[] {
+            createRequest(RECREATE_OPERATION_ID, NON_V7_RECORD_ID, value),
+            replaceRequest(value, "1")
+          }) {
+        mockMvc
+            .perform(post(OPERATIONS_PATH).contentType(MediaType.APPLICATION_JSON).content(body))
+            .andExpect(status().isBadRequest())
+            .andExpect(content().json(INVALID_REQUEST_RESPONSE));
+      }
+    }
+    assertThat(count(TECHNICAL_RECORD_TABLE)).isEqualTo(1);
+    assertThat(count(ACCEPTED_OPERATION_TABLE)).isEqualTo(1);
+    assertThat(count(CHANGE_TABLE)).isEqualTo(1);
+    assertThat(jdbc.queryForObject("SELECT value FROM technical_record", String.class))
+        .isEqualTo(FIRST_VALUE);
+  }
+
+  @Test
+  void acceptsAndReplaysMaximumEscapedSupplementaryValuesUnchanged() throws Exception {
+    String value = "🌱".repeat(4096);
+    String escaped = "\\ud83c\\udf31".repeat(4096);
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createRequest(escaped)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath(RECORD_VALUE_PATH).value(value));
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createRequest(value)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.sequence").value("1"));
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(replaceRequest(escaped, "1")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath(RECORD_VALUE_PATH).value(value));
+    mockMvc
+        .perform(get(CHANGES_PATH))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.changes[0].record.value").value(value))
+        .andExpect(jsonPath("$.changes[1].record.value").value(value));
+    assertThat(jdbc.queryForObject("SELECT value FROM technical_record", String.class))
+        .isEqualTo(value);
+    assertThat(count(ACCEPTED_OPERATION_TABLE)).isEqualTo(2);
+    assertThat(count(CHANGE_TABLE)).isEqualTo(2);
+  }
+
+  @Test
+  void boundsJsonParsingWithoutPersistingAnything() throws Exception {
+    String valid = createRequest(FIRST_VALUE);
+    for (String body :
+        new String[] {
+          " ".repeat(65_536) + valid,
+          valid + " ".repeat(65_536),
+          "[".repeat(9) + "0" + "]".repeat(9),
+          "[" + "0,".repeat(65) + "0]"
+        }) {
+      mockMvc
+          .perform(post(OPERATIONS_PATH).contentType(MediaType.APPLICATION_JSON).content(body))
+          .andExpect(status().isBadRequest())
+          .andExpect(content().json(INVALID_REQUEST_RESPONSE));
+    }
+    assertThat(count(TECHNICAL_RECORD_TABLE)).isZero();
+    assertThat(count(ACCEPTED_OPERATION_TABLE)).isZero();
+    assertThat(count(CHANGE_TABLE)).isZero();
+  }
+
+  @Test
+  void acceptsEmptyWhitespaceAndMaximumBmpValuesWithoutNormalization() throws Exception {
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createRequest("")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath(RECORD_VALUE_PATH).value(""));
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(replaceRequest(" \\n\\t", "1")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath(RECORD_VALUE_PATH).value(" \n\t"));
+    String value = "x".repeat(4096);
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(replaceRequest(STALE_REPLACE_OPERATION_ID, value, "2")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath(RECORD_VALUE_PATH).value(value));
+    assertThat(jdbc.queryForObject("SELECT value FROM technical_record", String.class))
+        .isEqualTo(value);
+  }
 
   @AfterEach
   void clearApplicationData() {

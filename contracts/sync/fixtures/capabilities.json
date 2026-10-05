@@ -149,6 +149,36 @@
       "status": "implemented",
       "suite": "access",
       "consumers": ["contract", "typescript", "java"]
+    },
+    {
+      "file": "invalid-value-nul.json",
+      "capability": "technical-value-bounds",
+      "status": "implemented",
+      "consumers": ["contract", "typescript", "java"]
+    },
+    {
+      "file": "invalid-value-too-long.json",
+      "capability": "technical-value-bounds",
+      "status": "implemented",
+      "consumers": ["contract", "typescript", "java"]
+    },
+    {
+      "file": "invalid-value-high-surrogate.json",
+      "capability": "technical-value-bounds",
+      "status": "implemented",
+      "consumers": ["contract", "typescript", "java"]
+    },
+    {
+      "file": "invalid-value-low-surrogate.json",
+      "capability": "technical-value-bounds",
+      "status": "implemented",
+      "consumers": ["contract", "typescript", "java"]
+    },
+    {
+      "file": "valid-value-code-point-boundary.json",
+      "capability": "technical-value-bounds",
+      "status": "implemented",
+      "consumers": ["contract", "typescript", "java"]
     }
   ]
 }

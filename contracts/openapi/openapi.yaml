@@ -297,7 +297,7 @@ paths:
     post:
       operationId: submitTechnicalRecordOperation
       summary: Submit one technical-record operation
-      description: Accept or identically replay one create, replacement, or deletion operation.
+      description: Accept or identically replay one create, replacement, or deletion operation. The complete request body is limited to 65536 bytes, including whitespace. Oversized or invalid input returns 400 INVALID_REQUEST.
       parameters:
         - name: Sync-Expectation
           in: header
@@ -818,7 +818,7 @@ components:
         recordId:
           $ref: '#/components/schemas/Models.Uuid'
         value:
-          type: string
+          $ref: '#/components/schemas/Models.TechnicalRecordValue'
         kind:
           type: string
           enum:
@@ -1082,7 +1082,7 @@ components:
         recordId:
           $ref: '#/components/schemas/Models.Uuid'
         value:
-          type: string
+          $ref: '#/components/schemas/Models.TechnicalRecordValue'
         kind:
           type: string
           enum:
@@ -1359,7 +1359,7 @@ components:
         revision:
           $ref: '#/components/schemas/Models.PositiveDecimal'
         value:
-          type: string
+          $ref: '#/components/schemas/Models.TechnicalRecordValue'
       unevaluatedProperties:
         not: {}
       description: The deliberately technical record used to validate the synchronization mechanism.
@@ -1376,6 +1376,11 @@ components:
           replace: '#/components/schemas/Models.ReplaceTechnicalRecordOperation'
           delete: '#/components/schemas/Models.DeleteTechnicalRecordOperation'
       description: One stable technical-record operation submitted for synchronization.
+    Models.TechnicalRecordValue:
+      type: string
+      maxLength: 4096
+      pattern: ^[^\u0000\uD800-\uDFFF]*$
+      description: At most 4096 Unicode code points; no NUL or unpaired surrogates. Empty strings are valid. Values are never normalized or truncated.
     Models.TechnicalTombstone:
       type: object
       required:

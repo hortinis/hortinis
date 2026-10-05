@@ -1,3 +1,5 @@
+import { isTechnicalRecordValue } from './technical-record-value';
+
 export interface TechnicalRecord {
   recordId: string;
   revision: string;
@@ -143,7 +145,7 @@ export function isTechnicalRecordOperation(value: unknown): value is TechnicalRe
   }
 
   if (value['kind'] === 'create') {
-    return hasExactlyKeys(value, commonKeys) && typeof value['value'] === 'string';
+    return hasExactlyKeys(value, commonKeys) && isTechnicalRecordValue(value['value']);
   }
 
   return (
@@ -154,7 +156,7 @@ export function isTechnicalRecordOperation(value: unknown): value is TechnicalRe
         ? [...commonKeys, 'expectedRevision']
         : ['kind', 'operationId', 'recordId', 'expectedRevision'],
     ) &&
-    (value['kind'] === 'delete' || typeof value['value'] === 'string') &&
+    (value['kind'] === 'delete' || isTechnicalRecordValue(value['value'])) &&
     typeof value['expectedRevision'] === 'string' &&
     positiveDecimalPattern.test(value['expectedRevision'])
   );
@@ -181,7 +183,7 @@ export function isTechnicalRecord(value: unknown): value is TechnicalRecord {
     canonicalUuidPattern.test(value['recordId']) &&
     typeof value['revision'] === 'string' &&
     positiveDecimalPattern.test(value['revision']) &&
-    typeof value['value'] === 'string'
+    isTechnicalRecordValue(value['value'])
   );
 }
 

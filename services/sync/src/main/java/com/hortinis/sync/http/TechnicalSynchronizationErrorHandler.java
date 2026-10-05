@@ -55,6 +55,7 @@ public class TechnicalSynchronizationErrorHandler {
   @ExceptionHandler({InvalidRequestException.class, HttpMessageNotReadableException.class})
   ResponseEntity<InvalidRequestError> invalidRequest(Exception exception) {
     return ResponseEntity.badRequest()
+        .header(HttpHeaders.CACHE_CONTROL, "no-store")
         .body(new InvalidRequestError("INVALID_REQUEST", "The request is invalid."));
   }
 

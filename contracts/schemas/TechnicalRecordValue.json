@@ -1,0 +1,8 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "TechnicalRecordValue.json",
+    "type": "string",
+    "maxLength": 4096,
+    "pattern": "^[^\\u0000\\uD800-\\uDFFF]*$",
+    "description": "At most 4096 Unicode code points; no NUL or unpaired surrogates. Empty strings are valid. Values are never normalized or truncated."
+}

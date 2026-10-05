@@ -51,3 +51,15 @@ Real lock/connection failures roll back acceptance writes; unchanged submission 
 produce one journal entry. Actual HTTP `503` consumes one reserved browser attempt, preserves the
 operation or cursor, and supports bounded exhaustion and explicit manual recovery. Unexpected `500`
 does not schedule retry. `Retry-After: 1` is published without changing ADR-0027's full-jitter policy.
+
+## H2 review hardening — 2026-10-04
+
+The [H2 hardening increment](g2e-review-hardening-plan.md#h2-input-bounds-and-unsendable-operations)
+implements ADR-0031's 4,096-code-point value rule and complete request-body ceiling across TypeSpec,
+HTTP parsing, pure runtime rules, and local commits. Shared fixtures cover NUL, length, malformed
+surrogates, and a supplementary-character boundary. PostgreSQL and real HTTP tests cover unchanged
+storage/replay, controlled rejection without partial writes, and privacy-safe diagnostics.
+F3 is confirmed for HTTP and request-boundary rejections across recovery and reopening; H6 still owns
+quarantine. Existing oversized history requires the documented compatibility audit before rollout.
+The [validation evidence](foundation-implementation-plan.md#h2-review-hardening-evidence--2026-10-04)
+records passing full repository, conformance, backend quality, PostgreSQL, and topology validation.
