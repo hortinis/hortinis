@@ -8,6 +8,8 @@ import com.hortinis.sync.protocol.RecordIdentifierRetiredException;
 import com.hortinis.sync.protocol.RecordNotFoundException;
 import com.hortinis.sync.protocol.RevisionConflictException;
 import java.sql.SQLException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.dao.TransientDataAccessException;
@@ -21,6 +23,9 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class TechnicalSynchronizationErrorHandler {
+
+  private static final Logger LOGGER =
+      LoggerFactory.getLogger(TechnicalSynchronizationErrorHandler.class);
 
   @ExceptionHandler({TransientDataAccessException.class, DataAccessResourceFailureException.class})
   ResponseEntity<SynchronizationUnavailableError> synchronizationUnavailable() {
@@ -46,10 +51,10 @@ public class TechnicalSynchronizationErrorHandler {
             || translated instanceof DataAccessResourceFailureException) {
           return synchronizationUnavailable();
         }
-        return unexpectedFailure();
+        return unexpectedFailure(exception);
       }
     }
-    return unexpectedFailure();
+    return unexpectedFailure(exception);
   }
 
   @ExceptionHandler({InvalidRequestException.class, HttpMessageNotReadableException.class})
@@ -115,7 +120,12 @@ public class TechnicalSynchronizationErrorHandler {
   }
 
   @ExceptionHandler(Exception.class)
-  ResponseEntity<Void> unexpectedFailure() {
+  ResponseEntity<Void> unexpectedFailure(Exception exception) {
+    LOGGER
+        .atError()
+        .addKeyValue("event", "request_failed")
+        .addKeyValue("exception_class", exception.getClass().getName())
+        .log("Request failed");
     return ResponseEntity.internalServerError().build();
   }
 

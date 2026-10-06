@@ -8,6 +8,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -23,6 +24,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 @Testcontainers
@@ -30,6 +32,8 @@ import tools.jackson.databind.json.JsonMapper;
 @ExtendWith(OutputCaptureExtension.class)
 class TechnicalInputHttpIntegrationTest {
 
+  private static final String REQUEST_ID = "request_id";
+  private static final String TRACE_ID = "trace_id";
   private static final String SENTINEL = "private-input-h2-sentinel";
   private static final JsonMapper JSON = JsonMapper.builder().build();
   private static final String OPERATIONS = "/api/v1/sync/operations";
@@ -42,9 +46,67 @@ class TechnicalInputHttpIntegrationTest {
 
   @AfterEach
   void clearApplicationData() {
+    jdbc.execute("DROP TRIGGER IF EXISTS private_journal_failure ON technical_record_change");
+    jdbc.execute("DROP FUNCTION IF EXISTS private_journal_failure()");
     jdbc.update(
         "TRUNCATE technical_record_change, accepted_technical_record_operation, technical_record "
             + "RESTART IDENTITY CASCADE");
+  }
+
+  @Test
+  void logsDatabaseFailureOnceWithoutEchoedRecordContent(CapturedOutput output) throws Exception {
+    String body = request(SENTINEL);
+    jdbc.execute(
+        "CREATE FUNCTION private_journal_failure() RETURNS trigger LANGUAGE plpgsql AS "
+            + "'BEGIN RAISE EXCEPTION ''%'' , NEW.value USING ERRCODE = ''23514''; END;'");
+    jdbc.execute(
+        "CREATE TRIGGER private_journal_failure BEFORE INSERT ON technical_record_change "
+            + "FOR EACH ROW EXECUTE FUNCTION private_journal_failure()");
+
+    HttpResponse<String> response = send(HttpRequest.BodyPublishers.ofString(body));
+    assertThat(response.statusCode()).isEqualTo(500);
+    assertThat(response.body()).isEmpty();
+    assertThat(response.headers().firstValue("Retry-After")).isEmpty();
+    assertNoAcceptance();
+
+    var failures = events(output, "request_failed");
+    var completions = events(output, "request_completed");
+    assertThat(failures).hasSize(1);
+    assertThat(completions).hasSize(1);
+    JsonNode failure = failures.getFirst();
+    JsonNode completion = completions.getFirst();
+    assertThat(failure.path("exception_class").textValue())
+        .isEqualTo("org.springframework.dao.DataIntegrityViolationException");
+    assertThat(failure.path("level").textValue()).isEqualTo("ERROR");
+    assertThat(failure.path(REQUEST_ID).textValue()).isNotBlank();
+    assertThat(failure.path(REQUEST_ID)).isEqualTo(completion.path(REQUEST_ID));
+    assertThat(failure.path(TRACE_ID).textValue()).isNotBlank();
+    assertThat(failure.path(TRACE_ID)).isEqualTo(completion.path(TRACE_ID));
+    assertThat(failure.propertyNames())
+        .containsOnly(
+            "@timestamp",
+            "@version",
+            "message",
+            "logger_name",
+            "thread_name",
+            "level",
+            "level_value",
+            REQUEST_ID,
+            TRACE_ID,
+            "event",
+            "exception_class");
+    assertThat(completion.path("route").textValue()).isEqualTo(OPERATIONS);
+    assertThat(completion.path("status").intValue()).isEqualTo(500);
+    assertThat(output.getAll())
+        .doesNotContain(
+            SENTINEL,
+            JSON.readTree(body).path("operationId").textValue(),
+            JSON.readTree(body).path("recordId").textValue());
+
+    jdbc.execute("DROP TRIGGER private_journal_failure ON technical_record_change");
+    assertThat(send(HttpRequest.BodyPublishers.ofString(body)).statusCode()).isEqualTo(200);
+    assertThat(events(output, "request_failed")).hasSize(1);
+    assertThat(output.getAll()).doesNotContain(SENTINEL);
   }
 
   @Test
@@ -145,5 +207,14 @@ class TechnicalInputHttpIntegrationTest {
         }) {
       assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM " + table, Integer.class)).isZero();
     }
+  }
+
+  private static List<JsonNode> events(CapturedOutput output, String name) {
+    return output
+        .getAll()
+        .lines()
+        .filter(line -> line.contains("\"event\":\"" + name + "\""))
+        .map(JSON::readTree)
+        .toList();
   }
 }

@@ -1307,3 +1307,40 @@ Validation on 2026-10-04:
 - Final whitespace, documentation links, ADR index, English language consistency, and privacy review
   passed. No dependency, storage migration, business feature, secret, or environment-specific
   configuration was introduced.
+
+## H3 review hardening evidence — 2026-10-05
+
+H3 from the [G2e review hardening plan](g2e-review-hardening-plan.md) implements ADR-0015's
+privacy-safe unexpected-failure diagnostics at the synchronization MVC advice boundary. Generic
+exceptions and non-transient transaction-start fallbacks emit exactly one ERROR-level `request_failed`
+event containing the fully qualified handled exception class and existing random request/trace IDs.
+The response remains an empty `500` without `Retry-After`; transient failures remain `503`.
+The existing completion event and route allowlist are preserved.
+
+Parameterized tests exercise all existing permanent failure cases on both synchronization routes,
+including outer transaction wrappers with sensitive nested causes and SQL exceptions. They assert
+one failure per request, matching completion correlation, fresh request IDs, status/route, MDC cleanup,
+and no sentinel or throwable payload. Controlled `400`, `404`, `409`, and transient `503` cases emit
+no failure events. Real HTTP/PostgreSQL coverage forces a non-transient journal trigger error whose
+message contains the submitted value, verifies no value or operation/record identifiers appear in
+captured stdout/stderr, checks transaction rollback, and accepts an unchanged retry after trigger
+removal. Test teardown removes the trigger and function even after an assertion failure.
+
+Validation on 2026-10-05:
+
+- `pnpm validate`: passed the complete sequential suite: documentation and generated contracts,
+  frontend formatting/lint/architecture/type checks, 135 unit tests, five Chromium smoke/offline tests,
+  development/production builds, Wrapper checksum, backend build, topology, and repository checks.
+- Backend results: 44 unit/conformance tests and 39 PostgreSQL integration tests passed; Spotless,
+  Checkstyle, and PMD passed. The existing 89 main-source and one test-source Checkstyle warnings
+  remain; the modified tests introduce no new Checkstyle warnings.
+- `pnpm conformance:validate` and `pnpm docs:validate`: passed. Contract artifacts remain unchanged.
+- `pnpm compose:validate`: passed with an invocation-only placeholder for required password
+  interpolation; configuration validation did not start services or change database credentials.
+- `pnpm test:e2e:topology` (included in `pnpm validate`): both real PostgreSQL outage recovery and
+  lost-acknowledgement/deletion scenarios passed. Isolated containers, network, and database/cache
+  volumes were removed automatically; existing development datasets were not modified.
+- Final documentation links, whitespace, English language consistency, and privacy review passed.
+- No contract regeneration, dependency, migration, business feature, secret, or environment-specific
+  configuration was introduced. Failures outside MVC and deployment logging layers remain subject
+  to the separate ADR-0015/ADR-0029 verification before real-data use.

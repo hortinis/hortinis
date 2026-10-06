@@ -115,13 +115,24 @@ Validation evidence is recorded in the [foundation implementation plan](foundati
 
 ### H3. Observability corrections
 
-- Status: `planned`. Effort: small. Depends on: none.
+- Status: `implemented`; validated (2026-10-05). Effort: small. Depends on: none.
 - Log every `500` once as `event=request_failed` with the exception class name and the existing
   `request_id`. Never log the exception message: database errors can embed record values.
 - Keep the route-template fix from H0 and add `/api/v1/sync/operations` and `/changes` assertions.
 - Tests: a privacy test submits a sentinel value that a forced database error would echo and asserts the
   sentinel never appears in captured logs; a route test asserts both sync routes are named.
 - Acceptance: ADR-0015 privacy rules are covered by an automated test for the failure path.
+
+The common MVC `500` response boundary emits one ERROR-level `request_failed` with `exception_class`
+and the existing random request/trace IDs. Non-transient transaction-start fallbacks pass the original
+exception to that same boundary. Messages, throwable payloads, SQL, and persisted identifiers are never
+attached; the empty `500` response and existing `503` classification stay unchanged. H0's route
+allowlist and assertions are retained. Parameterized tests cover both routes and every existing
+permanent-failure case, correlation, MDC cleanup, and controlled responses without failure events.
+A real HTTP/PostgreSQL trigger echoes the submitted value in a non-transient error; captured output
+excludes the value and operation/record IDs, acceptance rolls back, and an unchanged retry succeeds
+after removing the trigger. Failures outside MVC remain a separate logging-layer verification scope.
+See the [validation evidence](foundation-implementation-plan.md#h3-review-hardening-evidence--2026-10-05).
 
 ### H4. Server domain cleanup (no wire change)
 

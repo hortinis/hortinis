@@ -63,3 +63,16 @@ F3 is confirmed for HTTP and request-boundary rejections across recovery and reo
 quarantine. Existing oversized history requires the documented compatibility audit before rollout.
 The [validation evidence](foundation-implementation-plan.md#h2-review-hardening-evidence--2026-10-04)
 records passing full repository, conformance, backend quality, PostgreSQL, and topology validation.
+
+## H3 review hardening — 2026-10-05
+
+The [H3 hardening increment](g2e-review-hardening-plan.md#h3-observability-corrections) adds one
+privacy-safe failure event at the synchronization MVC `500` boundary, including non-transient
+transaction-start failures. The event records only the handled exception class and existing random
+request/trace correlation IDs alongside fixed logging metadata. H0's synchronization route allowlist
+and assertions remain in place. Tests cover both routes, controlled responses without failure events,
+MDC cleanup, and a real PostgreSQL error that echoes record content without leaking it to logs.
+No wire contract, dependency, schema, or retry behavior changes. Failures outside MVC remain a separate
+logging-layer verification scope. Full repository validation, cross-runtime conformance, backend
+quality checks, and both real topology scenarios passed. See the
+[validation evidence](foundation-implementation-plan.md#h3-review-hardening-evidence--2026-10-05).

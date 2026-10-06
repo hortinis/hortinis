@@ -197,6 +197,17 @@ pnpm --filter @hortinis/web lint:fix
 
 The backend workspace requires a Java 25 JDK and uses Gradle 9.7.1 exclusively through the committed Gradle Wrapper. A separate system Gradle installation is neither required nor supported. The root build centralizes plugin and dependency repositories, rejects project-specific repositories, and applies the Java 25 toolchain and compiler release to the Spring Boot application project at `services/sync`. The service exposes status-only health, liveness, and readiness probes under `/actuator` and emits minimized structured JSON logs to stdout; deployment-specific log collection and rotation are defined separately.
 
+Unexpected exceptions mapped to HTTP `500` by the synchronization MVC advice emit exactly one
+ERROR-level `request_failed` event with `exception_class` (the fully qualified class of the handled
+exception) and the filter's existing random `request_id` and `trace_id`. The fixed message is
+`Request failed`; exception messages, causes, stack traces, SQL, bodies, and persisted identifiers are
+not attached. Non-transient transaction-start failures use the same boundary and record the outer
+`CannotCreateTransactionException`. Controlled `400`, `404`, `409`, and transient `503` responses do
+not emit this event. The filter separately emits `request_completed` with the same correlation IDs,
+status, and allowlisted route, including both synchronization routes. This guarantee covers failures
+handled by the MVC advice; failures outside MVC and deployment logging layers require separate
+verification before real-data use under ADR-0015 and ADR-0029.
+
 Validate the Wrapper files before running the build:
 
 ```shell
