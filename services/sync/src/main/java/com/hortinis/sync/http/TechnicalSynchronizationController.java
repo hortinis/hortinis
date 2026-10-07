@@ -1,9 +1,7 @@
 package com.hortinis.sync.http;
 
-import com.hortinis.sync.protocol.ChangePage;
-import com.hortinis.sync.protocol.OperationResult;
+import com.hortinis.sync.configuration.SynchronizationPersistenceEnabled;
 import com.hortinis.sync.service.TechnicalRecordSynchronizationService;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -14,11 +12,7 @@ import tools.jackson.databind.JsonNode;
 
 @RestController
 @RequestMapping("/api/v1/sync")
-@ConditionalOnProperty(
-    prefix = "hortinis.sync.persistence",
-    name = "enabled",
-    havingValue = "true",
-    matchIfMissing = true)
+@SynchronizationPersistenceEnabled
 public class TechnicalSynchronizationController {
 
   private final TechnicalRecordSynchronizationService synchronization;
@@ -28,12 +22,14 @@ public class TechnicalSynchronizationController {
   }
 
   @PostMapping("/operations")
-  public OperationResult submitOperation(@RequestBody JsonNode body) {
-    return synchronization.submit(TechnicalOperationParser.parse(body));
+  public TechnicalSynchronizationWire.ResultBody submitOperation(@RequestBody JsonNode body) {
+    return TechnicalSynchronizationWire.toResult(
+        synchronization.submit(TechnicalOperationParser.parse(body)));
   }
 
   @GetMapping("/changes")
-  public ChangePage pullChanges(@RequestParam(required = false) String cursor) {
-    return synchronization.pull(cursor);
+  public TechnicalSynchronizationWire.ChangePageBody pullChanges(
+      @RequestParam(required = false) String cursor) {
+    return TechnicalSynchronizationWire.toPage(synchronization.pull(cursor));
   }
 }

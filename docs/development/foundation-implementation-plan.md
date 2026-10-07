@@ -1344,3 +1344,55 @@ Validation on 2026-10-05:
 - No contract regeneration, dependency, migration, business feature, secret, or environment-specific
   configuration was introduced. Failures outside MVC and deployment logging layers remain subject
   to the separate ADR-0015/ADR-0029 verification before real-data use.
+
+## H4 review hardening evidence — 2026-10-06
+
+H4 from the [G2e review hardening plan](g2e-review-hardening-plan.md) introduces validated `RecordId`
+and `OperationId` types and exact accepted `Revision(long)` advancement. Request expectations retain
+arbitrary positive-decimal precision through `ExpectedRevision(BigInteger)`, preserving the existing
+missing-record, operation-reuse, and conflict classifications for expectations outside the accepted
+range. [ADR-0009](../architecture/decisions/0009-server-api-and-persistence.md#technical-synchronization-representations)
+records the representation rationale and explicit HTTP mapping boundary.
+
+Operation compact constructors enforce existing input invariants. HTTP parsing owns exact JSON
+shape/type checks and translates construction failures locally to `INVALID_REQUEST`. The redundant
+`OperationRules` validation and equality helpers are removed; typed operation records provide
+structural replay equality. Service and persistence operation dispatch use exhaustive pattern
+switches. The JDBC component reconstructs typed receipt operations, rejects unknown stored kinds,
+and owns SQL conversions. The service computes each accepted revision once. Record locks, receipt
+rechecks, publication locks, atomic acceptance/deletion, identifier reservations, replay, and cursor
+pagination remain intact.
+
+Explicit HTTP wire representations preserve every existing identifier/revision string and keep
+Jackson metadata outside internal result/change types. One composed persistence-enabled annotation
+retains default activation across the four existing components. No generated contract, schema,
+dependency, retry policy, or production business feature changes. ADR-0031's compatibility gate for
+previously accepted oversized history remains applicable.
+
+Tests cover constructor invariants, canonical UUIDs and diagnostic redaction, exact arithmetic,
+unbounded expectations, structural equality, and parser error translation. PostgreSQL characterization
+tests for out-of-range expectations and revision exhaustion passed before the refactor. The same
+checks pass afterwards, alongside a maximum-revision replacement/deletion, replay, and pull scenario
+that verifies precision beyond JavaScript's safe-integer range. Existing behavioral fixtures and HTTP
+assertions remain unchanged; Java construction and deserialization helpers use the typed and wire APIs.
+
+Validation on 2026-10-06:
+
+- `pnpm validate`: passed the complete sequential suite: documentation and generated contracts,
+  frontend formatting/lint/architecture/type checks, 135 unit tests, five Chromium smoke/offline tests,
+  development/production builds, Wrapper checksum, backend build, topology, and repository checks.
+- Backend results: 67 unit/conformance tests and 42 PostgreSQL integration tests passed. Spotless,
+  Checkstyle, and PMD passed. Main-source Checkstyle warnings decreased from 89 to 85 after removing
+  `OperationRules`; the existing test package/directory warning remains. New H4 files introduce no
+  Checkstyle warnings.
+- `pnpm conformance:validate` and `pnpm docs:validate`: passed. Both runtime suites retain their shared
+  behavioral fixture expectations; generated contract artifacts remain unchanged.
+- `pnpm compose:validate`: passed with an invocation-only placeholder for required password
+  interpolation; configuration validation did not start services or change database credentials.
+- `pnpm test:e2e:topology` (included in `pnpm validate`): real PostgreSQL outage recovery and
+  lost-acknowledgement/deletion scenarios passed. The isolated containers, network, and database/cache
+  volumes were removed automatically; existing development datasets were not modified.
+- Final whitespace, documentation links, English language consistency, pure-type dependency review,
+  and privacy review passed. Only sequence/cursor conversions remain in the service; revision
+  comparison and advancement use value types. No dependency, migration, generated contract, business
+  feature, secret, or environment-specific configuration was introduced.

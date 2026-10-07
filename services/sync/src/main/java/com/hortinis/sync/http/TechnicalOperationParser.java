@@ -2,11 +2,12 @@ package com.hortinis.sync.http;
 
 import com.hortinis.sync.protocol.CreateTechnicalRecordOperation;
 import com.hortinis.sync.protocol.DeleteTechnicalRecordOperation;
+import com.hortinis.sync.protocol.ExpectedRevision;
 import com.hortinis.sync.protocol.InvalidRequestException;
+import com.hortinis.sync.protocol.OperationId;
+import com.hortinis.sync.protocol.RecordId;
 import com.hortinis.sync.protocol.ReplaceTechnicalRecordOperation;
 import com.hortinis.sync.protocol.TechnicalRecordOperation;
-import com.hortinis.sync.protocol.TechnicalRecordValueRules;
-import com.hortinis.sync.protocol.UuidRules;
 import java.util.HashSet;
 import java.util.Set;
 import tools.jackson.databind.JsonNode;
@@ -26,31 +27,35 @@ final class TechnicalOperationParser {
       throw new InvalidRequestException();
     }
     String kind = text(body, KIND);
-    String operationId = text(body, OPERATION_ID);
-    String recordId = text(body, RECORD_ID);
-    if (!UuidRules.isCanonicalUuid(operationId) || !UuidRules.isCanonicalUuid(recordId)) {
+    if (kind == null) {
       throw new InvalidRequestException();
     }
-    String value = text(body, VALUE);
-    if ("create".equals(kind)
-        && TechnicalRecordValueRules.isValid(value)
-        && fields(body).equals(Set.of(KIND, OPERATION_ID, RECORD_ID, VALUE))) {
-      return new CreateTechnicalRecordOperation(operationId, recordId, value);
+    try {
+      OperationId operationId = OperationId.parse(text(body, OPERATION_ID));
+      RecordId recordId = RecordId.parse(text(body, RECORD_ID));
+      return switch (kind) {
+        case "create" -> {
+          requireFields(body, Set.of(KIND, OPERATION_ID, RECORD_ID, VALUE));
+          yield new CreateTechnicalRecordOperation(operationId, recordId, text(body, VALUE));
+        }
+        case "replace" -> {
+          requireFields(body, Set.of(EXPECTED_REVISION, KIND, OPERATION_ID, RECORD_ID, VALUE));
+          yield new ReplaceTechnicalRecordOperation(
+              operationId,
+              recordId,
+              text(body, VALUE),
+              ExpectedRevision.parse(text(body, EXPECTED_REVISION)));
+        }
+        case "delete" -> {
+          requireFields(body, Set.of(EXPECTED_REVISION, KIND, OPERATION_ID, RECORD_ID));
+          yield new DeleteTechnicalRecordOperation(
+              operationId, recordId, ExpectedRevision.parse(text(body, EXPECTED_REVISION)));
+        }
+        default -> throw new InvalidRequestException();
+      };
+    } catch (IllegalArgumentException exception) {
+      throw new InvalidRequestException();
     }
-    String expectedRevision = text(body, EXPECTED_REVISION);
-    if ("replace".equals(kind)
-        && TechnicalRecordValueRules.isValid(value)
-        && fields(body).equals(Set.of(EXPECTED_REVISION, KIND, OPERATION_ID, RECORD_ID, VALUE))
-        && UuidRules.isPositiveDecimal(expectedRevision)) {
-      return new ReplaceTechnicalRecordOperation(operationId, recordId, value, expectedRevision);
-    }
-    String deleteExpectedRevision = text(body, EXPECTED_REVISION);
-    if ("delete".equals(kind)
-        && fields(body).equals(Set.of(EXPECTED_REVISION, KIND, OPERATION_ID, RECORD_ID))
-        && UuidRules.isPositiveDecimal(deleteExpectedRevision)) {
-      return new DeleteTechnicalRecordOperation(operationId, recordId, deleteExpectedRevision);
-    }
-    throw new InvalidRequestException();
   }
 
   private static String text(JsonNode body, String field) {
@@ -58,9 +63,9 @@ final class TechnicalOperationParser {
     return value != null && value.isTextual() ? value.textValue() : null;
   }
 
-  private static Set<String> fields(JsonNode body) {
-    Set<String> fields = new HashSet<>();
-    fields.addAll(body.propertyNames());
-    return fields;
+  private static void requireFields(JsonNode body, Set<String> expected) {
+    if (!new HashSet<>(body.propertyNames()).equals(expected)) {
+      throw new InvalidRequestException();
+    }
   }
 }

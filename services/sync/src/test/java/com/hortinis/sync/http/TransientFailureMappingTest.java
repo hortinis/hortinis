@@ -8,6 +8,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.hortinis.sync.observability.RequestLoggingFilter;
+import com.hortinis.sync.protocol.InvalidRequestException;
+import com.hortinis.sync.protocol.OperationId;
+import com.hortinis.sync.protocol.OperationIdReusedException;
+import com.hortinis.sync.protocol.RecordId;
+import com.hortinis.sync.protocol.RecordNotFoundException;
 import java.io.InputStream;
 import java.sql.SQLException;
 import java.sql.SQLTransientConnectionException;
@@ -48,6 +53,8 @@ class TransientFailureMappingTest {
   private static final String REQUEST_ID = "request_id";
   private static final String TRACE_ID = "trace_id";
   private static final String REQUEST_FAILED = "request_failed";
+  private static final String PRIVATE_OPERATION_ID = "01890f3e-7c5a-7b12-8abc-0123456789ab";
+  private static final String PRIVATE_RECORD_ID = "01890f3e-7c5a-7b13-8abc-0123456789ab";
   private static final String SENTINEL = "private-database-error-value";
   private static final String OPERATIONS = "/api/v1/sync/operations";
   private static final String CHANGES = "/api/v1/sync/changes";
@@ -76,7 +83,7 @@ class TransientFailureMappingTest {
                       fixture.path("headers").path(HttpHeaders.RETRY_AFTER).textValue()))
           .andExpect(header().string("Cache-Control", "no-store"));
     }
-    assertThat(output.getAll()).doesNotContain(SENTINEL);
+    assertThat(output.getAll()).doesNotContain(SENTINEL, PRIVATE_OPERATION_ID, PRIVATE_RECORD_ID);
     assertThat(events(output, REQUEST_FAILED)).isEmpty();
   }
 
@@ -122,14 +129,14 @@ class TransientFailureMappingTest {
       assertThat(completion.path("route").textValue()).isEqualTo(index == 0 ? OPERATIONS : CHANGES);
     }
     assertThat(failures.get(0).path(REQUEST_ID)).isNotEqualTo(failures.get(1).path(REQUEST_ID));
-    assertThat(output.getAll()).doesNotContain(SENTINEL);
+    assertThat(output.getAll()).doesNotContain(SENTINEL, PRIVATE_OPERATION_ID, PRIVATE_RECORD_ID);
     assertThat(MDC.get(REQUEST_ID)).isNull();
     assertThat(MDC.get(TRACE_ID)).isNull();
   }
 
   @Test
   void preservesInvalidRequestClassification(CapturedOutput output) throws Exception {
-    mvc(new com.hortinis.sync.protocol.InvalidRequestException())
+    mvc(new InvalidRequestException())
         .perform(post(OPERATIONS))
         .andExpect(status().isBadRequest())
         .andExpect(header().doesNotExist(HttpHeaders.RETRY_AFTER));
@@ -138,14 +145,15 @@ class TransientFailureMappingTest {
 
   @Test
   void controlledNotFoundAndConflictDoNotEmitFailureEvents(CapturedOutput output) throws Exception {
-    mvc(new com.hortinis.sync.protocol.RecordNotFoundException(SENTINEL, SENTINEL))
+    mvc(new RecordNotFoundException(
+            OperationId.parse(PRIVATE_OPERATION_ID), RecordId.parse(PRIVATE_RECORD_ID)))
         .perform(post(OPERATIONS))
         .andExpect(status().isNotFound());
-    mvc(new com.hortinis.sync.protocol.OperationIdReusedException(SENTINEL))
+    mvc(new OperationIdReusedException(OperationId.parse(PRIVATE_OPERATION_ID)))
         .perform(post(OPERATIONS))
         .andExpect(status().isConflict());
     assertThat(events(output, REQUEST_FAILED)).isEmpty();
-    assertThat(output.getAll()).doesNotContain(SENTINEL);
+    assertThat(output.getAll()).doesNotContain(SENTINEL, PRIVATE_OPERATION_ID, PRIVATE_RECORD_ID);
   }
 
   private static List<JsonNode> events(CapturedOutput output, String name) {

@@ -2,14 +2,12 @@ package com.hortinis.sync.http;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hortinis.sync.http.TechnicalSynchronizationWire.RecordChange;
+import com.hortinis.sync.http.TechnicalSynchronizationWire.RecordResult;
+import com.hortinis.sync.http.TechnicalSynchronizationWire.TombstoneChange;
+import com.hortinis.sync.http.TechnicalSynchronizationWire.TombstoneResult;
 import com.hortinis.sync.protocol.InvalidRequestException;
-import com.hortinis.sync.protocol.OperationRules;
-import com.hortinis.sync.protocol.RecordOperationResult;
-import com.hortinis.sync.protocol.RecordTechnicalChange;
 import com.hortinis.sync.protocol.SyncCursorCodec;
-import com.hortinis.sync.protocol.TechnicalRecordOperation;
-import com.hortinis.sync.protocol.TombstoneOperationResult;
-import com.hortinis.sync.protocol.TombstoneTechnicalChange;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -80,12 +78,11 @@ class TechnicalConformanceFixturesTest {
   @Test
   void consumesG2aDeletionResultChangeAndRetiredIdentifierFixtures() throws IOException {
     JsonNode deleteResult = readFixture("delete-accepted.json").get("value");
-    assertThat(JSON.treeToValue(deleteResult, TombstoneOperationResult.class)).isNotNull();
+    assertThat(JSON.treeToValue(deleteResult, TombstoneResult.class)).isNotNull();
 
     JsonNode page = readFixture("tombstone-change-page.json").get("value");
     assertChangePage(page);
-    assertThat(JSON.treeToValue(page.get("changes").get(0), TombstoneTechnicalChange.class))
-        .isNotNull();
+    assertThat(JSON.treeToValue(page.get("changes").get(0), TombstoneChange.class)).isNotNull();
 
     JsonNode retired = readFixture("record-identifier-retired.json").get("value");
     assertThat(
@@ -131,8 +128,7 @@ class TechnicalConformanceFixturesTest {
 
   private static boolean isValidOperation(JsonNode value) {
     try {
-      TechnicalRecordOperation operation = TechnicalOperationParser.parse(value);
-      OperationRules.validate(operation);
+      TechnicalOperationParser.parse(value);
       return true;
     } catch (InvalidRequestException | IllegalArgumentException exception) {
       return false;
@@ -141,8 +137,7 @@ class TechnicalConformanceFixturesTest {
 
   private static boolean operationsEqual(JsonNode left, JsonNode right) {
     try {
-      return OperationRules.equal(
-          TechnicalOperationParser.parse(left), TechnicalOperationParser.parse(right));
+      return TechnicalOperationParser.parse(left).equals(TechnicalOperationParser.parse(right));
     } catch (InvalidRequestException | IllegalArgumentException exception) {
       return false;
     }
@@ -187,9 +182,9 @@ class TechnicalConformanceFixturesTest {
 
   private static void assertOperationResult(JsonNode value) throws IOException {
     if (value.has("record")) {
-      assertThat(JSON.treeToValue(value, RecordOperationResult.class)).isNotNull();
+      assertThat(JSON.treeToValue(value, RecordResult.class)).isNotNull();
     } else {
-      assertThat(JSON.treeToValue(value, TombstoneOperationResult.class)).isNotNull();
+      assertThat(JSON.treeToValue(value, TombstoneResult.class)).isNotNull();
     }
   }
 
@@ -197,9 +192,9 @@ class TechnicalConformanceFixturesTest {
     assertThat(value.get("changes").isArray()).isTrue();
     for (JsonNode change : value.get("changes")) {
       if (change.has("record")) {
-        assertThat(JSON.treeToValue(change, RecordTechnicalChange.class)).isNotNull();
+        assertThat(JSON.treeToValue(change, RecordChange.class)).isNotNull();
       } else {
-        assertThat(JSON.treeToValue(change, TombstoneTechnicalChange.class)).isNotNull();
+        assertThat(JSON.treeToValue(change, TombstoneChange.class)).isNotNull();
       }
     }
     assertThat(value.get("nextCursor").isTextual()).isTrue();

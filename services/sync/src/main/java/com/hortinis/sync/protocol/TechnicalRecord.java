@@ -1,3 +1,3 @@
 package com.hortinis.sync.protocol;
 
-public record TechnicalRecord(String recordId, String revision, String value) {}
+public record TechnicalRecord(RecordId recordId, Revision revision, String value) {}

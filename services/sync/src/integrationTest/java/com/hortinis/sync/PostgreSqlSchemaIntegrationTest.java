@@ -183,7 +183,7 @@ class PostgreSqlSchemaIntegrationTest {
 
       assertThat(secondSequence).isGreaterThan(firstSequence);
       assertThat(persistence.findChangesAfter(0, 10))
-          .extracting(change -> change.operationId())
+          .extracting(change -> change.operationId().toWire())
           .containsExactly(firstOperation.toString(), secondOperation.toString());
     }
   }

@@ -136,19 +136,32 @@ See the [validation evidence](foundation-implementation-plan.md#h3-review-harden
 
 ### H4. Server domain cleanup (no wire change)
 
-- Status: `planned`. Effort: medium. Depends on: H1-H3 merged (avoids conflicts).
-- Introduce small value types (`RecordId`, `OperationId`, `Revision` wrapping `long` with `next()` using
-  exact arithmetic and `parse`/`toWire` at the boundary). JDBC conversions live only in the persistence
-  class; revisions stay decimal strings on the wire.
-- Replace `instanceof` chains with pattern-matching `switch` over the sealed
-  `TechnicalRecordOperation`, so adding an operation kind fails compilation until handled.
-- Validate in compact constructors and remove `OperationRules.validate`, which currently throws
-  `IllegalArgumentException` and would surface as `500`. If the operation types are records (they appear
-  to be), delete `OperationRules.equal` in favor of record equality.
-- Small cleanups: one composed annotation for the repeated `@ConditionalOnProperty`; replace inline
-  fully qualified names with imports.
-- Acceptance: all existing unit, integration, and conformance tests pass unchanged; no `String`
-  revision arithmetic remains in `service`.
+- Status: `implemented`; validated (2026-10-06). Effort: medium. Depends on: H1-H3.
+- Introduce pure `RecordId`, `OperationId`, and accepted `Revision(long)` value types with boundary
+  parsing/formatting and exact `next()` arithmetic. JDBC conversions remain in persistence; all wire
+  revisions remain decimal strings.
+- Preserve unbounded positive-decimal request expectations with `ExpectedRevision(BigInteger)`;
+  narrowing them to `long` would change existing `404`/`409` behavior. The rationale and HTTP mapping
+  boundary are recorded in ADR-0009.
+- Replace operation `instanceof` chains with exhaustive pattern switches over the sealed
+  `TechnicalRecordOperation`. Persistence reconstructs typed receipt operations; replay uses record
+  equality. No implicit stored-kind fallback remains.
+- Validate operations in compact constructors and delete `OperationRules`. The parser keeps exact
+  JSON shape checks and maps construction failures locally to `400 INVALID_REQUEST`; unexpected
+  programming failures retain H3's privacy-safe `500` boundary.
+- Compute the accepted revision once in the service and pass it to persistence. Preserve record and
+  scope lock ordering, transactional acceptance, retained deletion, replay, and pagination.
+- Add one composed annotation for the four repeated persistence conditions, retaining their default
+  activation. Replace inline fully qualified names with imports; move Jackson result/change metadata
+  to explicit HTTP wire representations.
+- Tests: constructor invariants, UUID syntax and redaction, canonical revision syntax, exact overflow,
+  unbounded expectations, structural equality, parser failure translation, and PostgreSQL rollback.
+  Existing fixture/HTTP expectations remain unchanged; Java helpers follow the new typed API.
+- Acceptance: unit, integration, conformance, quality, repository, and topology checks pass; no string
+  revision arithmetic remains in the service, and contract artifacts and migrations are unchanged.
+
+Validation evidence is recorded in the
+[foundation implementation plan](foundation-implementation-plan.md#h4-review-hardening-evidence--2026-10-06).
 
 ### H5. Browser synchronization service decomposition (no behavior change)
 

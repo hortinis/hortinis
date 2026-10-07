@@ -37,6 +37,9 @@ class TechnicalSynchronizationIntegrationTest {
   private static final String CHANGE_TABLE = "technical_record_change";
   private static final String TOMBSTONE_TABLE = "technical_record_tombstone";
   private static final String RETIRED_IDENTIFIER_TABLE = "retired_technical_record_identifier";
+  private static final String ERROR_CODE_PATH = "$.code";
+  private static final String SELECT_RECORD_VALUE = "SELECT value FROM technical_record";
+  private static final String SELECT_RECORD_REVISION = "SELECT revision FROM technical_record";
   private static final String RECORD_VALUE_PATH = "$.record.value";
   private static final String FIRST_VALUE = "first value";
   private static final String REPLACEMENT_VALUE = "replacement value";
@@ -113,8 +116,7 @@ class TechnicalSynchronizationIntegrationTest {
     assertThat(count(TECHNICAL_RECORD_TABLE)).isEqualTo(1);
     assertThat(count(ACCEPTED_OPERATION_TABLE)).isEqualTo(1);
     assertThat(count(CHANGE_TABLE)).isEqualTo(1);
-    assertThat(jdbc.queryForObject("SELECT value FROM technical_record", String.class))
-        .isEqualTo(FIRST_VALUE);
+    assertThat(jdbc.queryForObject(SELECT_RECORD_VALUE, String.class)).isEqualTo(FIRST_VALUE);
   }
 
   @Test
@@ -147,8 +149,7 @@ class TechnicalSynchronizationIntegrationTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.changes[0].record.value").value(value))
         .andExpect(jsonPath("$.changes[1].record.value").value(value));
-    assertThat(jdbc.queryForObject("SELECT value FROM technical_record", String.class))
-        .isEqualTo(value);
+    assertThat(jdbc.queryForObject(SELECT_RECORD_VALUE, String.class)).isEqualTo(value);
     assertThat(count(ACCEPTED_OPERATION_TABLE)).isEqualTo(2);
     assertThat(count(CHANGE_TABLE)).isEqualTo(2);
   }
@@ -197,8 +198,7 @@ class TechnicalSynchronizationIntegrationTest {
                 .content(replaceRequest(STALE_REPLACE_OPERATION_ID, value, "2")))
         .andExpect(status().isOk())
         .andExpect(jsonPath(RECORD_VALUE_PATH).value(value));
-    assertThat(jdbc.queryForObject("SELECT value FROM technical_record", String.class))
-        .isEqualTo(value);
+    assertThat(jdbc.queryForObject(SELECT_RECORD_VALUE, String.class)).isEqualTo(value);
   }
 
   @AfterEach
@@ -213,6 +213,108 @@ class TechnicalSynchronizationIntegrationTest {
         "TRUNCATE technical_record_change, technical_record_tombstone, "
             + "retired_technical_record_identifier, accepted_technical_record_operation, "
             + "technical_record RESTART IDENTITY CASCADE");
+  }
+
+  @Test
+  void preservesOutOfRangeExpectedRevisionClassification() throws Exception {
+    String expectedRevision = "9223372036854775808";
+    for (String request :
+        new String[] {
+          replaceRequest(REPLACEMENT_VALUE, expectedRevision),
+          deleteRequest(DELETE_OPERATION_ID, expectedRevision)
+        }) {
+      mockMvc
+          .perform(post(OPERATIONS_PATH).contentType(MediaType.APPLICATION_JSON).content(request))
+          .andExpect(status().isNotFound())
+          .andExpect(jsonPath(ERROR_CODE_PATH).value("RECORD_NOT_FOUND"));
+    }
+    submitCreateAndReadResponse();
+    for (String request :
+        new String[] {
+          replaceRequest(REPLACEMENT_VALUE, expectedRevision),
+          deleteRequest(DELETE_OPERATION_ID, expectedRevision)
+        }) {
+      mockMvc
+          .perform(post(OPERATIONS_PATH).contentType(MediaType.APPLICATION_JSON).content(request))
+          .andExpect(status().isConflict())
+          .andExpect(jsonPath(ERROR_CODE_PATH).value("REVISION_CONFLICT"))
+          .andExpect(jsonPath("$.expectedRevision").value(expectedRevision));
+    }
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(replaceRequest(OPERATION_ID, REPLACEMENT_VALUE, expectedRevision)))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath(ERROR_CODE_PATH).value("OPERATION_ID_REUSED"));
+    assertThat(count(ACCEPTED_OPERATION_TABLE)).isEqualTo(1);
+    assertThat(count(CHANGE_TABLE)).isEqualTo(1);
+  }
+
+  @Test
+  void preservesMaximumAcceptedRevisionsThroughReplayAndPull() throws Exception {
+    submitCreateAndReadResponse();
+    jdbc.update(
+        "UPDATE technical_record SET revision = ? WHERE record_id = ?",
+        Long.MAX_VALUE - 2,
+        UUID.fromString(RECORD_ID));
+    String replacement = replaceRequest(REPLACEMENT_VALUE, Long.toString(Long.MAX_VALUE - 2));
+    mockMvc
+        .perform(post(OPERATIONS_PATH).contentType(MediaType.APPLICATION_JSON).content(replacement))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.record.revision").value(Long.toString(Long.MAX_VALUE - 1)));
+    assertThat(jdbc.queryForObject(SELECT_RECORD_REVISION, Long.class))
+        .isEqualTo(Long.MAX_VALUE - 1);
+    String deletion = deleteRequest(DELETE_OPERATION_ID, Long.toString(Long.MAX_VALUE - 1));
+    String result =
+        mockMvc
+            .perform(
+                post(OPERATIONS_PATH).contentType(MediaType.APPLICATION_JSON).content(deletion))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.tombstone.revision").value(Long.toString(Long.MAX_VALUE)))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    mockMvc
+        .perform(post(OPERATIONS_PATH).contentType(MediaType.APPLICATION_JSON).content(deletion))
+        .andExpect(status().isOk())
+        .andExpect(content().string(result));
+    mockMvc
+        .perform(get(CHANGES_PATH))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath("$.changes[1].record.revision").value(Long.toString(Long.MAX_VALUE - 1)))
+        .andExpect(
+            jsonPath("$.changes[2].tombstone.revision").value(Long.toString(Long.MAX_VALUE)));
+    assertThat(count(ACCEPTED_OPERATION_TABLE)).isEqualTo(3);
+    assertThat(count(CHANGE_TABLE)).isEqualTo(3);
+    assertThat(count(TECHNICAL_RECORD_TABLE)).isZero();
+    assertThat(jdbc.queryForObject("SELECT revision FROM technical_record_tombstone", Long.class))
+        .isEqualTo(Long.MAX_VALUE);
+  }
+
+  @Test
+  void revisionExhaustionRollsBackReplacementAndDeletion() throws Exception {
+    submitCreateAndReadResponse();
+    jdbc.update(
+        "UPDATE technical_record SET revision = ? WHERE record_id = ?",
+        Long.MAX_VALUE,
+        UUID.fromString(RECORD_ID));
+    for (String request :
+        new String[] {
+          replaceRequest(REPLACEMENT_VALUE, Long.toString(Long.MAX_VALUE)),
+          deleteRequest(DELETE_OPERATION_ID, Long.toString(Long.MAX_VALUE))
+        }) {
+      mockMvc
+          .perform(post(OPERATIONS_PATH).contentType(MediaType.APPLICATION_JSON).content(request))
+          .andExpect(status().isInternalServerError());
+      assertThat(count(ACCEPTED_OPERATION_TABLE)).isEqualTo(1);
+      assertThat(count(CHANGE_TABLE)).isEqualTo(1);
+      assertThat(count(TOMBSTONE_TABLE)).isZero();
+      assertThat(count(RETIRED_IDENTIFIER_TABLE)).isZero();
+      assertThat(jdbc.queryForObject(SELECT_RECORD_REVISION, Long.class)).isEqualTo(Long.MAX_VALUE);
+      assertThat(jdbc.queryForObject(SELECT_RECORD_VALUE, String.class)).isEqualTo(FIRST_VALUE);
+    }
   }
 
   @Test
@@ -415,7 +517,7 @@ class TechnicalSynchronizationIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(deleteRequest(STALE_DELETE_OPERATION_ID, "2")))
         .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.code").value("REVISION_CONFLICT"));
+        .andExpect(jsonPath(ERROR_CODE_PATH).value("REVISION_CONFLICT"));
 
     mockMvc
         .perform(
@@ -441,14 +543,14 @@ class TechnicalSynchronizationIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(replaceRequest(STALE_REPLACE_OPERATION_ID, "after deletion", "1")))
         .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.code").value("RECORD_NOT_FOUND"));
+        .andExpect(jsonPath(ERROR_CODE_PATH).value("RECORD_NOT_FOUND"));
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(deleteRequest(MISSING_DELETE_OPERATION_ID, "2")))
         .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.code").value("RECORD_NOT_FOUND"));
+        .andExpect(jsonPath(ERROR_CODE_PATH).value("RECORD_NOT_FOUND"));
 
     assertThat(count(TECHNICAL_RECORD_TABLE)).isZero();
     assertThat(count(ACCEPTED_OPERATION_TABLE)).isEqualTo(2);

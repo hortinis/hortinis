@@ -4,7 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.hortinis.sync.protocol.CreateTechnicalRecordOperation;
 import com.hortinis.sync.protocol.DeleteTechnicalRecordOperation;
+import com.hortinis.sync.protocol.ExpectedRevision;
+import com.hortinis.sync.protocol.OperationId;
 import com.hortinis.sync.protocol.OperationResult;
+import com.hortinis.sync.protocol.RecordId;
 import com.hortinis.sync.protocol.TombstoneTechnicalChange;
 import com.hortinis.sync.service.TechnicalRecordSynchronizationService;
 import java.util.UUID;
@@ -27,9 +30,9 @@ class PostgreSqlServiceRestartIntegrationTest {
 
   @Test
   void restartRetainsDataAndDoesNotReapplyFlywayMigration() {
-    String createOperationId = UUID.randomUUID().toString();
-    String deleteOperationId = UUID.randomUUID().toString();
-    String recordId = UUID.randomUUID().toString();
+    OperationId createOperationId = OperationId.parse(UUID.randomUUID().toString());
+    OperationId deleteOperationId = OperationId.parse(UUID.randomUUID().toString());
+    RecordId recordId = RecordId.parse(UUID.randomUUID().toString());
     String jdbcUrl = POSTGRES.getJdbcUrl();
     OperationResult deletionResult;
 
@@ -40,7 +43,8 @@ class PostgreSqlServiceRestartIntegrationTest {
           new CreateTechnicalRecordOperation(createOperationId, recordId, "retained value"));
       deletionResult =
           synchronization.submit(
-              new DeleteTechnicalRecordOperation(deleteOperationId, recordId, "1"));
+              new DeleteTechnicalRecordOperation(
+                  deleteOperationId, recordId, ExpectedRevision.parse("1")));
     }
 
     try (ConfigurableApplicationContext second = startApplication(jdbcUrl)) {
@@ -64,7 +68,8 @@ class PostgreSqlServiceRestartIntegrationTest {
           .isZero();
       assertThat(
               synchronization.submit(
-                  new DeleteTechnicalRecordOperation(deleteOperationId, recordId, "1")))
+                  new DeleteTechnicalRecordOperation(
+                      deleteOperationId, recordId, ExpectedRevision.parse("1"))))
           .isEqualTo(deletionResult);
       assertThat(synchronization.pull(null).changes())
           .hasSize(2)

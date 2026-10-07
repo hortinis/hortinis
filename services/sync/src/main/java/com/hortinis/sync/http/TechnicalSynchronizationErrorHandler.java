@@ -71,8 +71,8 @@ public class TechnicalSynchronizationErrorHandler {
             new RecordNotFoundError(
                 "RECORD_NOT_FOUND",
                 exception.getMessage(),
-                exception.operationId(),
-                exception.recordId()));
+                exception.operationId().toWire(),
+                exception.recordId().toWire()));
   }
 
   @ExceptionHandler(OperationIdReusedException.class)
@@ -80,7 +80,7 @@ public class TechnicalSynchronizationErrorHandler {
     return ResponseEntity.status(409)
         .body(
             new OperationIdReusedError(
-                "OPERATION_ID_REUSED", exception.getMessage(), exception.operationId()));
+                "OPERATION_ID_REUSED", exception.getMessage(), exception.operationId().toWire()));
   }
 
   @ExceptionHandler(RecordAlreadyExistsException.class)
@@ -91,8 +91,8 @@ public class TechnicalSynchronizationErrorHandler {
             new RecordAlreadyExistsError(
                 "RECORD_ALREADY_EXISTS",
                 exception.getMessage(),
-                exception.operationId(),
-                exception.currentRecord()));
+                exception.operationId().toWire(),
+                TechnicalSynchronizationWire.toRecord(exception.currentRecord())));
   }
 
   @ExceptionHandler(RecordIdentifierRetiredException.class)
@@ -103,8 +103,8 @@ public class TechnicalSynchronizationErrorHandler {
             new RecordIdentifierRetiredError(
                 "RECORD_IDENTIFIER_RETIRED",
                 exception.getMessage(),
-                exception.operationId(),
-                exception.recordId()));
+                exception.operationId().toWire(),
+                exception.recordId().toWire()));
   }
 
   @ExceptionHandler(RevisionConflictException.class)
@@ -114,9 +114,9 @@ public class TechnicalSynchronizationErrorHandler {
             new RevisionConflictError(
                 "REVISION_CONFLICT",
                 exception.getMessage(),
-                exception.operationId(),
-                exception.expectedRevision(),
-                exception.currentRecord()));
+                exception.operationId().toWire(),
+                exception.expectedRevision().toWire(),
+                TechnicalSynchronizationWire.toRecord(exception.currentRecord())));
   }
 
   @ExceptionHandler(Exception.class)
@@ -148,7 +148,7 @@ public class TechnicalSynchronizationErrorHandler {
       String code,
       String message,
       String operationId,
-      com.hortinis.sync.protocol.TechnicalRecord currentRecord) {}
+      TechnicalSynchronizationWire.RecordBody currentRecord) {}
 
   public record RecordIdentifierRetiredError(
       String code, String message, String operationId, String recordId) {}
@@ -158,5 +158,5 @@ public class TechnicalSynchronizationErrorHandler {
       String message,
       String operationId,
       String expectedRevision,
-      com.hortinis.sync.protocol.TechnicalRecord currentRecord) {}
+      TechnicalSynchronizationWire.RecordBody currentRecord) {}
 }

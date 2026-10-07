@@ -1,24 +1,24 @@
 package com.hortinis.sync.protocol;
 
-@SuppressWarnings("PMD.AvoidFieldNameMatchingMethodName")
+@SuppressWarnings({"PMD.AvoidFieldNameMatchingMethodName", "PMD.NonSerializableClass"})
 public final class RecordIdentifierRetiredException extends RuntimeException {
 
   private static final long serialVersionUID = 1L;
 
-  private final String operationId;
-  private final String recordId;
+  private final OperationId operationId;
+  private final RecordId recordId;
 
-  public RecordIdentifierRetiredException(String operationId, String recordId) {
+  public RecordIdentifierRetiredException(OperationId operationId, RecordId recordId) {
     super("The record identifier was retired by an accepted deletion.");
     this.operationId = operationId;
     this.recordId = recordId;
   }
 
-  public String operationId() {
+  public OperationId operationId() {
     return operationId;
   }
 
-  public String recordId() {
+  public RecordId recordId() {
     return recordId;
   }
 }

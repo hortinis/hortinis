@@ -208,6 +208,13 @@ status, and allowlisted route, including both synchronization routes. This guara
 handled by the MVC advice; failures outside MVC and deployment logging layers require separate
 verification before real-data use under ADR-0015 and ADR-0029.
 
+Technical synchronization operations validate their invariants at construction. Accepted revisions use
+exact bounded arithmetic; request expectations retain the contract's unbounded positive-decimal
+range. The JDBC component owns persistence conversions and typed receipt reconstruction. HTTP wire
+representations explicitly emit the existing string-valued identifiers and revisions, keeping Jackson
+metadata outside the internal result and change types. The rationale is recorded in
+[ADR-0009](../architecture/decisions/0009-server-api-and-persistence.md#technical-synchronization-representations).
+
 Validate the Wrapper files before running the build:
 
 ```shell

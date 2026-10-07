@@ -1,18 +1,20 @@
 package com.hortinis.sync.service;
 
+import com.hortinis.sync.configuration.SynchronizationPersistenceEnabled;
 import com.hortinis.sync.persistence.TechnicalRecordAcceptancePersistence;
-import com.hortinis.sync.persistence.TechnicalRecordAcceptancePersistence.AcceptedOperationReceipt;
 import com.hortinis.sync.protocol.ChangePage;
 import com.hortinis.sync.protocol.CreateTechnicalRecordOperation;
 import com.hortinis.sync.protocol.DeleteTechnicalRecordOperation;
+import com.hortinis.sync.protocol.ExpectedRevision;
+import com.hortinis.sync.protocol.OperationId;
 import com.hortinis.sync.protocol.OperationIdReusedException;
 import com.hortinis.sync.protocol.OperationResult;
-import com.hortinis.sync.protocol.OperationRules;
 import com.hortinis.sync.protocol.RecordAlreadyExistsException;
 import com.hortinis.sync.protocol.RecordIdentifierRetiredException;
 import com.hortinis.sync.protocol.RecordNotFoundException;
 import com.hortinis.sync.protocol.RecordOperationResult;
 import com.hortinis.sync.protocol.ReplaceTechnicalRecordOperation;
+import com.hortinis.sync.protocol.Revision;
 import com.hortinis.sync.protocol.RevisionConflictException;
 import com.hortinis.sync.protocol.SyncCursorCodec;
 import com.hortinis.sync.protocol.TechnicalChange;
@@ -20,23 +22,16 @@ import com.hortinis.sync.protocol.TechnicalRecord;
 import com.hortinis.sync.protocol.TechnicalRecordOperation;
 import com.hortinis.sync.protocol.TechnicalTombstone;
 import com.hortinis.sync.protocol.TombstoneOperationResult;
-import java.math.BigInteger;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@ConditionalOnProperty(
-    prefix = "hortinis.sync.persistence",
-    name = "enabled",
-    havingValue = "true",
-    matchIfMissing = true)
+@SynchronizationPersistenceEnabled
 public class TechnicalRecordSynchronizationService {
 
-  private static final String CREATE_KIND = "create";
-  private static final String REPLACE_KIND = "replace";
   private static final int CHANGE_PAGE_SIZE = 100;
 
   private final TechnicalRecordAcceptancePersistence persistence;
@@ -47,9 +42,8 @@ public class TechnicalRecordSynchronizationService {
 
   @Transactional
   public OperationResult submit(TechnicalRecordOperation operation) {
-    OperationRules.validate(operation);
-
-    Optional<AcceptedOperationReceipt> existingReceipt =
+    Objects.requireNonNull(operation, "The operation is required.");
+    Optional<TechnicalRecordOperation> existingReceipt =
         persistence.findReceiptForUpdate(operation.operationId());
     if (existingReceipt.isPresent()) {
       return replayOrReject(operation, existingReceipt.get());
@@ -61,41 +55,18 @@ public class TechnicalRecordSynchronizationService {
       return replayOrReject(operation, existingReceipt.get());
     }
 
-    TechnicalRecord current = persistence.findRecordForUpdate(operation.recordId()).orElse(null);
-    TechnicalRecord accepted = null;
-    if (operation instanceof CreateTechnicalRecordOperation create) {
-      if (persistence.isIdentifierRetired(create.recordId())) {
-        throw new RecordIdentifierRetiredException(create.operationId(), create.recordId());
-      }
-      if (current != null) {
-        throw new RecordAlreadyExistsException(operation.operationId(), current);
-      }
-      accepted = new TechnicalRecord(create.recordId(), "1", create.value());
-    } else if (operation instanceof ReplaceTechnicalRecordOperation replace) {
-      if (current == null) {
-        throw new RecordNotFoundException(operation.operationId(), operation.recordId());
-      }
-      if (!new BigInteger(replace.expectedRevision()).equals(new BigInteger(current.revision()))) {
-        throw new RevisionConflictException(
-            operation.operationId(), replace.expectedRevision(), current);
-      }
-      accepted =
-          new TechnicalRecord(
-              replace.recordId(), nextRevision(current.revision()), replace.value());
-    } else if (operation instanceof DeleteTechnicalRecordOperation delete) {
-      if (current == null) {
-        throw new RecordNotFoundException(operation.operationId(), operation.recordId());
-      }
-      if (!new BigInteger(delete.expectedRevision()).equals(new BigInteger(current.revision()))) {
-        throw new RevisionConflictException(
-            operation.operationId(), delete.expectedRevision(), current);
-      }
-    } else {
-      throw new IllegalStateException("Unsupported technical operation.");
-    }
+    Optional<TechnicalRecord> current = persistence.findRecordForUpdate(operation.recordId());
+    Revision acceptedRevision =
+        switch (operation) {
+          case CreateTechnicalRecordOperation create -> validateCreate(create, current);
+          case ReplaceTechnicalRecordOperation replace ->
+              validateChange(replace, replace.expectedRevision(), current);
+          case DeleteTechnicalRecordOperation delete ->
+              validateChange(delete, delete.expectedRevision(), current);
+        };
 
     if (!persistence.insertReceipt(operation)) {
-      AcceptedOperationReceipt receipt =
+      TechnicalRecordOperation receipt =
           persistence
               .findReceiptForUpdate(operation.operationId())
               .orElseThrow(() -> new IllegalStateException("The operation receipt disappeared."));
@@ -106,26 +77,21 @@ public class TechnicalRecordSynchronizationService {
     // commit prevents a later sequence from becoming visible before an earlier sequence.
     persistence.lockChangePublication();
 
-    if (operation instanceof CreateTechnicalRecordOperation create) {
-      persistence.insertRecord(create);
-    } else if (operation instanceof ReplaceTechnicalRecordOperation replace) {
-      persistence.replaceRecord(replace, current.revision());
-    } else if (operation instanceof DeleteTechnicalRecordOperation delete) {
-      String revision = nextRevision(current.revision());
-      long sequence =
-          persistence.insertTombstoneChange(delete.operationId(), delete.recordId(), revision);
-      TechnicalTombstone tombstone =
-          new TechnicalTombstone(delete.recordId(), revision, Long.toString(sequence));
-      persistence.insertTombstone(tombstone);
-      persistence.reserveIdentifier(delete.recordId(), Long.toString(sequence));
-      persistence.deleteRecord(delete.recordId());
-      return new TombstoneOperationResult(
-          "accepted", delete.operationId(), tombstone, Long.toString(sequence));
-    }
-
-    long sequence = persistence.insertChange(operation.operationId(), accepted);
-    return new RecordOperationResult(
-        "accepted", operation.operationId(), accepted, Long.toString(sequence));
+    return switch (operation) {
+      case CreateTechnicalRecordOperation create -> {
+        TechnicalRecord accepted =
+            new TechnicalRecord(create.recordId(), acceptedRevision, create.value());
+        persistence.insertRecord(accepted);
+        yield acceptRecord(create.operationId(), accepted);
+      }
+      case ReplaceTechnicalRecordOperation replace -> {
+        TechnicalRecord accepted =
+            new TechnicalRecord(replace.recordId(), acceptedRevision, replace.value());
+        persistence.replaceRecord(accepted);
+        yield acceptRecord(replace.operationId(), accepted);
+      }
+      case DeleteTechnicalRecordOperation delete -> acceptDeletion(delete, acceptedRevision);
+    };
   }
 
   @Transactional(readOnly = true)
@@ -143,31 +109,55 @@ public class TechnicalRecordSynchronizationService {
     return new ChangePage(changes, SyncCursorCodec.encode(nextSequence), hasMore);
   }
 
+  private Revision validateCreate(
+      CreateTechnicalRecordOperation operation, Optional<TechnicalRecord> current) {
+    if (persistence.isIdentifierRetired(operation.recordId())) {
+      throw new RecordIdentifierRetiredException(operation.operationId(), operation.recordId());
+    }
+    if (current.isPresent()) {
+      throw new RecordAlreadyExistsException(operation.operationId(), current.get());
+    }
+    return new Revision(1);
+  }
+
+  private static Revision validateChange(
+      TechnicalRecordOperation operation,
+      ExpectedRevision expectedRevision,
+      Optional<TechnicalRecord> current) {
+    TechnicalRecord record =
+        current.orElseThrow(
+            () -> new RecordNotFoundException(operation.operationId(), operation.recordId()));
+    if (!expectedRevision.matches(record.revision())) {
+      throw new RevisionConflictException(operation.operationId(), expectedRevision, record);
+    }
+    return record.revision().next();
+  }
+
+  private OperationResult acceptRecord(OperationId operationId, TechnicalRecord record) {
+    long sequence = persistence.insertChange(operationId, record);
+    return new RecordOperationResult("accepted", operationId, record, Long.toString(sequence));
+  }
+
+  private OperationResult acceptDeletion(
+      DeleteTechnicalRecordOperation operation, Revision revision) {
+    long sequence =
+        persistence.insertTombstoneChange(operation.operationId(), operation.recordId(), revision);
+    TechnicalTombstone tombstone =
+        new TechnicalTombstone(operation.recordId(), revision, Long.toString(sequence));
+    persistence.insertTombstone(tombstone);
+    persistence.reserveIdentifier(operation.recordId(), Long.toString(sequence));
+    persistence.deleteRecord(operation.recordId());
+    return new TombstoneOperationResult(
+        "accepted", operation.operationId(), tombstone, Long.toString(sequence));
+  }
+
   private OperationResult replayOrReject(
-      TechnicalRecordOperation operation, AcceptedOperationReceipt receipt) {
-    TechnicalRecordOperation original = toOperation(operation.operationId(), receipt);
-    if (!OperationRules.equal(operation, original)) {
+      TechnicalRecordOperation operation, TechnicalRecordOperation original) {
+    if (!operation.equals(original)) {
       throw new OperationIdReusedException(operation.operationId());
     }
     return persistence
         .findResult(operation.operationId())
         .orElseThrow(() -> new IllegalStateException("The accepted operation result is missing."));
-  }
-
-  private static String nextRevision(String revision) {
-    return Long.toString(Math.addExact(Long.parseLong(revision), 1));
-  }
-
-  private static TechnicalRecordOperation toOperation(
-      String operationId, AcceptedOperationReceipt receipt) {
-    if (CREATE_KIND.equals(receipt.kind())) {
-      return new CreateTechnicalRecordOperation(operationId, receipt.recordId(), receipt.value());
-    }
-    if (REPLACE_KIND.equals(receipt.kind())) {
-      return new ReplaceTechnicalRecordOperation(
-          operationId, receipt.recordId(), receipt.value(), receipt.expectedRevision());
-    }
-    return new DeleteTechnicalRecordOperation(
-        operationId, receipt.recordId(), receipt.expectedRevision());
   }
 }

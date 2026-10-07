@@ -1,3 +1,3 @@
 package com.hortinis.sync.protocol;
 
-public record TechnicalTombstone(String recordId, String revision, String deletedAtSequence) {}
+public record TechnicalTombstone(RecordId recordId, Revision revision, String deletedAtSequence) {}

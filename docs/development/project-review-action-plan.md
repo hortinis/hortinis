@@ -438,3 +438,16 @@ No wire contract, dependency, schema, or retry behavior changes. Failures outsid
 logging-layer verification scope. Full repository validation, cross-runtime conformance, backend
 quality checks, and both real topology scenarios passed. See the
 [validation evidence](foundation-implementation-plan.md#h3-review-hardening-evidence--2026-10-05).
+
+## H4 review hardening — 2026-10-06
+
+The [H4 hardening increment](g2e-review-hardening-plan.md#h4-server-domain-cleanup-no-wire-change)
+introduces typed record/operation identities, exact accepted revisions, constructor validation,
+exhaustive operation dispatch, and structural replay equality. Unbounded request expectations retain
+existing error classification; JDBC conversions and typed receipt reconstruction stay in persistence,
+and explicit HTTP wire mapping preserves public strings. Transaction and publication ordering,
+deletions, replay, and pagination remain unchanged. No contract, dependency, or migration changes.
+Full repository validation, cross-runtime conformance, backend quality checks, Compose validation,
+and both real topology scenarios passed. Backend coverage includes 67 unit/conformance tests and
+42 PostgreSQL integration tests. See the
+[validation evidence](foundation-implementation-plan.md#h4-review-hardening-evidence--2026-10-06).

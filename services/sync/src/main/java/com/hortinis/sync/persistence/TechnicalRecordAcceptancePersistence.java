@@ -1,11 +1,16 @@
 package com.hortinis.sync.persistence;
 
+import com.hortinis.sync.configuration.SynchronizationPersistenceEnabled;
 import com.hortinis.sync.protocol.CreateTechnicalRecordOperation;
 import com.hortinis.sync.protocol.DeleteTechnicalRecordOperation;
+import com.hortinis.sync.protocol.ExpectedRevision;
+import com.hortinis.sync.protocol.OperationId;
 import com.hortinis.sync.protocol.OperationResult;
+import com.hortinis.sync.protocol.RecordId;
 import com.hortinis.sync.protocol.RecordOperationResult;
 import com.hortinis.sync.protocol.RecordTechnicalChange;
 import com.hortinis.sync.protocol.ReplaceTechnicalRecordOperation;
+import com.hortinis.sync.protocol.Revision;
 import com.hortinis.sync.protocol.TechnicalChange;
 import com.hortinis.sync.protocol.TechnicalRecord;
 import com.hortinis.sync.protocol.TechnicalRecordOperation;
@@ -13,23 +18,19 @@ import com.hortinis.sync.protocol.TechnicalTombstone;
 import com.hortinis.sync.protocol.TombstoneOperationResult;
 import com.hortinis.sync.protocol.TombstoneTechnicalChange;
 import java.math.BigInteger;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 @Repository
-@ConditionalOnProperty(
-    prefix = "hortinis.sync.persistence",
-    name = "enabled",
-    havingValue = "true",
-    matchIfMissing = true)
+@SynchronizationPersistenceEnabled
 public class TechnicalRecordAcceptancePersistence {
 
   private static final int ONE_UPDATED_ROW = 1;
-  private static final String TOMBSTONE_CHANGE_KIND = "tombstone";
   private static final String TECHNICAL_SYNCHRONIZATION_SCOPE = "technical-records";
 
   private final JdbcClient jdbc;
@@ -44,45 +45,60 @@ public class TechnicalRecordAcceptancePersistence {
                     + "(operation_id, operation_kind, record_id, operation_value, expected_revision) "
                     + "VALUES (?, ?, ?, ?, ?::bigint) ON CONFLICT (operation_id) DO NOTHING")
             .params(
-                UUID.fromString(operation.operationId()),
+                toJdbc(operation.operationId()),
                 operation.kind(),
-                UUID.fromString(operation.recordId()),
+                toJdbc(operation.recordId()),
                 operationValue(operation),
                 expectedRevision(operation))
             .update()
         == 1;
   }
 
-  public Optional<AcceptedOperationReceipt> findReceiptForUpdate(String operationId) {
+  public Optional<TechnicalRecordOperation> findReceiptForUpdate(OperationId operationId) {
     return jdbc.sql(
             "SELECT operation_kind, record_id::text, operation_value, expected_revision::text "
                 + "FROM accepted_technical_record_operation WHERE operation_id = ? FOR UPDATE")
-        .param(UUID.fromString(operationId))
-        .query(
-            (resultSet, rowNumber) ->
-                new AcceptedOperationReceipt(
-                    resultSet.getString(1),
-                    resultSet.getString(2),
-                    resultSet.getString(3),
-                    resultSet.getString(4)))
+        .param(toJdbc(operationId))
+        .query((resultSet, rowNumber) -> toOperation(operationId, resultSet))
         .optional();
   }
 
-  public Optional<TechnicalRecord> findRecordForUpdate(String recordId) {
+  private static TechnicalRecordOperation toOperation(OperationId operationId, ResultSet resultSet)
+      throws SQLException {
+    RecordId recordId = RecordId.parse(resultSet.getString(2));
+    return switch (resultSet.getString(1)) {
+      case "create" ->
+          new CreateTechnicalRecordOperation(operationId, recordId, resultSet.getString(3));
+      case "replace" ->
+          new ReplaceTechnicalRecordOperation(
+              operationId,
+              recordId,
+              resultSet.getString(3),
+              ExpectedRevision.parse(resultSet.getString(4)));
+      case "delete" ->
+          new DeleteTechnicalRecordOperation(
+              operationId, recordId, ExpectedRevision.parse(resultSet.getString(4)));
+      default -> throw new IllegalStateException("The stored operation kind is invalid.");
+    };
+  }
+
+  public Optional<TechnicalRecord> findRecordForUpdate(RecordId recordId) {
     return jdbc.sql(
-            "SELECT record_id::text, revision::text, value FROM technical_record "
+            "SELECT record_id::text, revision, value FROM technical_record "
                 + "WHERE record_id = ? FOR UPDATE")
-        .param(UUID.fromString(recordId))
+        .param(toJdbc(recordId))
         .query(
             (resultSet, rowNumber) ->
                 new TechnicalRecord(
-                    resultSet.getString(1), resultSet.getString(2), resultSet.getString(3)))
+                    RecordId.parse(resultSet.getString(1)),
+                    new Revision(resultSet.getLong(2)),
+                    resultSet.getString(3)))
         .optional();
   }
 
-  public void lockRecord(String recordId) {
+  public void lockRecord(RecordId recordId) {
     jdbc.sql("SELECT pg_advisory_xact_lock(hashtextextended(CAST(? AS text), 0))")
-        .param(recordId)
+        .param(recordId.toWire())
         .query()
         .singleValue();
   }
@@ -96,52 +112,48 @@ public class TechnicalRecordAcceptancePersistence {
         .single();
   }
 
-  public void insertRecord(CreateTechnicalRecordOperation operation) {
-    jdbc.sql("INSERT INTO technical_record (record_id, revision, value) VALUES (?, 1, ?)")
-        .params(UUID.fromString(operation.recordId()), operation.value())
+  public void insertRecord(TechnicalRecord record) {
+    jdbc.sql("INSERT INTO technical_record (record_id, revision, value) VALUES (?, ?, ?)")
+        .params(toJdbc(record.recordId()), record.revision().value(), record.value())
         .update();
   }
 
-  public boolean isIdentifierRetired(String recordId) {
+  public boolean isIdentifierRetired(RecordId recordId) {
     return jdbc.sql(
             "SELECT EXISTS (SELECT 1 FROM retired_technical_record_identifier "
                 + "WHERE record_id = ?)")
-        .param(UUID.fromString(recordId))
+        .param(toJdbc(recordId))
         .query(Boolean.class)
         .single();
   }
 
-  public void replaceRecord(ReplaceTechnicalRecordOperation operation, String revision) {
-    long nextRevision = new BigInteger(revision).longValueExact() + 1;
+  public void replaceRecord(TechnicalRecord record) {
     jdbc.sql("UPDATE technical_record SET revision = ?, value = ? WHERE record_id = ?")
-        .params(nextRevision, operation.value(), UUID.fromString(operation.recordId()))
+        .params(record.revision().value(), record.value(), toJdbc(record.recordId()))
         .update();
   }
 
-  public long insertChange(String operationId, TechnicalRecord record) {
+  public long insertChange(OperationId operationId, TechnicalRecord record) {
     return jdbc.sql(
             "INSERT INTO technical_record_change "
                 + "(operation_id, record_id, revision, value, change_kind) "
                 + "VALUES (?, ?, ?, ?, 'record') "
                 + "RETURNING server_sequence")
         .params(
-            UUID.fromString(operationId),
-            UUID.fromString(record.recordId()),
-            new BigInteger(record.revision()).longValueExact(),
+            toJdbc(operationId),
+            toJdbc(record.recordId()),
+            record.revision().value(),
             record.value())
         .query(Long.class)
         .single();
   }
 
-  public long insertTombstoneChange(String operationId, String recordId, String revision) {
+  public long insertTombstoneChange(OperationId operationId, RecordId recordId, Revision revision) {
     return jdbc.sql(
             "INSERT INTO technical_record_change "
                 + "(operation_id, record_id, revision, value, change_kind) "
                 + "VALUES (?, ?, ?, NULL, 'tombstone') RETURNING server_sequence")
-        .params(
-            UUID.fromString(operationId),
-            UUID.fromString(recordId),
-            new BigInteger(revision).longValueExact())
+        .params(toJdbc(operationId), toJdbc(recordId), revision.value())
         .query(Long.class)
         .single();
   }
@@ -151,42 +163,42 @@ public class TechnicalRecordAcceptancePersistence {
             "INSERT INTO technical_record_tombstone "
                 + "(record_id, revision, deleted_at_sequence) VALUES (?, ?, ?)")
         .params(
-            UUID.fromString(tombstone.recordId()),
-            new BigInteger(tombstone.revision()).longValueExact(),
+            toJdbc(tombstone.recordId()),
+            tombstone.revision().value(),
             new BigInteger(tombstone.deletedAtSequence()).longValueExact())
         .update();
   }
 
-  public void reserveIdentifier(String recordId, String sequence) {
+  public void reserveIdentifier(RecordId recordId, String sequence) {
     jdbc.sql(
             "INSERT INTO retired_technical_record_identifier (record_id, retired_at_sequence) "
                 + "VALUES (?, ?)")
-        .params(UUID.fromString(recordId), new BigInteger(sequence).longValueExact())
+        .params(toJdbc(recordId), new BigInteger(sequence).longValueExact())
         .update();
   }
 
-  public void deleteRecord(String recordId) {
+  public void deleteRecord(RecordId recordId) {
     if (jdbc.sql("DELETE FROM technical_record WHERE record_id = ?")
-            .param(UUID.fromString(recordId))
+            .param(toJdbc(recordId))
             .update()
         != ONE_UPDATED_ROW) {
       throw new IllegalStateException("The locked technical record disappeared during deletion.");
     }
   }
 
-  public Optional<OperationResult> findResult(String operationId) {
+  public Optional<OperationResult> findResult(OperationId operationId) {
     return jdbc.sql(
-            "SELECT c.change_kind, c.operation_id::text, c.record_id::text, c.revision::text, "
+            "SELECT c.change_kind, c.operation_id::text, c.record_id::text, c.revision, "
                 + "c.value, c.server_sequence::text FROM technical_record_change c "
                 + "WHERE c.operation_id = ?")
-        .param(UUID.fromString(operationId))
+        .param(toJdbc(operationId))
         .query((resultSet, rowNumber) -> toOperationResult(resultSet))
         .optional();
   }
 
   public List<TechnicalChange> findChangesAfter(long sequence, int limit) {
     return jdbc.sql(
-            "SELECT c.change_kind, c.operation_id::text, c.record_id::text, c.revision::text, "
+            "SELECT c.change_kind, c.operation_id::text, c.record_id::text, c.revision, "
                 + "c.value, c.server_sequence::text FROM technical_record_change c "
                 + "WHERE c.server_sequence > ? ORDER BY c.server_sequence ASC LIMIT ?")
         .params(sequence, limit)
@@ -194,58 +206,69 @@ public class TechnicalRecordAcceptancePersistence {
         .list();
   }
 
-  private static Object expectedRevision(TechnicalRecordOperation operation) {
-    if (operation instanceof ReplaceTechnicalRecordOperation replace) {
-      return new BigInteger(replace.expectedRevision()).longValueExact();
-    }
-    if (operation instanceof DeleteTechnicalRecordOperation delete) {
-      return new BigInteger(delete.expectedRevision()).longValueExact();
-    }
-    return null;
+  private static Long expectedRevision(TechnicalRecordOperation operation) {
+    return switch (operation) {
+      case CreateTechnicalRecordOperation ignored -> null;
+      case ReplaceTechnicalRecordOperation replace ->
+          replace.expectedRevision().value().longValueExact();
+      case DeleteTechnicalRecordOperation delete ->
+          delete.expectedRevision().value().longValueExact();
+    };
   }
 
   private static String operationValue(TechnicalRecordOperation operation) {
-    if (operation instanceof CreateTechnicalRecordOperation create) {
-      return create.value();
-    }
-    if (operation instanceof ReplaceTechnicalRecordOperation replace) {
-      return replace.value();
-    }
-    return null;
+    return switch (operation) {
+      case CreateTechnicalRecordOperation create -> create.value();
+      case ReplaceTechnicalRecordOperation replace -> replace.value();
+      case DeleteTechnicalRecordOperation ignored -> null;
+    };
   }
 
-  private static OperationResult toOperationResult(java.sql.ResultSet resultSet)
-      throws java.sql.SQLException {
-    if (TOMBSTONE_CHANGE_KIND.equals(resultSet.getString(1))) {
-      String sequence = resultSet.getString(6);
-      return new TombstoneOperationResult(
-          "accepted",
-          resultSet.getString(2),
-          new TechnicalTombstone(resultSet.getString(3), resultSet.getString(4), sequence),
-          sequence);
-    }
-    return new RecordOperationResult(
-        "accepted",
-        resultSet.getString(2),
-        new TechnicalRecord(resultSet.getString(3), resultSet.getString(4), resultSet.getString(5)),
-        resultSet.getString(6));
+  private static OperationResult toOperationResult(ResultSet resultSet) throws SQLException {
+    OperationId operationId = OperationId.parse(resultSet.getString(2));
+    RecordId recordId = RecordId.parse(resultSet.getString(3));
+    Revision revision = new Revision(resultSet.getLong(4));
+    String sequence = resultSet.getString(6);
+    return switch (resultSet.getString(1)) {
+      case "tombstone" ->
+          new TombstoneOperationResult(
+              "accepted",
+              operationId,
+              new TechnicalTombstone(recordId, revision, sequence),
+              sequence);
+      case "record" ->
+          new RecordOperationResult(
+              "accepted",
+              operationId,
+              new TechnicalRecord(recordId, revision, resultSet.getString(5)),
+              sequence);
+      default -> throw new IllegalStateException("The stored change kind is invalid.");
+    };
   }
 
-  private static TechnicalChange toTechnicalChange(java.sql.ResultSet resultSet)
-      throws java.sql.SQLException {
-    if (TOMBSTONE_CHANGE_KIND.equals(resultSet.getString(1))) {
-      String sequence = resultSet.getString(6);
-      return new TombstoneTechnicalChange(
-          resultSet.getString(2),
-          new TechnicalTombstone(resultSet.getString(3), resultSet.getString(4), sequence),
-          sequence);
-    }
-    return new RecordTechnicalChange(
-        resultSet.getString(2),
-        new TechnicalRecord(resultSet.getString(3), resultSet.getString(4), resultSet.getString(5)),
-        resultSet.getString(6));
+  private static TechnicalChange toTechnicalChange(ResultSet resultSet) throws SQLException {
+    OperationId operationId = OperationId.parse(resultSet.getString(2));
+    RecordId recordId = RecordId.parse(resultSet.getString(3));
+    Revision revision = new Revision(resultSet.getLong(4));
+    String sequence = resultSet.getString(6);
+    return switch (resultSet.getString(1)) {
+      case "tombstone" ->
+          new TombstoneTechnicalChange(
+              operationId, new TechnicalTombstone(recordId, revision, sequence), sequence);
+      case "record" ->
+          new RecordTechnicalChange(
+              operationId,
+              new TechnicalRecord(recordId, revision, resultSet.getString(5)),
+              sequence);
+      default -> throw new IllegalStateException("The stored change kind is invalid.");
+    };
   }
 
-  public record AcceptedOperationReceipt(
-      String kind, String recordId, String value, String expectedRevision) {}
+  private static UUID toJdbc(OperationId operationId) {
+    return UUID.fromString(operationId.toWire());
+  }
+
+  private static UUID toJdbc(RecordId recordId) {
+    return UUID.fromString(recordId.toWire());
+  }
 }

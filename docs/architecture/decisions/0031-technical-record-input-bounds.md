@@ -17,9 +17,11 @@ A permanently rejected operation currently blocks later outbox work; quarantine 
 - Reject U+0000 and unpaired UTF-16 surrogates. Never trim, normalize, replace, or truncate a value.
 - Express this rule once as a TypeSpec scalar used by operations and returned records. Keep equivalent
   pure rules in Java and TypeScript, checked against shared fixtures and both generated schema formats.
-- Validate values at the HTTP parser and browser local commit boundary before persistence. Retain the
-  existing framework-independent service validation. HTTP rejection uses the fixed
-  `400 INVALID_REQUEST` response; local rejection uses a fixed validation error without the value.
+- Enforce server value invariants in framework-independent operation compact constructors and
+  validate browser values at the local commit boundary before persistence. The HTTP parser checks
+  JSON shapes and types, constructs validated operations, and translates construction failures
+  locally to the fixed `400 INVALID_REQUEST` response. Local rejection uses a fixed validation error
+  without the value. Direct service callers must also construct validated operations.
 - Cap the operation endpoint's complete request body at 65,536 bytes before JSON parsing, including
   whitespace and requests without Content-Length. Use a bounded servlet filter with no new dependency,
   rather than treating a parser's approximate document or string limit as an exact byte ceiling.

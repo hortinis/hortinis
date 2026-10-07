@@ -5,9 +5,9 @@ public sealed interface TechnicalRecordOperation
         ReplaceTechnicalRecordOperation,
         DeleteTechnicalRecordOperation {
 
-  String operationId();
+  OperationId operationId();
 
-  String recordId();
+  RecordId recordId();
 
   String kind();
 }
