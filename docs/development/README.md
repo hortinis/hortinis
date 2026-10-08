@@ -140,6 +140,12 @@ pnpm --filter @hortinis/web build:development
 pnpm --filter @hortinis/web build
 ```
 
+The browser synchronization facade delegates to concrete per-instance collaborators. ESLint enforces
+size and complexity budgets for production synchronization/persistence files, with measured exceptions
+for existing validators and the H6 persistence split. `test:architecture` verifies these guardrails.
+See the [web application guide](../../apps/web/README.md#synchronization-entry-point) and
+[ADR-0028](../architecture/decisions/0028-browser-synchronization-coordination.md#browser-execution-structure).
+
 The formatting check validates the committed web application files against the Angular CLI-generated Prettier configuration. The lint command validates TypeScript, component templates, and accessibility rules with the recommended Angular ESLint flat configuration. The type-checking command validates strict TypeScript and Angular templates. The two build commands validate the development and production configurations separately. Browser end-to-end testing is introduced by B3.
 
 Install the Playwright Chromium binary once before running browser tests:

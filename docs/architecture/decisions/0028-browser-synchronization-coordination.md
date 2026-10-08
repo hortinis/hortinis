@@ -37,6 +37,36 @@ The lease contains no record values, request or response bodies, credentials, to
 other user-provided content. The owner identifier is generated for one application instance and has no
 meaning outside local coordination.
 
+## Browser execution structure
+
+`TechnicalRecordSynchronizationService` remains the Angular entry point. Each facade instance owns
+concrete execution, recovery, retry, status, trigger, push, and pull collaborators. These collaborators
+are constructed from the existing injected boundaries, so separate application instances retain
+separate in-memory execution state while sharing IndexedDB coordination. No new lock API or provider
+interface is introduced.
+
+A promise-based execution gate distinguishes preparation, active exchange, and lease release, and
+records whether the active work is standalone or recovery. A caller waits for preparation or release
+to finish. Standalone push/pull arriving during active exchange receives `busy`; recovery arriving
+during active recovery receives `already-running`. Explicit reload recovery and manual retry arriving
+during standalone exchange wait for completion, then run with their original retry/reset intent.
+Recovery calls its owned push/pull collaborators directly, without reacquiring the gate. Ownership is
+passed explicitly to every exchange and retry mutation; public calls cannot borrow another running
+exchange's lease.
+
+Recovery request counters preserve local edits made during final pull or lease release. The recovery
+runner keeps accepted-state repair before upload, drains the outbox, and completes incremental pull
+before publishing aggregate completion. The status store owns publication and rejects nested recovery,
+standalone publication during recovery, and aggregate completion without active recovery. Execution
+admission depends on the gate phase rather than the displayed status.
+
+Retry timers, online listeners, and lease-expiry waits belong to a trigger component. Lease loss cancels
+automatic retry; destroying the Angular facade permanently disposes pending triggers. Already queued
+callbacks and late failures cannot schedule recovery after disposal. Queued recovery and lease-release
+follow-up cannot start new work in a destroyed scope; a lease acquired during disposal is released.
+In-flight work may still settle its durable result and release ownership. Existing durable attempt
+reservation, fencing, cursor comparison, and transaction boundaries remain unchanged.
+
 ## Consequences
 
 - Closing a tab releases its lease when normal cleanup runs; expiry provides recovery when cleanup does

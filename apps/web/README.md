@@ -59,3 +59,25 @@ integration suite runs as part of `pnpm validate` and independently from the rep
 product increments.
 
 See the repository [development guide](../../docs/development/README.md) for toolchain requirements and repository-wide validation.
+
+## Synchronization entry point
+
+`TechnicalRecordSynchronizationService` exposes reload recovery, background recovery after local
+commits, explicit manual retry, and standalone push/pull methods. Its existing status signal and type
+import paths remain available. Standalone push/pull returns `busy` when exchange is active or another
+tab owns the lease; an empty outbox returns `empty`. Recovery retains `already-running` for active
+recovery or another tab's lease. Explicit reload recovery and manual retry wait for a standalone
+exchange to finish, then retain their retry/reset intent. Contention outcomes do not consume an attempt
+or replace the active status. Destroying the facade permanently cancels triggers and prevents queued
+recovery from starting; in-flight work can still settle durable state and release its lease.
+
+The facade owns small concrete collaborators for execution, recovery, push, pull, retry settlement,
+status, and triggers. Recovery uses explicit ownership internally, preserving the existing fenced
+IndexedDB transactions. Unrelated JavaScript errors publish `unknown`; storage-origin failures retain
+`local-persistence`. Neither change modifies wire contracts or persisted data.
+
+Production synchronization and persistence files are limited to 350 nonblank, noncomment lines and
+cyclomatic complexity 15. The facade has a 150-line limit. Specs and testing helpers are excluded.
+Existing wire validators retain a measured complexity ceiling of 25. The persistence component retains
+measured ceilings of 606 lines and complexity 38 until H6 splits it; these allowances apply only to the
+named files. Architecture tests verify enforcement. No new dependencies are required.

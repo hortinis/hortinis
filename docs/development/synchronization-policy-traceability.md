@@ -89,3 +89,22 @@ Full repository validation, cross-runtime conformance, backend quality checks, C
 and both real topology scenarios passed. Backend coverage includes 67 unit/conformance tests and
 42 PostgreSQL integration tests. See the
 [validation evidence](foundation-implementation-plan.md#h4-review-hardening-evidence--2026-10-06).
+
+## H5 review hardening — 2026-10-08
+
+The [H5 increment](g2e-review-hardening-plan.md#h5-browser-synchronization-service-decomposition-no-behavior-change)
+keeps the browser synchronization entry point and durable data while separating execution, recovery,
+push/pull exchanges, retry settlement, status, and triggers. Promise-based admission replaces the
+in-memory flags and microtask spinning; explicit ownership and existing lease-fenced transactions
+preserve late-response rejection and durable attempt reservations. Recovery continues draining local
+edits during final pull and release. The pure retry policy retains ADR-0027's exact budget and jitter.
+
+Explicit recovery waits for standalone exchange and retains manual reset intent. Destroying a scope
+permanently disables triggers and queued recovery while in-flight work can settle durable state.
+Standalone contention returns `busy`; unknown errors no longer become local-persistence failures merely
+because they inherit from `Error`. Characterization and direct tests preserve existing status sequences,
+replay, exhaustion, repair, and offline editing. The facade is 147 lines; enforced lint budgets include
+measured exceptions for existing wire validators and the persistence component awaiting H6. No wire,
+schema, dependency, or business-workflow changes. Full repository validation, cross-runtime
+conformance, and both real topology scenarios passed.
+See the [validation evidence](foundation-implementation-plan.md#h5-review-hardening-evidence--2026-10-08).

@@ -62,6 +62,21 @@ Background retry means a non-blocking scheduler while the application is running
 browser Background Sync API, periodic service-worker synchronization, or an assumption that a closed or
 suspended browser continues executing.
 
+## Browser implementation boundary
+
+A framework-independent retry rule owns the five-attempt limit and bounded jitter calculation. The
+existing persistence module re-exports the attempt limit for compatibility; retry record shape and
+storage schema are unchanged. A retry controller restores interrupted or scheduled work and persists
+failure settlement before the trigger component schedules its next run.
+
+Failure classification uses explicit origins. Recognized transport errors retain their categories;
+result/page commit failures retain their repeatable local-persistence category. Persistence reads and
+retry mutations identify storage-origin failures without classifying every JavaScript `Error` as a
+storage failure. Unrelated errors, including invalid injected jitter, publish `unknown` and do not
+schedule automatic repetition. Ownership loss and retry-eligibility errors retain their distinct control
+flow and cannot become local-persistence failures. Status contains fixed categories and counts, never
+error bodies or user content.
+
 ## Consequences
 
 - Temporary failures recover without tight loops or indefinite automatic traffic.

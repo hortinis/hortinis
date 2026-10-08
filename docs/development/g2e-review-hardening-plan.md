@@ -165,7 +165,7 @@ Validation evidence is recorded in the
 
 ### H5. Browser synchronization service decomposition (no behavior change)
 
-- Status: `planned`. Effort: large. Depends on: none (schedule before G3).
+- Status: `implemented`; validated (2026-10-08). Effort: large. Depends on: none (schedule before G3).
 - Step 1, safety net: add characterization tests that record the exact `status` signal sequence and
   outcomes for the main scenarios (success, offline, retry, exhaustion, manual retry, two-tab contention).
   The existing retry and coordination specs stay green throughout.
@@ -182,8 +182,27 @@ Validation evidence is recorded in the
   `failureReason` so an arbitrary `Error` is not labeled `local-persistence`.
 - Guardrails: add ESLint `max-lines` and `complexity` limits for `src/app/sync` and
   `src/app/persistence` so the files cannot regrow.
-- Acceptance: public API and persisted data unchanged; the facade is under about 150 lines; each
+- Acceptance: method signatures, status signal, existing type import paths, and persisted data unchanged;
+  the two Step 3 behavior corrections are explicit exceptions; the facade is under about 150 lines; each
   collaborator has direct unit tests; `pnpm validate` and `pnpm test:e2e:topology` pass.
+
+Implementation keeps the facade at 147 total lines and constructs concrete collaborators per facade
+instance. Recovery calls owned exchanges directly; public push/pull cannot reuse active ownership.
+The promise gate waits for setup/release without spinning and rejects standalone contention. Explicit
+reload recovery and manual retry wait for standalone exchange; active recovery rejects duplicate
+recovery. Existing request counters preserve edits arriving during final pull and release. The status
+store enforces publication boundaries. Angular destruction permanently disables triggers and queued
+recovery, including late failures and callbacks already queued by the runtime.
+
+The safety net passed against the original service before extraction. Direct tests cover policy,
+execution, triggers, status, retry settlement, request reservation, push/pull commits, and recovery.
+Guardrails enforce 350 nonblank/noncomment lines and complexity 15, plus 150 lines for the facade.
+Measured file-specific exceptions retain the current wire-validator complexity (25) and persistence
+size/complexity (606/38); H6 removes the persistence exception when splitting it. No schema, generated
+contract, dependency, retry policy, or business workflow changes.
+
+Full repository validation, cross-runtime conformance, and both real topology scenarios passed.
+See the [validation evidence](foundation-implementation-plan.md#h5-review-hardening-evidence--2026-10-08).
 
 ### H6. Outbox chains, coalescing, and persistence split
 

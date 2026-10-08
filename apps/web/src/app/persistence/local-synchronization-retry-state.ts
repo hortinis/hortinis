@@ -1,4 +1,4 @@
-export const MAXIMUM_SYNCHRONIZATION_ATTEMPTS = 5;
+export { MAXIMUM_SYNCHRONIZATION_ATTEMPTS } from '../sync/synchronization-retry-policy.rule';
 
 export type SynchronizationRetryPhase = 'push' | 'pull';
 

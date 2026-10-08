@@ -49,6 +49,33 @@ module.exports = defineConfig([
     },
   },
   {
+    files: ['src/app/sync/**/*.ts', 'src/app/persistence/**/*.ts'],
+    ignores: ['**/*.spec.ts', '**/testing/**'],
+    rules: {
+      'max-lines': ['error', { max: 350, skipBlankLines: true, skipComments: true }],
+      complexity: ['error', 15],
+    },
+  },
+  {
+    files: ['src/app/sync/technical-record-synchronization-service.ts'],
+    rules: {
+      'max-lines': ['error', { max: 150, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    // Existing wire validators: measured ceiling; lower it when splitting their dispatch.
+    files: ['src/app/sync/conformance.ts'],
+    rules: { complexity: ['error', 25] },
+  },
+  {
+    // H6 owns the persistence split. Keep measured ceilings so it cannot grow meanwhile.
+    files: ['src/app/persistence/technical-record-persistence.ts'],
+    rules: {
+      'max-lines': ['error', { max: 606, skipBlankLines: true, skipComments: true }],
+      complexity: ['error', 38],
+    },
+  },
+  {
     files: ['**/*.rule.ts'],
     rules: {
       'no-restricted-imports': [

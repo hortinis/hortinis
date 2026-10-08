@@ -1396,3 +1396,82 @@ Validation on 2026-10-06:
   and privacy review passed. Only sequence/cursor conversions remain in the service; revision
   comparison and advancement use value types. No dependency, migration, generated contract, business
   feature, secret, or environment-specific configuration was introduced.
+
+## H5 review hardening evidence — 2026-10-08
+
+H5 from the [G2e review hardening plan](g2e-review-hardening-plan.md#h5-browser-synchronization-service-decomposition-no-behavior-change)
+decomposes the browser synchronization service into a 147-line Angular facade and concrete,
+per-instance collaborators. The pure retry rule owns the existing five-attempt budget and jitter caps.
+Execution owns promise completion and lease lifecycle; recovery owns repair-before-upload, outbox
+and pull sequencing, aggregate counts, and draining local work during final pull/release. Push and pull
+receive explicit ownership and retain the existing persistence transaction boundaries. Retry settlement,
+status publication, and scheduled/online/coordination triggers have separate testable components.
+
+Existing method signatures, status signal, type import paths, stable operations, opaque cursors, retry
+records, lease records, and Dexie version-five schema remain unchanged. Standalone contention now
+returns `busy` instead of `empty`, while recovery retains `already-running` for active recovery or
+cross-tab contention. Explicit reload recovery and manual retry wait for standalone completion and
+preserve their retry/reset intent. Unknown JavaScript errors
+publish `unknown`; persistence origins are tagged explicitly, preserving original error identity at the
+facade. Ownership and eligibility exceptions retain their control flow. No generated contract,
+dependency, migration, business feature, or telemetry is introduced.
+
+Four characterization scenarios passed against the original service before extraction, recording exact
+status writes for success, offline/online, bounded retry/exhaustion/manual recovery, and two-tab
+contention. Existing late-owner, lost-acknowledgement, interrupted-attempt, legacy-repair, and final-pull/
+lease-release regressions remain intact. Direct collaborator and facade tests exercise reservation before
+dispatch, commit failure, conflict persistence, cursor use, retry settlement/restoration, admission and
+release failures, heartbeat loss, status transition rejection, timer/listener cancellation, and busy calls
+without budget consumption. Review follow-up adds regressions for explicit recovery during standalone
+push/pull, manual reset after standalone failure, destruction during in-flight failure/acquisition/
+release, queued recovery, and runtime callbacks delivered after disposal. Trigger disposal is terminal;
+in-flight outcomes still settle durable state and release their lease. The focused follow-up suite
+passes all 27 tests across the facade, trigger, and execution files.
+
+ESLint budgets cap production sync/persistence files at 350 nonblank/noncomment lines and complexity 15,
+with 150 lines for the facade. Specs and testing helpers are excluded. Measured exceptions retain the
+existing wire validators at complexity 25 and the H6 persistence component at 606 lines/complexity 38.
+Eight architecture tests include negative size/complexity enforcement and the tighter facade budget.
+
+Initial extraction validation on 2026-10-08, before review follow-up:
+
+- Before extraction: the four new characterization tests passed against the original service.
+- Frontend formatting, lint, import-cycle/pure-rule checks, eight architecture tests, strict type checks,
+  and all 185 unit tests passed. Five Chromium application-shell/offline/reload/conflict/tombstone
+  scenarios and both development/production builds passed in the full suite.
+- Generated contract/source consistency, contract validation, all 15 contract tests, documentation links,
+  heading anchors, and ADR headers/index passed.
+- Backend build, Spotless, Checkstyle, PMD, unit tests, and PostgreSQL integration tests passed using
+  unchanged up-to-date Gradle outputs; H5 introduces no backend changes.
+- `pnpm validate`: passed the complete sequential suite, including five Chromium browser scenarios,
+  both web builds, the unchanged backend quality/integration targets, four topology-runner tests,
+  and repository whitespace, ignore, attribute, and line-ending checks.
+- `pnpm test:e2e:topology` (included in `pnpm validate`): both real PostgreSQL outage recovery and
+  lost-acknowledgement/deletion scenarios passed. The isolated containers, network, and test volumes
+  were removed automatically; existing development datasets were not modified.
+- `pnpm conformance:validate`: passed all 185 frontend tests and the unchanged backend unit/conformance
+  target with strict dependency verification. Backend reports retain 67 unit/conformance and
+  42 PostgreSQL integration successes, with no failures or skips; these targets were up-to-date rather
+  than freshly executed for this frontend-only increment.
+- Final `pnpm docs:validate`, whitespace, English language, dependency-boundary, and privacy reviews
+  passed after updating the implementation and validation evidence.
+
+The sandbox initially prevented the documentation check's Git child process and Docker access. The
+required suite was retried outside the sandbox; these are environment permissions, not application
+failures. The retried checks completed successfully.
+
+Review-fix validation on 2026-10-08:
+
+- Eleven additional regressions cover recovery admission and terminal disposal. The focused facade,
+  execution, and trigger suite passed all 27 tests; the complete frontend suite passed 196 tests across
+  20 files. Manual retry waits for standalone completion and resets the durable budget under its own
+  lease. Destruction preserves pending operations and retry state without rearming triggers; accepted
+  responses still commit, and acquisition/release races do not start queued recovery.
+- `pnpm validate` passed the complete sequential suite: documentation and contracts, frontend formatting,
+  lint/size/complexity budgets, architecture, strict types, five Chromium scenarios, both web builds,
+  unchanged backend quality/integration targets, four topology-runner tests, both real PostgreSQL
+  synchronization scenarios, and repository checks. Isolated topology resources were removed.
+- `pnpm conformance:validate` passed all 196 frontend tests and the unchanged backend unit/conformance
+  target with strict dependency verification. Backend test and quality targets remained up-to-date;
+  they were not freshly executed for these browser-only fixes.
+- Final documentation validation and whitespace checks passed after recording this follow-up evidence.
