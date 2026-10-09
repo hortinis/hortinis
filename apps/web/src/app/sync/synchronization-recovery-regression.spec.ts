@@ -175,6 +175,7 @@ describe('synchronization recovery regressions', () => {
       const owner = scope(db, { submitOperation: vi.fn(), pullChanges: vi.fn() });
       const predecessor = create();
       await owner.persistence.commitCreate(predecessor);
+      await db.outboxOperations.update(predecessor.operationId, { submittedAt: 0 });
       if (kind === 'replace')
         await owner.persistence.commitReplace(secondId, recordId, 'successor value');
       else await owner.persistence.commitDelete(secondId, recordId);
@@ -186,6 +187,9 @@ describe('synchronization recovery regressions', () => {
       });
       await expect(db.outboxOperations.get(secondId)).resolves.toMatchObject({
         kind,
+        expectedRevision: null,
+      });
+      await expect(owner.persistence.firstPendingOperation()).resolves.toMatchObject({
         expectedRevision: '1',
       });
       if (kind === 'replace')

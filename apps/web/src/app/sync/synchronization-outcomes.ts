@@ -1,3 +1,4 @@
+import type { OperationRejectionCategory } from '../persistence/local-rejected-operation';
 import type {
   ChangePage,
   OperationResult,
@@ -16,6 +17,11 @@ export type PushOutcome =
   | { status: 'ownership-lost' }
   | { status: 'empty' }
   | { status: 'offline' }
+  | {
+      status: 'rejected';
+      operation: TechnicalRecordOperation;
+      category: OperationRejectionCategory;
+    }
   | { status: 'accepted'; operation: TechnicalRecordOperation; result: OperationResult }
   | {
       status: 'conflict';

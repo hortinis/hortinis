@@ -6,7 +6,9 @@ import {
   HORTINIS_DATABASE_SCHEMA_V3,
   HORTINIS_DATABASE_SCHEMA_V4,
   HORTINIS_DATABASE_SCHEMA_V5,
+  HORTINIS_DATABASE_SCHEMA_V6,
 } from './database-schema';
+import type { LocalRejectedOperation } from './local-rejected-operation';
 import type { LocalTechnicalRecord } from './local-technical-record';
 import type {
   TechnicalRecord,
@@ -27,6 +29,7 @@ export const HORTINIS_DATABASE_NAME = new InjectionToken<string>('Hortinis datab
 
 @Injectable({ providedIn: 'root' })
 export class HortinisDatabase extends Dexie {
+  readonly rejectedOperations!: Table<LocalRejectedOperation, string>;
   readonly acceptedTechnicalRecords!: Table<TechnicalRecord, string>;
   readonly technicalRecords!: Table<LocalTechnicalRecord, string>;
   readonly technicalTombstones!: Table<TechnicalTombstone, string>;
@@ -65,6 +68,18 @@ export class HortinisDatabase extends Dexie {
             .table('synchronizationState')
             .put({ scope: 'technical-records', ...state, repairRequired: true });
         }
+      });
+    this.version(6)
+      .stores(HORTINIS_DATABASE_SCHEMA_V6)
+      .upgrade(async (transaction) => {
+        await transaction
+          .table('outboxOperations')
+          .toCollection()
+          .modify((operation: LocalTechnicalRecordOperation) => {
+            if (operation.kind === 'create' || operation.expectedRevision !== null) {
+              operation.legacySubmissionUnknown = true;
+            }
+          });
       });
   }
 }

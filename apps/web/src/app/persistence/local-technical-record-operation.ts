@@ -29,18 +29,30 @@ export interface ReadyDependentDeleteTechnicalRecordOperation extends DeleteTech
   predecessorOperationId: string;
 }
 
-export type LocalTechnicalRecordOperation =
+export interface LocalSubmissionMetadata {
+  submittedAt?: number;
+  legacySubmissionUnknown?: true;
+}
+
+export type LocalTechnicalRecordOperation = (
   | TechnicalRecordOperation
   | DeferredReplaceTechnicalRecordOperation
   | ReadyDependentReplaceTechnicalRecordOperation
   | DeferredDeleteTechnicalRecordOperation
-  | ReadyDependentDeleteTechnicalRecordOperation;
+  | ReadyDependentDeleteTechnicalRecordOperation
+) &
+  LocalSubmissionMetadata;
 
 export function toSubmittedTechnicalRecordOperation(
   operation: LocalTechnicalRecordOperation,
 ): TechnicalRecordOperation | undefined {
   if (operation.kind === 'create') {
-    return operation;
+    return {
+      operationId: operation.operationId,
+      recordId: operation.recordId,
+      kind: 'create',
+      value: operation.value,
+    };
   }
 
   if (operation.expectedRevision === null) {

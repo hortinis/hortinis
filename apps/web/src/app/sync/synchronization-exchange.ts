@@ -15,7 +15,7 @@ export class SynchronizationExchange {
     private readonly retries: SynchronizationRetryPersistence,
     private readonly coordinator: SynchronizationCoordinator,
     readonly network: NetworkStatus,
-    private readonly timeoutMilliseconds: number,
+    readonly timeoutMilliseconds: number,
   ) {}
 
   assertOwner(ownership: SynchronizationOwnership): Promise<void> {

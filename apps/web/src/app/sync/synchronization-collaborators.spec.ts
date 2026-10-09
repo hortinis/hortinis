@@ -94,9 +94,10 @@ describe('synchronization collaborators', () => {
         reason: 'local-persistence',
         retryCategory: 'local-persistence',
       });
-      expect(await harness.database.outboxOperations.get(testOperation.operationId)).toEqual(
-        testOperation,
-      );
+      expect(await harness.database.outboxOperations.get(testOperation.operationId)).toEqual({
+        ...testOperation,
+        ...(phase === 'push' ? { submittedAt: 0 } : {}),
+      });
       expect(await harness.database.synchronizationRetryState.count()).toBe(1);
     },
   );

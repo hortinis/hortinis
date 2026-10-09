@@ -44,7 +44,9 @@ when a failure returns. An in-flight marker and request deadline preserve the re
 or ownership transfer. Interrupted requests remain counted because their server acceptance may be
 unknown. After an interrupted fifth attempt, automatic recovery is exhausted until manual retry.
 Failure settlement replaces the in-flight marker with its bounded jitter schedule or exhaustion; offline
-observations reserve no attempt. Non-retryable responses stop the cycle without scheduling repetition.
+observations reserve no attempt. Non-retryable responses schedule no repetition. [ADR-0032](0032-outbox-chains-coalescing-and-quarantine.md)
+quarantines recognized permanent push rejections and lets independent operations continue; uncertain
+responses and other non-retryable failures still stop the cycle.
 Lease-fenced transaction checks apply to reservation, settlement, reset, and deletion. A former owner
 cannot change the successor's retry state.
 

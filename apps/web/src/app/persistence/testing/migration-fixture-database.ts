@@ -39,3 +39,23 @@ export class MigrationFixtureDatabase extends Dexie {
     this.version(2).stores(schemaV2).upgrade(migrateToV2);
   }
 }
+
+// Freeze the pre-H6 store declarations so populated upgrades exercise the real version boundary.
+export class VersionFiveMigrationFixtureDatabase extends Dexie {
+  constructor(databaseName: string) {
+    super(databaseName);
+    this.version(5).stores({
+      technicalRecords: 'recordId',
+      outboxOperations: 'operationId, recordId',
+      acceptedOperationResults: 'operationId',
+      revisionConflicts: 'operationId',
+      synchronizationState: 'scope',
+      technicalTombstones: 'recordId',
+      pendingDeletionRecords: 'recordId',
+      deletionConflicts: 'operationId, recordId',
+      synchronizationRetryState: 'workId, scope, phase, operationId, exhausted',
+      synchronizationLeases: 'scope, ownerId, expiresAt',
+      acceptedTechnicalRecords: 'recordId',
+    });
+  }
+}

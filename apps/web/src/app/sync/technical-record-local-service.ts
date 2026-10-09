@@ -3,6 +3,7 @@ import type { CreateTechnicalRecordOperation } from './conformance';
 import { generateUuidV7 } from './uuid-v7';
 import { TechnicalRecordPersistence } from '../persistence/technical-record-persistence';
 import type { LocalTechnicalRecord } from '../persistence/local-technical-record';
+import type { LocalDeleteCommit } from '../persistence/technical-record-local-commits';
 import type { LocalTechnicalRecordOperation } from '../persistence/local-technical-record-operation';
 import { TechnicalRecordSynchronizationService } from './technical-record-synchronization-service';
 
@@ -40,7 +41,7 @@ export class TechnicalRecordLocalService {
     return result;
   }
 
-  async delete(recordId: string): Promise<LocalTechnicalRecordOperation> {
+  async delete(recordId: string): Promise<LocalDeleteCommit> {
     const operation = await this.persistence.commitDelete(generateUuidV7(), recordId);
     void this.synchronization.startBackgroundRecovery();
     return operation;

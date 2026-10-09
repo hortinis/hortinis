@@ -27,3 +27,9 @@ export const HORTINIS_DATABASE_SCHEMA_V5 = {
   ...HORTINIS_DATABASE_SCHEMA_V4,
   acceptedTechnicalRecords: 'recordId',
 };
+
+export const HORTINIS_DATABASE_SCHEMA_V6 = {
+  ...HORTINIS_DATABASE_SCHEMA_V5,
+  outboxOperations: 'operationId, recordId, predecessorOperationId',
+  rejectedOperations: 'operationId, recordId, category',
+};

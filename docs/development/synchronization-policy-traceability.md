@@ -13,6 +13,8 @@ G1 is validated; E10 remains a separate V0 readiness-reporting prerequisite.
 | Interrupted incremental exchange can resume without advancing past unapplied work | ADR-0010 and ADR-0023 | Existing opaque `SyncCursor` and tombstone-capable `ChangePage` | G2 validated rollback, restart, reload, and real topology; G5 repeats after compaction |
 | Transient failure uses bounded retry without hiding permanent failure | ADR-0010, ADR-0027, and ADR-0028 | `SynchronizationUnavailableError`; `synchronization-unavailable.json`; durable retry-state and fenced-lease rules | H1 adds HTTP 503 mapping, PostgreSQL rollback/replay and real HTTP retry coverage; G2 validated durable dispatch reservation, exhaustion, manual recovery and stale-owner rejection; G5 repeats across retention |
 | A delayed acknowledgement preserves the newer accepted value and pending intent | ADR-0030 | Existing record, operation, and cursor contracts | Separate accepted-state persistence, successor and rollback regressions, resumable G2 legacy repair |
+| Offline chains coalesce only never-submitted work and preserve immutable replay | ADR-0032 | Existing technical operation/result contracts; local submission metadata | H6: atomic preparation, populated migration, deterministic model sequences, concurrent edits, and real topology replay |
+| Permanent push rejection preserves intent without blocking independent records | ADR-0032 | Existing INVALID_REQUEST and conflict responses; local quarantine categories | H6: lease-fenced quarantine, blocked descendants, observable retained counts, rollback/reload/response-correlation tests |
 | Local edits made during exchange remain eligible for recovery | ADR-0027 and ADR-0030 | Existing outbox operation contracts | Final-pull and lease-release recovery draining; conflicts do not cause a busy loop |
 | Paginated snapshot pages all represent one server point in time | ADR-0025 | `ReconciliationSession` and `SnapshotPage`; snapshot fixtures | G4; G5 |
 | Writes accepted during a snapshot are not missed | ADR-0025 | Final-page `incrementalCursor` strictly after `anchorSequence` | G4 PostgreSQL and browser tests; G5 end to end |
@@ -108,3 +110,26 @@ measured exceptions for existing wire validators and the persistence component a
 schema, dependency, or business-workflow changes. Full repository validation, cross-runtime
 conformance, and both real topology scenarios passed.
 See the [validation evidence](foundation-implementation-plan.md#h5-review-hardening-evidence--2026-10-08).
+
+## H6 review hardening — 2026-10-08
+
+The [H6 increment](g2e-review-hardening-plan.md#h6-outbox-chains-coalescing-and-persistence-split)
+implements [ADR-0032](../architecture/decisions/0032-outbox-chains-coalescing-and-quarantine.md).
+Linear chains accept repeated offline edits, coalesce only unsent tails, and resolve dependent revisions
+from predecessor receipts during atomic submission preparation. Submission markers and retry
+reservations commit together before dispatch. Version 6 preserves all version-5 stores and repair
+progress, freezing legacy ready envelopes whose submission history is unknown.
+
+Recognized permanent request rejections retain their exact operation and local intent/base in quarantine.
+Dependent work stays blocked; independent records continue. A separate observable rejection count
+survives recovery completion and reopening. Uncertain responses keep pending operations; failed
+quarantine commits use bounded retry. Manual retry never requeues rejected work. Concrete persistence
+collaborators share explicit transaction scaffolding; the former 606-line/complexity-38 exception is
+removed. No new dependency, HTTP contract, backend schema, business UI, or telemetry is introduced.
+
+Validation passes 245 frontend tests across 24 files, strict types, formatting, lint and architecture
+budgets, five Chromium shell scenarios, four real topology scenarios, and cross-runtime conformance.
+The real scenarios assert predecessor order, unchanged lost-acknowledgement replay after further edits,
+final projections, and one journal entry per operation. The full repository suite passes; unchanged
+backend quality, unit/conformance, and PostgreSQL integration targets are up-to-date. See the
+[foundation validation evidence](foundation-implementation-plan.md#h6-review-hardening-evidence--2026-10-08).

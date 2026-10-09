@@ -40,8 +40,9 @@ Every successful local mutation records a recovery request. Requests received du
 are coalesced. After the last pull page, recovery checks eligible pending operations and new requests,
 then returns to pushing when necessary. Finalization also preserves requests arriving during lease
 release. Retained conflicts and unresolved successors do not cause a busy loop. Offline observations,
-retry eligibility, exhaustion, and permanent failures continue to stop automatic work as ADR-0027
-requires; a new local edit does not reset a retry cycle.
+retry eligibility, exhaustion, and uncertain permanent failures continue to stop automatic work as ADR-0027
+requires. [ADR-0032](0032-outbox-chains-coalescing-and-quarantine.md) adds durable quarantine for recognized
+request rejections, preserves their intent, and allows independent chains to continue; a new local edit does not reset a retry cycle.
 
 ## Validation criteria
 

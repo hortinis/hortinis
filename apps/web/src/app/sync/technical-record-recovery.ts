@@ -89,6 +89,7 @@ export class TechnicalRecordRecovery {
         case 'accepted':
           counts.pushed += 1;
           break;
+        case 'rejected':
         case 'conflict':
           break;
         case 'empty':

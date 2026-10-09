@@ -73,7 +73,7 @@ describe('technical record local persistence', () => {
     });
     await service.replace(result.record.recordId, value);
     const pending = await database.outboxOperations.toArray();
-    expect(pending).toHaveLength(2);
+    expect(pending).toHaveLength(1);
     expect(
       pending.every((operation) => operation.kind !== 'delete' && operation.value === value),
     ).toBe(true);
@@ -301,6 +301,7 @@ describe('technical record local persistence', () => {
     const persistence = persistenceFor(database);
     const predecessor = operationWithIds('dependent-record', 'predecessor-operation');
     await persistence.commitCreate(predecessor);
+    await database.outboxOperations.update(predecessor.operationId, { submittedAt: 0 });
 
     const result = await persistence.commitReplace(
       'successor-operation',
@@ -317,7 +318,10 @@ describe('technical record local persistence', () => {
       predecessorOperationId: predecessor.operationId,
     };
     expect(result.operation).toEqual(deferred);
-    await expect(database.outboxOperations.toArray()).resolves.toEqual([predecessor, deferred]);
+    await expect(database.outboxOperations.toArray()).resolves.toEqual([
+      { ...predecessor, submittedAt: 0 },
+      deferred,
+    ]);
     await expect(database.technicalRecords.get(predecessor.recordId)).resolves.toEqual({
       recordId: predecessor.recordId,
       value: 'successor value',
@@ -325,7 +329,7 @@ describe('technical record local persistence', () => {
     });
   });
 
-  it('exposes the dependent replacement through the local workflow', async () => {
+  it('exposes the coalesced create through the local workflow', async () => {
     const database = openDatabase();
     const synchronization = {
       startBackgroundRecovery: vi.fn(async () => ({ status: 'completed' as const })),
@@ -339,20 +343,20 @@ describe('technical record local persistence', () => {
     expect(replaced.operation).toMatchObject({
       recordId: created.record.recordId,
       value: 'second value',
-      kind: 'replace',
-      expectedRevision: null,
-      predecessorOperationId: created.operation.operationId,
+      kind: 'create',
+      operationId: created.operation.operationId,
     });
     await vi.waitFor(() =>
       expect(synchronization.startBackgroundRecovery).toHaveBeenCalledTimes(2),
     );
   });
 
-  it('atomically resolves a dependent successor and preserves its local value', async () => {
+  it('retains a predecessor receipt for submission-time resolution and preserves local intent', async () => {
     const database = openDatabase();
     const persistence = persistenceFor(database);
     const predecessor = operationWithIds('resolve-record', 'resolve-predecessor');
     await persistence.commitCreate(predecessor);
+    await database.outboxOperations.update(predecessor.operationId, { submittedAt: 0 });
     await persistence.commitReplace('resolve-successor', predecessor.recordId, 'successor value');
 
     const predecessorResult = {
@@ -369,7 +373,7 @@ describe('technical record local persistence', () => {
         recordId: predecessor.recordId,
         value: 'successor value',
         kind: 'replace',
-        expectedRevision: '1',
+        expectedRevision: null,
         predecessorOperationId: predecessor.operationId,
       },
     ]);
@@ -386,6 +390,7 @@ describe('technical record local persistence', () => {
     const persistence = persistenceFor(database);
     const predecessor = operationWithIds('rollback-chain-record', 'rollback-predecessor');
     await persistence.commitCreate(predecessor);
+    await database.outboxOperations.update(predecessor.operationId, { submittedAt: 0 });
     const successor = {
       operationId: 'rollback-successor',
       recordId: predecessor.recordId,

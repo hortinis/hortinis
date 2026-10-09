@@ -1475,3 +1475,56 @@ Review-fix validation on 2026-10-08:
   target with strict dependency verification. Backend test and quality targets remained up-to-date;
   they were not freshly executed for these browser-only fixes.
 - Final documentation validation and whitespace checks passed after recording this follow-up evidence.
+
+## H6 review hardening evidence — 2026-10-08
+
+H6 implements [ADR-0032](../architecture/decisions/0032-outbox-chains-coalescing-and-quarantine.md).
+`TechnicalRecordPersistence` delegates to concrete collaborators for local commits, outbox preparation,
+accepted results, conflicts, projection, pulled pages/tombstones, and rejection persistence. Transaction
+callbacks return their values directly. Production files meet the 350-line/complexity-15 budgets;
+the former persistence exception is removed, while the existing wire-validator exception remains.
+
+Submission preparation resolves predecessor-derived revisions, reserves the attempt, and freezes the
+wire body with `submittedAt` in one lease-fenced transaction. Coalescing follows the four accepted rules
+and keeps the unsent tail's identity. Create/delete cancellation returns an explicit local result.
+Version 6 adds the dependency index and rejection store. Populated version-5 fixtures retain projection,
+accepted state/results, tombstones, conflicts, deletion bases, exhausted retry state, leases, normal
+cursor, and repair progress. Ready legacy bodies remain immutable; only deferred never-submitted work
+can coalesce after migration.
+
+Quarantine retains exact operation and available local intent/base, blocks causal descendants, and lets
+independent work proceed. Rejection categories and observable counts contain no content. Pulls preserve
+rejected local intent. Failed quarantine storage remains a repeatable bounded commit failure. Incorrect
+response identifiers and stale ownership cannot quarantine work. Observation is disposed with the
+service, and manual retry cannot resurrect quarantined requests. Generation-aware reconciliation and
+an explicit correction UI remain outside H6.
+
+Validation on 2026-10-08:
+
+- All 245 frontend tests across 24 files pass, including twelve deterministic model seeds covering
+  editing, submission, lost acknowledgement, accepted pulls, deletion, and reopening. Tests cover
+  fifty unsent edits, a 25-operation chain independent of UUID order, both competing-tab admission
+  orders, preparation rollback, quarantine rollback and retry, response correlation, late-owner
+  fencing, missing dependencies, duplicate outcomes, rejection observation/disposal, and preservation
+  of rejected values with an empty outbox.
+- Frontend formatting, lint, strict TypeScript/Angular/e2e types, architecture checks, development and
+  production builds, and five Chromium shell/offline/reload/conflict/tombstone scenarios pass.
+- Four real browser/Spring/PostgreSQL scenarios pass: outage recovery, lost-create acknowledgement and
+  cross-context tombstones, three offline edits, and lost acknowledgement followed by two later edits.
+  Requests retain causal ordering and exact replay bodies; journal counts are one per operation.
+  Topology tests seed IndexedDB intent because the technical shell has no editing UI; real local
+  coalescing and workflow results are verified through Dexie in the unit and model suites.
+- `pnpm validate` passes the complete repository suite, including contract/source checks, backend
+  Spotless/Checkstyle/PMD/build/unit/integration targets, four topology-runner tests, all four topology
+  scenarios, and repository checks. Isolated containers, network, and volumes are removed afterward.
+- `pnpm conformance:validate` passes all 245 frontend tests and the unchanged backend unit/conformance
+  target with strict dependency verification. Backend quality and test targets are up-to-date rather
+  than freshly executed; retained reports show 67 unit/conformance and 42 PostgreSQL integration
+  successes with no failures or skips.
+- Documentation links, heading anchors, ADR headers/index, whitespace, English-language consistency,
+  framework-independent rules, privacy boundaries, and dependency review pass. No contracts,
+  dependencies, secrets, local datasets, or environment-specific configuration are added.
+
+The sandbox prevented the documentation check's Git subprocess. The full suite was retried outside the
+sandbox to permit Git, Gradle cache access, and the isolated Docker topology. Cross-runtime validation
+also used the existing external Gradle cache. These checks completed successfully.

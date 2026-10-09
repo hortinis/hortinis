@@ -76,9 +76,16 @@ export class TechnicalRecordSynchronizationService {
     this.store,
   );
   readonly status = this.store.status;
+  readonly rejections = this.store.rejections;
 
   constructor() {
-    inject(DestroyRef).onDestroy(() => this.triggers.dispose());
+    const stopObserving = this.persistence.observeRejections((summary) =>
+      this.store.rejections.set(summary),
+    );
+    inject(DestroyRef).onDestroy(() => {
+      stopObserving();
+      this.triggers.dispose();
+    });
   }
 
   recoverAfterReload(): Promise<RecoveryOutcome> {

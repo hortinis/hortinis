@@ -1,3 +1,4 @@
+import type { RejectionSummary } from '../persistence/local-rejected-operation';
 import { signal } from '@angular/core';
 import type { SynchronizationStatus, PushOutcome, PullOutcome } from './synchronization-outcomes';
 
@@ -11,6 +12,7 @@ export type SettledSynchronizationStatus = Exclude<
 >;
 
 export class SynchronizationStatusStore {
+  readonly rejections = signal<RejectionSummary>({ status: 'clear', count: 0 });
   readonly status = signal<SynchronizationStatus>({ status: 'idle' });
 
   startRecovery(manual: boolean): void {
@@ -39,6 +41,7 @@ export class SynchronizationStatusStore {
         this.status.set({ status: 'completed', pushed: 1, pulled: 0 });
         break;
       case 'applied':
+      case 'rejected':
       case 'conflict':
       case 'empty':
       case 'busy':

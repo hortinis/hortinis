@@ -135,6 +135,7 @@ describe('technical record tombstones', () => {
       value: 'new',
     };
     await store.commitCreate(create);
+    await database.outboxOperations.update(create.operationId, { submittedAt: 0 });
     await store.commitDelete(deleteId, recordId);
     await expect(store.firstPendingOperation()).resolves.toEqual(create);
     await store.commitAcceptedResult(create, {
@@ -149,6 +150,14 @@ describe('technical record tombstones', () => {
       recordId,
       kind: 'delete',
       expectedRevision: '1',
+    });
+    await database.outboxOperations.put({
+      operationId: deleteId,
+      recordId,
+      kind: 'delete',
+      expectedRevision: '1',
+      predecessorOperationId: createId,
+      submittedAt: 0,
     });
     await store.commitAcceptedResult(deleteOperation!, acceptedDelete());
     await expect(database.outboxOperations.count()).resolves.toBe(0);
@@ -277,7 +286,7 @@ describe('technical record tombstones', () => {
     const store = persistence(database);
     await database.technicalRecords.add({ recordId, value: 'old', lastAcceptedRevision: '1' });
     const operation = await store.commitDelete(deleteId, recordId);
-    expect(operation.kind).toBe('delete');
+    expect('kind' in operation && operation.kind).toBe('delete');
     await store.commitPulledPage({
       changes: [{ operationId: deleteId, tombstone: acceptedDelete().tombstone, sequence: '41' }],
       nextCursor: 'after-own-delete',

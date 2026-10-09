@@ -206,7 +206,8 @@ See the [validation evidence](foundation-implementation-plan.md#h5-review-harden
 
 ### H6. Outbox chains, coalescing, and persistence split
 
-- Status: `planned`. Effort: large. Depends on: H5, decision D5, a new ADR (next free number).
+- Status: `implemented`. Effort: large. Depends on: H5. D5 is resolved by
+  [ADR-0032](../architecture/decisions/0032-outbox-chains-coalescing-and-quarantine.md).
 - Split `technical-record-persistence.ts` by concern (outbox commits, accepted results, pulled pages)
   with a shared transaction helper. Return values from Dexie transaction callbacks instead of
   `let x!` plus non-null assertions.
@@ -219,11 +220,20 @@ See the [validation evidence](foundation-implementation-plan.md#h5-review-harden
   delete; create+delete drops both.
 - Quarantine (F3): a permanently rejected operation moves to a `rejectedOperations` table with its
   category, no record value in diagnostics, and a visible status, so it cannot block later work.
-- Dexie version 5 migration with a populated-fixture test (extend `migration-fixture-database.ts`).
+- Dexie version 6 migration (version 5 already implements ADR-0030 accepted-state repair) with a populated-fixture test (extend `migration-fixture-database.ts`).
 - Tests: deterministic model-based sequences using the existing harness (no new dependency without an
   ADR), lost-acknowledgement replay of a marked operation, three-edit offline scenario end to end.
 - Acceptance: any number of offline edits to one record syncs in order, or collapses by the rules, and
   never produces `OPERATION_ID_REUSED`.
+
+Implementation uses a small persistence facade, explicit-table transaction scaffolding, and concrete
+collaborators. Preparation reserves the bounded attempt and marks submission atomically, excluding
+local metadata from every wire operation. Legacy ready envelopes remain immutable through an unknown-
+submission marker. Dependency revisions resolve at preparation. Recognized rejections retain local
+intent in quarantine; descendants remain blocked, independent work continues, and a separate observable
+rejection summary survives aggregate completion. No new dependency or HTTP contract is introduced.
+
+Validation evidence is recorded in the [foundation implementation plan](foundation-implementation-plan.md#h6-review-hardening-evidence--2026-10-08).
 
 ### H7. Persistent storage request
 
@@ -265,7 +275,7 @@ See the [validation evidence](foundation-implementation-plan.md#h5-review-harden
 | D2 | Adopt RFC 9457 `application/problem+json` for errors | Defer; record "not now" in an ADR and decide before the first public release |
 | D3 | Keep hand-written `JsonNode` parsing or move to records plus validation | Keep; add table-driven parser tests; revisit at about five operation kinds |
 | D4 | Refresh policy: interval, spacing, and whether to add server-sent events later | Poll first (about 30-60 s while visible); defer server push |
-| D5 | Coalescing rules and the "never mutate a submitted operation" invariant | Accept as written in H6 |
+| D5 | Coalescing rules and the "never mutate a submitted operation" invariant | Resolved by ADR-0032, including conservative legacy migration and atomic submission preparation |
 | D6 | Web Locks versus the IndexedDB lease | Keep the lease (ADR-0028); correctness rests on idempotency and the cursor compare-and-set |
 
 ## 5. Definition of done for every increment

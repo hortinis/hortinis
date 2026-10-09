@@ -120,7 +120,9 @@ describe('bounded synchronization retry', () => {
         'workId',
       ].sort(),
     );
-    await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
+    await expect(database.outboxOperations.toArray()).resolves.toMatchObject([
+      { ...operation, submittedAt: expect.any(Number) },
+    ]);
 
     TestBed.resetTestingModule();
     let resolveManualAttempt: ((result: OperationResult) => void) | undefined;
@@ -325,7 +327,9 @@ describe('bounded synchronization retry', () => {
     expect(transport.submitOperation).toHaveBeenCalledOnce();
     expect(scheduler.delays()).toEqual([]);
     await expect(database.synchronizationRetryState.count()).resolves.toBe(0);
-    await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
+    await expect(database.outboxOperations.toArray()).resolves.toMatchObject([
+      { ...operation, submittedAt: expect.any(Number) },
+    ]);
   });
 
   it.each(['push', 'pull'] as const)(
@@ -373,7 +377,9 @@ describe('bounded synchronization retry', () => {
         failureCategory: 'unavailable',
       });
       if (phase === 'push')
-        await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
+        await expect(database.outboxOperations.toArray()).resolves.toMatchObject([
+          { ...operation, submittedAt: expect.any(Number) },
+        ]);
       else await expect(persistence.synchronizationCursor()).resolves.toBe('saved-cursor');
       http.verify();
 
@@ -425,7 +431,9 @@ describe('bounded synchronization retry', () => {
       if (attemptCount < 5) scheduler.runNext();
     }
     expect(scheduler.delays()).toEqual([]);
-    await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
+    await expect(database.outboxOperations.toArray()).resolves.toMatchObject([
+      { ...operation, submittedAt: expect.any(Number) },
+    ]);
     expect((await database.synchronizationRetryState.toArray())[0]).toMatchObject({
       attemptCount: 5,
       exhausted: true,
@@ -464,7 +472,9 @@ describe('bounded synchronization retry', () => {
     expect(service.status()).toEqual({ status: 'failed', reason: 'unexpected-response' });
     expect(scheduler.delays()).toEqual([]);
     await expect(database.synchronizationRetryState.count()).resolves.toBe(0);
-    await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
+    await expect(database.outboxOperations.toArray()).resolves.toMatchObject([
+      { ...operation, submittedAt: expect.any(Number) },
+    ]);
     http.verify();
   });
 

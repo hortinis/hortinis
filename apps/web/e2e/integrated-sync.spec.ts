@@ -2,6 +2,7 @@ import { expect, test, type APIRequestContext } from '@playwright/test';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { resolve } from 'node:path';
+import { appendPendingChain, localRecord } from './support/outbox-chain';
 
 const execute = promisify(execFile);
 
@@ -394,3 +395,169 @@ async function waitForLeaseRelease(page: import('@playwright/test').Page): Promi
     )
     .toBe(true);
 }
+
+test('synchronizes three offline edits in predecessor order through the real topology', async ({
+  browser,
+}) => {
+  const context = await browser.newContext({ serviceWorkers: 'block' });
+  const page = await context.newPage();
+  const recordId = crypto.randomUUID();
+  const createId = crypto.randomUUID();
+  const secondId = crypto.randomUUID();
+  const thirdId = crypto.randomUUID();
+  const submitted: unknown[] = [];
+  page.on('request', (request) => {
+    if (request.url().endsWith('/api/v1/sync/operations')) submitted.push(request.postDataJSON());
+  });
+  try {
+    await page.goto('/');
+    await waitForLeaseRelease(page);
+    await context.setOffline(true);
+    await appendPendingChain(page, [
+      { operationId: createId, recordId, kind: 'create', value: 'first offline value' },
+    ]);
+    await appendPendingChain(page, [
+      {
+        operationId: secondId,
+        recordId,
+        kind: 'replace',
+        value: 'second offline value',
+        expectedRevision: null,
+        predecessorOperationId: createId,
+      },
+    ]);
+    await appendPendingChain(page, [
+      {
+        operationId: thirdId,
+        recordId,
+        kind: 'replace',
+        value: 'third offline value',
+        expectedRevision: null,
+        predecessorOperationId: secondId,
+      },
+    ]);
+    expect(submitted).toEqual([]);
+    expect(await localRecord(page, recordId)).toMatchObject({ value: 'third offline value' });
+    await context.setOffline(false);
+    await page.reload();
+    await expect.poll(() => acceptedRevision(page, thirdId), { timeout: 15000 }).toBe('3');
+    await waitForLeaseRelease(page);
+    expect(submitted).toEqual([
+      { operationId: createId, recordId, kind: 'create', value: 'first offline value' },
+      {
+        operationId: secondId,
+        recordId,
+        kind: 'replace',
+        value: 'second offline value',
+        expectedRevision: '1',
+      },
+      {
+        operationId: thirdId,
+        recordId,
+        kind: 'replace',
+        value: 'third offline value',
+        expectedRevision: '2',
+      },
+    ]);
+    expect(await localRecord(page, recordId)).toMatchObject({
+      value: 'third offline value',
+      lastAcceptedRevision: '3',
+    });
+    for (const operationId of [createId, secondId, thirdId])
+      expect(await journalOperationCount(page.request, operationId)).toBe(1);
+  } finally {
+    await context.close();
+  }
+});
+
+test('preserves a lost acknowledgement replay when two later edits arrive', async ({ browser }) => {
+  const context = await browser.newContext({ serviceWorkers: 'block' });
+  const page = await context.newPage();
+  const recordId = crypto.randomUUID();
+  const createId = crypto.randomUUID();
+  const secondId = crypto.randomUUID();
+  const thirdId = crypto.randomUUID();
+  const create = {
+    operationId: createId,
+    recordId,
+    kind: 'create' as const,
+    value: 'immutable original',
+  };
+  const submitted: unknown[] = [];
+  let acknowledge!: () => void;
+  let reportAccepted!: () => void;
+  const releaseAcknowledgement = new Promise<void>((resolve) => {
+    acknowledge = resolve;
+  });
+  const serverAccepted = new Promise<void>((resolve) => {
+    reportAccepted = resolve;
+  });
+  let loseAcknowledgement = true;
+  await page.route('**/api/v1/sync/operations', async (route) => {
+    const operation = route.request().postDataJSON() as { operationId: string };
+    submitted.push(operation);
+    if (operation.operationId === createId && loseAcknowledgement) {
+      loseAcknowledgement = false;
+      const result = await route.fetch();
+      expect(result.status()).toBe(200);
+      reportAccepted();
+      await releaseAcknowledgement;
+      await route.fulfill({ status: 503, body: '' });
+    } else await route.continue();
+  });
+  try {
+    await page.goto('/');
+    await waitForLeaseRelease(page);
+    await appendPendingChain(page, [create]);
+    await page.reload();
+    await serverAccepted;
+    await appendPendingChain(page, [
+      {
+        operationId: secondId,
+        recordId,
+        kind: 'replace',
+        value: 'second intent',
+        expectedRevision: null,
+        predecessorOperationId: createId,
+      },
+      {
+        operationId: thirdId,
+        recordId,
+        kind: 'replace',
+        value: 'latest intent',
+        expectedRevision: null,
+        predecessorOperationId: secondId,
+      },
+    ]);
+    acknowledge();
+    await expect.poll(() => acceptedRevision(page, thirdId), { timeout: 15000 }).toBe('3');
+    await waitForLeaseRelease(page);
+    expect(submitted).toEqual([
+      create,
+      create,
+      {
+        operationId: secondId,
+        recordId,
+        kind: 'replace',
+        value: 'second intent',
+        expectedRevision: '1',
+      },
+      {
+        operationId: thirdId,
+        recordId,
+        kind: 'replace',
+        value: 'latest intent',
+        expectedRevision: '2',
+      },
+    ]);
+    expect(await localRecord(page, recordId)).toMatchObject({
+      value: 'latest intent',
+      lastAcceptedRevision: '3',
+    });
+    for (const operationId of [createId, secondId, thirdId])
+      expect(await journalOperationCount(page.request, operationId)).toBe(1);
+  } finally {
+    acknowledge();
+    await context.close();
+  }
+});

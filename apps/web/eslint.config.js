@@ -68,14 +68,6 @@ module.exports = defineConfig([
     rules: { complexity: ['error', 25] },
   },
   {
-    // H6 owns the persistence split. Keep measured ceilings so it cannot grow meanwhile.
-    files: ['src/app/persistence/technical-record-persistence.ts'],
-    rules: {
-      'max-lines': ['error', { max: 606, skipBlankLines: true, skipComments: true }],
-      complexity: ['error', 38],
-    },
-  },
-  {
     files: ['**/*.rule.ts'],
     rules: {
       'no-restricted-imports': [

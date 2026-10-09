@@ -141,8 +141,8 @@ pnpm --filter @hortinis/web build
 ```
 
 The browser synchronization facade delegates to concrete per-instance collaborators. ESLint enforces
-size and complexity budgets for production synchronization/persistence files, with measured exceptions
-for existing validators and the H6 persistence split. `test:architecture` verifies these guardrails.
+size and complexity budgets for production synchronization/persistence files, with a measured exception
+for existing wire validators. H6 removes the former persistence size/complexity exception. `test:architecture` verifies these guardrails.
 See the [web application guide](../../apps/web/README.md#synchronization-entry-point) and
 [ADR-0028](../architecture/decisions/0028-browser-synchronization-coordination.md#browser-execution-structure).
 
@@ -170,7 +170,8 @@ pnpm test:e2e:topology
 
 The command builds the production web bundle, starts the Compose Spring and PostgreSQL services,
 proxies the browser's same-origin API requests, and validates lost-acknowledgement replay,
-cross-context tombstone propagation, and recovery after a real PostgreSQL outage. The test-only
+cross-context tombstone propagation, recovery after a real PostgreSQL outage, three offline edits in
+causal order, and immutable replay when edits arrive after server acceptance but before acknowledgement. The test-only
 Compose override bounds pool acquisition to one second so the server's `503` arrives before the
 browser request timeout. The outage test stops and restarts only PostgreSQL in its test project.
 
@@ -230,6 +231,7 @@ sha256sum --check gradle/wrapper/gradle-wrapper.jar.sha256
 The Wrapper also verifies the downloaded Gradle binary distribution against the SHA-256 checksum recorded in `gradle/wrapper/gradle-wrapper.properties`. The C6 and D3 Spring Boot application dependencies have reviewed dependency-verification metadata and committed dependency locks. The application uses PostgreSQL through Spring JDBC; native `bootRun` therefore requires datasource variables (the Compose topology supplies them). Each later increment that adds a dependency must update and review the lockfile and verification metadata together.
 
 Update metadata:
+
 ```shell
 ./gradlew --write-verification-metadata sha256
 ```

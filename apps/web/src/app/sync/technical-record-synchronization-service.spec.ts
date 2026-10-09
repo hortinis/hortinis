@@ -58,7 +58,7 @@ describe('TechnicalRecordSynchronizationService', () => {
   });
 
   it.each(['protocol', 'boundary'])(
-    'keeps a permanently rejected %s head pending and blocks later work after reopening (H6)',
+    'quarantines a permanently rejected %s head and drains independent work across reopening',
     async (reason) => {
       const name = `hortinis-rejected-head-${crypto.randomUUID()}`;
       const database = openDatabase(name);
@@ -69,7 +69,8 @@ describe('TechnicalRecordSynchronizationService', () => {
         recordId: '01890f3e-7c5a-7b15-8abc-0123456789ab',
       };
       const transport: SynchronizationTransport = {
-        submitOperation: vi.fn(async () => {
+        submitOperation: vi.fn(async (operation) => {
+          if (operation.operationId === second.operationId) return acceptedResult(operation);
           if (reason === 'boundary')
             throw new SynchronizationBoundaryError('The request is invalid.', 'request');
           throw new SynchronizationProtocolError(400, {
@@ -77,7 +78,11 @@ describe('TechnicalRecordSynchronizationService', () => {
             message: 'The request is invalid.',
           });
         }),
-        pullChanges: vi.fn(),
+        pullChanges: vi.fn(async () => ({
+          changes: [],
+          nextCursor: 'quarantine-cursor',
+          hasMore: false,
+        })),
       };
       const { persistence, service } = services(database, transport, onlineStatus(true));
       if (reason === 'boundary') first.value = '\u0000';
@@ -88,21 +93,28 @@ describe('TechnicalRecordSynchronizationService', () => {
       });
       await database.outboxOperations.add(first);
       await persistence.commitCreate(second);
-      await expect(service.recoverAfterReload()).resolves.toMatchObject({ status: 'failed' });
-      await expect(service.recoverAfterReload()).resolves.toMatchObject({ status: 'failed' });
+      await expect(service.recoverAfterReload()).resolves.toMatchObject({ status: 'completed' });
+      await expect(service.recoverAfterReload()).resolves.toMatchObject({ status: 'completed' });
       database.close();
       TestBed.resetTestingModule();
       const reopened = openDatabase(name);
       const resumed = services(reopened, transport, onlineStatus(true));
       await expect(resumed.service.recoverAfterReload()).resolves.toMatchObject({
-        status: 'failed',
+        status: 'completed',
       });
-      expect(transport.submitOperation).toHaveBeenCalledTimes(3);
-      for (const [submitted] of vi.mocked(transport.submitOperation).mock.calls) {
-        expect(submitted).toEqual(first);
-      }
-      expect(transport.pullChanges).not.toHaveBeenCalled();
-      await expect(reopened.outboxOperations.toArray()).resolves.toEqual([first, second]);
+      expect(transport.submitOperation).toHaveBeenCalledTimes(2);
+      expect(
+        vi.mocked(transport.submitOperation).mock.calls.map(([operation]) => operation),
+      ).toEqual([first, second]);
+      expect(transport.pullChanges).toHaveBeenCalled();
+      await expect(reopened.outboxOperations.count()).resolves.toBe(0);
+      await expect(reopened.rejectedOperations.get(first.operationId)).resolves.toMatchObject({
+        operation: first,
+        category: 'invalid-request',
+      });
+      await vi.waitFor(() =>
+        expect(resumed.service.rejections()).toEqual({ status: 'rejected', count: 1 }),
+      );
       await expect(reopened.synchronizationRetryState.count()).resolves.toBe(0);
     },
   );
@@ -253,7 +265,9 @@ describe('TechnicalRecordSynchronizationService', () => {
     await persistence.commitCreate(operation);
 
     await expect(service.pushOnePendingOperation()).resolves.toMatchObject({ status: 'failed' });
-    await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
+    await expect(database.outboxOperations.toArray()).resolves.toMatchObject([
+      { ...operation, submittedAt: expect.any(Number) },
+    ]);
   });
 
   it('keeps accepting independent local work while synchronization is offline', async () => {
@@ -382,18 +396,20 @@ describe('TechnicalRecordSynchronizationService', () => {
     await expect(database.revisionConflicts.get(conflictedOperation.operationId)).resolves.toEqual(
       conflict,
     );
-    await expect(database.outboxOperations.get(conflictedOperation.operationId)).resolves.toEqual(
-      conflictedOperation,
-    );
+    await expect(database.outboxOperations.get(conflictedOperation.operationId)).resolves.toEqual({
+      ...conflictedOperation,
+      submittedAt: 0,
+    });
 
     await expect(service.pushOnePendingOperation()).resolves.toMatchObject({
       status: 'accepted',
       operation: independentOperation,
     });
     expect(transport.submitOperation).toHaveBeenCalledTimes(2);
-    await expect(database.outboxOperations.get(conflictedOperation.operationId)).resolves.toEqual(
-      conflictedOperation,
-    );
+    await expect(database.outboxOperations.get(conflictedOperation.operationId)).resolves.toEqual({
+      ...conflictedOperation,
+      submittedAt: 0,
+    });
     await expect(
       database.outboxOperations.get(independentOperation.operationId),
     ).resolves.toBeUndefined();
@@ -420,7 +436,9 @@ describe('TechnicalRecordSynchronizationService', () => {
     await persistence.commitCreate(operation);
 
     await expect(service.pushOnePendingOperation()).resolves.toMatchObject({ status: 'failed' });
-    await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
+    await expect(database.outboxOperations.toArray()).resolves.toMatchObject([
+      { ...operation, submittedAt: expect.any(Number) },
+    ]);
 
     await expect(service.pushOnePendingOperation()).resolves.toMatchObject({
       status: 'accepted',
@@ -473,7 +491,7 @@ describe('TechnicalRecordSynchronizationService', () => {
     await expect(service.pushOnePendingOperation()).resolves.toMatchObject({ status: 'accepted' });
     expect(submissions).toEqual([predecessor]);
     await expect(database.outboxOperations.get(successor.operationId)).resolves.toMatchObject({
-      expectedRevision: '1',
+      expectedRevision: null,
     });
     await expect(database.technicalRecords.get(predecessor.recordId)).resolves.toMatchObject({
       value: successor.value,
@@ -540,6 +558,7 @@ describe('TechnicalRecordSynchronizationService', () => {
     };
     const { persistence, service } = services(database, transport, onlineStatus(true));
     await persistence.commitCreate(predecessor);
+    await database.outboxOperations.update(predecessor.operationId, { submittedAt: 0 });
     await persistence.commitReplace(successor.operationId, successor.recordId, successor.value);
 
     await expect(service.pushOnePendingOperation()).resolves.toMatchObject({ status: 'failed' });
@@ -615,7 +634,9 @@ describe('TechnicalRecordSynchronizationService', () => {
       pushed: 0,
       pulled: 0,
     });
-    await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
+    await expect(database.outboxOperations.toArray()).resolves.toMatchObject([
+      { ...operation, submittedAt: expect.any(Number) },
+    ]);
     expect(transport.pullChanges).not.toHaveBeenCalled();
   });
 

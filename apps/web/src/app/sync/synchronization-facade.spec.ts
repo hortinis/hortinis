@@ -151,9 +151,10 @@ describe('synchronization facade admission', () => {
       });
       expect(scheduler.delays()).toEqual([]);
       expect(await scope.retries.current()).toMatchObject({ attemptCount: 1, nextEligibleAt: 100 });
-      expect(await harness.database.outboxOperations.get(testOperation.operationId)).toEqual(
-        testOperation,
-      );
+      expect(await harness.database.outboxOperations.get(testOperation.operationId)).toEqual({
+        ...testOperation,
+        submittedAt: 0,
+      });
       expect(transport.pullChanges).not.toHaveBeenCalled();
       await expect(scope.service.recoverAfterReload()).resolves.toEqual({
         status: 'already-running',
@@ -239,9 +240,10 @@ describe('synchronization facade admission', () => {
     expect(scheduler.delays()).toEqual([100]);
     scope.destroy();
     expect(scheduler.delays()).toEqual([]);
-    expect(await harness.database.outboxOperations.get(testOperation.operationId)).toEqual(
-      testOperation,
-    );
+    expect(await harness.database.outboxOperations.get(testOperation.operationId)).toEqual({
+      ...testOperation,
+      submittedAt: 0,
+    });
   });
 
   it('publishes a permanent failure without scheduling a retry or dropping work', async () => {
@@ -271,8 +273,9 @@ describe('synchronization facade admission', () => {
     ]);
     expect(scheduler.delays()).toEqual([]);
     expect(await harness.database.synchronizationRetryState.count()).toBe(0);
-    expect(await harness.database.outboxOperations.get(testOperation.operationId)).toEqual(
-      testOperation,
-    );
+    expect(await harness.database.outboxOperations.get(testOperation.operationId)).toEqual({
+      ...testOperation,
+      submittedAt: 0,
+    });
   });
 });
