@@ -270,13 +270,23 @@ Initial and subsequent active-transaction abort regressions verify refresh after
 
 ### H9. Compose and end-to-end test cleanup
 
-- Status: `planned`. Effort: small. Depends on: none.
-- Compose: make the container user configurable (for example `HORTINIS_UID`/`HORTINIS_GID`) and document
-  bind-mount permission behavior. Keep this minimal: production images (F2) replace the bind mount.
-- E2E: extract the repeated IndexedDB boilerplate in `integrated-sync.spec.ts` into one helper under
-  `e2e/support/`, and assert through `GET /api/v1/sync/changes` that the retried create produced exactly
-  one journal change.
-- Acceptance: the integrated scenario is unchanged in coverage and about one third shorter.
+- Status: `implemented`; validated on 2026-10-10. Effort: small. Depends on: none.
+- Compose: `HORTINIS_UID`/`HORTINIS_GID` configure sync identity with compatible root defaults. An
+  isolated one-shot service prepares only the named Gradle-cache volume; `GRADLE_USER_HOME` explicitly
+  selects it. Bind-mount ownership and cache reuse are documented under ADR-0012. Production images
+  (F2) remain responsible for replacing the development bind mount.
+- E2E: `e2e/support/indexeddb.ts` consolidates seeding and stored-value observation. Connections close
+  after completion, aborted transactions, and synchronous setup failures. Existing outbox-chain
+  insertion semantics remain intact. Lease expiry continues to use browser time.
+- The lost-create-acknowledgement scenario asserts upstream acceptance and exactly one journal change
+  across all change pages. Browser contexts close on failure as well as success.
+- Acceptance: all four integrated scenarios retain their coverage. The spec shrinks from 563 to 387
+  lines (31%). Configuration/initializer regressions and a browser rollback/connection/clock regression
+  cover the support changes. The password-volume warning and corrected scenario title already landed
+  in H0 and are retained.
+
+See [ADR-0012](../architecture/decisions/0012-containers-and-ci.md#development-container-ownership-h9)
+and the [validation evidence](foundation-implementation-plan.md#h9-review-hardening-evidence--2026-10-10).
 
 ## 4. Decisions needed
 

@@ -520,3 +520,22 @@ cross-runtime conformance pass with 278 frontend tests, eight Chromium shell sce
 topology scenarios. Unchanged backend targets are up-to-date. Final documentation and whitespace checks
 pass. See the
 [foundation evidence](foundation-implementation-plan.md#h7-aborted-read-review-follow-up--2026-10-10).
+
+## H9 review hardening — 2026-10-10
+
+The [H9 increment](g2e-review-hardening-plan.md#h9-compose-and-end-to-end-test-cleanup) implements
+configurable development sync identity, isolated named-cache ownership initialization, and explicit
+Gradle cache selection under ADR-0012. Development documentation explains bind-mount ownership and
+retains the existing password-volume warning.
+
+Shared IndexedDB test helpers preserve atomic seeding and close connections on failures; a Chromium
+regression proves rollback, unblocked database deletion, and browser-clock lease expiry. The integrated
+spec is 31% shorter while retaining all four scenarios. Lost-create-acknowledgement coverage now
+asserts exactly one journal change across all pages. No public contract or synchronization policy
+changes; production images and later readiness gates remain separate work.
+
+The full repository suite, cross-runtime conformance, seven topology/configuration tests, and the
+added browser regression pass. All four real scenarios pass with both default identity and host
+`1000:1000`. An isolated root-to-host cache-reuse probe confirms writable cache and generated-file
+ownership; disposable resources are removed. Unchanged backend checks remain up-to-date. See the
+[validation evidence](foundation-implementation-plan.md#h9-review-hardening-evidence--2026-10-10).

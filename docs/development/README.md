@@ -53,6 +53,33 @@ PostgreSQL initializes its password only when the data volume is empty. Changing
 `HORTINIS_POSTGRES_PASSWORD` does not update credentials in an existing `postgres-data` volume;
 update the database role password to match before restarting with a new value.
 
+The development Gradle container runs as root by default for compatibility with the pinned image.
+On Linux with a rootful Docker daemon, map sync to the checkout owner's numeric IDs before startup:
+
+```shell
+export HORTINIS_UID="$(id -u)"
+export HORTINIS_GID="$(id -g)"
+docker compose --file infrastructure/docker/compose.yaml up --wait
+```
+
+Both variables default to `0`; PostgreSQL continues to use its image's own account. Rootless Docker
+and Docker Desktop translate filesystem ownership differently; use IDs appropriate to the daemon's
+bind-mount mapping rather than assuming host IDs are identical inside the container.
+
+`gradle-cache-init` runs once as root before sync, preparing only the named Gradle-cache volume for
+the configured IDs. `GRADLE_USER_HOME` explicitly points to `/home/gradle/.gradle`. The initializer
+does not mount the checkout or database data and does not follow cache symlinks. It exits after
+preparation, so a successful exited initializer alongside healthy PostgreSQL and sync is expected.
+Stop the topology before changing IDs; restarting with different values prepares the existing cache
+for the new owner. Do not share that cache between simultaneously running users.
+
+The checkout is bind-mounted: native Gradle output and project caches written by sync receive its
+configured ownership. Existing files from earlier root runs are not repaired automatically. With
+sync stopped, inspect those generated paths and repair their ownership separately if necessary;
+cache initialization never recursively changes checkout permissions. Production images replace
+this development bind mount in F2. The isolated test override keeps build output and project caches
+in container-local temporary directories and also supports the UID/GID overrides.
+
 The first startup can take several minutes while Gradle and the application dependencies populate the
 named `gradle-cache` volume. Do not start a second Gradle command using the same Compose service while
 that build is running; it will contend for Gradle's cache lock. Follow the existing service instead with
@@ -160,7 +187,8 @@ Run the browser smoke and offline application-shell tests independently:
 pnpm --filter @hortinis/web test:e2e
 ```
 
-Playwright builds the production bundle, serves its static output on `http://127.0.0.1:4200`, and stops the server afterward. The PWA test waits until the service worker has cached the application shell, enables browser offline mode, and verifies that reloading returns the cached shell from the service worker. Tests currently cover Chromium only; the supported browser and device matrix remains part of the product quality-envelope work.
+Playwright builds the production bundle, serves its static output on `http://127.0.0.1:4200`, and stops the server afterward. The PWA test waits until the service worker has cached the application shell, enables browser offline mode, and verifies that reloading returns the cached shell from the service worker. An isolated browser regression also verifies rollback of failed test-helper transactions and database
+connection cleanup after failures. Tests currently cover Chromium only; the supported browser and device matrix remains part of the product quality-envelope work.
 
 The full `pnpm validate` suite includes the real synchronization topology. Run it independently with:
 

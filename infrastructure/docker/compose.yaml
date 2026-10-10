@@ -19,8 +19,18 @@ services:
       start_period: 5s
     stop_grace_period: 10s
 
+  gradle-cache-init:
+    image: gradle:9.7.1-jdk25
+    user: "0:0"
+    entrypoint: ["bash", "/initialize-gradle-cache.sh"]
+    command: ["${HORTINIS_UID:-0}", "${HORTINIS_GID:-0}"]
+    volumes:
+      - ./initialize-gradle-cache.sh:/initialize-gradle-cache.sh:ro
+      - gradle-cache:/home/gradle/.gradle
+
   sync:
     image: gradle:9.7.1-jdk25
+    user: "${HORTINIS_UID:-0}:${HORTINIS_GID:-0}"
     entrypoint: []
     init: true
     working_dir: /workspace
@@ -29,10 +39,13 @@ services:
       - :services:sync:bootRun
       - --no-daemon
     environment:
+      GRADLE_USER_HOME: /home/gradle/.gradle
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/hortinis
       SPRING_DATASOURCE_USERNAME: hortinis
       SPRING_DATASOURCE_PASSWORD: ${HORTINIS_POSTGRES_PASSWORD:?Set HORTINIS_POSTGRES_PASSWORD before starting Compose}
     depends_on:
+      gradle-cache-init:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
     ports:

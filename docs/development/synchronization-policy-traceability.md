@@ -7,7 +7,7 @@ G1 is validated; E10 remains a separate V0 readiness-reporting prerequisite.
 | Required guarantee or failure case | Accepted decision | Contract or fixture evidence | Implementation and final validation |
 | --- | --- | --- | --- |
 | Incremental history can be compacted without expiring local intent | ADR-0023 | `ReconciliationRequiredError`; `reconciliation-required.json` | G3; G5 |
-| A lost acknowledgement replays safely while its receipt exists | ADR-0010 and ADR-0023 | Existing `OperationResult`; `replay-equivalent.json` | E4 and G2e validated stable replay; G5 repeats across retention |
+| A lost acknowledgement replays safely while its receipt exists | ADR-0010 and ADR-0023 | Existing `OperationResult`; `replay-equivalent.json` | E4 and G2e validated stable replay; H9 explicitly counts one journal change after replay across paginated history; G5 repeats across retention |
 | A lost acknowledgement whose receipt is gone is not submitted as new | ADR-0023 and ADR-0026 | `IndeterminateOperationOutcome`; `indeterminate-operation.json` | G3; G5 |
 | Deletion propagates and stale clients cannot resurrect an identity | ADR-0024 | `DeleteTechnicalRecordOperation`, tombstone result and change variants, `TechnicalTombstone`, and `RecordIdentifierRetiredError`; deletion and snapshot fixtures | G2 validated end to end; G5 repeats across retention |
 | Interrupted incremental exchange can resume without advancing past unapplied work | ADR-0010 and ADR-0023 | Existing opaque `SyncCursor` and tombstone-capable `ChangePage` | G2 validated rollback, restart, reload, and real topology; G5 repeats after compaction |
@@ -160,3 +160,22 @@ cross-runtime conformance pass with 278 frontend tests, eight Chromium shell sce
 topology scenarios. Unchanged backend targets are up-to-date. Final documentation and whitespace checks
 pass. See the
 [foundation evidence](foundation-implementation-plan.md#h7-aborted-read-review-follow-up--2026-10-10).
+
+## H9 review hardening — 2026-10-10
+
+The [H9 increment](g2e-review-hardening-plan.md#h9-compose-and-end-to-end-test-cleanup) implements
+configurable development sync identity, isolated named-cache ownership initialization, and explicit
+Gradle cache selection under ADR-0012. Development documentation explains bind-mount ownership and
+retains the existing password-volume warning.
+
+Shared IndexedDB test helpers preserve atomic seeding and close connections on failures; a Chromium
+regression proves rollback, unblocked database deletion, and browser-clock lease expiry. The integrated
+spec is 31% shorter while retaining all four scenarios. Lost-create-acknowledgement coverage now
+asserts exactly one journal change across all pages. No public contract or synchronization policy
+changes; production images and later readiness gates remain separate work.
+
+The full repository suite, cross-runtime conformance, seven topology/configuration tests, and the
+added browser regression pass. All four real scenarios pass with both default identity and host
+`1000:1000`. An isolated root-to-host cache-reuse probe confirms writable cache and generated-file
+ownership; disposable resources are removed. Unchanged backend checks remain up-to-date. See the
+[validation evidence](foundation-implementation-plan.md#h9-review-hardening-evidence--2026-10-10).

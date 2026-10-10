@@ -1597,3 +1597,59 @@ Validation on 2026-10-10:
   executed for this browser-only correction.
 - Final documentation and whitespace checks pass after recording evidence. No dependency, schema,
   public wire contract, permission lifecycle, or synchronization policy is changed.
+
+## H9 review hardening evidence — 2026-10-10
+
+H9 from the [G2e review hardening plan](g2e-review-hardening-plan.md#h9-compose-and-end-to-end-test-cleanup)
+is implemented. [ADR-0012](../architecture/decisions/0012-containers-and-ci.md#development-container-ownership-h9)
+records the development container identity and cache ownership policy.
+
+Sync accepts numeric `HORTINIS_UID`/`HORTINIS_GID` overrides with the existing root defaults. A one-shot
+root initializer prepares ownership of only the named Gradle cache before sync starts. It mounts
+neither the checkout nor PostgreSQL data and uses `chown -hR` to avoid following cache symlinks.
+`GRADLE_USER_HOME` explicitly points at that cache. The development guide explains host mapping,
+existing root-owned build output, cache reuse, and the unchanged persistent database password behavior.
+
+The integrated spec's repeated IndexedDB seeding and reads move into `e2e/support/indexeddb.ts`; create
+and replace seeding share one transaction path, and deletion still atomically retains its pending
+projection. Outbox-chain insertion remains unchanged. Connections close after successful transactions,
+abort failures, and synchronous setup errors. Lease observation retains browser-clock expiry.
+The lost-create-acknowledgement scenario verifies upstream acceptance and counts exactly one accepted
+create across all journal pages. Its browser contexts now close on failure. All four scenarios retain
+their existing outage, deletion, offline-chain, and immutable replay coverage; the spec shrinks from
+563 to 387 lines (31%). No dependency, database schema, public wire contract, or synchronization policy
+changes.
+
+Validation on 2026-10-10:
+
+- `pnpm validate` passed documentation/contracts, frontend formatting/lint/architecture/types, all 278
+  frontend tests, the eight existing Chromium shell scenarios, both web builds, backend
+  build/Spotless/Checkstyle/PMD/unit/PostgreSQL-integration targets, seven topology/configuration tests,
+  and all four real synchronization scenarios with default container identity. Unchanged backend
+  targets were up-to-date rather than freshly executed.
+- `pnpm conformance:validate` passed all 278 frontend tests and strict backend unit/conformance
+  validation; the backend target remained up-to-date.
+- `HORTINIS_UID="$(id -u)" HORTINIS_GID="$(id -g)" pnpm test:e2e:topology` passed all four real scenarios
+  with host identity `1000:1000`. Both topology runs removed their own containers, networks, and volumes.
+- An isolated Docker cache probe initialized one named volume under `0:0`, created a root-owned file,
+  then initialized the same volume under `1000:1000`. The host-mapped sync container verified its
+  identity, appended to the reowned file, and verified ownership of generated temporary build output.
+  The probe's resources were removed without touching development volumes.
+- `pnpm --filter @hortinis/web test:e2e indexeddb-support.spec.ts` passed the added browser regression: failed
+  seed/chain writes roll back, failed reads close their connections, database deletion is unblocked,
+  and lease expiry follows the controlled browser clock. This ninth shell scenario is included in
+  subsequent full-suite runs. Final frontend formatting/lint/types, documentation, and whitespace
+  checks pass after recording evidence.
+- `HORTINIS_POSTGRES_PASSWORD=validation-only pnpm compose:validate` passed. Configuration tests also
+  validate base/combined Compose with root defaults and explicit non-default IDs; initializer tests
+  reject invalid IDs without attempting ownership changes.
+
+### H9 clock-regression review follow-up — 2026-10-10
+
+The browser regression now awaits the same `leaseIsReleased` predicate used by the lease waiter,
+asserting an unexpired lease before advancing browser time and an expired lease afterward. It no
+longer relies on a 200 ms delay or callback scheduling. A temporary mutation using Node time instead
+of browser time fails at the unexpired-lease assertion; the mutation is restored and the correct
+regression passes. Focused Chromium validation, frontend formatting/lint/types, documentation, and
+whitespace checks pass. The full Docker/backend suite is unchanged and was not repeated for this
+test-support correction.
