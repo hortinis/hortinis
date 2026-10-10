@@ -1,12 +1,8 @@
 export interface Garden {
   id: string;
-  spaces: Space[];
   name?: string;
 }
 
-export interface Space {
-  id: string;
-  garden: Garden;
+export interface CreateGardenInput {
   name: string;
-  type: string;
 }

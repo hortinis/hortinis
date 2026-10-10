@@ -69,6 +69,86 @@ paths:
               $ref: '#/components/schemas/Models.TechnicalRecordOperation'
 components:
   schemas:
+    Gardens.CreateGardenOperation:
+      type: object
+      required:
+        - operationId
+        - gardenId
+        - kind
+        - name
+      properties:
+        operationId:
+          $ref: '#/components/schemas/Models.Uuid'
+          description: The stable identifier reused for every retry of this operation.
+        gardenId:
+          $ref: '#/components/schemas/Models.Uuid'
+        kind:
+          type: string
+          enum:
+            - createGarden
+        name:
+          $ref: '#/components/schemas/Gardens.GardenName'
+      unevaluatedProperties:
+        not: {}
+      description: Create a garden with a stable client-generated identifier.
+    Gardens.Garden:
+      type: object
+      required:
+        - gardenId
+        - name
+        - revision
+      properties:
+        gardenId:
+          $ref: '#/components/schemas/Models.Uuid'
+        name:
+          $ref: '#/components/schemas/Gardens.GardenName'
+        revision:
+          $ref: '#/components/schemas/Models.PositiveDecimal'
+      unevaluatedProperties:
+        not: {}
+      description: The accepted current projection of a garden.
+    Gardens.GardenChange:
+      type: object
+      required:
+        - operationId
+        - record
+        - sequence
+      properties:
+        operationId:
+          $ref: '#/components/schemas/Models.Uuid'
+        record:
+          $ref: '#/components/schemas/Gardens.Garden'
+        sequence:
+          $ref: '#/components/schemas/Models.PositiveDecimal'
+      unevaluatedProperties:
+        not: {}
+      description: One accepted garden change in server-sequence order.
+    Gardens.GardenName:
+      type: string
+      minLength: 1
+      pattern: \S
+      description: A garden name containing at least one non-whitespace character.
+    Gardens.GardenOperationResult:
+      type: object
+      required:
+        - outcome
+        - operationId
+        - record
+        - sequence
+      properties:
+        outcome:
+          type: string
+          enum:
+            - accepted
+        operationId:
+          $ref: '#/components/schemas/Models.Uuid'
+        record:
+          $ref: '#/components/schemas/Gardens.Garden'
+        sequence:
+          $ref: '#/components/schemas/Models.PositiveDecimal'
+      unevaluatedProperties:
+        not: {}
+      description: The stable result of accepting or identically replaying garden creation.
     Models.ChangePage:
       type: object
       required:

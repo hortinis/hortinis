@@ -1,0 +1,31 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "CreateGardenOperation.json",
+    "type": "object",
+    "properties": {
+        "operationId": {
+            "$ref": "Uuid.json",
+            "description": "The stable identifier reused for every retry of this operation."
+        },
+        "gardenId": {
+            "$ref": "Uuid.json"
+        },
+        "kind": {
+            "type": "string",
+            "const": "createGarden"
+        },
+        "name": {
+            "$ref": "GardenName.json"
+        }
+    },
+    "required": [
+        "operationId",
+        "gardenId",
+        "kind",
+        "name"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "Create a garden with a stable client-generated identifier."
+}

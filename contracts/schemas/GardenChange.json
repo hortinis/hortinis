@@ -1,0 +1,25 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "GardenChange.json",
+    "type": "object",
+    "properties": {
+        "operationId": {
+            "$ref": "Uuid.json"
+        },
+        "record": {
+            "$ref": "Garden.json"
+        },
+        "sequence": {
+            "$ref": "PositiveDecimal.json"
+        }
+    },
+    "required": [
+        "operationId",
+        "record",
+        "sequence"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "One accepted garden change in server-sequence order."
+}

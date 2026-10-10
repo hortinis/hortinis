@@ -1,0 +1,30 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "GardenOperationResult.json",
+    "type": "object",
+    "properties": {
+        "outcome": {
+            "type": "string",
+            "const": "accepted"
+        },
+        "operationId": {
+            "$ref": "Uuid.json"
+        },
+        "record": {
+            "$ref": "Garden.json"
+        },
+        "sequence": {
+            "$ref": "PositiveDecimal.json"
+        }
+    },
+    "required": [
+        "outcome",
+        "operationId",
+        "record",
+        "sequence"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "The stable result of accepting or identically replaying garden creation."
+}

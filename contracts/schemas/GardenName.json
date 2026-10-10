@@ -1,0 +1,8 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "GardenName.json",
+    "type": "string",
+    "minLength": 1,
+    "pattern": "\\S",
+    "description": "A garden name containing at least one non-whitespace character."
+}

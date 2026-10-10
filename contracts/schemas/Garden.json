@@ -1,0 +1,25 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "Garden.json",
+    "type": "object",
+    "properties": {
+        "gardenId": {
+            "$ref": "Uuid.json"
+        },
+        "name": {
+            "$ref": "GardenName.json"
+        },
+        "revision": {
+            "$ref": "PositiveDecimal.json"
+        }
+    },
+    "required": [
+        "gardenId",
+        "name",
+        "revision"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    },
+    "description": "The accepted current projection of a garden."
+}
