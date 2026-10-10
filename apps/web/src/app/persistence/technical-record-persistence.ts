@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core';
+import { liveQuery } from 'dexie';
 import type {
   CreateTechnicalRecordOperation,
   TechnicalRecordOperation,
@@ -53,6 +54,20 @@ export class TechnicalRecordPersistence {
   }
   commitDelete(operationId: string, recordId: string) {
     return this.local.commitDelete(operationId, recordId);
+  }
+  observeOutboxCount(publish: (count: number | null) => void): () => void {
+    const subscription = liveQuery(async () => {
+      try {
+        return await this.database.outboxOperations.count();
+      } catch {
+        // Return a value before Dexie suppresses aborted reads so observation can recover.
+        return null;
+      }
+    }).subscribe({
+      next: publish,
+      error: () => publish(null),
+    });
+    return () => subscription.unsubscribe();
   }
   firstPendingOperation() {
     return this.outbox.firstPendingOperation();

@@ -1,4 +1,28 @@
 <main>
   <h1>Hortinis</h1>
+  <section aria-label="Browser storage">
+    <p role="status">
+      @switch (storageSafety.persistenceStatus()) {
+        @case ('persistent') {
+          Persistent browser storage is enabled. You can still clear site data in browser settings.
+        }
+        @case ('best-effort') {
+          Persistent browser storage is not confirmed.
+        }
+        @case ('unsupported') {
+          Persistent browser storage requests are unsupported in this browser.
+        }
+      }
+    </p>
+    @if (storageSafety.pendingStorageWarning()) {
+      <p role="alert">
+        Unsynchronized changes are stored in this browser. Persistent storage is not confirmed, so
+        the browser may remove them.
+      </p>
+    }
+    @if (storageSafety.outbox().status === 'unavailable') {
+      <p role="alert">Pending changes could not be checked in browser storage.</p>
+    }
+  </section>
   <router-outlet />
 </main>

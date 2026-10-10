@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core';
+import { StoragePersistence } from '../storage/storage-persistence';
 import type { CreateTechnicalRecordOperation } from './conformance';
 import { generateUuidV7 } from './uuid-v7';
 import { TechnicalRecordPersistence } from '../persistence/technical-record-persistence';
@@ -19,6 +20,7 @@ export interface LocalTechnicalRecordReplace {
 
 @Injectable({ providedIn: 'root' })
 export class TechnicalRecordLocalService {
+  private readonly storagePersistence = inject(StoragePersistence);
   private readonly persistence = inject(TechnicalRecordPersistence);
   private readonly synchronization = inject(TechnicalRecordSynchronizationService);
 
@@ -31,18 +33,21 @@ export class TechnicalRecordLocalService {
     };
 
     const record = await this.persistence.commitCreate(operation);
+    this.storagePersistence.afterLocalCommit();
     void this.synchronization.startBackgroundRecovery();
     return { record, operation };
   }
 
   async replace(recordId: string, value: string): Promise<LocalTechnicalRecordReplace> {
     const result = await this.persistence.commitReplace(generateUuidV7(), recordId, value);
+    this.storagePersistence.afterLocalCommit();
     void this.synchronization.startBackgroundRecovery();
     return result;
   }
 
   async delete(recordId: string): Promise<LocalDeleteCommit> {
     const operation = await this.persistence.commitDelete(generateUuidV7(), recordId);
+    this.storagePersistence.afterLocalCommit();
     void this.synchronization.startBackgroundRecovery();
     return operation;
   }

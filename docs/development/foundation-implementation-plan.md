@@ -1528,3 +1528,72 @@ Validation on 2026-10-08:
 The sandbox prevented the documentation check's Git subprocess. The full suite was retried outside the
 sandbox to permit Git, Gradle cache access, and the isolated Docker topology. Cross-runtime validation
 also used the existing external Gradle cache. These checks completed successfully.
+
+## H7 review hardening evidence — 2026-10-09
+
+H7 implements the browser-persistence requirement in
+[ADR-0008](../architecture/decisions/0008-web-and-local-persistence.md#browser-persistence-lifecycle-h7).
+Startup checks existing permission without prompting. The first successful local commit in a session
+requests persistence once unless already confirmed, including replacement, deletion, and cancellation.
+Browser checks and requests run outside IndexedDB transactions; failures and pending permission cannot
+delay local results or synchronization. Concurrent writes share one automatic request. No stored grant
+marker, schema migration, dependency, HTTP contract, backend change, or telemetry is introduced.
+
+Readonly persistence status and live outbox-count observation drive accessible shell status and warnings.
+Pending changes in unconfirmed or unsupported storage remain visible after reload and other-tab writes.
+Loading and failed observations are distinct from an empty outbox; failed observation is visible.
+An empty outbox is not described as proof of resolved quarantined intent. Destruction disposes the
+observation and prevents queued browser requests and late permission publication.
+
+Validation on 2026-10-09:
+
+- All 276 frontend tests across 27 files pass. New coverage includes granted, denied, unsupported,
+  missing individual APIs, synchronous exceptions and rejected promises, receiver binding, startup
+  ordering, concurrent writes, successful create/replace/delete/cancellation, rolled-back and invalid
+  writes, pending permission, reopening, cross-connection outbox changes, observation failure, and
+  destruction. Shell tests cover all status text, warning removal, and unavailable observations.
+- All eight Chromium shell scenarios pass. Three new deterministic permission scenarios reload saved
+  offline intent without requesting permission and synchronize it in another tab, updating the first
+  tab's warning. Fixtures wait for lease release before navigation rather than depending on expiry.
+  Existing service-worker offline reload, recovery, conflicts, and tombstones remain covered.
+- `pnpm validate` passes documentation, generated contracts and shared fixtures, web formatting, lint,
+  architecture budgets, strict TypeScript/Angular/e2e types, both web builds, backend build/quality/test
+  targets, four topology-runner tests, all four real browser/Spring/PostgreSQL topology scenarios, and
+  repository checks. Isolated containers, network, and test volumes were removed successfully.
+- `pnpm conformance:validate` passes all 276 frontend tests and the unchanged backend unit/conformance
+  target with strict dependency verification. Backend quality and unit/integration targets are
+  up-to-date rather than freshly executed; retained reports show 67 unit/conformance and 42 PostgreSQL
+  integration successes with no failures or skips.
+- Final documentation checks and whitespace validation pass after recording evidence. English-language
+  consistency, transaction and component boundaries, content-free diagnostics, and dependency scope
+  were reviewed. No credentials, local data, or environment-specific configuration were added.
+
+Validation used execution outside the read-only sandbox for generated build output, Gradle cache access,
+and isolated Docker resources. Firefox and Safari permission behavior is documented from browser
+sources; automated browser coverage remains Chromium.
+
+### H7 aborted-read review follow-up — 2026-10-10
+
+Outbox observation now converts failed reads to the existing unavailable result inside the live-query
+callback. Dexie suppresses `AbortError` before subscription error handlers run; previously an aborted
+initial read could remain loading indefinitely, and an aborted later read could retain a stale count.
+Returning an unavailable result lets the query complete observation setup and subsequent Dexie mutations
+refresh the count. No permission, retry, transaction, schema, dependency, or wire policy is changed.
+
+Two regression scenarios abort actual active Dexie read transactions, once on the initial query and
+once after a successful observation. Both failed against the original observer and pass with the fix.
+They assert unavailable status, recovery to the current count after a later successful write, the
+pending-work warning, and warning removal after the outbox drains. All six targeted storage-safety tests
+pass.
+
+Validation on 2026-10-10:
+
+- `pnpm validate` passes all 278 frontend tests across 27 files, eight Chromium shell scenarios,
+  formatting, lint, architecture checks, strict types, both web builds, documentation and contract
+  checks, backend build/quality/unit/integration targets, four topology-runner tests, and all four real
+  browser/Spring/PostgreSQL scenarios. Isolated topology resources were removed successfully.
+- `pnpm conformance:validate` passes all 278 frontend tests and the unchanged backend unit/conformance
+  target with strict dependency verification. Backend targets remain up-to-date rather than freshly
+  executed for this browser-only correction.
+- Final documentation and whitespace checks pass after recording evidence. No dependency, schema,
+  public wire contract, permission lifecycle, or synchronization policy is changed.

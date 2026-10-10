@@ -237,12 +237,23 @@ Validation evidence is recorded in the [foundation implementation plan](foundati
 
 ### H7. Persistent storage request
 
-- Status: `planned`. Effort: small. Depends on: none (ADR-0008 already requires it).
+- Status: `implemented`; validated (2026-10-09). Effort: small. Depends on: none (ADR-0008 already requires it).
 - Add a `StoragePersistence` service that calls `navigator.storage.persist()` after the first local
   commit and exposes a status signal (`persistent`, `best-effort`, `unsupported`). Feature-detect and
   never fail a local write because of it.
 - Tests with a faked `navigator.storage`; document per-browser behavior in ADR-0008.
 - Acceptance: the status is observable; a non-persistent store with a non-empty outbox is flagged.
+
+Implementation checks browser persistence at startup without prompting and requests at most once per
+application session after a successful local commit. API failures never delay writes or synchronization.
+Readonly permission status and live outbox observation drive shell warnings across reloads and tabs;
+failed observations remain distinct from an empty outbox. No dependency, schema, or wire change.
+See [ADR-0008](../architecture/decisions/0008-web-and-local-persistence.md#browser-persistence-lifecycle-h7)
+and the [validation evidence](foundation-implementation-plan.md#h7-review-hardening-evidence--2026-10-09).
+
+The [aborted-read review follow-up](foundation-implementation-plan.md#h7-aborted-read-review-follow-up--2026-10-10)
+handles failures inside the outbox live query so Dexie cannot silently suppress unavailable status.
+Initial and subsequent active-transaction abort regressions verify refresh after later writes.
 
 ### H8. Foreground refresh triggers
 

@@ -108,3 +108,23 @@ projections, pulled pages/tombstones, and rejections. Shared transaction scaffol
 tables explicit. See [ADR-0032](../../docs/architecture/decisions/0032-outbox-chains-coalescing-and-quarantine.md).
 The topology scenarios seed IndexedDB intent because the shell has no editing UI; local coalescing and
 workflow results are exercised through real Dexie transactions in the unit and model suites.
+
+## Browser storage persistence
+
+The shell checks persistence on startup without prompting. `StoragePersistence.status` is a readonly
+signal with `persistent`, `best-effort`, and `unsupported` states. Supported but unconfirmed storage
+(including a pending check, denial, or API failure) remains `best-effort`. The first successful local
+commit in a session starts at most one automatic request without delaying the local result or recovery.
+Failed transactions do not request permission; later writes do not repeat a denied request that session.
+
+`StorageSafetyService` combines permission status with the persisted outbox count. The shell warns about
+pending changes when persistence is unconfirmed or unsupported, including after reload and updates from
+other tabs. Loading and unavailable observations are distinct from an empty outbox; failures display a
+separate message. Aborted reads also publish unavailable status; a later Dexie write refreshes the
+observation. Empty outbox status does not imply that quarantined H6 intent has been resolved.
+Components access application services; Dexie observation stays inside the persistence boundary.
+
+Persistence reduces eviction risk but users can still clear site data. Firefox may prompt, whereas
+Chromium and Safari normally decide automatically. See
+[ADR-0008](../../docs/architecture/decisions/0008-web-and-local-persistence.md#browser-persistence-lifecycle-h7)
+for the lifecycle, browser limitations, and planned recovery work. No new dependency or schema is needed.

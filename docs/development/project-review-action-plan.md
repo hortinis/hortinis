@@ -493,3 +493,30 @@ The real scenarios assert predecessor order, unchanged lost-acknowledgement repl
 final projections, and one journal entry per operation. The full repository suite passes; unchanged
 backend quality, unit/conformance, and PostgreSQL integration targets are up-to-date. See the
 [foundation validation evidence](foundation-implementation-plan.md#h6-review-hardening-evidence--2026-10-08).
+
+## H7 review hardening — 2026-10-09
+
+The [H7 increment](g2e-review-hardening-plan.md#h7-persistent-storage-request) implements
+[ADR-0008](../architecture/decisions/0008-web-and-local-persistence.md#browser-persistence-lifecycle-h7).
+The browser checks existing persistence on startup and requests it once per application session after
+the first successful local commit. Permission failure or delay cannot fail a write or delay recovery.
+Readonly permission status and persisted outbox observation expose pending-work eviction warnings,
+including after reload and other-tab writes. Observation failure is visible and distinct from an empty
+outbox. No schema, dependency, transport, retry-policy, or backend change is introduced.
+
+Validation passes 276 frontend tests across 27 files, eight Chromium shell scenarios, strict types,
+formatting, lint and architecture checks, both web builds, cross-runtime conformance, and all four real
+topology scenarios. The full repository suite passes; unchanged backend quality/unit/integration targets
+are up-to-date. Final documentation and whitespace checks pass. See the
+[foundation validation evidence](foundation-implementation-plan.md#h7-review-hardening-evidence--2026-10-09).
+
+### H7 aborted-read review follow-up — 2026-10-10
+
+Outbox observation catches failed reads inside the Dexie live-query callback, including `AbortError`,
+so unavailable status is visible and later successful writes refresh the count. Regression tests abort
+initial and subsequent reads using actual active Dexie transactions and verify recovery and warning
+updates. Both regressions failed before the fix and pass afterward. The full repository suite and
+cross-runtime conformance pass with 278 frontend tests, eight Chromium shell scenarios, and four real
+topology scenarios. Unchanged backend targets are up-to-date. Final documentation and whitespace checks
+pass. See the
+[foundation evidence](foundation-implementation-plan.md#h7-aborted-read-review-follow-up--2026-10-10).
