@@ -52,9 +52,10 @@ recipients, location/transfers, terms, and lawful-basis review.
 
 ## Inventory and proposed lifecycle
 
-ADR-0023's synchronization periods are accepted protocol policy. Other numeric periods below are
-proposals for S8/S15/operator assessment; they are not activated defaults. A deployment must record its
-effective values and justification, implement automatic purge, and close the blockers below before
+ADR-0023's synchronization periods and the [S8 authentication numeric policy](../architecture/authentication-and-sessions.md#numeric-policy)
+are accepted design. S8 values remain inactive until their adapters pass; other operational/backup
+periods below remain proposals for S15/operator assessment. A deployment must record its effective
+values and justification, implement automatic purge, and close the blockers below before
 real-data use. Account inactivity alone does not discard garden history or unresolved local intent.
 
 | Category and fields | Purpose and location/recipients | Retention and deletion |
@@ -73,7 +74,7 @@ real-data use. Account inactivity alone does not discard garden history or unres
 | Snapshot/reconciliation sessions | Anchored, resumable reconciliation; authorized temporary server/browser state. | ADR-0023: default 24 hours, minimum 1 hour. Purge automatically after expiry/completion under accepted cleanup rules; scope deletion purges immediately through its workflow. |
 | Retired record-identifier reservations | Prevent stale resurrection; authorized server scope, no former record values. | Scope lifetime under ADR-0024; purge when the scope is destroyed. Never recreate that scope/record ownership from stale client input. |
 | Operational events: UTC time, fixed event/method/route template, status, duration, fresh request/trace reference | Availability diagnosis; operator-controlled logging. Treat linkable event references as personal metadata. | Proposed rolling 30 days, with purpose justification and automatic rotation/purge in S15. No bodies, credentials, stable account/scope/device/record/operation IDs, raw addresses, concrete routes, or query values. |
-| Security events: UTC time, fixed event/outcome/reason, request reference, justified factor/device-type enum, optional purpose-limited pseudonymous subject reference | Detect/investigate authentication/authorization abuse; separate restricted security store. No raw session/account/scope/device IDs or attempted login strings. | Proposed rolling six months for documented security investigation; S15 accepts a purpose-specific period. Purge subject mappings when no longer needed, including deletion assessment; legal holds require narrow documented scope/expiry. |
+| Security events: UTC time, fixed event/outcome/reason and fresh request reference | Detect/investigate authentication/authorization abuse; separate restricted security store. S8 baseline has no subject mapping, raw session/account/scope/device IDs, addresses or attempted login strings. | S8 accepts rolling 30 days with daily and overdue startup purge; S15 verifies access/purpose and effective operator policy. A future subject mapping or legal hold needs a separate minimized purpose and bounded review, not automatic retention. |
 | Network source addresses and transient abuse counters | Establish connections and defend against excessive attempts; infrastructure/resolver memory with trusted proxy handling. | Process transiently; no raw IP persistence in application/proxy logs. S8/S15 specifies bounded limiter keys/windows and their privacy inventory before use. No durable tracking or account analytics. |
 | Server backups, volume/database snapshots and protected operational restoration copies | Recover installation data; restricted operator storage. May contain every backed-up personal/secret category. | Proposed maximum rolling 30 days, subject to justified operator choice in P0.6/S15. Encrypt/restrict access; purge expiry; suppress deleted accounts/scopes before serving any restored copy. Backups are not an indefinitely retained archive. |
 | Purge progress and minimal restore-suppression evidence: deleted opaque identity, deletion time/status, affected backup boundary | Resume erasure and prevent restoration resurrection; restricted store protected from rollback with affected backups. | Until purge completes and all affected backups expire or are erased, then purge automatically. No garden content or credentials; retain longer only under a specific documented legal obligation/hold. |
@@ -154,7 +155,8 @@ address residual high risk before processing; seek qualified review where necess
 
 ## Blocking work and authoritative sources
 
-S8/S11 must settle factor/recovery/session/enrollment lifetimes and data minimization. P0.6/S12/S15 must
+S8 settles factor/recovery/session/enrollment policy and data minimization; S9-S12 must implement and
+verify the selected controls and cleanup. P0.6/S12/S15 must
 settle numeric log/backup/cleanup periods, implement deletion and restore suppression, verify logs at
 every layer, and document operator safeguards. The operator must complete the legal-purpose/rights,
 processor/transfer, incident, and DPIA records. Unresolved entries block real personal-data deployment;
@@ -166,7 +168,8 @@ Normative reference: [GDPR](https://eur-lex.europa.eu/eli/reg/2016/679/oj), espe
 [user profiles](https://www.cnil.fr/en/sheet-ndeg8-manage-user-profiles),
 [retention](https://www.cnil.fr/en/sheet-ndeg14-define-data-retention-period), and
 [personal-data security guide](https://www.cnil.fr/sites/default/files/2024-03/cnil_guide_securite_personnelle_ven_0.pdf).
-The proposed six-month security period is informed by CNIL guidance, not a universal statutory period.
+S8 selects a minimized 30-day baseline security-event period for local abuse investigation. This is
+an application design choice, not a universal statutory period; S15/operator purpose review remains required.
 
 ## S3 synthetic partitioning handoff
 
@@ -253,3 +256,47 @@ excluded from source control; normal production logging restrictions remain unch
 removes only its generated project containers, volumes and network, including failure paths. This is
 no authenticated isolation, production log/backup retention, secure-erasure, lawful-basis or GDPR
 readiness evidence; the S8-S15/P0.6 and deployment gates remain applicable.
+
+
+## S8 selected authentication inventory and purposes
+
+[ADR-0033](../architecture/decisions/0033-built-in-authentication-and-sessions.md) and the
+[authentication specification](../architecture/authentication-and-sessions.md) refine the existing
+identity/security processing inventory without activating runtime processing. Store only the following
+fields when their implementing step passes. No mandatory email, phone, external identity recipient,
+biometric template, precise location, fingerprint or analytics is selected.
+
+| Fields | Purpose, classification and recipients | Selected lifecycle |
+| --- | --- | --- |
+| Canonical local login name, account ID/status/authority epoch, explicit scope ownership, verifier | Autonomous login and current account authorization; personal identity metadata and secret verifier. Restricted server store, with only minimized authorized status/identity exposed to the account's browser. | Account lifetime; replace obsolete verifier immediately during change/reset, increment epoch and invalidate access atomically. Complete account purge remains S12. Never keep a verifier history. |
+| WebAuthn random user handle, credential ID/public key/algorithm, verification/backup counters and optional label | Verify account possession and let the account manage credentials; personal security metadata, restricted server plus that account's authorized credential UI. Authenticator private key/PIN/biometric stays outside Hortinis. | Active credential lifetime; revoked credentials purge in the revoking transaction. Replacement cannot remove the last usable factor before verified replacement. Optional label at most 64 scalar values; at most eight credentials. |
+| Session secret, minimal principal, authority epoch, creation/interaction/absolute/factor times, CSRF state, random non-secret logout target | Protected login/CSRF and stale-logout fencing; secret server/session-cookie material and personal lifecycle metadata. Cookie secret is HttpOnly and never JSON; CSRF is transient script memory. | 30-minute qualifying inactivity, 12-hour absolute full session, five-minute restricted ceremony. Revoke immediately and purge server rows within 60 seconds/startup. The invalidated browser cookie can remain until replacement/closure because delayed deletion headers could erase a new session; it grants no access. |
+| Setup/recovery/enrollment purpose and exact target, SHA-256 ticket verifier, challenge and expiry | Controlled first ownership, factor replacement and explicit device enrollment; restricted secret/transient personal state. Raw ticket supplied only through a protected operator file/channel and POST; raw challenges are bounded browser memory. | Ten-minute operator ticket; five-minute challenge/recovery/enrollment or earlier parent expiry; one use. Cleanup within 60 seconds and startup. Protected raw-ticket files are removed on consumption/expiry under the operator workflow below. |
+| Ten recovery-code verifiers, expiry and minimal consuming workflow state | Autonomous two-proof recovery without email or cloud; secrets generated/show-once, restricted server verifiers and user-controlled offline copy. | 365 days maximum; consumed verifiers deleted atomically; expired within 60 seconds/startup. Regeneration invalidates the complete old set. User controls printed/exported code copies; disclose this limit. |
+| Pending logout origin/random target/local fence | Preserve an explicit offline sign-out across reload/tabs without copying a credential; personal local workflow state only. | Until remote invalidation/expiry is acknowledged or explicit session-change recovery completes; then purge. No garden-data age expiry, cookie secret or persistent CSRF value. |
+| Device identity/status, optional label, day-level last-activity display | Explicit enrollment, listing and targeted revocation; personal metadata, only owning account/operator with documented exceptional powers. No fingerprint or precise source address. | Enrollment lifetime; revocation immediately denies; obsolete metadata purges within 30 days and overdue startup. Account purge overrides retention. Exact authentication times remain in bounded sessions rather than activity history. |
+| HMAC transient source/login keys, counts/window/last-use, per-process random key | Bound brute-force/recovery/resource abuse without persistent tracking; pseudonymous security metadata in process memory only. No raw key/address/login output or recipient. | Five/20/60 attempts per rolling minute as specified; 4,096 keys maximum, 15-minute idle expiry, 60-second cleanup; key/counters disappear at process end. No durable security subject mapping. |
+| Fixed security event/outcome/reason, UTC and fresh request reference | Short-term abuse diagnosis and incident triage; linkable personal metadata in separate restricted server security store. | Rolling 30 days, daily/overdue startup purge; no credentials, content, addresses, stable identities or default subject mappings. S15 verifies collection, rights handling and operator access. |
+
+Raw operator tickets use an application-owned 0700 secret directory and exclusively created 0600 files;
+no symlink traversal, argument/URL/env secret or stdout/log secret. The controlled workflow records only
+necessary target/purpose/hash/expiry, removes its file on consumption/expiry within 60 seconds, and
+cleans overdue files at startup before accepting setup. Protect this directory as secret storage;
+exclude it from business exports and ordinary backups. Framework session storage also contains secret
+material and needs least privilege/encrypted deployment storage/transport in S15. Application-row purge
+does not claim secure physical erasure of database pages, browser media or backups.
+
+The operator must document separate lawful-basis inputs for requested account/synchronization service,
+necessary session/CSRF functionality, proportionate abuse prevention and exceptional host recovery.
+Assess the actual controller relationship, requested service, necessity, alternatives, security risks,
+people affected and any interests/balancing analysis required by the selected basis. Do not substitute
+blanket consent or the project's design choice for the deployment's Article 6 determination. Existing
+[GDPR/operator information and rights requirements](#controlleroperator-processing-record-and-user-information)
+still apply. Thirty-day security retention is chosen for bounded local incident triage without a
+long-lived subject trail; changing it requires a documented purpose/retention review.
+
+User information before enrollment explains mandatory password/passkey, recovery-code independence and
+expiry, necessary cookie/CSRF purposes, account metadata, optional authenticator-provider synchronization,
+server recipient/operator access, invalidated-cookie residue, offline retention/shared-profile access,
+revocation and local/export/backup deletion limits. Account closure/purge and restoration suppression
+remain S12/P0.6/S15 gates; no real personal-data deployment or legal-compliance finding follows from S8.

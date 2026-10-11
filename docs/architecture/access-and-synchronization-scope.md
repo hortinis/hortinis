@@ -27,7 +27,8 @@ credential-bearing object. Background jobs use an explicitly authorized internal
 Device enrollment requires explicit authorization for the owning account, a bounded one-time
 replay-resistant handshake, and a fresh device identity/session. A supplied device ID does not prove
 enrollment. Recovery cannot grant weaker access than the accepted account-authentication policy.
-S8/S11 select the concrete mechanism and limits; until implemented, deny enrollment rather than
+The [S8 authentication specification](authentication-and-sessions.md) selects concrete mechanisms and
+limits; S11 implements them. Until implemented, deny enrollment rather than
 accepting a browser-declared device. Enrolled devices access the account's existing scope, not a copy
 or a newly inferred scope.
 
@@ -145,8 +146,9 @@ Offline sign-out cannot reliably delete an HttpOnly cookie without server contac
 script storage or claim immediate remote invalidation. Suppress authenticated background traffic while
 logout is pending, retry only logout, and complete it before allowing renewed synchronization.
 Complete pending logout before initiating a new sign-in on that server, coordinate it across tabs,
-and never replay a stale logout against a newly created session. S8 defines the protected logout
-contract and S12 verifies interruption and session-change races without script-readable credentials.
+and never replay a stale logout against a newly created session. The [S8 protected logout design](authentication-and-sessions.md#protected-online-and-offline-logout)
+defines target fencing and forbids logout cookie mutation; S12 verifies interruption and session-change
+races without script-readable credentials.
 
 ## Mode changes and server restoration
 
@@ -219,9 +221,10 @@ These are required future executable scenarios, not claims of tests added by S1.
 ## Deferred decisions and release blockers
 
 S2 defines [wire contracts and binding versioning](../api/access-and-binding-contracts.md) before
-adapters, with strict shared parsing fixtures. S8 selects the authentication library,
-factor strength, password/recovery policy, CSRF mechanism, exact session limits, and concurrent-session
-limits. No authenticated path ships while these decisions are unresolved. Device enrollment follows
+adapters, with strict shared parsing fixtures. [ADR-0033](decisions/0033-built-in-authentication-and-sessions.md)
+and the [authentication specification](authentication-and-sessions.md) settle S8 library, factor,
+recovery, CSRF and numeric policies. S9-S12 must implement and verify them before authenticated paths
+ship. Device enrollment follows
 S11; additional-account/server imports and anchored recovery follow S12/S14 and P0.6.
 
 S15 closes the ASVS implementation/evidence register, assesses offline-storage deviations, and verifies

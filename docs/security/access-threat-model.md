@@ -1,7 +1,7 @@
 # Access and synchronization threat model
 
-- Status: Accepted S1 design baseline, 2026-10-02; S3 database and S4 no-auth request/configuration
-  controls and S5 local ownership implemented; authenticated and operational verification remain pending.
+- Status: Accepted S1 design baseline, 2026-10-02; S3-S7 synthetic scope foundation implemented
+  and S8 authentication design resolved, 2026-10-11. Authenticated and operational verification remain pending.
 - Policy: [ADR-0029](../architecture/decisions/0029-access-and-synchronization-scope.md).
 - Functional rules and scenarios: [access specification](../architecture/access-and-synchronization-scope.md).
 - Data classification and retention: [privacy lifecycle](../privacy/access-data-lifecycle.md).
@@ -44,11 +44,11 @@ stronger controls, not a claim of Level 3 verification. Scenario IDs refer to th
 | --- | --- | --- | --- |
 | T01: Untrusted browser supplies an account/scope/device ID or forges a context | Resolve authority server-side before workflow execution; no production impersonation inputs; explicitly scoped persistence. | `v5.0.0-8.2.1`, `v5.0.0-8.3.1`, `v5.0.0-15.3.3` | S2/S4/S9/S10; AC-AS-02; invalid/extra-property and resolver-denial cases. |
 | T02: Cross-account IDOR using records, receipts, cursors, generations, snapshots, or colliding IDs | Look up only inside the authorized scope; bind protocol state to instance/scope; independently partition locks and browser work. | `v5.0.0-8.2.2`, `v5.0.0-8.4.1` | S3/S5/S7/S13/S14; AC-AS-03/04 with deliberate substitutions and identical IDs. |
-| T03: Credential/session theft or fixation | Established authentication implementation; protected opaque cookies; independent CSPRNG session secrets; rotation, expiry, revocation, recent authentication for sensitive actions. | `v5.0.0-3.3.1`, `v5.0.0-3.3.2`, `v5.0.0-3.3.3`, `v5.0.0-3.3.4`, `v5.0.0-7.2.3`, `v5.0.0-7.2.4`, `v5.0.0-7.3.1`, `v5.0.0-7.3.2`, `v5.0.0-7.5.3` | S8/S9/S11/S12; AC-AS-06/08 and stolen/old-cookie tests. Numeric policies are S8 blockers. |
+| T03: Credential/session theft or fixation | Established authentication implementation; protected opaque cookies; independent CSPRNG session secrets; rotation, expiry, revocation, recent authentication for sensitive actions. | `v5.0.0-3.3.1`, `v5.0.0-3.3.2`, `v5.0.0-3.3.3`, `v5.0.0-3.3.4`, `v5.0.0-7.2.3`, `v5.0.0-7.2.4`, `v5.0.0-7.3.1`, `v5.0.0-7.3.2`, `v5.0.0-7.5.3` | S8/S9/S11/S12; AC-AS-06/08 and stolen/old-cookie tests. S8 numeric policy is accepted; adapters/evidence remain S9-S12 work. |
 | T04: CSRF, login/logout forgery, or drive-by mutation of a no-auth server | Explicit origin/CSRF defense for sensitive actions, safe HTTP methods, no wildcard credentialed CORS, no permissive private-network assumption. | `v5.0.0-3.5.1`, `v5.0.0-3.5.2`, `v5.0.0-3.5.3`, `v5.0.0-3.4.2` | S4/S8/S9/S12/S15; malicious-origin, simple-request, preflight-bypass, and setup/logout cases. |
 | T05: XSS-assisted requests or local data exfiltration | Render untrusted content as text; contextual encoding; restrictive CSP; no third-party runtime assets; no script-readable credentials. Treat same-origin compromise as able to read offline data and issue authorized requests. | `v5.0.0-1.2.1`, `v5.0.0-3.2.2`, `v5.0.0-3.4.3`, `v5.0.0-14.2.3` | S8/S15 plus each content adapter; malicious-content/header review; offline-storage deviations remain visible. |
 | T06: Replay after lost acknowledgement or across bindings | Stable operation identity/request fields; per-scope receipts; fenced response application; expired generations become explicit reconciliation/indeterminate work. | `v5.0.0-2.3.1`, `v5.0.0-2.3.3`, `v5.0.0-15.4.2` | S6/S7/S12/S13/S14; AC-AS-04/05/07; ADR-0010/0023/0026 replay corpus. |
-| T07: Brute force, account enumeration, or abusive recovery | Bounded attempts and resource limits without permanent attacker-induced lockout; generic account-related errors; consistent strength on every recovery/bootstrap path. | `v5.0.0-6.1.1`, `v5.0.0-6.3.1`, `v5.0.0-6.3.3`, `v5.0.0-6.4.3`, `v5.0.0-6.3.8` | S8-S11/S15; throttling, timing, expiry, single-use, and recovery-bypass evidence. Factor design remains blocked at S8. |
+| T07: Brute force, account enumeration, or abusive recovery | Bounded attempts and resource limits without permanent attacker-induced lockout; generic account-related errors; consistent strength on every recovery/bootstrap path. | `v5.0.0-6.1.1`, `v5.0.0-6.3.1`, `v5.0.0-6.3.3`, `v5.0.0-6.4.3`, `v5.0.0-6.3.8` | S8-S11/S15; throttling, timing, expiry, single-use, and recovery-bypass evidence. S8 factor/recovery design is accepted; executable bypass/timing proof remains pending. |
 | T08: Revocation/deletion races and delayed responses | Commit access invalidation with ordered acceptance; revalidate on every request; serialize local binding changes; discard responses captured under stale binding fences. | `v5.0.0-7.4.1`, `v5.0.0-7.4.2`, `v5.0.0-8.3.2`, `v5.0.0-15.4.1`, `v5.0.0-15.4.2`, `v5.0.0-15.4.3` | S9/S11/S12; AC-AS-07/08/11 under controlled concurrency and restart. |
 | T09: Malicious replacement server or restored older state | Validate origin/TLS and retained installation/account binding; new instance identity on rollback; explicit recovery; restore deletion instructions and prevent auth downgrade. Instance ID detects mismatch, not a hostile server that clones it. | `v5.0.0-12.2.1`, `v5.0.0-12.3.2`, `v5.0.0-2.3.1`, `v5.0.0-16.5.3` | S6/S12/S14/S15/P0.6; AC-AS-07/10/12; a cloned identity remains a server-compromise residual risk. |
 | T10: Database compromise, injection, or overprivileged service account | Parameterized queries; least privilege; encrypted protected transport/storage per deployment risk; established password hashing; scoped constraints; protect and rotate backend secrets. | `v5.0.0-1.2.4`, `v5.0.0-11.4.2`, `v5.0.0-12.3.1`, `v5.0.0-13.2.1`, `v5.0.0-13.2.2`, `v5.0.0-13.3.1`, `v5.0.0-14.2.4` | S3/S8/S15/deployment gate; privilege, secret, TLS, and restore review. Current development DB credentials/transport are not production evidence. |
@@ -75,8 +75,8 @@ their controls. No Level 2 certification/completion claim follows from this desi
 | D01: `v5.0.0-14.3.1` expects authenticated client data to clear at session end | Accepted product deviation: logout preserves the intentional offline data set. | Clear transient credential/account UI state and pause sync; do not send `Clear-Site-Data` that destroys pending intent. Device/profile protection, explicit local deletion, disclosure, and S15 review remain required. |
 | D02: `v5.0.0-14.3.3` excludes sensitive browser persistence | Accepted product deviation: local garden data and necessary synchronization metadata persist in IndexedDB. | Minimize local data; prevent XSS; no credentials in browser script storage; isolate data sets and bindings. No encryption-at-rest or local secrecy claim; S15 must review residual risk before real-user use. |
 | D03: `v5.0.0-15.3.4` includes source addresses in logging/security decisions | Privacy restriction: do not persist raw source addresses in application or proxy logs. | Validate proxy authority and use addresses transiently for necessary rate limiting; document any short-lived abuse keys and purge bound. Security logs use approved event/subject references. Record the logging limitation during S15 verification. |
-| B01: `v5.0.0-6.3.3` requires multiple authentication factors or combined mechanisms | Applicable unresolved authentication-strength decision, not N/A. | S8 must select adequate mechanisms or document a justified exception and comprehensive controls for review. No password-only Level 2 assumption; block authenticated implementation approval until resolved. |
-| B02: session/recovery/enrollment/CSRF policy details | Applicable unresolved design in S8/S11. | Record numeric lifetimes, factor/recovery strength, replay defense, and concurrency before their adapters. Never ship permissive placeholder values. |
+| B01: `v5.0.0-6.3.3` requires multiple authentication factors or combined mechanisms | S8 design resolved by ADR-0033: password plus user-verified WebAuthn; restricted two-proof recovery. | Applicable, never N/A or an implementation pass. S9/S11/S15 must prove factor consistency, no partial/setup/recovery data authority and no weaker login path before release. |
+| B02: session/recovery/enrollment/CSRF policy details | S8 design resolved in the authentication specification's numeric policy and state/transaction rules. | S9-S12 must implement and test finite limits, single-use proof, CSRF, concurrency, cleanup and stale-cookie/logout ordering; design selection does not close executable release evidence. |
 | B03: production transport, service identity, secrets, and security-log collection | Applicable deployment/evidence work in S15 and foundation deployment gates. | Verify TLS including database/internal traffic, service credential lifecycle (including `v5.0.0-13.2.1`), protected secret handling, and logically separate security collection. Development Compose is not proof of these controls. |
 | B04: operational/security/backup retention periods and deletion execution | Explicit privacy/release work in S12/S15/P0.6. | Accept deployment-specific periods, implement purge/restore suppression, and test every category before real-data use. |
 | B05: legal basis, information, rights, processors, breach readiness, DPIA screening | Operator/controller decisions plus S15 evidence. | Use the privacy lifecycle template; unresolved entries block real personal-data deployment rather than weakening controls. |
@@ -166,3 +166,31 @@ identities, expectations and credential/header canaries (T11/AC-AS-14).
 These are synthetic configured contexts, not authenticated accounts or enrolled devices. Authentication,
 revocation, transitions, scope-aware generations/reconciliation, production TLS/proxy/log retention,
 and the ASVS/privacy release audit remain S8-S15 work. This evidence creates no Level 2 compliance claim.
+
+
+## S8 authentication design boundary
+
+[ADR-0033](../architecture/decisions/0033-built-in-authentication-and-sessions.md) and the
+[authentication specification](../architecture/authentication-and-sessions.md) resolve B01/B02 design.
+Spring Security factor-aware authorization, WebAuthn validation, explicit Argon2id and Spring Session
+JDBC are selected. Mandatory password plus user-verified passkey grants normal authority; setup,
+partial factors and two-proof recovery remain bounded and cannot access garden/binding identity.
+Controlled host recovery cannot become an ordinary operator garden login. No email/cloud service,
+default user, password-only activation or implicit account/scope linking is accepted.
+
+T03/T04/T07/T08/T10/T11/T13/T15 now have concrete policy for cookie protection, factor/secret handling,
+CSRF, finite absolute and user-inactivity bounds, replay consumption, current authority/epoch checks,
+account/device/scope lock order, concurrency/CPU/memory/rate bounds and cleanup. The logout review
+identified delayed cookie deletion as a threat to newer sessions: logout and stale data responses emit
+no session Set-Cookie, while target references and all-tab workflow fencing prevent stale invalidation.
+The remaining invalidated HttpOnly cookie grants no access and has a disclosed browser lifetime.
+S9-S12 must prove these controls at their actual transaction/filter/browser boundaries; no design claim
+substitutes for that evidence.
+
+T05/T09/T12/T14 remain deployment/offline risks. Shared profiles and same-origin compromise can read
+retained local data; passkey cloud backup is user-controlled and no hardware-only assurance is claimed.
+Recovery codes stored with other factors lose independence and are less phishing-resistant. Transient
+limiting resets on service restart and initially supports one active backend; S15 must verify restart,
+proxy/flood and deployment assumptions before scaling or release. The 30-day minimized security store,
+local corpus provenance and complete purge/restore/TLS/operator controls remain executable gates.
+S8 introduces no active cookie, account, endpoint or dependency and marks no ASVS requirement passed.

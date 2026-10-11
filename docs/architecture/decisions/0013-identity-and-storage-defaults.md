@@ -29,5 +29,7 @@ A default self-hosted installation must provide identity and file storage withou
 requires no account, an explicitly selected individual server may omit application authentication,
 and authenticated/shared servers retain built-in accounts and protected cookie sessions. It defines
 scope ownership, binding, sign-out with retained offline data, revocation, and mode transitions.
-Authentication-library selection, factor/recovery mechanisms, and numeric session limits remain S8
-decisions; an optional-account mode is not a permissive runtime fallback.
+[ADR-0033](0033-built-in-authentication-and-sessions.md) and the
+[authentication specification](../authentication-and-sessions.md) settle S8 library, factor/recovery
+and numeric session decisions. Their runtime adapters remain S9-S12 work; an optional-account mode
+is not a permissive runtime fallback.

@@ -429,7 +429,8 @@ preserves local data and pending intent.
 
 ### S8 — Select the built-in authentication and session design
 
-- Status: `planned`.
+- Status: `validated` (2026-10-11), design only.
+- Implementation plan: [S8 implementation plan](s8-implementation-plan.md).
 - Depends on: S1 and S4.
 - Scope: record the authentication-library decision required by ADR-0013 and specify account bootstrap,
   login, password change and recovery, secure session creation and rotation, inactivity and absolute
@@ -444,6 +445,31 @@ preserves local data and pending intent.
   flow; define purposes, lawful-basis inputs, retention, erasure, recovery records, security-log fields,
   and user information before implementation. A self-hosted installation must not require an external
   identity or email provider.
+
+- Artifacts: [ADR-0033](../architecture/decisions/0033-built-in-authentication-and-sessions.md),
+  [authentication/session specification](../architecture/authentication-and-sessions.md), updated
+  threat/ASVS/lifecycle records and architecture/development handoffs. Boot-managed Spring Security,
+  WebAuthn/Password4j and Spring Session JDBC are selected for S9; no runtime dependency or endpoint
+  is added in S8. Mandatory password plus user-verified passkey resolves B01 design; bounded two-proof
+  recovery cannot grant data access. B02 design now has explicit session/challenge/ticket/recovery/
+  enrollment/concurrency/CSRF/limiter/cleanup policy and ordered account/device/scope invalidation.
+- Review: checked setup, normal/partial login, credential changes, recovery, enrollment, host recovery,
+  expiry and logout for strength/authority bypass, enumeration, fixation, replay and secret persistence.
+  Fixed delayed cookie deletion by forbidding logout/stale-data Set-Cookie; disclosed inactive-cookie
+  residue and added all-tab target fencing. Added controlled raw-ticket directory/file cleanup and
+  clarified minimum independent salt size. English content, dependency/contract sequencing, no-email
+  autonomy, shared-profile/same-origin limits and security-log minimization were reviewed.
+- Evidence (2026-10-11): final reviewed `pnpm validate` passed with 345 web unit tests, 11 standard
+  Chromium tests, 112 Java unit tests, 68 PostgreSQL integration tests, six real-topology Chromium
+  tests and all existing contract/documentation/generated-artifact/architecture/quality/build/repository
+  gates. An additional register check confirms all 345 unique ASVS requirements and the reconciled
+  counts: 168 Applicable, seven Selected L3, 40 Conditional, zero Pending decision, three Deviations,
+  42 N/A and 85 Outside L2. These are applicability counts, not implementation passes. Library facts
+  were checked against official framework sources; numeric values are accepted application policy.
+- Handoff: S9 may start with TypeSpec/OpenAPI contracts before adapters and fresh databases. It must
+  verify the licensed local password corpus, locked dependency compatibility, real crypto/session/
+  transaction/browser behavior and cleanup. Authenticated modes still fail startup at S8. B01/B02
+  executable evidence, B03-B05, D01-D03, operational/deletion/restore and S15 release gates remain open.
 
 ### S9 — Implement authenticated single-user access
 

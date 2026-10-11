@@ -110,7 +110,10 @@ protected responses. Intentional IndexedDB storage remains governed by the accep
 it is not HTTP caching. The service worker must keep API responses outside its asset/data caches.
 S2 tests declarations; later adapters and topology tests prove actual headers and cache behavior.
 
-Session cookies and authentication/CSRF policy remain S8 decisions. This contract adds no login,
+Session cookies and authentication/CSRF policy are selected by
+[ADR-0033](../architecture/decisions/0033-built-in-authentication-and-sessions.md) and the
+[S8 authentication specification](../architecture/authentication-and-sessions.md); their contract-first
+adapters remain S9-S12 work. The S2 contract adds no login,
 Bearer authentication, credentials in URLs, or script-storage credentials. Existing opaque cursor and
 snapshot query values remain non-secret protocol state. Identifiers, expectations, bindings, and
 bodies must not enter operational or security logs. All fixtures use synthetic data.

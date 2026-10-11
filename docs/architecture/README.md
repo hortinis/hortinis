@@ -79,6 +79,7 @@ Separate packages or modules require demonstrated reuse or a need for independen
 - [ADR-0030: Browser accepted state and recovery completion](decisions/0030-browser-accepted-state-and-recovery.md)
 - [ADR-0031: Technical record input bounds](decisions/0031-technical-record-input-bounds.md)
 - [ADR-0032: Outbox chains, coalescing, and quarantine](decisions/0032-outbox-chains-coalescing-and-quarantine.md)
+- [ADR-0033: Built-in authentication and sessions](decisions/0033-built-in-authentication-and-sessions.md)
 
 ## Access design and implementation handoff
 
@@ -90,6 +91,10 @@ revocation, configuration transitions, and complete deletion. Its
 [data inventory and lifecycle](../privacy/access-data-lifecycle.md) form S1's design baseline.
 The [implementation plan](../development/access-and-synchronization-scope-implementation-plan.md)
 tracks the remaining contracts, scope isolation, authentication, recovery, and release evidence.
+
+The [built-in authentication and session specification](authentication-and-sessions.md) and ADR-0033
+settle S8 library, strength, recovery and numeric policy. S9-S12 adapters and S15 verification remain
+incomplete; S8 does not activate authenticated modes.
 
 ## Open decisions
 

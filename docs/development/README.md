@@ -20,6 +20,16 @@ pnpm validate
 
 The root command stops at the first failure and runs the existing checks without hiding their independent entry points. Browser validation requires the Playwright Chromium binary to be installed once as described below.
 
+### S8 authentication design handoff
+
+[ADR-0033](../architecture/decisions/0033-built-in-authentication-and-sessions.md) and the
+[authentication/session specification](../architecture/authentication-and-sessions.md) define the
+selected framework, two-proof login/recovery, numeric bounds, privacy lifecycle and adapter tests.
+S8 is documentation/design only. Both authenticated modes still fail startup; no login endpoint,
+password corpus, security dependency, session schema or cookie is installed by this step. S9 defines
+TypeSpec/OpenAPI first and then implements/verifies the fresh-database adapters. Production
+security/privacy release evidence remains S15 and the applicable foundation gates.
+
 ### Container topology
 
 The Docker Compose development topology runs PostgreSQL 18 and the synchronization service from the

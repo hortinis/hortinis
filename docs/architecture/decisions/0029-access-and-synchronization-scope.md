@@ -259,3 +259,13 @@ contexts, independent colliding IDs and receipts, dependent edits, ambiguous ack
 tombstones/retirement, foreign expectations/cursors, retained state through service restart, and
 minimized captured diagnostics. Generation isolation remains S13; authenticated account/device
 ownership and lifecycle remain S8-S12. A test context is not evidence of authenticated user isolation.
+
+
+## S8 authentication design refinement
+
+[ADR-0033](0033-built-in-authentication-and-sessions.md) and the
+[authentication specification](../authentication-and-sessions.md) settle the previously deferred
+library, factor/recovery and numeric session/CSRF/enrollment design. Mandatory password plus
+user-verified WebAuthn, restricted two-proof recovery, protected opaque JDBC sessions, current
+transactional authority and target-fenced logout preserve this decision's independent scope and offline
+boundaries. S8 installs no runtime adapter; S9-S12 and S15 retain implementation and release evidence.
