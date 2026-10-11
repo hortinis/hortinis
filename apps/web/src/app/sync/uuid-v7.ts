@@ -1,5 +1,11 @@
 import { v7 as uuidv7 } from 'uuid';
 
-export function generateUuidV7(): string {
-  return uuidv7();
+declare const uuidBrand: unique symbol;
+
+export type HortinisUuid = string & {
+  readonly [uuidBrand]: true;
+};
+
+export function generateUuidV7(): HortinisUuid {
+  return uuidv7() as HortinisUuid;
 }

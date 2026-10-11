@@ -1,4 +1,5 @@
 export interface GardenRecord {
   id: string;
-  name?: string;
+  name: string;
+  lastAcceptedRevision: string | null;
 }
