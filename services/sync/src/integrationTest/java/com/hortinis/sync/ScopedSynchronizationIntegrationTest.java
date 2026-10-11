@@ -11,9 +11,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.hortinis.sync.access.ServerInstanceId;
 import com.hortinis.sync.access.SynchronizationAccessContext;
 import com.hortinis.sync.access.SynchronizationAccessDeniedException;
+import com.hortinis.sync.access.SynchronizationAccessResolver;
 import com.hortinis.sync.access.SynchronizationScopeId;
 import com.hortinis.sync.access.SyntheticAccessContexts;
-import com.hortinis.sync.access.TechnicalSynchronizationContext;
 import com.hortinis.sync.persistence.TechnicalRecordAcceptancePersistence;
 import com.hortinis.sync.protocol.CreateTechnicalRecordOperation;
 import com.hortinis.sync.protocol.DeleteTechnicalRecordOperation;
@@ -52,7 +52,12 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
+@SpringBootTest(
+    webEnvironment = SpringBootTest.WebEnvironment.MOCK,
+    properties = {
+      "hortinis.access.mode=single-user-no-auth",
+      "hortinis.access.public-origin=http://localhost"
+    })
 @AutoConfigureMockMvc
 @ExtendWith(OutputCaptureExtension.class)
 class ScopedSynchronizationIntegrationTest {
@@ -60,7 +65,7 @@ class ScopedSynchronizationIntegrationTest {
   static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18.0");
 
   @Autowired private JdbcTemplate jdbc;
-  @Autowired private TechnicalSynchronizationContext technicalContext;
+  @Autowired private SynchronizationAccessResolver technicalContext;
   @Autowired private TechnicalRecordSynchronizationService service;
   @Autowired private TechnicalRecordAcceptancePersistence persistence;
   @Autowired private TransactionTemplate transaction;
@@ -71,7 +76,7 @@ class ScopedSynchronizationIntegrationTest {
 
   @BeforeEach
   void provisionSyntheticScopes() {
-    scopeA = technicalContext.current();
+    scopeA = technicalContext.resolve();
     UUID scope = UUID.randomUUID();
     jdbc.update(
         "INSERT INTO technical_synchronization_scope "

@@ -19,7 +19,10 @@ DROP TABLE technical_synchronization_scope;
 
 CREATE TABLE technical_server_installation (
     singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (singleton),
-    server_instance_id UUID NOT NULL UNIQUE DEFAULT gen_random_uuid()
+    server_instance_id UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+    access_mode TEXT CHECK (access_mode IN (
+        'single-user-no-auth', 'single-user-auth', 'multi-user-auth'
+    ))
 );
 INSERT INTO technical_server_installation (singleton) VALUES (TRUE);
 
@@ -30,7 +33,7 @@ CREATE TABLE technical_synchronization_scope (
     technical_default BOOLEAN NOT NULL DEFAULT FALSE,
     last_published_sequence BIGINT NOT NULL DEFAULT 0 CHECK (last_published_sequence >= 0)
 );
--- Sole-scope compatibility for synthetic G2 data; this role is not an access mode.
+-- Explicit sole-scope designation; initial access mode is committed during controlled startup.
 CREATE UNIQUE INDEX technical_synchronization_scope_default
     ON technical_synchronization_scope (technical_default) WHERE technical_default;
 INSERT INTO technical_synchronization_scope (server_instance_id, technical_default)

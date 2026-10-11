@@ -10,4 +10,6 @@ services:
       - --init-script
       - /workspace/infrastructure/docker/topology-build.gradle.kts
     environment:
+      HORTINIS_ACCESS_MODE: single-user-no-auth
+      HORTINIS_ACCESS_PUBLIC_ORIGIN: http://127.0.0.1:4200
       SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT: "1000"

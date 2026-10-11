@@ -1,9 +1,10 @@
 package com.hortinis.sync;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.hortinis.sync.access.SynchronizationAccessContext;
-import com.hortinis.sync.access.TechnicalSynchronizationContext;
+import com.hortinis.sync.access.SynchronizationAccessResolver;
 import com.hortinis.sync.protocol.CreateTechnicalRecordOperation;
 import com.hortinis.sync.protocol.DeleteTechnicalRecordOperation;
 import com.hortinis.sync.protocol.ExpectedRevision;
@@ -43,26 +44,29 @@ class PostgreSqlServiceRestartIntegrationTest {
     try (ConfigurableApplicationContext first = startApplication(jdbcUrl)) {
       TechnicalRecordSynchronizationService synchronization =
           first.getBean(TechnicalRecordSynchronizationService.class);
-      originalContext = first.getBean(TechnicalSynchronizationContext.class).current();
+      originalContext = first.getBean(SynchronizationAccessResolver.class).resolve();
       synchronization.submit(
+          originalContext,
           new CreateTechnicalRecordOperation(createOperationId, recordId, "retained value"));
       deletionResult =
           synchronization.submit(
+              originalContext,
               new DeleteTechnicalRecordOperation(
                   deleteOperationId, recordId, ExpectedRevision.parse("1")));
-      originalCursor = synchronization.pull(null).nextCursor();
+      originalCursor = synchronization.pull(originalContext, null).nextCursor();
     }
 
     try (ConfigurableApplicationContext second = startApplication(jdbcUrl)) {
       JdbcTemplate jdbc = second.getBean(JdbcTemplate.class);
       TechnicalRecordSynchronizationService synchronization =
           second.getBean(TechnicalRecordSynchronizationService.class);
-      var restartedContext = second.getBean(TechnicalSynchronizationContext.class).current();
+      var restartedContext = second.getBean(SynchronizationAccessResolver.class).resolve();
       assertThat(restartedContext.serverInstanceId()).isEqualTo(originalContext.serverInstanceId());
       assertThat(restartedContext.synchronizationScopeId())
           .isEqualTo(originalContext.synchronizationScopeId());
-      assertThat(synchronization.pull(originalCursor).changes()).isEmpty();
-      assertThat(synchronization.pull(originalCursor).nextCursor()).isEqualTo(originalCursor);
+      assertThat(synchronization.pull(restartedContext, originalCursor).changes()).isEmpty();
+      assertThat(synchronization.pull(restartedContext, originalCursor).nextCursor())
+          .isEqualTo(originalCursor);
       assertThat(jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history", Integer.class))
           .isEqualTo(4);
       assertThat(
@@ -80,20 +84,32 @@ class PostgreSqlServiceRestartIntegrationTest {
           .isZero();
       assertThat(
               synchronization.submit(
+                  restartedContext,
                   new DeleteTechnicalRecordOperation(
                       deleteOperationId, recordId, ExpectedRevision.parse("1"))))
           .isEqualTo(deletionResult);
-      assertThat(synchronization.pull(null).changes())
+      assertThat(synchronization.pull(restartedContext, null).changes())
           .hasSize(2)
           .last()
           .isInstanceOf(TombstoneTechnicalChange.class);
+      jdbc.update("UPDATE technical_server_installation SET access_mode = 'single-user-auth'");
     }
+
+    assertThatThrownBy(
+            () -> {
+              try (var unexpected = startApplication(jdbcUrl)) {
+                throw new AssertionError("A mode downgrade must not start the application.");
+              }
+            })
+        .hasRootCauseMessage("The configured access mode differs from committed setup.");
   }
 
   private ConfigurableApplicationContext startApplication(String jdbcUrl) {
     return new SpringApplicationBuilder(HortinisSyncApplication.class)
         .web(WebApplicationType.NONE)
         .properties(
+            "hortinis.access.mode=single-user-no-auth",
+            "hortinis.access.public-origin=http://localhost",
             "spring.datasource.url=" + jdbcUrl,
             "spring.datasource.username=" + POSTGRES.getUsername(),
             "spring.datasource.password=" + POSTGRES.getPassword())

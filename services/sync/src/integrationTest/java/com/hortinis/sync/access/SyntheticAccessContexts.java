@@ -9,4 +9,13 @@ public final class SyntheticAccessContexts {
       ServerInstanceId instance, SynchronizationScopeId scope) {
     return SynchronizationAccessContext.configured(instance, scope);
   }
+
+  /** Constructs unsupported authenticated authority solely for fail-closed boundary tests. */
+  public static SynchronizationAccessContext authenticated(
+      ServerInstanceId instance,
+      SynchronizationScopeId scope,
+      ServerAccessMode mode,
+      AccountId account) {
+    return SynchronizationAccessContext.authenticated(instance, scope, mode, account);
+  }
 }

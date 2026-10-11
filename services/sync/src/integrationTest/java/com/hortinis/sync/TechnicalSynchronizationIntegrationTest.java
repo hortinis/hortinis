@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.hortinis.sync.access.TechnicalSynchronizationContext;
+import com.hortinis.sync.access.SynchronizationAccessResolver;
 import com.hortinis.sync.protocol.SyncCursorCodec;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -27,7 +27,12 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 @Testcontainers
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
+@SpringBootTest(
+    webEnvironment = SpringBootTest.WebEnvironment.MOCK,
+    properties = {
+      "hortinis.access.mode=single-user-no-auth",
+      "hortinis.access.public-origin=http://localhost"
+    })
 @AutoConfigureMockMvc
 class TechnicalSynchronizationIntegrationTest {
 
@@ -68,7 +73,7 @@ class TechnicalSynchronizationIntegrationTest {
 
   @Autowired private MockMvc mockMvc;
   @Autowired private JdbcTemplate jdbc;
-  @Autowired private TechnicalSynchronizationContext technicalContext;
+  @Autowired private SynchronizationAccessResolver technicalContext;
 
   @Test
   void characterizesLoneSurrogateEncodingAtTheJdbcBoundary() {
@@ -982,7 +987,7 @@ class TechnicalSynchronizationIntegrationTest {
   }
 
   private String cursor(long sequence) {
-    var context = technicalContext.current();
+    var context = technicalContext.resolve();
     return SyncCursorCodec.encode(
         sequence, context.serverInstanceId(), context.synchronizationScopeId());
   }

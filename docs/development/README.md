@@ -33,15 +33,30 @@ pnpm compose:validate
 ```
 
 Docker Engine with the Compose plugin is required for this topology and for PostgreSQL-backed
-integration tests. With Docker available, export a local database password and start the topology:
+integration tests. Export an explicit access mode and a local database password before validation
+or startup. Only `single-user-no-auth` is implemented at S4; authenticated modes fail startup:
 
 ```shell
 export HORTINIS_POSTGRES_PASSWORD='choose-a-local-password'
+export HORTINIS_ACCESS_MODE='single-user-no-auth'
+export HORTINIS_ACCESS_PUBLIC_ORIGIN='http://127.0.0.1:4200'
 docker compose --file infrastructure/docker/compose.yaml up --wait
 ```
 
 The sync service is available on `http://127.0.0.1:8080`; PostgreSQL remains private to the Compose
 network. Inspect service status with `docker compose --file infrastructure/docker/compose.yaml ps`.
+
+No-auth allows every reachable client to read and modify the sole configured scope; it does not
+provide account isolation. Use synthetic data only at this stage. The service records its explicitly
+selected mode in the installation transaction, emits a fixed configuration warning, and rejects
+missing/unknown modes or a mismatch with committed setup. Direct configuration edits do not perform
+mode transitions. Startup validates the designated sole scope without creating scopes on requests.
+Browser synchronization mutations require same-origin Origin/Fetch Metadata when those headers are
+present; non-browser requests remain permitted in no-auth mode. Host and raw forwarded headers cannot relax
+the guard. Explicit `HORTINIS_ACCESS_PUBLIC_ORIGIN` selects the one allowed browser origin; it is
+required at startup and avoids DNS-rebinding/edge-header trust. It does not enable CORS. Same-origin compromise and reachable non-browser callers remain within the documented
+no-auth/shared-device boundary. Edge/proxy trust and authenticated CSRF controls remain later gates.
+
 The named `postgres-data` volume preserves database files across normal shutdown. Stop the topology
 predictably with:
 
@@ -89,7 +104,8 @@ The topology applies versioned technical Flyway migrations at sync-service start
 walking-skeleton projection, receipts, and journal; V2 adds deletion state; V3 introduces the earlier
 sole publication lock. V4 installs the scope-partitioned model on an empty technical database:
 installation and scope UUIDs, scope-leading composite keys and references, and independent transactional
-publication counters. Publication locks are per scope. Ordinary synchronization cannot create a scope.
+publication counters and nullable initial mode state. S4 commits explicit mode configuration during
+startup on fresh installations. Publication locks are per scope. Ordinary synchronization cannot create a scope.
 PostgreSQL integration tests cover installation, constraints, independent identical IDs, replay,
 tombstones, retirement, cursor substitution, rollback, restart, and controlled concurrent publication.
 Angular serving, same-origin edge routing, and production images remain F3/F2 work.
@@ -296,7 +312,7 @@ Validate the Wrapper files before running the build:
 sha256sum --check gradle/wrapper/gradle-wrapper.jar.sha256
 ```
 
-The Wrapper also verifies the downloaded Gradle binary distribution against the SHA-256 checksum recorded in `gradle/wrapper/gradle-wrapper.properties`. The C6 and D3 Spring Boot application dependencies have reviewed dependency-verification metadata and committed dependency locks. The application uses PostgreSQL through Spring JDBC; native `bootRun` therefore requires datasource variables (the Compose topology supplies them). Each later increment that adds a dependency must update and review the lockfile and verification metadata together.
+The Wrapper also verifies the downloaded Gradle binary distribution against the SHA-256 checksum recorded in `gradle/wrapper/gradle-wrapper.properties`. The C6 and D3 Spring Boot application dependencies have reviewed dependency-verification metadata and committed dependency locks. The application uses PostgreSQL through Spring JDBC; native `bootRun` therefore requires datasource variables and explicit `HORTINIS_ACCESS_MODE`/`HORTINIS_ACCESS_PUBLIC_ORIGIN` (the Compose topology supplies them). Each later increment that adds a dependency must update and review the lockfile and verification metadata together.
 
 Update metadata:
 
@@ -320,6 +336,12 @@ java --version
 ```
 
 Java must report major version 25 and Gradle must report version 9.7.1. The projects report includes the single Spring Boot application project at `:services:sync`. `spotlessCheck` validates Java formatting with Google Java Format and Gradle Kotlin script formatting with ktlint. Checkstyle and PMD run independently through their source-set tasks. JUnit 5 is executed through the database-independent `test` task and the PostgreSQL-backed `integrationTest` task; the latter requires access to a Docker-compatible daemon and starts a clean PostgreSQL 18 Testcontainers instance. The application-context tests explicitly exclude datasource auto-configuration so they remain database-independent; Compose startup validates the real JDBC connection. `bootRun` starts the web server and remains active while the service is running when datasource variables are configured; stop it with `Ctrl+C` after checking the probes. ArchUnit architecture checks remain outside D3+D4 and will receive a separate command when C7 establishes the internal package boundaries.
+
+S4's representative controller/service dependency and context-signature rules run in the standard
+backend `test` task. Resolver ordering/denial tests are database-independent. PostgreSQL
+`integrationTest` additionally exercises test-only scope selection, cross-scope HTTP dispatch,
+persisted-mode mismatch, startup rollback, and restart denial. The synthetic resolver exists only in
+integration-test sources; no profile or configuration property activates it in an application JAR.
 
 ## Repository-wide validation
 

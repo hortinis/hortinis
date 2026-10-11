@@ -21,6 +21,8 @@ function composeConfig(uid = '', gid = '', integrated = false) {
       HORTINIS_UID: uid,
       HORTINIS_GID: gid,
       HORTINIS_POSTGRES_PASSWORD: 'compose-config-test-only',
+      HORTINIS_ACCESS_MODE: 'single-user-no-auth',
+      HORTINIS_ACCESS_PUBLIC_ORIGIN: 'http://127.0.0.1:8080',
     },
   });
   assert.ifError(result.error);
@@ -37,6 +39,9 @@ for (const integrated of [false, true]) {
       const { services } = composeConfig(uid, gid, integrated);
       assert.equal(services.sync.user, identity);
       assert.equal(services.sync.environment.GRADLE_USER_HOME, '/home/gradle/.gradle');
+      assert.equal(services.sync.environment.HORTINIS_ACCESS_MODE, 'single-user-no-auth');
+      assert.equal(services.sync.environment.HORTINIS_ACCESS_PUBLIC_ORIGIN,
+        integrated ? 'http://127.0.0.1:4200' : 'http://127.0.0.1:8080');
       assert.equal(
         services.sync.depends_on['gradle-cache-init'].condition,
         'service_completed_successfully',

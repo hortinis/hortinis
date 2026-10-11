@@ -1,7 +1,6 @@
 package com.hortinis.sync.service;
 
 import com.hortinis.sync.access.SynchronizationAccessContext;
-import com.hortinis.sync.access.TechnicalSynchronizationContext;
 import com.hortinis.sync.configuration.SynchronizationPersistenceEnabled;
 import com.hortinis.sync.persistence.SynchronizationScopePersistence;
 import com.hortinis.sync.persistence.TechnicalRecordAcceptancePersistence;
@@ -41,22 +40,12 @@ public class TechnicalRecordSynchronizationService {
 
   private final TechnicalRecordAcceptancePersistence persistence;
   private final SynchronizationScopePersistence scopes;
-  private final TechnicalSynchronizationContext technicalContext;
 
-  /** Uses scoped persistence and the temporary sole-scope technical adapter. */
+  /** Uses scoped persistence; every workflow caller must supply resolved authority. */
   public TechnicalRecordSynchronizationService(
-      TechnicalRecordAcceptancePersistence persistence,
-      SynchronizationScopePersistence scopes,
-      TechnicalSynchronizationContext technicalContext) {
+      TechnicalRecordAcceptancePersistence persistence, SynchronizationScopePersistence scopes) {
     this.persistence = persistence;
     this.scopes = scopes;
-    this.technicalContext = technicalContext;
-  }
-
-  /** Preserves the synthetic G2 entry point until S4 supplies request access resolution. */
-  @Transactional
-  public OperationResult submit(TechnicalRecordOperation operation) {
-    return submit(technicalContext.current(), operation);
   }
 
   /** Serializes acceptance, replay, and publication within the resolved scope transaction. */
@@ -106,12 +95,6 @@ public class TechnicalRecordSynchronizationService {
       case DeleteTechnicalRecordOperation delete ->
           acceptDeletion(context, delete, acceptedRevision);
     };
-  }
-
-  /** Preserves the synthetic sole-scope pull entry point until S4. */
-  @Transactional(readOnly = true)
-  public ChangePage pull(String cursor) {
-    return pull(technicalContext.current(), cursor);
   }
 
   /** Validates the cursor boundary and returns only the resolved scope's committed changes. */

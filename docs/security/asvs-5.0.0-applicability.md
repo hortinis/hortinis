@@ -523,3 +523,12 @@ development Compose credentials/internal transport and G2e success paths are not
 | `v5.0.0-17.2.8` | 3 | Outside L2 | L3 |
 | `v5.0.0-17.3.1` | 2 | N/A | NO_WEBRTC |
 | `v5.0.0-17.3.2` | 2 | N/A | NO_WEBRTC |
+
+## S4 partial implementation evidence
+
+The [S4 plan](../development/s4-implementation-plan.md) and
+[threat-model handoff](access-threat-model.md#s4-implemented-control-boundary) record reproducible
+configuration, resolver, controller/service signature, scoped persistence, Origin/Fetch Metadata,
+restart/rollback, and diagnostic checks. They address the no-auth portions of SCOPE, CONFIG, HTTP,
+FLOW, and LOG only. Classification counts, verification target, D01-D03 deviations, B01-B05 blockers,
+and all authenticated/operational obligations remain unchanged; this is no full Level 2 claim.

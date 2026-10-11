@@ -1,6 +1,7 @@
 # Access and synchronization threat model
 
-- Status: Accepted S1 design baseline, 2026-10-02; implementation and verification remain pending.
+- Status: Accepted S1 design baseline, 2026-10-02; S3 database and S4 no-auth request/configuration
+  controls implemented; authenticated and operational verification remain pending.
 - Policy: [ADR-0029](../architecture/decisions/0029-access-and-synchronization-scope.md).
 - Functional rules and scenarios: [access specification](../architecture/access-and-synchronization-scope.md).
 - Data classification and retention: [privacy lifecycle](../privacy/access-data-lifecycle.md).
@@ -87,3 +88,20 @@ storage technology, role, collaboration, log field, retention policy, or operato
 catalog entries before activating an excluded feature. Review discovered threats and residual risks
 at each implementing task; S15 consolidates reproducible automated evidence, manual review, a scoped
 penetration-test plan, and operator deployment evidence. G2f remains limited to synthetic technical data.
+
+## S4 implemented control boundary
+
+S4's configuration/resolver tests exercise T01/T13 and AC-AS-02: missing/unknown modes and
+unimplemented authentication fail startup, committed mode changes deny startup, controllers resolve
+before workflows, and persistence rejects absent/foreign/unsupported contexts. Test-only selection
+has no HTTP input and is absent from production sources. T02 HTTP tests use colliding IDs and foreign
+cursors without exposing another scope's content. Startup rollback/restart enforce AC-AS-10's direct
+configuration boundary; legitimate transitions remain S12 work.
+
+T04 tests reject foreign/opaque/malformed/duplicate Origin and cross-site Fetch Metadata, including
+simple-content mutation requests, before acceptance. Same-origin compromise and non-browser callers
+remain outside this no-auth mutation guard. One explicit public browser origin is required at startup; request Host cannot authorize a foreign
+origin. No CORS allowance or forwarded-header trust is introduced.
+Authenticated CSRF and trusted edge/TLS policy remain S8/S9/S15 gates. T11/AC-AS-14 log capture excludes
+payload, cursor, stable identity, Origin, credential, and cookie canaries. Proxy/database/backup logging
+and numeric retention remain operational gates. This is no ASVS or legal compliance claim.

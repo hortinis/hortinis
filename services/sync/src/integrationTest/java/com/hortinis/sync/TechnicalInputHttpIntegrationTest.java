@@ -28,7 +28,12 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 @Testcontainers
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(
+    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+    properties = {
+      "hortinis.access.mode=single-user-no-auth",
+      "hortinis.access.public-origin=http://localhost"
+    })
 @ExtendWith(OutputCaptureExtension.class)
 class TechnicalInputHttpIntegrationTest {
 

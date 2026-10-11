@@ -7,6 +7,8 @@ cd "$repository_root"
 # Always allocate a fresh project: cleanup must never remove a developer's database.
 export HORTINIS_TOPOLOGY_PROJECT_NAME="hortinis-sync-test-$$-$(node -e 'process.stdout.write(require("node:crypto").randomBytes(8).toString("hex"))')"
 export HORTINIS_POSTGRES_PASSWORD="$(node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("hex"))')"
+export HORTINIS_ACCESS_MODE="single-user-no-auth"
+export HORTINIS_ACCESS_PUBLIC_ORIGIN="http://127.0.0.1:4200"
 compose=(docker compose --project-name "$HORTINIS_TOPOLOGY_PROJECT_NAME"
   --file infrastructure/docker/compose.yaml --file infrastructure/docker/compose.sync-test.yaml)
 

@@ -20,6 +20,8 @@ fs.appendFileSync(process.env.TEST_CALL_LOG, JSON.stringify({
   tool, args,
   project: process.env.HORTINIS_TOPOLOGY_PROJECT_NAME,
   passwordIsGenerated: /^[a-f0-9]{64}$/.test(process.env.HORTINIS_POSTGRES_PASSWORD),
+  mode: process.env.HORTINIS_ACCESS_MODE,
+  origin: process.env.HORTINIS_ACCESS_PUBLIC_ORIGIN,
 }) + '\\n');
 const stage = tool === 'pnpm' ? 'test' : args.includes('up') ? 'up' : 'down';
 process.exit(stage === process.env.TEST_FAIL_AT ? Number(process.env.TEST_FAILURE_CODE) : 0);
@@ -39,6 +41,8 @@ process.exit(stage === process.env.TEST_FAIL_AT ? Number(process.env.TEST_FAILUR
         TEST_FAILURE_CODE: String(failureCode),
         HORTINIS_TOPOLOGY_PROJECT_NAME: 'existing-developer-project',
         HORTINIS_POSTGRES_PASSWORD: 'existing-developer-password',
+        HORTINIS_ACCESS_MODE: 'multi-user-auth',
+        HORTINIS_ACCESS_PUBLIC_ORIGIN: 'https://developer.example',
       },
     });
     assert.ifError(result.error);
@@ -55,6 +59,8 @@ function assertIsolatedCleanup(calls) {
   for (const call of calls) {
     assert.equal(call.project, project);
     assert.equal(call.passwordIsGenerated, true);
+    assert.equal(call.mode, 'single-user-no-auth');
+    assert.equal(call.origin, 'http://127.0.0.1:4200');
     if (call.tool === 'docker') {
       assert.equal(call.args[call.args.indexOf('--project-name') + 1], project);
     }

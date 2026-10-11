@@ -24,3 +24,19 @@ before personal-data use. The [privacy lifecycle](../privacy/access-data-lifecyc
 [threat/ASVS records](../security/access-threat-model.md) define the operator inventory, retention,
 deletion-aware backup/restore, TLS and service-credential gates. Current development Compose validation
 is not production security or real-user deployment authorization.
+
+S4 requires `HORTINIS_ACCESS_MODE` (Spring property `hortinis.access.mode`) and
+`HORTINIS_ACCESS_PUBLIC_ORIGIN` (`hortinis.access.public-origin`) explicitly, with no default.
+The public origin is the browser-facing HTTP(S) origin without a trailing slash, credentials, path,
+query, or fragment; malformed or missing values fail startup without echoing configuration.
+Only `single-user-no-auth` currently starts; both authenticated modes fail closed until their actual
+account/session implementation exists. Startup commits the initial selected mode to installation
+metadata and rejects mismatches on restart. A configuration edit cannot claim a scope or downgrade
+an authenticated installation. Missing designated scope denies setup and rolls back initial mode
+commit. Fresh databases are required for this pre-release schema revision; no upgrade migration exists.
+
+Every reachable caller can read/modify a no-auth installation's data. Browser cross-origin mutation
+checks do not authenticate callers or protect against same-origin compromise. The current guard uses
+the explicit `hortinis.access.public-origin` and ignores Host/forwarded claims; a production trusted-edge configuration,
+TLS, authenticated CSRF/session policy, backup rollback protection, and privacy readiness remain
+S8-S15/deployment work. Keep this technical topology restricted to synthetic data.

@@ -29,13 +29,17 @@ public class SynchronizationScopePersistence {
   }
 
   private long readScope(SynchronizationAccessContext context, boolean lock) {
-    if (context == null) {
+    if (context == null
+        || !(context.authority() instanceof SynchronizationAccessContext.ConfiguredAuthority)) {
       throw new SynchronizationAccessDeniedException();
     }
     return jdbc.sql(
-            "SELECT last_published_sequence FROM technical_synchronization_scope "
-                + "WHERE synchronization_scope_id = ? AND server_instance_id = ?"
-                + (lock ? " FOR UPDATE" : ""))
+            "SELECT s.last_published_sequence FROM technical_synchronization_scope s "
+                + "JOIN technical_server_installation i "
+                + "ON i.server_instance_id = s.server_instance_id "
+                + "WHERE s.synchronization_scope_id = ? AND s.server_instance_id = ? "
+                + "AND i.access_mode = 'single-user-no-auth'"
+                + (lock ? " FOR UPDATE OF s" : ""))
         .params(
             UUID.fromString(context.synchronizationScopeId().value()),
             UUID.fromString(context.serverInstanceId().value()))

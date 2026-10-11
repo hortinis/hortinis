@@ -991,12 +991,14 @@ task relies on them.
 
 #### G2f. Partition synchronization by server-owned scope
 
-- Status: `in progress`; S3 fresh-install database partitioning validated (2026-10-10).
+- Status: `in progress`; S3 database partitioning and S4 no-auth access enforcement validated
+  (2026-10-11).
 - Depends on: G2e and the accepted S1 access/scope decision.
 - Design prerequisite: S1 is validated by ADR-0029 and its access, threat/ASVS, and privacy lifecycle
   records. S2's contract/application-type and cross-runtime parsing boundaries are also validated;
   S3 implements fresh-install database partitioning and scoped service/persistence boundaries;
-  S4-S7 access, browser, binding, and full-topology isolation remain planned, using synthetic data only. See the
+  S4 implements explicit no-auth access/configuration; S5-S7 browser, binding, and full-topology
+  isolation remain planned, using synthetic data only. See the
   [access contract handoff](../api/access-and-binding-contracts.md).
 - Scope: implement S2 through S7 of the
   [access and synchronization-scope implementation plan](access-and-synchronization-scope-implementation-plan.md)
@@ -1024,6 +1026,13 @@ task relies on them.
   technical databases. Scoped keys, counters, locks, receipts, tombstones, reservations, cursor fencing,
   rollback, and restart are validated with synthetic contexts. S4 request resolution/configuration and
   S5-S7 browser partitioning, binding, and full scope topology remain planned; G2f is not complete.
+
+- S4 evidence (2026-10-11): `pnpm validate` passed with 278 web unit tests, nine standard Chromium
+  tests, 109 Java unit tests, 57 PostgreSQL integration tests, four real-topology tests, and all
+  contract/documentation/quality/build gates. Mandatory access mode/public origin, atomic committed
+  mode setup, request resolution, explicit workflow contexts, scoped authority checks, cross-origin
+  mutation rejection, startup rollback/restart denial, diagnostic minimization, and production
+  artifact separation are verified. S5-S7 remain planned; G2f is not complete.
 
 #### G3. Implement generation rollover and indeterminate outcomes
 

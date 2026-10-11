@@ -177,3 +177,16 @@ production retention policy is introduced. Instance/scope identifiers also fence
 identifiers and cursors remain excluded from logs. Only synthetic technical fixtures are authorized.
 Fresh developer installation reset deletes the synthetic database/browser state explicitly. Account
 purge, backup restore suppression, and processing real personal data remain S12/S15/operator gates.
+
+## S4 configuration and request-resolution handoff
+
+S4 adds the committed access mode to the existing installation inventory for fail-closed startup and
+configuration consistency. It is operator configuration, introduces no new personal-data category or
+recipient, and shares installation lifetime/reset behavior. The runtime resolves the current designated
+scope per request and verifies context at persistence. No account/session/device credential is created.
+The public browser origin is explicit operator configuration, kept out of diagnostics and retained
+with deployment configuration; it introduces no user-content storage. Origin/Fetch Metadata is inspected transiently for mutation protection, never persisted or logged;
+credential-header canaries and request content remain excluded from diagnostics. The static no-auth
+warning contains only configuration information. No new security-log store or retention policy exists.
+Existing purpose, access restrictions, deletion/backup/restore obligations, and operator readiness gates
+continue to apply; S4 evidence uses synthetic fixtures only.

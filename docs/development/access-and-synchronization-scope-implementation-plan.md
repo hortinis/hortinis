@@ -18,8 +18,8 @@ the [access specification](../architecture/access-and-synchronization-scope.md),
 [threat model](../security/access-threat-model.md),
 [ASVS applicability register](../security/asvs-5.0.0-applicability.md), and
 [privacy lifecycle](../privacy/access-data-lifecycle.md). S2 contract/parsing boundaries are validated;
-S3 implements database partitioning; request access resolution and remaining scope adapters remain
-planned. The design does not select an authentication library or authorize processing real user data.
+S3 implements database partitioning; S4 implements explicit no-auth request resolution and mode
+configuration. Browser binding and authenticated adapters remain planned. The design does not select an authentication library or authorize processing real user data.
 
 ## Required outcome
 
@@ -281,7 +281,7 @@ preserves local data and pending intent.
 
 ### S4 — Enforce the trusted server access context
 
-- Status: `planned`.
+- Status: `validated` (2026-10-11).
 - Depends on: S2 and S3.
 - Scope: introduce the narrow access-context resolver, pass its immutable result through controller,
   service, and persistence calls, replacing S3's sole technical compatibility adapter and contextless
@@ -295,6 +295,31 @@ preserves local data and pending intent.
   content-free configuration warning; production configuration cannot activate the test resolver.
 - Validation: representative controller/service architecture rules, negative configuration tests, access
   denial tests, and log-capture tests pass.
+- Implementation: [S4 implementation plan](s4-implementation-plan.md); mandatory
+  `hortinis.access.mode` and `hortinis.access.public-origin`, atomic committed-mode setup on the fresh V4 schema, generic startup rejection
+  of missing/unknown/authenticated/mismatched modes, and one static no-auth warning. Controllers
+  resolve before operation validation/cursor lookup; services have no contextless overloads;
+  persistence verifies instance/scope/implemented authority and committed mode. Test-only resolver
+  selection remains in integration-test sources with no request impersonation input.
+- Security review: Origin/Fetch Metadata rejects cross-origin browser mutations and simple-request
+  content types. The mutation guard avoids raw-path matching so path parameters/alternate encoding
+  cannot bypass it; Host/forwarded claims cannot relax it. An explicit public origin prevents
+  DNS-rebinding trust. Same-origin compromise and non-browser
+  no-auth access remain documented boundaries. No new credential/account processing or log fields
+  are introduced; mode shares installation lifetime and request origin is transient only.
+- Review findings fixed: removed all implicit service entry points, added unsupported-authority and
+  committed-mode persistence checks, verified startup rollback/mode mismatch on restart, and removed
+  raw-path and request-Host dependence from the origin guard. Representative architecture rules and production-source
+  separation cover the trusted context and resolver boundary. English consistency reviewed.
+
+- Validation evidence (2026-10-11): `pnpm validate` passed with contract/documentation checks,
+  frontend quality/build checks, 278 browser unit tests, nine Chromium smoke/offline tests, 109 Java
+  unit tests, 57 PostgreSQL integration tests, backend formatting/quality/build checks, and four real
+  topology Chromium tests. Focused PMD checks report zero violations and new source files have no
+  Checkstyle warnings; existing warning-only baseline debt remains. Both application JARs exclude
+  the synthetic resolver/context helpers, integration tests, and removed compatibility adapter.
+- Handoff: S5 may start. S6/S7 binding/topology, authentication/ownership, supported transitions,
+  backup rollback protection, and real-user/security/privacy readiness remain their separate gates.
 
 ### S5 — Partition browser data by a durable local data-set identity
 

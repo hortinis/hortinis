@@ -1,6 +1,7 @@
 # Access and synchronization-scope specification
 
-- Status: Accepted S1 design with S2 contract/parsing boundaries; runtime adapters remain planned.
+- Status: Accepted S1 design with S2 contracts, S3 database partitioning, and S4 trusted no-auth access;
+  browser binding and authenticated adapters remain planned.
 - Decision: [ADR-0029](decisions/0029-access-and-synchronization-scope.md).
 - Owners: [S2 through S15](../development/access-and-synchronization-scope-implementation-plan.md),
   P0.6 for export/restore, and the applicable foundation/deployment gates.
@@ -60,6 +61,14 @@ Persist the last committed mode with installation state. Startup validates confi
 that state; editing a configuration value cannot bypass a transition procedure. S4 can deny transitions
 before S12 implements them. Never ship a production scope-impersonation request field or test resolver.
 Scope creation occurs only during authorized setup/provisioning, never in normal push/pull requests.
+
+S4 implements explicit no-auth configuration, startup mode commitment, current installation/scope
+resolution before workflows, and persistence verification of context identity and implemented authority.
+Missing/unknown modes and unimplemented authenticated modes fail startup. A persisted mode mismatch
+cannot be changed by configuration alone; no mode transition is currently supported. Test authority
+selection is confined to integration-test sources and cannot be enabled by a production profile.
+No-auth browser mutations reject cross-origin/opaque Origin and cross-site Fetch Metadata, while
+non-browser access remains allowed by that mode. Authentication and trusted proxy policy remain gated.
 
 ## Local binding and safe first connection
 

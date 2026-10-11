@@ -40,6 +40,8 @@ services:
       - --no-daemon
     environment:
       GRADLE_USER_HOME: /home/gradle/.gradle
+      HORTINIS_ACCESS_MODE: ${HORTINIS_ACCESS_MODE:?Explicitly set HORTINIS_ACCESS_MODE before starting Compose}
+      HORTINIS_ACCESS_PUBLIC_ORIGIN: ${HORTINIS_ACCESS_PUBLIC_ORIGIN:?Explicitly set HORTINIS_ACCESS_PUBLIC_ORIGIN before starting Compose}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/hortinis
       SPRING_DATASOURCE_USERNAME: hortinis
       SPRING_DATASOURCE_PASSWORD: ${HORTINIS_POSTGRES_PASSWORD:?Set HORTINIS_POSTGRES_PASSWORD before starting Compose}

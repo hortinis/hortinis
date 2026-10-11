@@ -31,6 +31,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @SpringBootTest(
     webEnvironment = SpringBootTest.WebEnvironment.MOCK,
     properties = {
+      "hortinis.access.mode=single-user-no-auth",
+      "hortinis.access.public-origin=http://localhost",
       "spring.datasource.hikari.maximum-pool-size=2",
       "spring.datasource.hikari.minimum-idle=0",
       "spring.datasource.hikari.connection-timeout=250",
