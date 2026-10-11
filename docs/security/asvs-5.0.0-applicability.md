@@ -532,3 +532,13 @@ configuration, resolver, controller/service signature, scoped persistence, Origi
 restart/rollback, and diagnostic checks. They address the no-auth portions of SCOPE, CONFIG, HTTP,
 FLOW, and LOG only. Classification counts, verification target, D01-D03 deviations, B01-B05 blockers,
 and all authenticated/operational obligations remain unchanged; this is no full Level 2 claim.
+
+## S5 partial implementation evidence
+
+The [S5 plan](../development/s5-implementation-plan.md) records the browser FLOW/SCOPE boundary:
+offline durable identity, physical data-set partitioning, identity-bearing leases and response/retry
+fencing, atomic creation/commits, deterministic schema rejection without ownership inference, and
+closed non-credential binding storage. The [threat-model handoff](access-threat-model.md#s5-implemented-local-boundary)
+records scenario limits. Same-origin/shared-profile access, D01-D03 deviations, B01-B05 blockers,
+authentication, supported binding transitions, and operator/privacy readiness remain separate gates;
+classification counts and the Level 2 verification target remain unchanged.

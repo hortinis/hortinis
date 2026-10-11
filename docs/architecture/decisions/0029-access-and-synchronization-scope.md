@@ -70,6 +70,35 @@ Service and persistence methods accept the existing immutable access context; sy
 contexts are constructed only by integration-test sources. S4 replaces compatibility entry points
 with trusted request resolution and mode validation. Ordinary synchronization never provisions scopes.
 
+### S5 browser data-set partitioning
+
+Use one physical Dexie database per local data set. Generate and commit its UUIDv7 in singleton
+version-one identity metadata during fresh schema creation, without a server or account. The default
+application locator stays `hortinis`; a locator is not a data-set identity or credential. Each open
+connection validates and retains the same immutable identity. Opening another locator creates a
+separate data set; selecting it requires a separate database/service scope, never mutation of a live
+connection's owner. S12 owns user selection, cloning, disconnection, and deletion workflows.
+
+This boundary encloses projections, outbox/dependencies, receipts, accepted bases, tombstones,
+conflicts/rejections, cursors/repair state, retries, leases, and local binding. Raw counts, live queries,
+index scans, and transactions therefore cannot omit a data-set predicate. This is preferable here to
+compound keys and repeated query predicates because the first release has one active data set per
+service scope and already uses direct Dexie table operations extensively. It uses the accepted Dexie
+engine and introduces no new package or storage provider.
+
+Version seven is a fresh application schema. Older unowned application schemas fail without ownership
+inference or content migration; their version and pending intent remain unchanged until an explicit
+synthetic development reset. Missing/malformed identity fails rather than regenerating it. Identity
+joins each workflow/retry/coordination transaction. Lease identity includes the durable data-set ID;
+foreign leases cannot release, renew, retry, or apply a response even if other lease fields collide.
+Binding storage validates the closed non-credential contract and matching local owner. S6 owns actual
+server discovery/confirmation and exchange activation.
+
+All databases under one browser origin remain accessible to same-origin scripts/extensions and a
+person sharing that browser profile. Physical partitioning is an application consistency boundary,
+not authentication, XSS defense, encryption, or secure erasure. Local IDs remain non-secret and confer
+no server authority. Browser storage eviction/reset and future exports/backups remain explicit risks.
+
 ### Explicit access modes
 
 Support only `single-user-no-auth`, `single-user-auth`, and `multi-user-auth`. There is no runtime

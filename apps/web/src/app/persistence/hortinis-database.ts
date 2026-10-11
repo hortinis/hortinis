@@ -1,13 +1,19 @@
 import { Inject, Injectable, InjectionToken } from '@angular/core';
 import Dexie, { Table } from 'dexie';
+import { HORTINIS_DATABASE_SCHEMA_V7 } from './database-schema';
+import { generateUuidV7 } from '../sync/uuid-v7';
 import {
-  HORTINIS_DATABASE_SCHEMA,
-  HORTINIS_DATABASE_SCHEMA_V1,
-  HORTINIS_DATABASE_SCHEMA_V3,
-  HORTINIS_DATABASE_SCHEMA_V4,
-  HORTINIS_DATABASE_SCHEMA_V5,
-  HORTINIS_DATABASE_SCHEMA_V6,
-} from './database-schema';
+  parseAccessContract,
+  type LocalDataSetId,
+  type LocalServerBinding,
+} from '../sync/access-contracts.rule';
+import {
+  FreshLocalDatabaseRequiredError,
+  LocalDataSetUnavailableError,
+  LOCAL_DATA_SET_KEY,
+  readLocalDataSetIdentity,
+  type LocalDataSetIdentity,
+} from './local-data-set-identity';
 import type { LocalRejectedOperation } from './local-rejected-operation';
 import type { LocalTechnicalRecord } from './local-technical-record';
 import type {
@@ -29,6 +35,9 @@ export const HORTINIS_DATABASE_NAME = new InjectionToken<string>('Hortinis datab
 
 @Injectable({ providedIn: 'root' })
 export class HortinisDatabase extends Dexie {
+  readonly localDataSetIdentity!: Table<LocalDataSetIdentity, string>;
+  readonly localServerBindings!: Table<LocalServerBinding, LocalDataSetId>;
+  private openedDataSetId: LocalDataSetId | undefined;
   readonly rejectedOperations!: Table<LocalRejectedOperation, string>;
   readonly acceptedTechnicalRecords!: Table<TechnicalRecord, string>;
   readonly technicalRecords!: Table<LocalTechnicalRecord, string>;
@@ -47,39 +56,30 @@ export class HortinisDatabase extends Dexie {
   constructor(@Inject(HORTINIS_DATABASE_NAME) databaseName: string) {
     super(databaseName);
 
-    this.version(1).stores(HORTINIS_DATABASE_SCHEMA_V1);
-    this.version(2).stores(HORTINIS_DATABASE_SCHEMA);
-    this.version(3).stores(HORTINIS_DATABASE_SCHEMA_V3);
-    this.version(4).stores(HORTINIS_DATABASE_SCHEMA_V4);
-    this.version(5)
-      .stores(HORTINIS_DATABASE_SCHEMA_V5)
-      .upgrade(async (transaction) => {
-        // Legacy projections may contain a local value labelled with a newer server revision.
-        // Preserve them and their normal cursor until a complete-history repair finishes.
-        const state = await transaction.table('synchronizationState').get('technical-records');
-        const acceptedCount = await transaction.table('acceptedOperationResults').count();
-        const acceptedProjectionCount = await transaction
-          .table('technicalRecords')
-          .filter((record) => record.lastAcceptedRevision !== null)
-          .count();
-        const deletionCount = await transaction.table('pendingDeletionRecords').count();
-        if (state || acceptedCount || acceptedProjectionCount || deletionCount) {
-          await transaction
-            .table('synchronizationState')
-            .put({ scope: 'technical-records', ...state, repairRequired: true });
-        }
+    this.version(7)
+      .stores(HORTINIS_DATABASE_SCHEMA_V7)
+      .upgrade(() => {
+        throw new FreshLocalDatabaseRequiredError();
       });
-    this.version(6)
-      .stores(HORTINIS_DATABASE_SCHEMA_V6)
-      .upgrade(async (transaction) => {
-        await transaction
-          .table('outboxOperations')
-          .toCollection()
-          .modify((operation: LocalTechnicalRecordOperation) => {
-            if (operation.kind === 'create' || operation.expectedRevision !== null) {
-              operation.legacySubmissionUnknown = true;
-            }
-          });
+    // Keep initial generation synchronous and let Dexie track the write in its creation transaction.
+    this.on('populate', () => {
+      return this.localDataSetIdentity.add({
+        key: LOCAL_DATA_SET_KEY,
+        version: '1',
+        localDataSetId: parseAccessContract('LocalDataSetId', generateUuidV7()),
       });
+    });
+    this.on.ready.subscribe(async () => {
+      this.openedDataSetId = await this.requireLocalDataSetId();
+    }, true);
+  }
+
+  // Also read inside each workflow transaction to fence stale handles after reset or identity change.
+  async requireLocalDataSetId(): Promise<LocalDataSetId> {
+    const identity = readLocalDataSetIdentity(await this.localDataSetIdentity.toArray());
+    if (this.openedDataSetId !== undefined && this.openedDataSetId !== identity) {
+      throw new LocalDataSetUnavailableError();
+    }
+    return identity;
   }
 }

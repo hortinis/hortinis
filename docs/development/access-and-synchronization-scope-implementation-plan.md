@@ -19,7 +19,8 @@ the [access specification](../architecture/access-and-synchronization-scope.md),
 [ASVS applicability register](../security/asvs-5.0.0-applicability.md), and
 [privacy lifecycle](../privacy/access-data-lifecycle.md). S2 contract/parsing boundaries are validated;
 S3 implements database partitioning; S4 implements explicit no-auth request resolution and mode
-configuration. Browser binding and authenticated adapters remain planned. The design does not select an authentication library or authorize processing real user data.
+configuration; S5 implements durable browser ownership. Browser binding and authenticated adapters
+remain planned. The design does not select an authentication library or authorize processing real user data.
 
 ## Required outcome
 
@@ -323,7 +324,7 @@ preserves local data and pending intent.
 
 ### S5 — Partition browser data by a durable local data-set identity
 
-- Status: `planned`.
+- Status: `validated` (2026-10-11).
 - Depends on: S1 and S2.
 - Scope: generate one `localDataSetId` without network access and associate it with records, tombstones,
   pending operations, accepted results, bases, conflicts, cursors, retry state, and synchronization leases.
@@ -337,6 +338,21 @@ preserves local data and pending intent.
   state; document the browser/XSS and shared-device threat boundaries.
 - Validation: offline creation, reload, schema failure, rollback, local cross-data-set isolation,
   multi-tab fencing, and independent retry tests pass.
+
+- Implementation: [S5 plan and review](s5-implementation-plan.md). One physical Dexie database per
+  local data set encloses every local table/query; version seven creates its offline UUIDv7 atomically.
+  Older unowned schemas remain unchanged and rejected. Workflow transactions validate retained identity;
+  identity-bearing leases fence foreign responses/retries even when other IDs collide. Binding storage
+  accepts only matching-owner, closed, non-credential provenance; activation remains S6.
+- Evidence: `pnpm validate` passed with 299 web unit tests, 11 standard Chromium tests, 109 Java unit
+  tests, 57 PostgreSQL integration tests, four real-topology Chromium tests, and all contract, quality,
+  build, documentation, and repository gates on the final reviewed revision. Coverage includes concurrent offline creation, real creation abort, reload/tabs,
+  schema rejection with retained intent/no exchange, malformed identity/binding, local-state collisions,
+  foreign response/retry/lease denial, independent recovery, and multi-tab expiry fencing.
+- Review: corrected creation-event promise tracking, malformed-binding replacement, and array-shaped
+  identity acceptance. Reviewed transaction boundaries, raw query isolation, unchanged operation wire
+  shapes, diagnostic minimization, English consistency, and browser/shared-profile limits. S5 does not
+  establish authentication, XSS protection, or binding activation; G2f remains in progress through S7.
 
 ### S6 — Implement safe server discovery and first binding
 

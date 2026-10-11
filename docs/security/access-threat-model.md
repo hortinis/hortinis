@@ -1,7 +1,7 @@
 # Access and synchronization threat model
 
 - Status: Accepted S1 design baseline, 2026-10-02; S3 database and S4 no-auth request/configuration
-  controls implemented; authenticated and operational verification remain pending.
+  controls and S5 local ownership implemented; authenticated and operational verification remain pending.
 - Policy: [ADR-0029](../architecture/decisions/0029-access-and-synchronization-scope.md).
 - Functional rules and scenarios: [access specification](../architecture/access-and-synchronization-scope.md).
 - Data classification and retention: [privacy lifecycle](../privacy/access-data-lifecycle.md).
@@ -105,3 +105,20 @@ origin. No CORS allowance or forwarded-header trust is introduced.
 Authenticated CSRF and trusted edge/TLS policy remain S8/S9/S15 gates. T11/AC-AS-14 log capture excludes
 payload, cursor, stable identity, Origin, credential, and cookie canaries. Proxy/database/backup logging
 and numeric retention remain operational gates. This is no ASVS or legal compliance claim.
+
+## S5 implemented local boundary
+
+S5 addresses the browser portions of T02/T06/T08 through one physical database per durable local
+identity and identity-bearing lease fencing. Tests use colliding operation IDs, owner IDs, fencing
+positions and expiry to deny foreign response, retry, renewal, release and cursor application. Separate
+transports/receipts/cursors/conflict bases remain independent; two connections to one database share
+identity and fence an expired owner while an independent database proceeds.
+
+AC-AS-01 tests cover offline identity creation, concurrent first opens, reload/tabs, and no-server
+Chromium operation. Real IndexedDB creation abort and workflow rollback preserve atomicity. Schema
+failure rejects older unowned data without migrating/assigning/resetting it or sending it to a server.
+Missing/changed/malformed identity and malformed/foreign/credential-shaped binding fail closed.
+Diagnostics use generic failures without stable identifiers or content (T11/AC-AS-14). Same-origin
+compromise/shared-profile access remains a documented T05 boundary, not solved by physical partitioning.
+Account/server binding changes and delayed responses under a changed binding remain S6/S12 controls;
+this evidence does not establish authenticated user isolation or complete ASVS/privacy readiness.

@@ -18,10 +18,13 @@ export async function assertSynchronizationOwnership(
   database: HortinisDatabase,
   ownership?: SynchronizationOwnership,
 ): Promise<void> {
+  const localDataSetId = await database.requireLocalDataSetId();
   if (!ownership) return;
   const current = await database.synchronizationLeases.get(ownership.lease.scope);
   if (
     ownership.isLost() ||
+    ownership.lease.localDataSetId !== localDataSetId ||
+    current?.localDataSetId !== localDataSetId ||
     current?.ownerId !== ownership.lease.ownerId ||
     current.fencingToken !== ownership.lease.fencingToken ||
     current.expiresAt <= ownership.now()

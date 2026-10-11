@@ -110,6 +110,27 @@ PostgreSQL integration tests cover installation, constraints, independent identi
 tombstones, retirement, cursor substitution, rollback, restart, and controlled concurrent publication.
 Angular serving, same-origin edge routing, and production images remain F3/F2 work.
 
+### S5 fresh local database and ownership
+
+The application creates Dexie version seven with one offline-generated local data-set identity per
+physical database. Every projection, operation, accepted base/result, conflict/rejection, tombstone,
+cursor/repair state, retry, lease, and local binding belongs to that database's identity. Opening the
+same locator from another tab/reload retains identity and lease fencing. Other databases have distinct
+identities, independent state and locks. The root locator remains `hortinis`; future user selection
+requires another database/service scope and belongs to S12.
+
+Older unowned application schemas are rejected without changing their version, data, or pending intent.
+Missing/invalid identity is not regenerated. Exchange stops and the shell reports that pending changes
+cannot be checked; it never assigns old work to a new owner or resets storage automatically. There is
+no production browser-data migration in this pre-release slice. Reset only disposable synthetic site
+data explicitly, as described below. Local binding storage accepts only the closed provenance contract
+and its own data-set identity, without passwords/session IDs/tokens. S6 owns binding activation.
+
+Same-origin script access, extensions, and shared browser profiles can reach all local data sets.
+Partitioning is not authentication or XSS protection; IDs are not secrets. Logs contain no identities
+or local content. Review the [S5 plan](s5-implementation-plan.md) and
+[privacy lifecycle](../privacy/access-data-lifecycle.md) before connecting real personal data.
+
 ### S3 fresh-install development reset
 
 S3 supports fresh installations only. V1-V3 history remains intact; V4 refuses any existing live records,

@@ -15,7 +15,7 @@ export class TechnicalRecordTransactions {
   ): Promise<T> {
     return this.database.transaction(
       'rw',
-      [...tables, this.database.synchronizationLeases],
+      [...tables, this.database.synchronizationLeases, this.database.localDataSetIdentity],
       async () => {
         await assertSynchronizationOwnership(this.database, ownership);
         return work();

@@ -2,7 +2,6 @@ import 'fake-indexeddb/auto';
 
 import Dexie from 'dexie';
 import { HortinisDatabase } from './hortinis-database';
-import { HORTINIS_DATABASE_SCHEMA, HORTINIS_DATABASE_SCHEMA_V1 } from './database-schema';
 import {
   LegacyMigrationFixtureDatabase,
   MigrationFixtureDatabase,
@@ -26,7 +25,7 @@ describe('HortinisDatabase', () => {
     await database.open();
 
     expect(database.isOpen()).toBe(true);
-    expect(database.verno).toBe(6);
+    expect(database.verno).toBe(7);
     expect(database.tables.map((table) => table.name)).toEqual([
       'technicalRecords',
       'outboxOperations',
@@ -40,6 +39,8 @@ describe('HortinisDatabase', () => {
       'synchronizationLeases',
       'acceptedTechnicalRecords',
       'rejectedOperations',
+      'localDataSetIdentity',
+      'localServerBindings',
     ]);
   });
 
@@ -61,74 +62,6 @@ describe('HortinisDatabase', () => {
         migrationState: 'migrated',
       },
     ]);
-  });
-
-  it('upgrades a populated application database without losing pending work or its cursor', async () => {
-    const name = databaseName();
-    const oldDatabase = new Dexie(name);
-    oldDatabase.version(1).stores(HORTINIS_DATABASE_SCHEMA_V1);
-    await oldDatabase.open();
-    const record = { recordId: 'legacy-record', value: 'local value', lastAcceptedRevision: '1' };
-    const operation = {
-      operationId: 'legacy-operation',
-      recordId: record.recordId,
-      kind: 'replace',
-      value: 'local value',
-      expectedRevision: '1',
-    };
-    await oldDatabase.table('technicalRecords').add(record);
-    await oldDatabase.table('outboxOperations').add(operation);
-    await oldDatabase
-      .table('synchronizationState')
-      .add({ scope: 'technical-records', cursor: 'saved-cursor' });
-    oldDatabase.close();
-
-    const upgraded = track(new HortinisDatabase(name));
-    await upgraded.open();
-    expect(upgraded.verno).toBe(6);
-    await expect(upgraded.technicalRecords.toArray()).resolves.toEqual([record]);
-    await expect(upgraded.outboxOperations.toArray()).resolves.toEqual([
-      { ...operation, legacySubmissionUnknown: true },
-    ]);
-    await expect(upgraded.synchronizationState.get('technical-records')).resolves.toMatchObject({
-      cursor: 'saved-cursor',
-      repairRequired: true,
-    });
-    await expect(upgraded.technicalTombstones.count()).resolves.toBe(0);
-    await expect(upgraded.pendingDeletionRecords.count()).resolves.toBe(0);
-    await expect(upgraded.deletionConflicts.count()).resolves.toBe(0);
-    await expect(upgraded.synchronizationRetryState.count()).resolves.toBe(0);
-    await expect(upgraded.synchronizationLeases.count()).resolves.toBe(0);
-  });
-
-  it('adds retry state to a populated version-two database without losing tombstones', async () => {
-    const name = databaseName();
-    const oldDatabase = new Dexie(name);
-    oldDatabase.version(1).stores(HORTINIS_DATABASE_SCHEMA_V1);
-    oldDatabase.version(2).stores(HORTINIS_DATABASE_SCHEMA);
-    await oldDatabase.open();
-    const tombstone = {
-      recordId: 'retired-record',
-      revision: '2',
-      deletedAtSequence: '8',
-    };
-    await oldDatabase.table('technicalTombstones').add(tombstone);
-    await oldDatabase
-      .table('synchronizationState')
-      .add({ scope: 'technical-records', cursor: 'version-two-cursor' });
-    oldDatabase.close();
-
-    const upgraded = track(new HortinisDatabase(name));
-    await upgraded.open();
-
-    expect(upgraded.verno).toBe(6);
-    await expect(upgraded.technicalTombstones.toArray()).resolves.toEqual([tombstone]);
-    await expect(upgraded.synchronizationState.get('technical-records')).resolves.toMatchObject({
-      cursor: 'version-two-cursor',
-      repairRequired: true,
-    });
-    await expect(upgraded.synchronizationRetryState.count()).resolves.toBe(0);
-    await expect(upgraded.synchronizationLeases.count()).resolves.toBe(0);
   });
 
   it('rolls back writes when a transaction fails', async () => {

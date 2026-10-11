@@ -190,3 +190,25 @@ credential-header canaries and request content remain excluded from diagnostics.
 warning contains only configuration information. No new security-log store or retention policy exists.
 Existing purpose, access restrictions, deletion/backup/restore obligations, and operator readiness gates
 continue to apply; S4 evidence uses synthetic fixtures only.
+
+## S5 local ownership handoff
+
+S5 generates and persists the existing `localDataSetId` category offline in one singleton per Dexie
+database. Its purpose is local ownership, reload continuity, response/retry fencing, and future binding
+provenance; no recipient, account credential, or telemetry is added. Physical ownership covers all
+records, tombstones, pending/accepted operations, accepted bases, conflicts/rejections, cursors, retries,
+leases, and local binding. Identity metadata and non-secret provenance share the selected data set's
+local lifetime and the existing explicit deletion/eviction/export lifecycle; no automatic retention
+or purge policy is introduced. Tests remain synthetic.
+
+Opening the same local database retains identity; another database creates its own identity without
+inheriting data. Existing unowned data is preserved and rejected instead of assigned or migrated.
+Initial identity creation and local projection/outbox writes are atomic. Malformed metadata/binding
+fails closed, and no password, session identifier, access token, or refresh token is accepted in local
+binding storage. Schema failure exposes only a generic unavailable-storage message and no content/ID.
+
+This is no authentication or XSS/shared-device protection. All data sets in a browser origin remain
+accessible to that origin's scripts and a person with access to the profile; logout retains offline
+access under the accepted design. Browser eviction/reset, extensions, snapshots, and exports remain
+within the documented privacy boundary. User selection, cloning, local deletion, and backup/restore
+suppression remain S12/P0.6/S15 workflows; no secure-erasure claim is made.

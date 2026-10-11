@@ -3,6 +3,7 @@ import { HortinisDatabase } from '../persistence/hortinis-database';
 import type { LocalSynchronizationLease } from '../persistence/local-synchronization-lease';
 import {
   assertSynchronizationOwnership,
+  SynchronizationOwnershipLostError,
   type SynchronizationOwnership,
 } from '../persistence/synchronization-ownership';
 import {
@@ -39,21 +40,31 @@ export class SynchronizationCoordinator {
   private readonly scheduler = inject(SYNCHRONIZATION_COORDINATION_SCHEDULER);
 
   async tryAcquire(): Promise<SynchronizationLeaseAttempt> {
-    return this.database.transaction('rw', this.database.synchronizationLeases, async () => {
-      const existing = await this.database.synchronizationLeases.get(SCOPE);
-      const now = this.clock.now();
-      if (existing && existing.ownerId !== this.ownerId && existing.expiresAt > now) {
-        return { acquired: false, retryAt: existing.expiresAt };
-      }
-      const lease: LocalSynchronizationLease = {
-        scope: SCOPE,
-        ownerId: this.ownerId,
-        fencingToken: (existing?.fencingToken ?? 0) + 1,
-        expiresAt: now + LEASE_DURATION_MILLISECONDS,
-      };
-      await this.database.synchronizationLeases.put(lease);
-      return { acquired: true, lease };
-    });
+    return this.database.transaction(
+      'rw',
+      this.database.synchronizationLeases,
+      this.database.localDataSetIdentity,
+      async () => {
+        const localDataSetId = await this.database.requireLocalDataSetId();
+        const existing = await this.database.synchronizationLeases.get(SCOPE);
+        if (existing && existing.localDataSetId !== localDataSetId) {
+          throw new SynchronizationOwnershipLostError();
+        }
+        const now = this.clock.now();
+        if (existing && existing.ownerId !== this.ownerId && existing.expiresAt > now) {
+          return { acquired: false, retryAt: existing.expiresAt };
+        }
+        const lease: LocalSynchronizationLease = {
+          localDataSetId,
+          scope: SCOPE,
+          ownerId: this.ownerId,
+          fencingToken: (existing?.fencingToken ?? 0) + 1,
+          expiresAt: now + LEASE_DURATION_MILLISECONDS,
+        };
+        await this.database.synchronizationLeases.put(lease);
+        return { acquired: true, lease };
+      },
+    );
   }
 
   keepAlive(lease: LocalSynchronizationLease, onLost: () => void = () => undefined): () => void {
@@ -81,34 +92,56 @@ export class SynchronizationCoordinator {
   }
 
   async release(lease: LocalSynchronizationLease): Promise<void> {
-    await this.database.transaction('rw', this.database.synchronizationLeases, async () => {
-      const current = await this.database.synchronizationLeases.get(SCOPE);
-      if (current?.ownerId === lease.ownerId && current.fencingToken === lease.fencingToken) {
-        await this.database.synchronizationLeases.put({ ...current, expiresAt: 0 });
-      }
-    });
+    await this.database.transaction(
+      'rw',
+      this.database.synchronizationLeases,
+      this.database.localDataSetIdentity,
+      async () => {
+        const localDataSetId = await this.database.requireLocalDataSetId();
+        const current = await this.database.synchronizationLeases.get(SCOPE);
+        if (
+          lease.localDataSetId === localDataSetId &&
+          current?.localDataSetId === localDataSetId &&
+          current.ownerId === lease.ownerId &&
+          current.fencingToken === lease.fencingToken
+        ) {
+          await this.database.synchronizationLeases.put({ ...current, expiresAt: 0 });
+        }
+      },
+    );
   }
 
   async assertOwner(ownership: SynchronizationOwnership): Promise<void> {
-    await this.database.transaction('r', this.database.synchronizationLeases, () =>
-      assertSynchronizationOwnership(this.database, ownership),
+    await this.database.transaction(
+      'r',
+      this.database.synchronizationLeases,
+      this.database.localDataSetIdentity,
+      () => assertSynchronizationOwnership(this.database, ownership),
     );
   }
 
   private async renew(lease: LocalSynchronizationLease): Promise<boolean> {
-    return this.database.transaction('rw', this.database.synchronizationLeases, async () => {
-      const current = await this.database.synchronizationLeases.get(SCOPE);
-      if (
-        current?.ownerId !== lease.ownerId ||
-        current.fencingToken !== lease.fencingToken ||
-        current.expiresAt <= this.clock.now()
-      ) {
-        return false;
-      }
-      current.expiresAt = this.clock.now() + LEASE_DURATION_MILLISECONDS;
-      lease.expiresAt = current.expiresAt;
-      await this.database.synchronizationLeases.put(current);
-      return true;
-    });
+    return this.database.transaction(
+      'rw',
+      this.database.synchronizationLeases,
+      this.database.localDataSetIdentity,
+      async () => {
+        const localDataSetId = await this.database.requireLocalDataSetId();
+        const current = await this.database.synchronizationLeases.get(SCOPE);
+        if (
+          lease.localDataSetId !== localDataSetId ||
+          current?.localDataSetId !== localDataSetId ||
+          current?.ownerId !== lease.ownerId ||
+          current.fencingToken !== lease.fencingToken ||
+          current.expiresAt <= this.clock.now()
+        ) {
+          return false;
+        }
+        current.expiresAt = this.clock.now() + LEASE_DURATION_MILLISECONDS;
+        lease.expiresAt = current.expiresAt;
+        await this.database.synchronizationLeases.put(current);
+        return true;
+      },
+    );
   }
 }

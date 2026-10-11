@@ -2,10 +2,8 @@ import 'fake-indexeddb/auto';
 
 import { createEnvironmentInjector, EnvironmentInjector } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import Dexie from 'dexie';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HortinisDatabase } from '../persistence/hortinis-database';
-import { HORTINIS_DATABASE_SCHEMA_V4 } from '../persistence/database-schema';
 import { TechnicalRecordPersistence } from '../persistence/technical-record-persistence';
 import { SynchronizationRetryPersistence } from '../persistence/synchronization-retry-persistence';
 import { pushRetryWorkId } from '../persistence/local-synchronization-retry-state';
@@ -542,10 +540,9 @@ describe('synchronization recovery regressions', () => {
     await expect(db.technicalRecords.get(recordId)).resolves.toBeUndefined();
   });
 
-  it('repairs a legacy projection across an offline period, page failure, and reopen before pushing', async () => {
+  it('resumes an explicit projection repair across an offline period, page failure, and reopen before pushing', async () => {
     const name = `hortinis-legacy-repair-${crypto.randomUUID()}`;
-    const legacy = new Dexie(name);
-    legacy.version(4).stores(HORTINIS_DATABASE_SCHEMA_V4);
+    const legacy = database(name);
     await legacy.open();
     await legacy
       .table('technicalRecords')
@@ -558,7 +555,7 @@ describe('synchronization recovery regressions', () => {
       .put({ ...create(secondId, otherRecordId), value: 'pending' });
     await legacy
       .table('synchronizationState')
-      .put({ scope: 'technical-records', cursor: 'old-cursor' });
+      .put({ scope: 'technical-records', cursor: 'old-cursor', repairRequired: true });
     legacy.close();
     const db = database(name);
     let online = false;

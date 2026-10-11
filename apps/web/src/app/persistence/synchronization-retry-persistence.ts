@@ -39,6 +39,7 @@ export class SynchronizationRetryPersistence {
       'rw',
       this.database.synchronizationRetryState,
       this.database.synchronizationLeases,
+      this.database.localDataSetIdentity,
       () =>
         this.reserveAttemptInTransaction(
           workId,
@@ -99,6 +100,7 @@ export class SynchronizationRetryPersistence {
       'rw',
       this.database.synchronizationRetryState,
       this.database.synchronizationLeases,
+      this.database.localDataSetIdentity,
       async () => {
         await assertSynchronizationOwnership(this.database, ownership);
         await this.database.synchronizationRetryState.put(state);
@@ -111,6 +113,7 @@ export class SynchronizationRetryPersistence {
       'rw',
       this.database.synchronizationRetryState,
       this.database.synchronizationLeases,
+      this.database.localDataSetIdentity,
       async () => {
         await assertSynchronizationOwnership(this.database, ownership);
         await this.database.synchronizationRetryState.delete(workId);

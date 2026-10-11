@@ -991,14 +991,14 @@ task relies on them.
 
 #### G2f. Partition synchronization by server-owned scope
 
-- Status: `in progress`; S3 database partitioning and S4 no-auth access enforcement validated
+- Status: `in progress`; S3 database partitioning, S4 no-auth access enforcement, and S5 browser ownership validated
   (2026-10-11).
 - Depends on: G2e and the accepted S1 access/scope decision.
 - Design prerequisite: S1 is validated by ADR-0029 and its access, threat/ASVS, and privacy lifecycle
   records. S2's contract/application-type and cross-runtime parsing boundaries are also validated;
   S3 implements fresh-install database partitioning and scoped service/persistence boundaries;
-  S4 implements explicit no-auth access/configuration; S5-S7 browser, binding, and full-topology
-  isolation remain planned, using synthetic data only. See the
+  S4 implements explicit no-auth access/configuration; S5 implements durable local ownership;
+  S6-S7 binding and full-topology isolation remain planned, using synthetic data only. See the
   [access contract handoff](../api/access-and-binding-contracts.md).
 - Scope: implement S2 through S7 of the
   [access and synchronization-scope implementation plan](access-and-synchronization-scope-implementation-plan.md)
@@ -1033,6 +1033,14 @@ task relies on them.
   mode setup, request resolution, explicit workflow contexts, scoped authority checks, cross-origin
   mutation rejection, startup rollback/restart denial, diagnostic minimization, and production
   artifact separation are verified. S5-S7 remain planned; G2f is not complete.
+
+- S5 evidence (2026-10-11): `pnpm validate` passed with 299 web unit tests, 11 standard Chromium
+  tests, 109 Java unit tests, 57 PostgreSQL integration tests, four real-topology tests, and all
+  contract/documentation/quality/build gates on the final reviewed revision.
+  Atomic offline identity, physical local partitioning, matching-owner binding storage, response/retry
+  and lease fencing, multi-tab recovery, old-schema rejection without ownership inference, and safe
+  diagnostics are verified. Same-origin/shared-profile access remains a documented limitation.
+  S6-S7 binding and full scope topology remain planned; G2f is not complete.
 
 #### G3. Implement generation rollover and indeterminate outcomes
 

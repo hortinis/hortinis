@@ -1,7 +1,7 @@
 # Access and synchronization-scope specification
 
 - Status: Accepted S1 design with S2 contracts, S3 database partitioning, and S4 trusted no-auth access;
-  browser binding and authenticated adapters remain planned.
+  S5 durable browser ownership is implemented; browser binding and authenticated adapters remain planned.
 - Decision: [ADR-0029](decisions/0029-access-and-synchronization-scope.md).
 - Owners: [S2 through S15](../development/access-and-synchronization-scope-implementation-plan.md),
   P0.6 for export/restore, and the applicable foundation/deployment gates.
@@ -69,6 +69,14 @@ cannot be changed by configuration alone; no mode transition is currently suppor
 selection is confined to integration-test sources and cannot be enabled by a production profile.
 No-auth browser mutations reject cross-origin/opaque Origin and cross-site Fetch Metadata, while
 non-browser access remains allowed by that mode. Authentication and trusted proxy policy remain gated.
+
+S5 partitions local state physically: one durable identity and one set of synchronization tables per
+Dexie database. Identity generation occurs only in atomic initial creation. Older unowned schemas
+remain untouched and inaccessible to workflows until an explicit synthetic reset; missing/malformed
+metadata never causes regeneration. Workflow transactions read identity, and leases include it so a
+response or retry from another data set cannot mutate this one even when other identifiers collide.
+Binding provenance is stored under its matching local owner with closed credential-free validation.
+The root application has one active database/service scope; user selection and cloning remain S12.
 
 ## Local binding and safe first connection
 

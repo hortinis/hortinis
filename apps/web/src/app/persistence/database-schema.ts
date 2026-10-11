@@ -33,3 +33,10 @@ export const HORTINIS_DATABASE_SCHEMA_V6 = {
   outboxOperations: 'operationId, recordId, predecessorOperationId',
   rejectedOperations: 'operationId, recordId, category',
 };
+
+// Each physical database contains exactly one local data set, including every raw table query.
+export const HORTINIS_DATABASE_SCHEMA_V7 = {
+  ...HORTINIS_DATABASE_SCHEMA_V6,
+  localDataSetIdentity: 'key',
+  localServerBindings: 'localDataSetId',
+};
