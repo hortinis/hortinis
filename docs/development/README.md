@@ -86,13 +86,53 @@ that build is running; it will contend for Gradle's cache lock. Follow the exist
 `docker compose --file infrastructure/docker/compose.yaml logs --follow sync`.
 
 The topology applies versioned technical Flyway migrations at sync-service startup. V1 creates the
-walking-skeleton technical-record projection, accepted-operation receipts, and immutable change journal;
-V2 adds tombstone changes, a tombstone projection, and lifetime identifier reservations; V3 serializes
-change publication per synchronization scope so commit order cannot create a skipped journal entry.
-PostgreSQL-backed integration tests assert populated upgrades, deletion results, ordered pulls, identifier
-retirement, replay, restart persistence, transaction rollback, and controlled concurrent publication.
-Angular static-file serving, same-origin edge routing, and production image builds belong to F3 and F2
-respectively.
+walking-skeleton projection, receipts, and journal; V2 adds deletion state; V3 introduces the earlier
+sole publication lock. V4 installs the scope-partitioned model on an empty technical database:
+installation and scope UUIDs, scope-leading composite keys and references, and independent transactional
+publication counters. Publication locks are per scope. Ordinary synchronization cannot create a scope.
+PostgreSQL integration tests cover installation, constraints, independent identical IDs, replay,
+tombstones, retirement, cursor substitution, rollback, restart, and controlled concurrent publication.
+Angular serving, same-origin edge routing, and production images remain F3/F2 work.
+
+### S3 fresh-install development reset
+
+S3 supports fresh installations only. V1-V3 history remains intact; V4 refuses any existing live records,
+receipts, journal rows, tombstones, or identifier reservations before changing the schema. There is no
+populated technical-data upgrade or user-data ownership migration. Fresh installations apply V1-V4 in
+order and provision one persistent installation identity and the sole synthetic technical scope.
+Restart does not regenerate identities. Additional scopes are provisioned only by controlled synthetic
+test setup until access/account setup is implemented.
+
+For an existing **synthetic development** Compose installation, stop it and remove its disposable
+project volumes, then restart using the documented credentials and UID/GID settings:
+
+```shell
+docker compose --file infrastructure/docker/compose.yaml down --volumes --remove-orphans
+docker compose --file infrastructure/docker/compose.yaml up --wait
+```
+
+The reset deletes that Compose project's PostgreSQL data and Gradle cache. Do not use it for user data.
+For a separate developer database, recreate only that disposable database through its own tooling.
+Also clear the Hortinis development origin's browser site data before reconnecting: old opaque `v1`
+cursors and previously submitted synthetic work are not supported across the fresh installation.
+These are explicit development resets, not automated migration or rebinding workflows. The isolated
+`pnpm test:e2e:topology` runner already creates fresh volumes and browser contexts per run.
+
+### Scoped database deployment handoff
+
+The Compose credentials remain development credentials, not least-privilege production evidence.
+Deployment work must separate the migration/DDL role from the runtime role. Runtime synchronization
+needs installation `SELECT`, scope `SELECT` and counter-column `UPDATE`, record
+`SELECT/INSERT/UPDATE/DELETE`, and receipt/journal/tombstone/reservation `SELECT/INSERT`; it needs no
+schema ownership, global sequence privileges, arbitrary scope provisioning, or cross-account role
+selection. Future setup, purge, and compaction capabilities require separately reviewed privileges.
+Operator credentials must stay outside committed configuration and logs.
+
+Backups contain installation identities and every backed-up scope. Restrict and encrypt backup access,
+apply the documented retention/deletion boundary, and change installation identity before serving a
+restore that rolls synchronization state back. S3 tests ordinary restart, not a production backup/
+restore workflow. The [privacy lifecycle](../privacy/access-data-lifecycle.md) and S12/S15 retain the
+restore-suppression and deployment-evidence gates.
 
 ## Frontend workspace
 

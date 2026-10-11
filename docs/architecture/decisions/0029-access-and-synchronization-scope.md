@@ -36,6 +36,40 @@ local persistence, and synchronization must have separate identities and lifecyc
   Scope every query, mutation, constraint, receipt, cursor, lock, generation, and snapshot. No identifier
   in an untrusted request grants access.
 
+### S3 PostgreSQL partitioning
+
+S3 uses shared tables with scope-leading composite keys rather than PostgreSQL physical table
+partitioning. Record and operation identity are `(synchronization_scope_id, identifier)`; journal
+identity is `(synchronization_scope_id, server_sequence)`. Composite foreign keys keep each change
+attached to a receipt for the same scope, operation, and record. Lifetime identifier reservations
+reference the scope, independently of compactable receipts, journal entries, and tombstone details.
+
+A durable installation row and explicit UUID scopes replace the earlier global technical lock row.
+Each scope stores its own non-negative publication counter. A submission locks that scope row before
+receipt or record access and retains it through commit. Counter allocation and the complete acceptance
+bundle share the service transaction. This removes the record-only advisory lock, prevents committed
+publication from overtaking an earlier publisher in the same scope, and avoids a shared publication
+lock or sequence allocator between unrelated scopes. Replays do not advance the counter. Overflow
+fails the transaction without partial acceptance. Reads remain non-blocking under committed-state
+visibility; scoped counter and query predicates are checked at the persistence boundary.
+
+The generationless `scope-v1` opaque cursor identifies the installation, scope, and position. It is
+canonical and bounded, and its context and position are checked before pulling. It is neither secret
+nor authorization. Legacy sequence-only `v1` cursors are rejected; G3 will add generation fencing to
+this existing scope boundary rather than introducing unbound cursor compatibility.
+
+Only fresh technical installations are supported. V1 through V3 remain unchanged; V4 refuses any
+existing synchronization rows before schema changes, then creates fresh identities and zero counters.
+Existing synthetic developer databases and browser synchronization state must be reset as documented
+in the development guide. No user-data backfill, ownership inference, or populated-data upgrade is
+provided. Normal restart and forward migration retain the installation and scope identities.
+
+Until S4, an internal compatibility adapter reads only the explicitly provisioned sole technical
+scope. It adds no access mode, request selector, configuration fallback, or production user isolation.
+Service and persistence methods accept the existing immutable access context; synthetic additional
+contexts are constructed only by integration-test sources. S4 replaces compatibility entry points
+with trusted request resolution and mode validation. Ordinary synchronization never provisions scopes.
+
 ### Explicit access modes
 
 Support only `single-user-no-auth`, `single-user-auth`, and `multi-user-auth`. There is no runtime

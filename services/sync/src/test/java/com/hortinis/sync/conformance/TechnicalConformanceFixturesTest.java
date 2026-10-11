@@ -2,6 +2,8 @@ package com.hortinis.sync.http;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hortinis.sync.access.ServerInstanceId;
+import com.hortinis.sync.access.SynchronizationScopeId;
 import com.hortinis.sync.http.TechnicalSynchronizationWire.RecordChange;
 import com.hortinis.sync.http.TechnicalSynchronizationWire.RecordResult;
 import com.hortinis.sync.http.TechnicalSynchronizationWire.TombstoneChange;
@@ -149,7 +151,10 @@ class TechnicalConformanceFixturesTest {
 
   private static boolean isValidCursor(String cursor) {
     try {
-      SyncCursorCodec.decode(cursor);
+      SyncCursorCodec.decode(
+          cursor,
+          new ServerInstanceId("00000000-0000-4000-8000-000000000001"),
+          new SynchronizationScopeId("00000000-0000-4000-8000-000000000002"));
       return true;
     } catch (InvalidRequestException exception) {
       return false;

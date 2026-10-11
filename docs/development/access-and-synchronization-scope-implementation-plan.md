@@ -18,8 +18,8 @@ the [access specification](../architecture/access-and-synchronization-scope.md),
 [threat model](../security/access-threat-model.md),
 [ASVS applicability register](../security/asvs-5.0.0-applicability.md), and
 [privacy lifecycle](../privacy/access-data-lifecycle.md). S2 contract/parsing boundaries are validated;
-runtime scope and access adapters remain planned. The design does
-not select an authentication library or authorize processing real user data.
+S3 implements database partitioning; request access resolution and remaining scope adapters remain
+planned. The design does not select an authentication library or authorize processing real user data.
 
 ## Required outcome
 
@@ -224,7 +224,7 @@ preserves local data and pending intent.
 
 ### S3 — Partition the PostgreSQL synchronization model
 
-- Status: `planned`.
+- Status: `validated` (fresh-install database and synthetic service slice, 2026-10-10).
 - Depends on: S1 and S2.
 - Scope: add the schema version that creates server-instance and synchronization-scope state and makes
   scope part of every technical record, accepted receipt, change, tombstone, retired identifier, lock,
@@ -233,21 +233,59 @@ preserves local data and pending intent.
   unrelated scopes through the same lock.
 - Migration rule: the repository is pre-production and no user-data ownership migration is required, but
   Flyway history remains versioned and tested. Do not rewrite a released or already-applied migration
-  silently; document the supported development reset or deterministic technical-fixture transition.
+  silently. S3 supports fresh installations only: V4 rejects any existing synchronization rows before
+  changing the schema. Reset synthetic development databases and browser synchronization state; no
+  populated-data backfill or ownership inference is supported.
 - Security and privacy acceptance: every read and mutation is parameterized and requires a trusted scope;
   the same record and operation identifiers can exist independently in two scopes; database errors expose
   no content or identifiers through HTTP or logs; least-privilege database credentials and backup handling
   are documented for deployment work.
-- Validation: clean migration, supported populated technical-fixture transition or documented reset,
+- Validation: clean migration, populated-database rejection and documented development reset,
   rollback, restart, constraints, indexes, concurrent publication, cross-scope collision, and transaction
   isolation tests pass with PostgreSQL.
+- Implementation: V4 creates durable installation and UUID scope state, scoped keys/foreign keys/indexes,
+  and transactional per-scope counters. Each acceptance locks its scope before receipt/record access;
+  record-only advisory locks and the global sequence are removed. Every synchronization persistence
+  operation requires the S2 immutable context and verifies installation/scope presence. Generationless
+  cursors bind installation, scope, and position and reject foreign, legacy, and future positions.
+- S4 handoff: the existing HTTP technical slice uses an internal adapter for its explicitly provisioned
+  sole synthetic scope. Additional contexts exist only in integration-test sources. S4 replaces this
+  compatibility adapter and contextless service entry points with request resolution and fail-closed
+  mode configuration. No authentication, account relationship, binding adapter, or production access
+  mode is activated by S3.
+- Security/privacy review: synthetic fixtures only; no new personal-data category, credential, log
+  identifier, or retention policy. Database T02/T10/T15 controls and AC-AS-03/04 isolation portions are
+  exercised through scoped SQL, constraints, cursor checks, and controlled concurrency; HTTP access
+  denial is generic and non-cacheable. Authentication and complete privacy/operational evidence remain
+  S4/S8-S15 gates; no general ASVS or legal-compliance claim is made. Evidence addresses database
+  portions of `v5.0.0-8.2.2`/`v5.0.0-8.4.1`, SQL parameterization under
+  `v5.0.0-1.2.4`, and publication/resource ordering under `v5.0.0-15.4.3`.
+  Production database privilege, protected transport, backups, and account authorization remain
+  unverified; the documented deployment handoff does not mark those controls satisfied.
+
+- Validation evidence (2026-10-10): `pnpm validate` passed, including contract checks, all frontend
+  quality/build checks, 278 browser-side unit tests, nine Chromium smoke/offline tests, 68 Java unit
+  tests, 51 PostgreSQL integration tests, backend quality/build gates, and four real-topology Chromium
+  tests. Focused Spotless/Checkstyle/PMD checks passed; integration sources have no Checkstyle warnings
+  and PMD reports no violations. Existing warning-only Checkstyle debt remains in baseline sources.
+  Schema tests cover the fresh V1-V4 chain and rejection of each populated synchronization category
+  before any V4 schema changes. Controlled concurrency proves an uncommitted A publication blocks a
+  later A publisher while B commits using the same record/operation IDs. Restart retains identities,
+  receipt results, and cursors; rollback includes the scope counter and deletion bundle.
+- Manual review: both built application JARs contain V4 and exclude the synthetic context helper and
+  integration test classes. Scope predicates, composite references, transaction/lock order, SQL
+  parameterization, numeric pull ordering, minimized error diagnostics, development-only reset,
+  least-privilege/backup handoff, and ADR-0018 English consistency were reviewed. Public HTTP shapes
+  remain unchanged, so no TypeSpec/schema regeneration was required. S4 may start; S5-S7, authentication,
+  production deployment/privacy controls, generation rollover, and real-user use remain separate gates.
 
 ### S4 — Enforce the trusted server access context
 
 - Status: `planned`.
 - Depends on: S2 and S3.
 - Scope: introduce the narrow access-context resolver, pass its immutable result through controller,
-  service, and persistence calls, and remove the hard-coded global scope. Implement explicit mode
+  service, and persistence calls, replacing S3's sole technical compatibility adapter and contextless
+  service entry points. Consume the already-scoped persistence boundary. Implement explicit mode
   configuration with fail-closed startup validation. Provide a test-only resolver for automated scope
   isolation scenarios; do not ship a production header, query parameter, or request field that impersonates
   another scope.

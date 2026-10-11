@@ -7,6 +7,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.hortinis.sync.access.TechnicalSynchronizationContext;
+import com.hortinis.sync.protocol.SyncCursorCodec;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -66,6 +68,7 @@ class TechnicalSynchronizationIntegrationTest {
 
   @Autowired private MockMvc mockMvc;
   @Autowired private JdbcTemplate jdbc;
+  @Autowired private TechnicalSynchronizationContext technicalContext;
 
   @Test
   void characterizesLoneSurrogateEncodingAtTheJdbcBoundary() {
@@ -213,6 +216,7 @@ class TechnicalSynchronizationIntegrationTest {
         "TRUNCATE technical_record_change, technical_record_tombstone, "
             + "retired_technical_record_identifier, accepted_technical_record_operation, "
             + "technical_record RESTART IDENTITY CASCADE");
+    jdbc.update("UPDATE technical_synchronization_scope SET last_published_sequence = 0");
   }
 
   @Test
@@ -584,7 +588,7 @@ class TechnicalSynchronizationIntegrationTest {
         .isEqualTo("tombstone");
 
     mockMvc
-        .perform(get(CHANGES_PATH).param(CURSOR_PARAMETER, "v1.MQ"))
+        .perform(get(CHANGES_PATH).param(CURSOR_PARAMETER, cursor(1)))
         .andExpect(status().isOk())
         .andExpect(
             content()
@@ -595,7 +599,9 @@ class TechnicalSynchronizationIntegrationTest {
                         + "\",\"tombstone\":{\"recordId\":\""
                         + RECORD_ID
                         + "\",\"revision\":\"2\",\"deletedAtSequence\":\"2\"},"
-                        + "\"sequence\":\"2\"}],\"nextCursor\":\"v1.Mg\","
+                        + "\"sequence\":\"2\"}],\"nextCursor\":\""
+                        + cursor(2)
+                        + "\","
                         + "\"hasMore\":false}",
                     true));
   }
@@ -680,6 +686,18 @@ class TechnicalSynchronizationIntegrationTest {
     assertThat(count(CHANGE_TABLE)).isEqualTo(1);
     assertThat(count(TOMBSTONE_TABLE)).isZero();
     assertThat(count(RETIRED_IDENTIFIER_TABLE)).isZero();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT last_published_sequence FROM technical_synchronization_scope", Long.class))
+        .isEqualTo(1);
+    jdbc.execute("DROP TRIGGER fail_identifier_reservation ON retired_technical_record_identifier");
+    mockMvc
+        .perform(
+            post(OPERATIONS_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(deleteRequest(DELETE_OPERATION_ID, "1")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.sequence").value("2"));
   }
 
   @Test
@@ -773,11 +791,13 @@ class TechnicalSynchronizationIntegrationTest {
                         + ","
                         + acceptedChange(
                             RECORD_ID, REPLACE_OPERATION_ID, "2", REPLACEMENT_VALUE, "2")
-                        + "],\"nextCursor\":\"v1.Mg\",\"hasMore\":false}",
+                        + "],\"nextCursor\":\""
+                        + cursor(2)
+                        + "\",\"hasMore\":false}",
                     true));
 
     mockMvc
-        .perform(get(CHANGES_PATH).param(CURSOR_PARAMETER, "v1.MQ"))
+        .perform(get(CHANGES_PATH).param(CURSOR_PARAMETER, cursor(1)))
         .andExpect(status().isOk())
         .andExpect(
             content()
@@ -785,7 +805,9 @@ class TechnicalSynchronizationIntegrationTest {
                     "{\"changes\":["
                         + acceptedChange(
                             RECORD_ID, REPLACE_OPERATION_ID, "2", REPLACEMENT_VALUE, "2")
-                        + "],\"nextCursor\":\"v1.Mg\",\"hasMore\":false}",
+                        + "],\"nextCursor\":\""
+                        + cursor(2)
+                        + "\",\"hasMore\":false}",
                     true));
   }
 
@@ -818,15 +840,15 @@ class TechnicalSynchronizationIntegrationTest {
         .andExpect(jsonPath("$.changes.length()").value(100))
         .andExpect(jsonPath("$.changes[0].sequence").value("1"))
         .andExpect(jsonPath("$.changes[99].sequence").value("100"))
-        .andExpect(jsonPath("$.nextCursor").value("v1.MTAw"))
+        .andExpect(jsonPath("$.nextCursor").value(cursor(100)))
         .andExpect(jsonPath("$.hasMore").value(true));
 
     mockMvc
-        .perform(get(CHANGES_PATH).param(CURSOR_PARAMETER, "v1.MTAw"))
+        .perform(get(CHANGES_PATH).param(CURSOR_PARAMETER, cursor(100)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.changes.length()").value(1))
         .andExpect(jsonPath("$.changes[0].sequence").value("101"))
-        .andExpect(jsonPath("$.nextCursor").value("v1.MTAx"))
+        .andExpect(jsonPath("$.nextCursor").value(cursor(101)))
         .andExpect(jsonPath("$.hasMore").value(false));
   }
 
@@ -957,6 +979,12 @@ class TechnicalSynchronizationIntegrationTest {
         + "\",\"kind\":\"replace\",\"expectedRevision\":\""
         + expectedRevision
         + CLOSE_QUOTE_AND_OBJECT;
+  }
+
+  private String cursor(long sequence) {
+    var context = technicalContext.current();
+    return SyncCursorCodec.encode(
+        sequence, context.serverInstanceId(), context.synchronizationScopeId());
   }
 
   private String deleteRequest(String operationId, String expectedRevision) {

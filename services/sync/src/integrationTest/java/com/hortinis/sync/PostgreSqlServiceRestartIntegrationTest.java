@@ -2,6 +2,8 @@ package com.hortinis.sync;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hortinis.sync.access.SynchronizationAccessContext;
+import com.hortinis.sync.access.TechnicalSynchronizationContext;
 import com.hortinis.sync.protocol.CreateTechnicalRecordOperation;
 import com.hortinis.sync.protocol.DeleteTechnicalRecordOperation;
 import com.hortinis.sync.protocol.ExpectedRevision;
@@ -35,24 +37,34 @@ class PostgreSqlServiceRestartIntegrationTest {
     RecordId recordId = RecordId.parse(UUID.randomUUID().toString());
     String jdbcUrl = POSTGRES.getJdbcUrl();
     OperationResult deletionResult;
+    SynchronizationAccessContext originalContext;
+    String originalCursor;
 
     try (ConfigurableApplicationContext first = startApplication(jdbcUrl)) {
       TechnicalRecordSynchronizationService synchronization =
           first.getBean(TechnicalRecordSynchronizationService.class);
+      originalContext = first.getBean(TechnicalSynchronizationContext.class).current();
       synchronization.submit(
           new CreateTechnicalRecordOperation(createOperationId, recordId, "retained value"));
       deletionResult =
           synchronization.submit(
               new DeleteTechnicalRecordOperation(
                   deleteOperationId, recordId, ExpectedRevision.parse("1")));
+      originalCursor = synchronization.pull(null).nextCursor();
     }
 
     try (ConfigurableApplicationContext second = startApplication(jdbcUrl)) {
       JdbcTemplate jdbc = second.getBean(JdbcTemplate.class);
       TechnicalRecordSynchronizationService synchronization =
           second.getBean(TechnicalRecordSynchronizationService.class);
+      var restartedContext = second.getBean(TechnicalSynchronizationContext.class).current();
+      assertThat(restartedContext.serverInstanceId()).isEqualTo(originalContext.serverInstanceId());
+      assertThat(restartedContext.synchronizationScopeId())
+          .isEqualTo(originalContext.synchronizationScopeId());
+      assertThat(synchronization.pull(originalCursor).changes()).isEmpty();
+      assertThat(synchronization.pull(originalCursor).nextCursor()).isEqualTo(originalCursor);
       assertThat(jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history", Integer.class))
-          .isEqualTo(3);
+          .isEqualTo(4);
       assertThat(
               jdbc.queryForObject("SELECT count(*) FROM technical_record_tombstone", Integer.class))
           .isEqualTo(1);

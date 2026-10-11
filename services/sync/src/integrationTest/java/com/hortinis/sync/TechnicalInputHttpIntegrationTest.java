@@ -51,6 +51,7 @@ class TechnicalInputHttpIntegrationTest {
     jdbc.update(
         "TRUNCATE technical_record_change, accepted_technical_record_operation, technical_record "
             + "RESTART IDENTITY CASCADE");
+    jdbc.update("UPDATE technical_synchronization_scope SET last_published_sequence = 0");
   }
 
   @Test

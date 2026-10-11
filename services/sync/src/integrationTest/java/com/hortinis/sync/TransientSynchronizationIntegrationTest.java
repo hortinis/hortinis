@@ -60,6 +60,7 @@ class TransientSynchronizationIntegrationTest {
         "TRUNCATE technical_record_change, technical_record_tombstone, "
             + "retired_technical_record_identifier, accepted_technical_record_operation, "
             + "technical_record RESTART IDENTITY CASCADE");
+    jdbc.update("UPDATE technical_synchronization_scope SET last_published_sequence = 0");
   }
 
   @Test
@@ -83,7 +84,8 @@ class TransientSynchronizationIntegrationTest {
     try (Connection connection = adminConnection();
         Statement statement = connection.createStatement()) {
       connection.setAutoCommit(false);
-      statement.execute("SELECT scope_id FROM technical_synchronization_scope FOR UPDATE");
+      statement.execute(
+          "SELECT synchronization_scope_id FROM technical_synchronization_scope FOR UPDATE");
       try {
         assertUnavailable(submit(request));
         assertNoAcceptance();

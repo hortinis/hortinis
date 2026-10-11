@@ -129,6 +129,23 @@ The generic reconciliation result is record-level. It can adopt server state, pr
 chain, retain a conflict, or keep an operation indeterminate. Merging individual fields or deciding that
 two domain operations are semantically equivalent remains a future domain-specific decision.
 
+## S3 scope partitioning
+
+The technical PostgreSQL slice partitions records, receipts, changes, tombstones, and retired IDs by
+server-owned scope. Sequences advance independently per scope. Service/persistence entry points require
+an immutable server-side access context. Until S4, the HTTP routes use only the explicitly provisioned
+sole technical scope; there is no client-selectable scope or authentication claim.
+
+The server emits generationless `scope-v1` opaque cursors bound to installation, scope, and position.
+It rejects foreign contexts, legacy sequence-only cursors, malformed encodings, and positions beyond
+the scope's committed publication counter. Cursor validity does not grant access. Clients continue to
+store and replay the opaque string without interpreting it. A missing sole technical scope
+returns the existing generic `403 ACCESS_DENIED` shape with `Cache-Control: no-store`.
+
+Only fresh installations are supported. Existing synthetic database and browser state require the
+[development reset](../development/README.md#s3-fresh-install-development-reset); populated-data
+migration and legacy cursor compatibility are absent. G3 will add generation-bound cursor semantics.
+
 ## Deliberate limitations
 
 The contract defines scope identity and access-boundary shapes without implementing authorization or

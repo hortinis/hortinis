@@ -105,9 +105,10 @@ depends on them:
 6. A pull without a cursor may bootstrap a client only while the server retains complete incremental
    history from the synchronization scope's origin. After that history is compacted, it returns
    `RECONCILIATION_REQUIRED`; G4 will provide the required full snapshot.
-7. The existing sequence-only `v1` cursor is accepted only as a migration bridge in the initial
-   generation. A successful pull returns the new generation-bound cursor. It must not be accepted after
-   rollover or transferred between scopes.
+7. G2f S3 rejects sequence-only `v1` cursors and emits instance/scope-bound `scope-v1` cursors.
+   Decide the transition from that scope-bound format before activating generations; any supported
+   initial-generation bridge must validate installation/scope and cease working after rollover.
+   Do not reintroduce an unbound `v1` cursor bridge.
 8. Operations created locally before a generation is known remain unbound and are not submitted. The
    browser performs an initial pull, atomically persists the returned generation and cursor, and binds an
    operation immediately before its first submission.
@@ -153,7 +154,7 @@ conformance commands documented in [`README.md`](README.md).
 
 ### Database migration
 
-Add the next Flyway migration after G2's V3 schema. It should:
+Add the next Flyway migration after G2f's scoped V4 schema (or its latest successor). It should:
 
 - create a synchronization-generation table with an opaque generation identifier, lifecycle state, and
   server timestamp metadata;
@@ -170,12 +171,13 @@ database extension solely to generate it if the existing Java/application bounda
 
 ### Cursor behavior
 
-Introduce a version-two opaque cursor carrying a generation identifier and sequence position. The codec
-must:
+Introduce a new opaque cursor version carrying installation, scope, generation, and sequence
+position. The codec must:
 
 - round-trip canonical values;
 - reject malformed, non-canonical, unknown-scope, and impossible positions;
-- recognize the old `v1` sequence-only cursor only during the initial-generation migration window;
+- define any initial-generation bridge for S3's `scope-v1` cursor without accepting legacy unbound
+  `v1` cursors;
 - return a typed decoded boundary rather than leaking cursor representation into the service;
 - distinguish invalid syntax from a recognized but no-longer-usable generation.
 
@@ -220,7 +222,7 @@ operational design and remain outside G3.
 Cover at least:
 
 - current-generation create, replace, delete, identical replay, and operation-ID reuse;
-- pull with no cursor, a current cursor, an empty page, and a migrated `v1` cursor;
+- pull with no cursor, a current cursor, an empty page, and the accepted transition from `scope-v1`;
 - ordered pages that return the same generation and generation-bound next cursors;
 - retired-generation replay while its receipt and result remain;
 - retired-generation submission after receipt/result compaction returning indeterminate;
@@ -228,7 +230,7 @@ Cover at least:
 - retired, compacted, and expired cursor reasons;
 - rollover serialization against concurrent operation acceptance;
 - rollback at the generation switch and compaction boundaries;
-- populated V3-to-new-schema migration;
+- populated G2f scoped-schema-to-generation-schema migration;
 - service restart with active and retired generations;
 - privacy-safe diagnostics.
 

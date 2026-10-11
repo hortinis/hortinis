@@ -65,7 +65,7 @@ real-data use. Account inactivity alone does not discard garden history or unres
 | Accepted browser live-record projection and legacy repair cursor | Preserve latest server values independently of pending intent; browser only, within the same data-set boundary. | Replace values monotonically; remove live accepted state on tombstones; delete with the data set. Repair metadata contains only scope/cursor state and is removed when repair completes. Never log values or cursors. |
 | Submission markers and legacy uncertainty | Freeze operation bodies before dispatch and preserve replay after migration; browser only, with the outbox or retained rejection. | Retain with the operation and recovery evidence; no historical timestamp is invented for legacy rows. Never expose content in diagnostics. |
 | Retry state and tab leases: work IDs, attempts, phase, ephemeral owner, fence, expiry | Bounded retry and coordination; browser only. | Retain active/exhausted work until outcome/manual recovery; Expire released leases while retaining one bounded scope row for fencing continuity. Delete with the data set; no copied request bodies or content in retry diagnostics. |
-| Server instance/scope/account IDs and ownership relationship | Installation mismatch detection, partitioning, authorization; server, with minimum authorized identity exposed to binding. | Instance ID follows installation lifecycle; account/scope IDs and ownership last until deletion. Never reuse; public discovery omits account/scope identity. |
+| Server instance/scope/account IDs, ownership relationship, scope publication counter, and sole technical role | Installation mismatch detection, partitioning, authorization; server, with minimum authorized identity exposed to binding. | Instance ID follows installation lifecycle; account/scope IDs and ownership last until deletion. Never reuse; public discovery omits account/scope identity. |
 | Account login identifier and credential verifier; recovery attributes only if justified by S8 | Autonomous authentication/recovery; restricted identity storage. Do not require an email address or external provider by assumption. | Account lifetime, then purge during deletion. Superseded verifiers/secrets follow bounded S8 cleanup; do not archive obsolete credentials in ordinary account tables. |
 | Session records/cookies, CSRF and bootstrap/recovery/enrollment secrets | Authentication and request/replay protection; restricted server records and protected necessary cookie/in-memory token handling. | Enforce S8's finite idle/absolute/one-time limits; invalidate at logout, revocation, disablement, or deletion. S8 specifies bounded physical cleanup; termination immediately removes authorization. Never store session secrets in IndexedDB/localStorage/sessionStorage. |
 | Device ID, enrollment status, optional user label, justified activity timestamps | User-visible device management/revocation; account identity store and authorized account UI. No fingerprinting or precise location. | Active enrollment lifetime; revoke immediately and purge obsolete metadata under a bounded S11/S15 rule. Purge on account deletion; labels are never logged. |
@@ -167,3 +167,13 @@ Normative reference: [GDPR](https://eur-lex.europa.eu/eli/reg/2016/679/oj), espe
 [retention](https://www.cnil.fr/en/sheet-ndeg14-define-data-retention-period), and
 [personal-data security guide](https://www.cnil.fr/sites/default/files/2024-03/cnil_guide_securite_personnelle_ven_0.pdf).
 The proposed six-month security period is informed by CNIL guidance, not a universal statutory period.
+
+## S3 synthetic partitioning handoff
+
+S3 persists installation/scope identifiers, a per-scope publication counter, and the sole technical
+scope designation in PostgreSQL. These implement the existing mismatch-detection and partitioning
+purposes above; no account, ownership inference, credential, garden/location field, recipient, or
+production retention policy is introduced. Instance/scope identifiers also fence the opaque cursor;
+identifiers and cursors remain excluded from logs. Only synthetic technical fixtures are authorized.
+Fresh developer installation reset deletes the synthetic database/browser state explicitly. Account
+purge, backup restore suppression, and processing real personal data remain S12/S15/operator gates.

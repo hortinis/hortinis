@@ -991,11 +991,12 @@ task relies on them.
 
 #### G2f. Partition synchronization by server-owned scope
 
-- Status: `planned`.
+- Status: `in progress`; S3 fresh-install database partitioning validated (2026-10-10).
 - Depends on: G2e and the accepted S1 access/scope decision.
 - Design prerequisite: S1 is validated by ADR-0029 and its access, threat/ASVS, and privacy lifecycle
   records. S2's contract/application-type and cross-runtime parsing boundaries are also validated;
-  scope adapters and isolation evidence remain planned, using synthetic data only. See the
+  S3 implements fresh-install database partitioning and scoped service/persistence boundaries;
+  S4-S7 access, browser, binding, and full-topology isolation remain planned, using synthetic data only. See the
   [access contract handoff](../api/access-and-binding-contracts.md).
 - Scope: implement S2 through S7 of the
   [access and synchronization-scope implementation plan](access-and-synchronization-scope-implementation-plan.md)
@@ -1017,6 +1018,12 @@ task relies on them.
   required; versioned Flyway and Dexie schemas; trusted server access-context resolution; explicit access
   mode configuration; server discovery and local binding state; cross-runtime fixtures; PostgreSQL,
   browser, configuration, negative-security, and real-topology validation.
+- S3 evidence (2026-10-10): `pnpm validate` passed with 278 web unit tests, nine standard Chromium
+  tests, 68 Java unit tests, 51 PostgreSQL integration tests, four real-topology Chromium tests, and
+  all quality/build/contract/documentation gates. V4 supports fresh installs only and rejects populated
+  technical databases. Scoped keys, counters, locks, receipts, tombstones, reservations, cursor fencing,
+  rollback, and restart are validated with synthetic contexts. S4 request resolution/configuration and
+  S5-S7 browser partitioning, binding, and full scope topology remain planned; G2f is not complete.
 
 #### G3. Implement generation rollover and indeterminate outcomes
 

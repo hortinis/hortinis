@@ -1,5 +1,6 @@
 package com.hortinis.sync.http;
 
+import com.hortinis.sync.access.SynchronizationAccessDeniedException;
 import com.hortinis.sync.persistence.PostgreSqlExceptionTranslator;
 import com.hortinis.sync.protocol.InvalidRequestException;
 import com.hortinis.sync.protocol.OperationIdReusedException;
@@ -62,6 +63,13 @@ public class TechnicalSynchronizationErrorHandler {
     return ResponseEntity.badRequest()
         .header(HttpHeaders.CACHE_CONTROL, "no-store")
         .body(new InvalidRequestError("INVALID_REQUEST", "The request is invalid."));
+  }
+
+  @ExceptionHandler(SynchronizationAccessDeniedException.class)
+  ResponseEntity<AccessDeniedError> accessDenied() {
+    return ResponseEntity.status(403)
+        .header(HttpHeaders.CACHE_CONTROL, "no-store")
+        .body(new AccessDeniedError("ACCESS_DENIED", "Access is denied."));
   }
 
   @ExceptionHandler(RecordNotFoundException.class)
@@ -133,6 +141,9 @@ public class TechnicalSynchronizationErrorHandler {
   ResponseEntity<Void> resourceNotFound() {
     return ResponseEntity.notFound().build();
   }
+
+  /** Fixed denial without destination, resource, or ownership details. */
+  public record AccessDeniedError(String code, String message) {}
 
   public record InvalidRequestError(String code, String message) {}
 

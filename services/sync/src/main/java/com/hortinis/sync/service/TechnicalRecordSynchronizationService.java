@@ -1,11 +1,15 @@
 package com.hortinis.sync.service;
 
+import com.hortinis.sync.access.SynchronizationAccessContext;
+import com.hortinis.sync.access.TechnicalSynchronizationContext;
 import com.hortinis.sync.configuration.SynchronizationPersistenceEnabled;
+import com.hortinis.sync.persistence.SynchronizationScopePersistence;
 import com.hortinis.sync.persistence.TechnicalRecordAcceptancePersistence;
 import com.hortinis.sync.protocol.ChangePage;
 import com.hortinis.sync.protocol.CreateTechnicalRecordOperation;
 import com.hortinis.sync.protocol.DeleteTechnicalRecordOperation;
 import com.hortinis.sync.protocol.ExpectedRevision;
+import com.hortinis.sync.protocol.InvalidRequestException;
 import com.hortinis.sync.protocol.OperationId;
 import com.hortinis.sync.protocol.OperationIdReusedException;
 import com.hortinis.sync.protocol.OperationResult;
@@ -28,6 +32,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/** Atomic acceptance and ordered pulls within an immutable server-resolved scope. */
 @Service
 @SynchronizationPersistenceEnabled
 public class TechnicalRecordSynchronizationService {
@@ -35,70 +40,92 @@ public class TechnicalRecordSynchronizationService {
   private static final int CHANGE_PAGE_SIZE = 100;
 
   private final TechnicalRecordAcceptancePersistence persistence;
+  private final SynchronizationScopePersistence scopes;
+  private final TechnicalSynchronizationContext technicalContext;
 
-  public TechnicalRecordSynchronizationService(TechnicalRecordAcceptancePersistence persistence) {
+  /** Uses scoped persistence and the temporary sole-scope technical adapter. */
+  public TechnicalRecordSynchronizationService(
+      TechnicalRecordAcceptancePersistence persistence,
+      SynchronizationScopePersistence scopes,
+      TechnicalSynchronizationContext technicalContext) {
     this.persistence = persistence;
+    this.scopes = scopes;
+    this.technicalContext = technicalContext;
   }
 
+  /** Preserves the synthetic G2 entry point until S4 supplies request access resolution. */
   @Transactional
   public OperationResult submit(TechnicalRecordOperation operation) {
+    return submit(technicalContext.current(), operation);
+  }
+
+  /** Serializes acceptance, replay, and publication within the resolved scope transaction. */
+  @Transactional
+  public OperationResult submit(
+      SynchronizationAccessContext context, TechnicalRecordOperation operation) {
+    // Lock before receipts and records; keep publication order stable until commit.
+    scopes.lockForAcceptance(context);
     Objects.requireNonNull(operation, "The operation is required.");
     Optional<TechnicalRecordOperation> existingReceipt =
-        persistence.findReceiptForUpdate(operation.operationId());
+        persistence.findReceipt(context, operation.operationId());
     if (existingReceipt.isPresent()) {
-      return replayOrReject(operation, existingReceipt.get());
+      return replayOrReject(context, operation, existingReceipt.get());
     }
 
-    persistence.lockRecord(operation.recordId());
-    existingReceipt = persistence.findReceiptForUpdate(operation.operationId());
-    if (existingReceipt.isPresent()) {
-      return replayOrReject(operation, existingReceipt.get());
-    }
-
-    Optional<TechnicalRecord> current = persistence.findRecordForUpdate(operation.recordId());
+    Optional<TechnicalRecord> current = persistence.findRecord(context, operation.recordId());
     Revision acceptedRevision =
         switch (operation) {
-          case CreateTechnicalRecordOperation create -> validateCreate(create, current);
+          case CreateTechnicalRecordOperation create -> validateCreate(context, create, current);
           case ReplaceTechnicalRecordOperation replace ->
               validateChange(replace, replace.expectedRevision(), current);
           case DeleteTechnicalRecordOperation delete ->
               validateChange(delete, delete.expectedRevision(), current);
         };
 
-    if (!persistence.insertReceipt(operation)) {
+    if (!persistence.insertReceipt(context, operation)) {
       TechnicalRecordOperation receipt =
           persistence
-              .findReceiptForUpdate(operation.operationId())
+              .findReceipt(context, operation.operationId())
               .orElseThrow(() -> new IllegalStateException("The operation receipt disappeared."));
-      return replayOrReject(operation, receipt);
+      return replayOrReject(context, operation, receipt);
     }
-
-    // Every publisher takes the record lock before this scope lock. Holding the scope row through
-    // commit prevents a later sequence from becoming visible before an earlier sequence.
-    persistence.lockChangePublication();
 
     return switch (operation) {
       case CreateTechnicalRecordOperation create -> {
         TechnicalRecord accepted =
             new TechnicalRecord(create.recordId(), acceptedRevision, create.value());
-        persistence.insertRecord(accepted);
-        yield acceptRecord(create.operationId(), accepted);
+        persistence.insertRecord(context, accepted);
+        yield acceptRecord(context, create.operationId(), accepted);
       }
       case ReplaceTechnicalRecordOperation replace -> {
         TechnicalRecord accepted =
             new TechnicalRecord(replace.recordId(), acceptedRevision, replace.value());
-        persistence.replaceRecord(accepted);
-        yield acceptRecord(replace.operationId(), accepted);
+        persistence.replaceRecord(context, accepted);
+        yield acceptRecord(context, replace.operationId(), accepted);
       }
-      case DeleteTechnicalRecordOperation delete -> acceptDeletion(delete, acceptedRevision);
+      case DeleteTechnicalRecordOperation delete ->
+          acceptDeletion(context, delete, acceptedRevision);
     };
   }
 
+  /** Preserves the synthetic sole-scope pull entry point until S4. */
   @Transactional(readOnly = true)
   public ChangePage pull(String cursor) {
-    long afterSequence = SyncCursorCodec.decode(cursor);
+    return pull(technicalContext.current(), cursor);
+  }
+
+  /** Validates the cursor boundary and returns only the resolved scope's committed changes. */
+  @Transactional(readOnly = true)
+  public ChangePage pull(SynchronizationAccessContext context, String cursor) {
+    long currentSequence = scopes.requireScope(context);
+    long afterSequence =
+        SyncCursorCodec.decode(
+            cursor, context.serverInstanceId(), context.synchronizationScopeId());
+    if (afterSequence > currentSequence) {
+      throw new InvalidRequestException();
+    }
     List<TechnicalChange> fetched =
-        persistence.findChangesAfter(afterSequence, CHANGE_PAGE_SIZE + 1);
+        persistence.findChangesAfter(context, afterSequence, CHANGE_PAGE_SIZE + 1);
     boolean hasMore = fetched.size() > CHANGE_PAGE_SIZE;
     List<TechnicalChange> changes =
         hasMore ? List.copyOf(fetched.subList(0, CHANGE_PAGE_SIZE)) : List.copyOf(fetched);
@@ -106,12 +133,18 @@ public class TechnicalRecordSynchronizationService {
         changes.isEmpty()
             ? afterSequence
             : Long.parseLong(changes.get(changes.size() - 1).sequence());
-    return new ChangePage(changes, SyncCursorCodec.encode(nextSequence), hasMore);
+    return new ChangePage(
+        changes,
+        SyncCursorCodec.encode(
+            nextSequence, context.serverInstanceId(), context.synchronizationScopeId()),
+        hasMore);
   }
 
   private Revision validateCreate(
-      CreateTechnicalRecordOperation operation, Optional<TechnicalRecord> current) {
-    if (persistence.isIdentifierRetired(operation.recordId())) {
+      SynchronizationAccessContext context,
+      CreateTechnicalRecordOperation operation,
+      Optional<TechnicalRecord> current) {
+    if (persistence.isIdentifierRetired(context, operation.recordId())) {
       throw new RecordIdentifierRetiredException(operation.operationId(), operation.recordId());
     }
     if (current.isPresent()) {
@@ -133,31 +166,37 @@ public class TechnicalRecordSynchronizationService {
     return record.revision().next();
   }
 
-  private OperationResult acceptRecord(OperationId operationId, TechnicalRecord record) {
-    long sequence = persistence.insertChange(operationId, record);
+  private OperationResult acceptRecord(
+      SynchronizationAccessContext context, OperationId operationId, TechnicalRecord record) {
+    long sequence = persistence.insertChange(context, operationId, record);
     return new RecordOperationResult("accepted", operationId, record, Long.toString(sequence));
   }
 
   private OperationResult acceptDeletion(
-      DeleteTechnicalRecordOperation operation, Revision revision) {
+      SynchronizationAccessContext context,
+      DeleteTechnicalRecordOperation operation,
+      Revision revision) {
     long sequence =
-        persistence.insertTombstoneChange(operation.operationId(), operation.recordId(), revision);
+        persistence.insertTombstoneChange(
+            context, operation.operationId(), operation.recordId(), revision);
     TechnicalTombstone tombstone =
         new TechnicalTombstone(operation.recordId(), revision, Long.toString(sequence));
-    persistence.insertTombstone(tombstone);
-    persistence.reserveIdentifier(operation.recordId(), Long.toString(sequence));
-    persistence.deleteRecord(operation.recordId());
+    persistence.insertTombstone(context, tombstone);
+    persistence.reserveIdentifier(context, operation.recordId(), Long.toString(sequence));
+    persistence.deleteRecord(context, operation.recordId());
     return new TombstoneOperationResult(
         "accepted", operation.operationId(), tombstone, Long.toString(sequence));
   }
 
   private OperationResult replayOrReject(
-      TechnicalRecordOperation operation, TechnicalRecordOperation original) {
+      SynchronizationAccessContext context,
+      TechnicalRecordOperation operation,
+      TechnicalRecordOperation original) {
     if (!operation.equals(original)) {
       throw new OperationIdReusedException(operation.operationId());
     }
     return persistence
-        .findResult(operation.operationId())
+        .findResult(context, operation.operationId())
         .orElseThrow(() -> new IllegalStateException("The accepted operation result is missing."));
   }
 }

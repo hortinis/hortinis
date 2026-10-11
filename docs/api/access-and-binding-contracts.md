@@ -1,6 +1,6 @@
 # Access and binding contracts
 
-- Owner: S2, extending ADR-0029. Adapters remain owned by S4/S6/S8-S14.
+- Owner: S2, extending ADR-0029. S3 consumes contexts for scoped persistence; request/binding adapters remain owned by S4/S6/S8-S14.
 - Baseline: `origin/feat/g2e-validation`, commit `db003092d24460015522dcf794d4de86ead0a62f`.
 
 ## Identities and application boundary
@@ -121,3 +121,9 @@ This exercises contract portions of AC-AS-02/04 and T01/T02/T09/T15. Relevant pi
 accepted threat model. Parsing does not verify runtime authorization, isolation, revocation, or
 production privacy controls. S3/S4/S5 can consume the types; S6 implements the handshake and race
 boundary; S7 demonstrates real isolation; S8-S15 retain their security/privacy release gates.
+
+S3 implements the database portion of this handoff: fresh-install durable installation/scope state,
+scoped persistence with context checks, transactional per-scope publication, and generationless
+instance/scope-bound cursors. An internal sole-scope adapter preserves the synthetic G2 HTTP slice;
+it does not implement S4 access-mode configuration or request authorization. S3 adds no public
+selector, discovery/binding workflow, authentication mechanism, or user-data migration.
