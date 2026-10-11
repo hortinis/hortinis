@@ -3,7 +3,7 @@ services:
   sync:
     command:
       - gradle
-      - :services:sync:bootRun
+      - :services:sync:topologyTestRun
       - --no-daemon
       - --project-cache-dir
       - /tmp/hortinis-topology-project-cache

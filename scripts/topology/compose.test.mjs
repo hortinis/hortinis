@@ -60,8 +60,14 @@ for (const integrated of [false, true]) {
         services.sync.volumes.find((volume) => volume.type === 'volume').source,
         'gradle-cache',
       );
-      if (integrated)
+      if (integrated) {
         assert.ok(services.sync.command.includes('/tmp/hortinis-topology-project-cache'));
+        assert.ok(services.sync.command.includes(':services:sync:topologyTestRun'));
+        assert.ok(!services.sync.command.includes(':services:sync:bootRun'));
+      } else {
+        assert.ok(services.sync.command.includes(':services:sync:bootRun'));
+        assert.ok(!services.sync.command.includes(':services:sync:topologyTestRun'));
+      }
     }
   });
 }

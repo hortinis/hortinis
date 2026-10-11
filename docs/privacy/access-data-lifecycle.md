@@ -236,3 +236,20 @@ Same-origin scripts and profile users can read this local metadata. This impleme
 authenticated isolation, secure erasure, or production privacy/legal readiness. A changed destination
 pauses exchange and advances the fence; delayed responses cannot commit. Populated-state first binding
 remains blocked until S14 reconciliation, and production retention/access restrictions remain gates.
+
+
+## S7 synthetic topology evidence
+
+S7 introduces no production data category, recipient, processing path, credential or telemetry. Its
+separate launcher provisions synthetic A/B scopes only in disposable topology volumes; normal artifacts
+and runtime cannot load that fixture. The test marker is neither a credential nor server-authorized
+membership for a real user. Disposable contexts hold synthetic local data under their independent
+existing local owners and bindings.
+
+Topology evidence exercises scope/receipt/cursor/tombstone/retirement isolation, ambiguous intent and
+retained state after real service restart. Captured diagnostics exclude values, stable identities,
+expectations and credential canaries. Synthetic test traces may contain their test content and are
+excluded from source control; normal production logging restrictions remain unchanged. Runner cleanup
+removes only its generated project containers, volumes and network, including failure paths. This is
+no authenticated isolation, production log/backup retention, secure-erasure, lawful-basis or GDPR
+readiness evidence; the S8-S15/P0.6 and deployment gates remain applicable.

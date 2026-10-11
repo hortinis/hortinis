@@ -147,3 +147,10 @@ ten minutes and becomes token-free uncertainty on expiry. Exact destination reob
 content transfer; acceptance validates current authority again. Review [S6 evidence](../development/s6-implementation-plan.md)
 and the [privacy lifecycle](../privacy/access-data-lifecycle.md). S7 still owns full multi-scope topology,
 and S8-S15 retain authentication, lifecycle, recovery and release gates.
+
+
+S7's additional synthetic device marker exists only in the topology-test launcher. It is not part of
+this public contract or production access resolution, cannot provision a scope on request, and cannot
+load/activate in normal Spring runtime or production archives. Real A1/A2/B tests exercise the same
+closed discovery, expectation, operation, error and cursor contracts. This supplies scope-isolation
+evidence without claiming authenticated account or enrolled-device authorization.

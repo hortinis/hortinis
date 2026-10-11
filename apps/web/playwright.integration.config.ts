@@ -2,7 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
-  testMatch: 'integrated-sync.spec.ts',
+  testMatch: ['integrated-sync.spec.ts', 'integrated-scope.spec.ts'],
+  workers: 1,
   reporter: 'list',
   use: {
     baseURL: 'http://127.0.0.1:4200',

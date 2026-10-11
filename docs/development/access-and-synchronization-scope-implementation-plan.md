@@ -396,7 +396,8 @@ preserves local data and pending intent.
 
 ### S7 — Validate scope isolation across the real topology
 
-- Status: `planned`.
+- Status: `validated` (2026-10-11).
+- Implementation plan: [S7 implementation plan](s7-implementation-plan.md).
 - Depends on: S3 through S6.
 - Scope: extend the real topology to use two devices in scope A and one device in scope B. Cover create,
   dependent replace, deletion, tombstone pull, retry after ambiguous acknowledgement, cursor persistence,
@@ -407,6 +408,24 @@ preserves local data and pending intent.
   without confirming another scope's existence; captured diagnostics contain no prohibited data.
 - Acceptance: G2 behavior remains valid per scope, the test-only access mechanism is unavailable in the
   production build/profile, and the report states that authenticated user isolation is not yet implemented.
+
+- Evidence (2026-10-11): final reviewed `pnpm validate` passed with 345 web unit tests, 11 standard
+  Chromium tests, 112 Java unit tests, 68 PostgreSQL integration tests, six real-topology Chromium
+  tests, nine web architecture tests, seven topology runner/Compose tests, and all documentation,
+  contract, generated-artifact, quality, build and repository gates. A1/A2 share A while B independently
+  replays colliding IDs and progresses during A acknowledgement loss; dependent bodies/revisions,
+  receipt/journal values, tombstones, retirement, cursor/expectation substitution, reload and retained
+  state after service restart are checked. Browser owner/retry/lease and diagnostic exclusion evidence
+  complements S3-S6 transactional fencing. Generation isolation remains S13, since G2 is generationless.
+- Review: production bootRun, main runtime, executable and plain archives exclude the separate fixture;
+  production integration tests cannot load or activate it. Provisioning occurs only at controlled test
+  startup. The resolver retains committed-mode checks and denies unknown/ambiguous markers. Dependency
+  locks add configuration membership only, with unchanged coordinates/versions. English repository
+  content, no public contract change, synthetic data and generated-project-only cleanup were reviewed.
+  Review fixes corrected the one-shot mock enumeration and used the proxied DB-backed capabilities
+  endpoint for restart readiness; the existing backend Compose health gate is retained.
+- Handoff: G2f is validated for synthetic scope isolation; S8 may start. Authentication, enrollment,
+  transitions, generations, reconciliation and production security/privacy readiness remain incomplete.
 
 ### S8 — Select the built-in authentication and session design
 

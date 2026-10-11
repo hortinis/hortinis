@@ -145,3 +145,24 @@ credential, request/response and content diagnostics. Public discovery has no ac
 information. S4 mutation protection remains in force; authenticated sessions/CSRF, trusted edge/TLS,
 account/device transitions, restoration, complete topology isolation and ASVS/privacy release evidence
 remain S7-S15 work. This limited synthetic no-auth evidence is no compliance claim.
+
+
+## S7 topology verification boundary
+
+A separate test-only launcher supplies controlled synthetic A1/A2/B authority outside production
+classpath, component scanning and archives. No production selector or impersonation profile is added.
+Closed mapping tests deny unknown/ambiguous inputs, while normal production integration tests prove
+that the marker cannot change the resolved sole scope and the fixture classes cannot load. Mode
+validation, current installation checks and S4 Origin protection still apply within the fixture.
+
+The real topology extends T02/T06/T08 and AC-AS-02/04 evidence through colliding IDs, independent
+receipt replay/values, dependent operations, ambiguous acknowledgement and concurrent independent
+recovery, tombstone/retirement partitioning, and foreign cursor/expectation rejection. Stable identity,
+expectation lifetime and cursor/replay continuity are checked across a real service restart. Browser
+owners/retry rows/leases remain independent; S5/S6 additionally prove transactional response fencing
+under owner/binding replacement. Captured browser/server diagnostics exclude prohibited content,
+identities, expectations and credential/header canaries (T11/AC-AS-14).
+
+These are synthetic configured contexts, not authenticated accounts or enrolled devices. Authentication,
+revocation, transitions, scope-aware generations/reconciliation, production TLS/proxy/log retention,
+and the ASVS/privacy release audit remain S8-S15 work. This evidence creates no Level 2 compliance claim.

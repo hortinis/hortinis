@@ -115,6 +115,24 @@ class SynchronizationBindingIntegrationTest {
   }
 
   @Test
+  void productionLaunchCannotActivateOrLoadTopologyAuthority() throws Exception {
+    var context = resolver.resolve();
+    for (String marker : new String[] {"A1", "A2", "B", "unknown"}) {
+      mvc.perform(get(BOOTSTRAP).header("X-Hortinis-Test-Device", marker))
+          .andExpect(status().isOk())
+          .andExpect(
+              jsonPath("$.identity.synchronizationScopeId")
+                  .value(context.synchronizationScopeId().value()));
+    }
+    ClassLoader runtime = Thread.currentThread().getContextClassLoader();
+    assertThat(runtime.getResource("com/hortinis/topology/TopologyTestApplication.class")).isNull();
+    assertThat(runtime.getResource("com/hortinis/topology/TopologyTestConfiguration.class"))
+        .isNull();
+    assertThat(runtime.getResource("com/hortinis/sync/access/TopologyAccessResolver.class"))
+        .isNull();
+  }
+
+  @Test
   void confirmationIsIdempotentWithoutCreatingOwnershipOrExtendingLifetime() throws Exception {
     var context = resolver.resolve();
     var observation = binding.bootstrap(context);

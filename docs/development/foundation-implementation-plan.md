@@ -991,14 +991,13 @@ task relies on them.
 
 #### G2f. Partition synchronization by server-owned scope
 
-- Status: `in progress`; S3 database partitioning, S4 no-auth access enforcement, S5 browser ownership, and S6 binding validated
-  (2026-10-11).
+- Status: `validated` (2026-10-11), limited to synthetic technical data and trusted test contexts.
 - Depends on: G2e and the accepted S1 access/scope decision.
 - Design prerequisite: S1 is validated by ADR-0029 and its access, threat/ASVS, and privacy lifecycle
   records. S2's contract/application-type and cross-runtime parsing boundaries are also validated;
   S3 implements fresh-install database partitioning and scoped service/persistence boundaries;
   S4 implements explicit no-auth access/configuration; S5 implements durable local ownership;
-  S6 binding is validated; S7 full-topology scope isolation remains planned, using synthetic data only. See the
+  S6 binding and S7 full-topology scope isolation are validated, using synthetic data only. See the
   [access contract handoff](../api/access-and-binding-contracts.md).
 - Scope: implement S2 through S7 of the
   [access and synchronization-scope implementation plan](access-and-synchronization-scope-implementation-plan.md)
@@ -1050,6 +1049,19 @@ task relies on them.
   Initial expiry and changed destination fence delayed responses without content/identity diagnostics.
   Existing G2 regressions use retained-device fixtures and pass after the real first-binding matrix.
   S7 full multi-scope topology remains planned; G2f, authentication and production readiness are incomplete.
+
+
+- S7 evidence (2026-10-11): final reviewed `pnpm validate` passed with 345 web unit tests, 11 standard
+  Chromium tests, 112 Java unit tests, 68 PostgreSQL integration tests, six real-topology Chromium
+  tests, nine web architecture tests, seven topology runner/Compose tests and all documentation,
+  contract/quality/build/repository checks. Three real contexts explicitly bind empty scopes; A1/A2
+  share A and B independently uses colliding record/operation IDs, receipts, cursors, tombstones and
+  retirement. Ambiguous acknowledgement, dependent edits, independent retry/lease state, substitution,
+  reload and real service restart preserve scoped G2 outcomes. Captured diagnostics exclude prohibited
+  data. A separate startup fixture provisions synthetic A/B; production runtime and both archives
+  exclude it, and normal integration requests cannot activate its selector. G2f is complete within
+  this synthetic boundary. Authentication, G3 generations, G4 reconciliation, operational/privacy
+  gates and the complete technical release gate remain incomplete.
 
 
 #### G3. Implement generation rollover and indeterminate outcomes

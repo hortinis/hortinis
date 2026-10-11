@@ -154,6 +154,31 @@ server privileges additionally require expectation `SELECT/INSERT/UPDATE/DELETE`
 or schema authority is needed. The [S6 plan](s6-implementation-plan.md) records the boundary and review
 refinements. S7 topology isolation and authenticated/production readiness remain incomplete.
 
+### S7 synthetic scope topology
+
+The disposable `pnpm test:e2e:topology` override runs `:services:sync:topologyTestRun`, a separate
+source-set launcher that imports controlled synthetic access configuration. It provisions two
+additional test scopes, maps A1/A2 to A and B to B, and keeps the designated sole technical scope for
+existing G2/S6 regressions. Missing markers use that regression scope; unknown, malformed or duplicate
+markers deny access. The closed test header is fixture input, never an authentication credential or
+production API. Ordinary requests still cannot provision scopes.
+
+Production `bootRun`, runtime dependencies, executable and plain archives exclude this fixture.
+`verifyProductionTopologyIsolation` checks the runtime and both archives during `build`. Production
+Spring integration checks show that the test header cannot select a scope and the fixture classes are
+unavailable. A profile/property cannot activate absent code. Unit tests include fixture output only
+for mapping tests; PostgreSQL production integration tests use the normal application classpath.
+Dependency lock changes add source-set configurations without changing dependency versions.
+
+The real topology binds A1/A2/B while their scopes are empty, then verifies colliding IDs with
+independent values/receipts, predecessor edits, delayed acknowledgement/retry/lease independence,
+A tombstone propagation, B updates after A retirement, cursor/expectation substitution, and persisted
+identity/expectation/replay/cursor recovery after service restart. Browser/server diagnostics exclude
+content, stable IDs, expectation and credential canaries. API bootstrap/capabilities are the restart
+probe through the test proxy; Compose separately uses the service readiness endpoint. This proves
+synthetic scope isolation, not authenticated user/device authorization or production transport,
+logging-retention, privacy or ASVS readiness. See the [S7 plan](s7-implementation-plan.md).
+
 ### S3 fresh-install development reset
 
 S3 supports fresh installations only. V1-V3 history remains intact; V4 refuses any existing live records,

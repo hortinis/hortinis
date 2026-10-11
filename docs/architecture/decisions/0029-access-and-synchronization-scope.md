@@ -241,3 +241,21 @@ This decision extends ADR-0013 for DF-12's optional application authentication a
 identifier logging rules. ADR-0010 and ADR-0023 through ADR-0028 remain authoritative for operation
 identity, retention, tombstones, generations, reconciliation, retry, and browser coordination. Scope
 destruction ends the identifier-reservation lifetime in ADR-0024; it does not permit identity reuse.
+
+
+## S7 test-only authority refinement
+
+Use a separate Gradle topology-test source set and launcher to exercise real multi-scope transport
+without creating a production no-auth scope selector. The fixture reuses existing runtime dependencies,
+provisions stable synthetic A/B scopes in a controlled startup transaction, and maps only named test
+devices to internal configured contexts. The designated sole scope remains separate for earlier
+regressions. Production classpaths and both archives exclude the fixture; normal integration tests
+verify it cannot load or activate. No profile/property, OpenAPI path or production impersonation flag
+is introduced. This follows S4's test-only authority boundary and avoids a permissive production
+resolver merely to make topology tests possible.
+
+S7 evidence complements S3-S6 scoped transactions and browser fencing: actual A1/A2/B browser
+contexts, independent colliding IDs and receipts, dependent edits, ambiguous acknowledgements,
+tombstones/retirement, foreign expectations/cursors, retained state through service restart, and
+minimized captured diagnostics. Generation isolation remains S13; authenticated account/device
+ownership and lifecycle remain S8-S12. A test context is not evidence of authenticated user isolation.
