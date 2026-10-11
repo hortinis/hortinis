@@ -112,7 +112,7 @@ Angular serving, same-origin edge routing, and production images remain F3/F2 wo
 
 ### S5 fresh local database and ownership
 
-The application creates Dexie version seven with one offline-generated local data-set identity per
+The application creates Dexie version eight (S6; S5 introduced version seven) with one offline-generated local data-set identity per
 physical database. Every projection, operation, accepted base/result, conflict/rejection, tombstone,
 cursor/repair state, retry, lease, and local binding belongs to that database's identity. Opening the
 same locator from another tab/reload retains identity and lease fencing. Other databases have distinct
@@ -130,6 +130,29 @@ Same-origin script access, extensions, and shared browser profiles can reach all
 Partitioning is not authentication or XSS protection; IDs are not secrets. Logs contain no identities
 or local content. Review the [S5 plan](s5-implementation-plan.md) and
 [privacy lifecycle](../privacy/access-data-lifecycle.md) before connecting real personal data.
+
+### S6 explicit server binding
+
+Local-only startup sends no synchronization or discovery request. Use **Connect to server** to observe
+compatibility and the authorized destination, confirm an empty scope and persist binding/readiness
+atomically. Both an empty browser and standalone pending local changes may bind to an empty server;
+operation IDs remain unchanged. A new browser against a populated server pauses for S14 reconciliation.
+Existing established devices resume their exact retained destination after reload or explicit reconnect.
+There is no server selector or authentication fallback.
+
+A replaced instance, origin, mode, account, scope or boundary pauses exchange. Capabilities and
+retained-expectation bootstrap are checked before each content attempt; `Sync-Expectation` is mandatory
+at HTTP acceptance and excluded from canonical operation bodies. Scope-owned server expectations have
+15-minute lifetime and a 128-row outstanding limit, with issuance and 60-second scheduled cleanup.
+Preflight reobservation allocates no row and extends no lifetime. Initial browser admission has a
+10-minute deadline, purges on active-page expiration/next access, and retains an uncertain phase after
+expiry. Explicit reconnect cannot silently admit uncertain work to a populated destination.
+
+V4 includes expectation metadata; Dexie version eight adds local readiness/initial admission. Earlier
+schemas are preserved and rejected; use only the documented disposable development resets. Runtime
+server privileges additionally require expectation `SELECT/INSERT/UPDATE/DELETE`; no scope provisioning
+or schema authority is needed. The [S6 plan](s6-implementation-plan.md) records the boundary and review
+refinements. S7 topology isolation and authenticated/production readiness remain incomplete.
 
 ### S3 fresh-install development reset
 

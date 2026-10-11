@@ -40,3 +40,9 @@ export const HORTINIS_DATABASE_SCHEMA_V7 = {
   localDataSetIdentity: 'key',
   localServerBindings: 'localDataSetId',
 };
+
+export const HORTINIS_DATABASE_SCHEMA_V8 = {
+  ...HORTINIS_DATABASE_SCHEMA_V7,
+  localExchangeState: 'localDataSetId',
+  localInitialAdmissions: 'localDataSetId',
+};

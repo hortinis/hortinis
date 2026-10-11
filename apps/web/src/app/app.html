@@ -24,5 +24,42 @@
       <p role="alert">Pending changes could not be checked in browser storage.</p>
     }
   </section>
+  <section aria-label="Server connection">
+    <p aria-live="polite">
+      @switch (binding.state()) {
+        @case ('bound') {
+          This browser is connected to its server.
+        }
+        @case ('binding_pending') {
+          Server connection is awaiting confirmation. Changes remain in this browser.
+        }
+        @case ('binding_mismatch') {
+          The server destination has changed. Synchronization is paused.
+        }
+        @case ('reconciliation_required') {
+          Local and server data require reconciliation. Synchronization is paused.
+        }
+        @case ('auth_required') {
+          Authentication is required. Synchronization is paused.
+        }
+        @default {
+          Changes remain in this browser until you connect to a server.
+        }
+      }
+    </p>
+    @if (binding.failedConnection()) {
+      <p role="alert">
+        The server connection could not be confirmed. Your local changes are retained.
+      </p>
+    }
+    <p>Connecting allows pending changes to be sent to this server.</p>
+    <button
+      type="button"
+      (click)="connect()"
+      [disabled]="binding.connecting() || binding.state() === 'bound'"
+    >
+      Connect to server
+    </button>
+  </section>
   <router-outlet />
 </main>

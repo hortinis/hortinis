@@ -22,6 +22,8 @@ import com.hortinis.sync.persistence.TechnicalRecordAcceptancePersistence;
 import com.hortinis.sync.protocol.CreateTechnicalRecordOperation;
 import com.hortinis.sync.protocol.OperationId;
 import com.hortinis.sync.protocol.RecordId;
+import com.hortinis.sync.service.BoundSynchronizationService;
+import com.hortinis.sync.service.SynchronizationBindingService;
 import com.hortinis.sync.service.TechnicalRecordSynchronizationService;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -58,6 +60,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Import(AccessResolutionIntegrationTest.SyntheticResolverConfiguration.class)
 @ExtendWith(OutputCaptureExtension.class)
 class AccessResolutionIntegrationTest {
+  private static final String EXPECTATION_HEADER = "Sync-Expectation";
   private static final String OPERATIONS = "/api/v1/sync/operations";
   private static final String CHANGES = "/api/v1/sync/changes";
   private static final String PRIVATE_VALUE = "private-s4-synthetic-canary";
@@ -76,6 +79,10 @@ class AccessResolutionIntegrationTest {
   @Qualifier("synchronizationAccessResolver")
   private SynchronizationAccessResolver configuredAccess;
 
+  @Autowired private SynchronizationBindingService binding;
+  @Autowired private BoundSynchronizationService boundExchange;
+  private String expectationA;
+  private String expectationB;
   private SynchronizationAccessContext scopeA;
   private SynchronizationAccessContext scopeB;
 
@@ -91,11 +98,14 @@ class AccessResolutionIntegrationTest {
     scopeB =
         SyntheticAccessContexts.configured(
             scopeA.serverInstanceId(), new SynchronizationScopeId(b.toString()));
+    expectationA = EstablishedBindingFixture.establish(binding, boundExchange, scopeA);
+    expectationB = EstablishedBindingFixture.establish(binding, boundExchange, scopeB);
   }
 
   @AfterEach
   void clearScopes() {
     access.clear();
+    jdbc.execute("TRUNCATE technical_exchange_expectation");
     jdbc.update("UPDATE technical_server_installation SET access_mode = 'single-user-no-auth'");
     jdbc.update(
         "UPDATE technical_synchronization_scope SET technical_default = TRUE "
@@ -123,7 +133,9 @@ class AccessResolutionIntegrationTest {
     JsonNode b = pull();
     assertThat(b.path("changes").size()).isEqualTo(1);
     assertThat(b.toString()).contains("independent B").doesNotContain(PRIVATE_VALUE);
-    mvc.perform(get(CHANGES).param("cursor", cursorA)).andExpect(status().isBadRequest());
+    mvc.perform(
+            get(CHANGES).header(EXPECTATION_HEADER, currentExpectation()).param("cursor", cursorA))
+        .andExpect(status().isBadRequest());
     access.select(scopeA);
     assertThat(pull().toString()).contains(PRIVATE_VALUE).doesNotContain("independent B");
     assertThat(output.getAll())
@@ -142,6 +154,7 @@ class AccessResolutionIntegrationTest {
     access.select(scopeA);
     mvc.perform(
             post(OPERATIONS)
+                .header(EXPECTATION_HEADER, currentExpectation())
                 .contentType(MediaType.APPLICATION_JSON_VALUE)
                 .header("X-Synchronization-Scope-Id", scopeB.synchronizationScopeId().value())
                 .param("synchronizationScopeId", scopeB.synchronizationScopeId().value())
@@ -151,11 +164,13 @@ class AccessResolutionIntegrationTest {
         .andExpect(status().isOk());
     mvc.perform(
             get(CHANGES)
+                .header(EXPECTATION_HEADER, currentExpectation())
                 .header("X-Synchronization-Scope-Id", scopeB.synchronizationScopeId().value())
                 .param("synchronizationScopeId", scopeB.synchronizationScopeId().value()))
         .andExpect(status().isOk());
     mvc.perform(
             post(OPERATIONS)
+                .header(EXPECTATION_HEADER, currentExpectation())
                 .contentType(MediaType.APPLICATION_JSON_VALUE)
                 .content(
                     payload(
@@ -226,6 +241,7 @@ class AccessResolutionIntegrationTest {
         }) {
       mvc.perform(
               post(OPERATIONS)
+                  .header(EXPECTATION_HEADER, currentExpectation())
                   .contentType(contentType)
                   .header("Origin", "https://private-origin-canary.example")
                   .header("Authorization", "Bearer private-credential-canary")
@@ -282,6 +298,7 @@ class AccessResolutionIntegrationTest {
   private void denyHttp() throws Exception {
     mvc.perform(
             post(OPERATIONS)
+                .header(EXPECTATION_HEADER, currentExpectation())
                 .contentType(MediaType.APPLICATION_JSON_VALUE)
                 .content(
                     payload(
@@ -290,14 +307,25 @@ class AccessResolutionIntegrationTest {
         .andExpect(header().string("Cache-Control", "no-store"))
         .andExpect(
             content().json("{\"code\":\"ACCESS_DENIED\",\"message\":\"Access is denied.\"}", true));
-    mvc.perform(get(CHANGES))
+    mvc.perform(get(CHANGES).header(EXPECTATION_HEADER, currentExpectation()))
         .andExpect(status().isForbidden())
         .andExpect(header().string("Cache-Control", "no-store"));
+  }
+
+  private String currentExpectation() {
+    try {
+      return access.resolve().synchronizationScopeId().equals(scopeB.synchronizationScopeId())
+          ? expectationB
+          : expectationA;
+    } catch (SynchronizationAccessDeniedException exception) {
+      return expectationA;
+    }
   }
 
   private void submit(String operation, String record, String value) throws Exception {
     mvc.perform(
             post(OPERATIONS)
+                .header(EXPECTATION_HEADER, currentExpectation())
                 .contentType(MediaType.APPLICATION_JSON_VALUE)
                 .content(payload(operation, record, value)))
         .andExpect(status().isOk());
@@ -307,7 +335,7 @@ class AccessResolutionIntegrationTest {
     return JsonMapper.builder()
         .build()
         .readTree(
-            mvc.perform(get(CHANGES))
+            mvc.perform(get(CHANGES).header(EXPECTATION_HEADER, currentExpectation()))
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()

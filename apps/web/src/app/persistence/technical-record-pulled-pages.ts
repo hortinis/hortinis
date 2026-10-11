@@ -7,6 +7,7 @@ import type { SynchronizationOwnership } from './synchronization-ownership';
 import type { TechnicalRecordTransactions } from './technical-record-transactions';
 import type { TechnicalRecordProjection } from './technical-record-projection';
 import { TechnicalRecordPulledTombstones } from './technical-record-pulled-tombstones';
+import { completeInitialAdmission } from './complete-initial-admission';
 
 const TECHNICAL_SYNCHRONIZATION_SCOPE = 'technical-records';
 
@@ -60,6 +61,7 @@ export class TechnicalRecordPulledPages {
         this.database.rejectedOperations,
         this.database.synchronizationLeases,
         this.database.synchronizationRetryState,
+        this.database.localInitialAdmissions,
       ],
       async () => {
         const previousState = await this.database.synchronizationState.get(
@@ -83,6 +85,7 @@ export class TechnicalRecordPulledPages {
           }
         }
         await this.database.synchronizationState.put(state);
+        await completeInitialAdmission(this.database, ownership);
         await this.database.synchronizationRetryState.delete(TECHNICAL_PULL_RETRY_WORK_ID);
       },
       ownership,

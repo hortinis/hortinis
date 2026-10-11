@@ -26,6 +26,13 @@ representation. A parsed bootstrap identity is an observation, not an access con
 | `GET /api/v1/sync/bootstrap` | Resolve current access first, then return authorized identity, observed population, supported boundary, and an opaque exchange expectation. Never accept account/scope selectors. | S6; authenticated resolution S9/S10 |
 | `POST /api/v1/sync/bindings/confirm` | Confirm an observed empty destination using only its expectation. Revalidate current access and population in a transaction; return the same bootstrap shape or a generic precondition error. | S6 |
 
+S6 adds optional `Sync-Expectation` to bootstrap for a preflight reobservation. Resolve current access
+independently, then validate the retained expectation and return the same token without extending its
+lifetime or allocating another row. Duplicate, malformed, expired, or foreign expectations return the
+fixed precondition error. Every content attempt reobserves identity before sending content. Initial
+admission always retains its original expectation; only an established exact destination can obtain a
+fresh expectation after expiry. This header selects protocol state, never an account or scope.
+
 Confirmation is idempotent for the same still-valid expectation and destination. It does not create a
 scope, account, device, server-side ownership relationship, or client enrollment. Controlled setup
 owns provisioning. It establishes permission to complete a local binding, not a distributed transaction
@@ -127,3 +134,16 @@ scoped persistence with context checks, transactional per-scope publication, and
 instance/scope-bound cursors. An internal sole-scope adapter preserves the synthetic G2 HTTP slice;
 it does not implement S4 access-mode configuration or request authorization. S3 adds no public
 selector, discovery/binding workflow, authentication mechanism, or user-data migration.
+
+
+S6 implements public no-store capabilities, authorized bootstrap/retained-expectation preflight,
+empty confirmation and mandatory expectation checks at HTTP exchange. Scope locks serialize
+confirmation/initial admission with publication; initial token promotion and acceptance roll back
+together. Browser activation atomically persists provenance/readiness/initial admission and advances
+owner-bearing exchange fences. Local startup remains unbound without content exchange, both empty-
+server matrix rows are verified through the real topology, and populated first connections pause for
+S14. Server expectations last 15 minutes with bounded issuance/cleanup; browser initial progress lasts
+ten minutes and becomes token-free uncertainty on expiry. Exact destination reobservation precedes
+content transfer; acceptance validates current authority again. Review [S6 evidence](../development/s6-implementation-plan.md)
+and the [privacy lifecycle](../privacy/access-data-lifecycle.md). S7 still owns full multi-scope topology,
+and S8-S15 retain authentication, lifecycle, recovery and release gates.

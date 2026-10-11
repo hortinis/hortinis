@@ -56,6 +56,15 @@ test('a synchronization rule importing HTTP fails', async () => {
   );
 });
 
+test('a synchronization workflow importing the concrete binding adapter fails', async () => {
+  const result = await checkArchitecture('scripts/architecture-fixtures/sync/http-binding-leak');
+  assert.ok(
+    result.lintResults.some((lintResult) =>
+      lintResult.messages.some((message) => message.messageId === 'forbidden'),
+    ),
+  );
+});
+
 const eslint = new ESLint({ cwd: fileURLToPath(new URL('..', import.meta.url)) });
 
 test('synchronization and persistence production files enforce size and complexity limits', async () => {

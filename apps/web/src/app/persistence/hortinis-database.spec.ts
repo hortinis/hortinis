@@ -25,7 +25,7 @@ describe('HortinisDatabase', () => {
     await database.open();
 
     expect(database.isOpen()).toBe(true);
-    expect(database.verno).toBe(7);
+    expect(database.verno).toBe(8);
     expect(database.tables.map((table) => table.name)).toEqual([
       'technicalRecords',
       'outboxOperations',
@@ -41,6 +41,8 @@ describe('HortinisDatabase', () => {
       'rejectedOperations',
       'localDataSetIdentity',
       'localServerBindings',
+      'localExchangeState',
+      'localInitialAdmissions',
     ]);
   });
 

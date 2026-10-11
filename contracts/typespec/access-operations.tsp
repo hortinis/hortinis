@@ -55,11 +55,14 @@ namespace Hortinis.Sync {
     @route("/bootstrap")
     @TypeSpec.OpenAPI.operationId("readSynchronizationBootstrap")
     @summary("Observe the currently authorized synchronization destination")
-    @doc("Resolve current access before reading population or identity. This observation does not authorize later exchange or advance a cursor.")
-    readBootstrap():
+    @doc("Resolve current access before reading population or identity. An optional expectation reobserves the same currently authorized destination without extending its lifetime; it grants no authority and advances no cursor.")
+    readBootstrap(
+      @header("Sync-Expectation") expectation?: Models.ExchangeExpectation,
+    ):
       | SynchronizationBootstrapResponse
       | AuthenticationRequiredResponse
       | AccessDeniedResponse
+      | BindingPreconditionFailedResponse
       | AccessUnavailableResponse;
 
     @post

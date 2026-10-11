@@ -99,14 +99,20 @@ module.exports = {
         docs: { description: 'Keep synchronization rules independent of the HTTP adapter' },
         messages: {
           forbidden:
-            'Only the synchronization HTTP adapter and its provider may import HTTP transport code.',
+            'Only synchronization and binding HTTP adapters and their providers may import HTTP transport code.',
         },
         schema: [],
       },
       create(context) {
         const filename = context.filename.replaceAll('\\', '/');
-        const isHttpAdapter = filename.endsWith('/http-synchronization-transport.ts');
-        const isProvider = filename.endsWith('/synchronization-transport.token.ts');
+        const isHttpAdapter = [
+          '/http-synchronization-transport.ts',
+          '/http-binding-transport.ts',
+        ].some((name) => filename.endsWith(name));
+        const isProvider = [
+          '/synchronization-transport.token.ts',
+          '/binding-transport.token.ts',
+        ].some((name) => filename.endsWith(name));
 
         return {
           ImportDeclaration(node) {
@@ -114,7 +120,10 @@ module.exports = {
             const source = node.source.value;
             if (
               source === '@angular/common/http' ||
-              (typeof source === 'string' && source.includes('http-synchronization-transport'))
+              (typeof source === 'string' &&
+                ['http-synchronization-transport', 'http-binding-transport'].some((adapter) =>
+                  source.includes(adapter),
+                ))
             ) {
               context.report({ node, messageId: 'forbidden' });
             }

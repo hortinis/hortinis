@@ -122,3 +122,26 @@ Diagnostics use generic failures without stable identifiers or content (T11/AC-A
 compromise/shared-profile access remains a documented T05 boundary, not solved by physical partitioning.
 Account/server binding changes and delayed responses under a changed binding remain S6/S12 controls;
 this evidence does not establish authenticated user isolation or complete ASVS/privacy readiness.
+
+
+## S6 implemented discovery and admission boundary
+
+T01/T02/T06/T08 and AC-AS-01/02/04 are addressed by minimized closed no-store discovery, independent
+trusted access resolution, non-authorizing scoped expectations, exact destination reobservation before
+content transfer, and admission validation before receipt/cursor/content lookup. Confirmation and
+first publication share the scope lock and transaction. Competing confirmed admissions have one
+publisher; rollback preserves both admission and all acceptance evidence. Empty classification includes
+history, receipts, tombstones and retired identifiers, rather than just visible records.
+
+Browser binding/readiness/initial progress commit together with an advanced owner-bearing exchange
+fence. Unknown destinations and populated first connections pause without content transfer. Unbound
+startup remains offline; pending operations acquire no submitted marker merely because the browser is
+online. Expiry preserves uncertain intent and removes initial tokens instead of refreshing into a
+populated server. Delayed responses and retry/cursor writes reject old fences. Existing devices can
+resume only the retained destination. Generic denial cannot establish revocation or scope deletion.
+
+T11/AC-AS-14 retain fixed routes/events and sanitized error messages, excluding expectation, identity,
+credential, request/response and content diagnostics. Public discovery has no account/scope/setup
+information. S4 mutation protection remains in force; authenticated sessions/CSRF, trusted edge/TLS,
+account/device transitions, restoration, complete topology isolation and ASVS/privacy release evidence
+remain S7-S15 work. This limited synthetic no-auth evidence is no compliance claim.

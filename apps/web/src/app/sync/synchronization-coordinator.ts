@@ -40,24 +40,35 @@ export class SynchronizationCoordinator {
   private readonly scheduler = inject(SYNCHRONIZATION_COORDINATION_SCHEDULER);
 
   async tryAcquire(): Promise<SynchronizationLeaseAttempt> {
+    return this.acquire(this.ownerId);
+  }
+
+  async tryAcquireForBinding(): Promise<SynchronizationLeaseAttempt> {
+    return this.acquire(`${this.ownerId}:binding`);
+  }
+
+  private async acquire(ownerId: string): Promise<SynchronizationLeaseAttempt> {
     return this.database.transaction(
       'rw',
       this.database.synchronizationLeases,
       this.database.localDataSetIdentity,
+      this.database.localExchangeState,
       async () => {
         const localDataSetId = await this.database.requireLocalDataSetId();
+        const exchange = await this.database.requireLocalExchangeState(localDataSetId);
         const existing = await this.database.synchronizationLeases.get(SCOPE);
         if (existing && existing.localDataSetId !== localDataSetId) {
           throw new SynchronizationOwnershipLostError();
         }
         const now = this.clock.now();
-        if (existing && existing.ownerId !== this.ownerId && existing.expiresAt > now) {
+        if (existing && existing.ownerId !== ownerId && existing.expiresAt > now) {
           return { acquired: false, retryAt: existing.expiresAt };
         }
         const lease: LocalSynchronizationLease = {
           localDataSetId,
+          exchangeFence: exchange.exchangeFence,
           scope: SCOPE,
-          ownerId: this.ownerId,
+          ownerId,
           fencingToken: (existing?.fencingToken ?? 0) + 1,
           expiresAt: now + LEASE_DURATION_MILLISECONDS,
         };
@@ -96,10 +107,14 @@ export class SynchronizationCoordinator {
       'rw',
       this.database.synchronizationLeases,
       this.database.localDataSetIdentity,
+      this.database.localExchangeState,
       async () => {
         const localDataSetId = await this.database.requireLocalDataSetId();
+        const exchange = await this.database.requireLocalExchangeState(localDataSetId);
         const current = await this.database.synchronizationLeases.get(SCOPE);
         if (
+          lease.exchangeFence === exchange.exchangeFence &&
+          current?.exchangeFence === exchange.exchangeFence &&
           lease.localDataSetId === localDataSetId &&
           current?.localDataSetId === localDataSetId &&
           current.ownerId === lease.ownerId &&
@@ -116,6 +131,7 @@ export class SynchronizationCoordinator {
       'r',
       this.database.synchronizationLeases,
       this.database.localDataSetIdentity,
+      this.database.localExchangeState,
       () => assertSynchronizationOwnership(this.database, ownership),
     );
   }
@@ -125,10 +141,14 @@ export class SynchronizationCoordinator {
       'rw',
       this.database.synchronizationLeases,
       this.database.localDataSetIdentity,
+      this.database.localExchangeState,
       async () => {
         const localDataSetId = await this.database.requireLocalDataSetId();
+        const exchange = await this.database.requireLocalExchangeState(localDataSetId);
         const current = await this.database.synchronizationLeases.get(SCOPE);
         if (
+          lease.exchangeFence !== exchange.exchangeFence ||
+          current?.exchangeFence !== exchange.exchangeFence ||
           lease.localDataSetId !== localDataSetId ||
           current?.localDataSetId !== localDataSetId ||
           current?.ownerId !== lease.ownerId ||

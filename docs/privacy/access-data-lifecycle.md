@@ -3,7 +3,7 @@
 - Status: Accepted S1 inventory and lifecycle design, 2026-10-02.
 - Authority: [ADR-0029](../architecture/decisions/0029-access-and-synchronization-scope.md) and
   [ADR-0015](../architecture/decisions/0015-privacy-and-observability.md).
-- Implementation: S5 and S8-S15 of the
+- Implementation: S5-S6 and S8-S15 of the
   [access plan](../development/access-and-synchronization-scope-implementation-plan.md), P0.6,
   and applicable deployment work. This inventory is not a deployment compliance finding.
 
@@ -212,3 +212,27 @@ accessible to that origin's scripts and a person with access to the profile; log
 access under the accepted design. Browser eviction/reset, extensions, snapshots, and exports remain
 within the documented privacy boundary. User selection, cloning, local deletion, and backup/restore
 suppression remain S12/P0.6/S15 workflows; no secure-erasure claim is made.
+
+
+## S6 handshake metadata lifecycle
+
+Explicit first connection exposes only public compatibility and the currently authorized destination
+identity. Local-only startup performs no discovery or content exchange. The shell discloses that
+connecting permits pending changes to be sent to this server. No external provider, telemetry,
+credential storage, or new recipient category is introduced; all evidence remains synthetic.
+
+Server expectations are non-secret, scope-owned protocol state with a 15-minute absolute lifetime,
+a 128-row per-scope limit, issuance cleanup and scheduled 60-second cleanup. Reobservation/confirmation
+never extends expiry. Browser initial admission is a separate owner/fence-bearing row with a
+10-minute deadline. An active-page timer and access/startup purge remove the token on expiry; a closed
+browser cannot run a timer, so cleanup occurs at next use. Known successful acceptance/pull removes
+progress atomically. Interrupted or ambiguous exchange preserves provenance and pending intent;
+expiry retains only an uncertain phase, without the expectation. Bindings retain their existing
+local-data-set lifetime. Expectations, identities, content, and provider diagnostics are never logged.
+Backups may retain expired metadata until their separately reviewed backup purge boundary; expired
+rows cannot authorize exchange, and restore-suppression/identity changes remain S12/S15 requirements.
+
+Same-origin scripts and profile users can read this local metadata. This implements no local secrecy,
+authenticated isolation, secure erasure, or production privacy/legal readiness. A changed destination
+pauses exchange and advances the fence; delayed responses cannot commit. Populated-state first binding
+remains blocked until S14 reconciliation, and production retention/access restrictions remain gates.

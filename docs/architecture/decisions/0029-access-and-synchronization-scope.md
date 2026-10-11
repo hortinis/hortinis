@@ -200,6 +200,34 @@ interrupted claims/purges, and restoration without resurrection. Library selecti
 limits, recovery mechanisms, production log/backup periods, and lawful-basis decisions remain explicit
 blocking work for their implementing tasks.
 
+## S6 first-binding implementation refinement
+
+Use scope-owned opaque UUID expectations as persisted, non-authorizing protocol metadata, with a
+15-minute server lifetime and at most 128 outstanding rows per scope. Issuance purges expired rows;
+a 60-second scheduled cleanup also removes them. Bootstrap may reobserve a retained expectation
+without allocating a row or extending its lifetime. Current authority is resolved independently each
+time. Reobservation before every content attempt detects destination substitution before sending
+content. Expectation validation at acceptance closes the subsequent race.
+
+Empty observation, confirmation, first admission, and publication use the same scope lock and explicit
+transaction boundary. Confirmation alone grants no durable permission to cross a populated-state
+boundary. A competing publisher invalidates confirmed initial expectations; a successful exchange
+promotes its own expectation atomically. Existing G2 operation IDs and canonical bodies remain intact.
+
+Persist browser provenance, readiness and owner-bearing positive exchange fences atomically. Store
+initial admission separately for at most ten minutes while the page is active or until next access
+when closed; never store credentials. Ambiguous initial exchange retains the original admission and
+IDs. Expiry removes its token, retains uncertainty/provenance/intent, and pauses for explicit recovery.
+A known successful result or pull removes initial progress in the same transaction. Timer expiration
+compares current progress so it cannot pause a completed admission. Binding workflows share the local
+lease with synchronization and cannot reuse another active workflow's lease.
+
+Use fresh Dexie version eight and the fresh-install V4 PostgreSQL schema under this session's reset
+boundary; no populated database migration is implemented. Only same-origin, explicitly configured
+no-auth operation is enabled. New local devices against populated servers remain paused until S14;
+already established devices resume only their exact retained destination. S7 still owns full-topology
+multi-scope evidence, and S8-S15 retain authentication, lifecycle, transport and release gates.
+
 ## Relationship to existing decisions
 
 S2 records the concrete wire and application-boundary refinement in

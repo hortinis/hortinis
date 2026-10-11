@@ -21,6 +21,7 @@ import com.hortinis.sync.persistence.TechnicalRecordAcceptancePersistence;
 import com.hortinis.sync.protocol.ChangePage;
 import com.hortinis.sync.protocol.RecordOperationResult;
 import com.hortinis.sync.protocol.TechnicalRecordOperation;
+import com.hortinis.sync.service.BoundSynchronizationService;
 import com.hortinis.sync.service.TechnicalRecordSynchronizationService;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
@@ -31,12 +32,13 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
 
 class SynchronizationAccessBoundaryTest {
+  private static final String EXPECTATION_HEADER = "Sync-Expectation";
+  private static final String EXPECTATION = "synthetic-expectation";
   private static final String ID = "01890f3e-7c5a-7b12-8abc-0123456789ab";
   private static final String OPERATIONS = "/api/v1/sync/operations";
   private static final String CHANGES = "/api/v1/sync/changes";
   private final SynchronizationAccessResolver access = mock(SynchronizationAccessResolver.class);
-  private final TechnicalRecordSynchronizationService service =
-      mock(TechnicalRecordSynchronizationService.class);
+  private final BoundSynchronizationService service = mock(BoundSynchronizationService.class);
   private final MockMvc mvc =
       MockMvcBuilders.standaloneSetup(new TechnicalSynchronizationController(service, access))
           .setControllerAdvice(new TechnicalSynchronizationErrorHandler())
@@ -47,21 +49,28 @@ class SynchronizationAccessBoundaryTest {
     when(access.resolve()).thenThrow(new SynchronizationAccessDeniedException());
     mvc.perform(
             post(OPERATIONS)
+                .header(EXPECTATION_HEADER, EXPECTATION)
                 .contentType("application/json")
                 .content("{\"synchronizationScopeId\":\"" + ID + "\"}"))
         .andExpect(status().isForbidden())
         .andExpect(header().string("Cache-Control", "no-store"))
         .andExpect(
             content().json("{\"code\":\"ACCESS_DENIED\",\"message\":\"Access is denied.\"}", true));
-    mvc.perform(get(CHANGES).param("cursor", ID)).andExpect(status().isForbidden());
+    mvc.perform(get(CHANGES).header(EXPECTATION_HEADER, EXPECTATION).param("cursor", ID))
+        .andExpect(status().isForbidden());
     verifyNoInteractions(service);
   }
 
   @Test
   void absentResolverResultCannotReachTheService() throws Exception {
-    mvc.perform(post(OPERATIONS).contentType("application/json").content("{}"))
+    mvc.perform(
+            post(OPERATIONS)
+                .header(EXPECTATION_HEADER, EXPECTATION)
+                .contentType("application/json")
+                .content("{}"))
         .andExpect(status().isForbidden());
-    mvc.perform(get(CHANGES)).andExpect(status().isForbidden());
+    mvc.perform(get(CHANGES).header(EXPECTATION_HEADER, EXPECTATION))
+        .andExpect(status().isForbidden());
     verifyNoInteractions(service);
   }
 
@@ -71,11 +80,12 @@ class SynchronizationAccessBoundaryTest {
         SynchronizationAccessContext.configured(
             new ServerInstanceId(ID), new SynchronizationScopeId(ID));
     when(access.resolve()).thenReturn(context);
-    when(service.pull(context, null)).thenReturn(new ChangePage(List.of(), "cursor", false));
-    when(service.submit(eq(context), any()))
+    when(service.pull(context, EXPECTATION, null))
+        .thenReturn(new ChangePage(List.of(), "cursor", false));
+    when(service.submit(eq(context), eq(EXPECTATION), any()))
         .thenAnswer(
             invocation -> {
-              TechnicalRecordOperation operation = invocation.getArgument(1);
+              TechnicalRecordOperation operation = invocation.getArgument(2);
               return new RecordOperationResult(
                   "accepted",
                   operation.operationId(),
@@ -87,6 +97,7 @@ class SynchronizationAccessBoundaryTest {
             });
     mvc.perform(
             post(OPERATIONS)
+                .header(EXPECTATION_HEADER, EXPECTATION)
                 .contentType("application/json")
                 .content(
                     "{\"operationId\":\""
@@ -95,15 +106,15 @@ class SynchronizationAccessBoundaryTest {
                         + ID
                         + "\",\"kind\":\"create\",\"value\":\"synthetic\"}"))
         .andExpect(status().isOk());
-    mvc.perform(get(CHANGES)).andExpect(status().isOk());
-    mvc.perform(get(CHANGES)).andExpect(status().isOk());
+    mvc.perform(get(CHANGES).header(EXPECTATION_HEADER, EXPECTATION)).andExpect(status().isOk());
+    mvc.perform(get(CHANGES).header(EXPECTATION_HEADER, EXPECTATION)).andExpect(status().isOk());
     var order = inOrder(access, service);
     order.verify(access).resolve();
-    order.verify(service).submit(eq(context), any());
+    order.verify(service).submit(eq(context), eq(EXPECTATION), any());
     order.verify(access).resolve();
-    order.verify(service).pull(context, null);
+    order.verify(service).pull(context, EXPECTATION, null);
     order.verify(access).resolve();
-    order.verify(service).pull(context, null);
+    order.verify(service).pull(context, EXPECTATION, null);
     order.verifyNoMoreInteractions();
   }
 
@@ -125,8 +136,7 @@ class SynchronizationAccessBoundaryTest {
   @Test
   void representativeArchitectureRulesRequireExplicitContextAndNarrowDelegation() {
     assertThat(TechnicalSynchronizationController.class.getConstructors()[0].getParameterTypes())
-        .containsExactly(
-            TechnicalRecordSynchronizationService.class, SynchronizationAccessResolver.class);
+        .containsExactly(BoundSynchronizationService.class, SynchronizationAccessResolver.class);
     assertThat(TechnicalRecordSynchronizationService.class.getConstructors()[0].getParameterTypes())
         .containsExactly(
             TechnicalRecordAcceptancePersistence.class, SynchronizationScopePersistence.class);

@@ -19,11 +19,14 @@ export async function assertSynchronizationOwnership(
   ownership?: SynchronizationOwnership,
 ): Promise<void> {
   const localDataSetId = await database.requireLocalDataSetId();
+  const exchange = await database.requireLocalExchangeState(localDataSetId);
   if (!ownership) return;
   const current = await database.synchronizationLeases.get(ownership.lease.scope);
   if (
     ownership.isLost() ||
     ownership.lease.localDataSetId !== localDataSetId ||
+    ownership.lease.exchangeFence !== exchange.exchangeFence ||
+    current?.exchangeFence !== exchange.exchangeFence ||
     current?.localDataSetId !== localDataSetId ||
     current?.ownerId !== ownership.lease.ownerId ||
     current.fencingToken !== ownership.lease.fencingToken ||

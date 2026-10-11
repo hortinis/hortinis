@@ -11,6 +11,7 @@ import type { SynchronizationOwnership } from './synchronization-ownership';
 import type { TechnicalRecordTransactions } from './technical-record-transactions';
 import type { TechnicalRecordProjection } from './technical-record-projection';
 import { sameAcceptedResult, sameSubmittedOperation } from './technical-record-result-equality';
+import { completeInitialAdmission } from './complete-initial-admission';
 
 export class TechnicalRecordAcceptedResults {
   constructor(
@@ -46,6 +47,7 @@ export class TechnicalRecordAcceptedResults {
         this.database.acceptedTechnicalRecords,
         this.database.synchronizationRetryState,
         this.database.rejectedOperations,
+        this.database.localInitialAdmissions,
       ],
       async () => {
         const pending = await this.database.outboxOperations.get(operation.operationId);
@@ -54,7 +56,10 @@ export class TechnicalRecordAcceptedResults {
         );
         if (!pending) {
           const stored = await this.database.acceptedOperationResults.get(operation.operationId);
-          if (stored && sameAcceptedResult(stored, result)) return;
+          if (stored && sameAcceptedResult(stored, result)) {
+            await completeInitialAdmission(this.database, ownership);
+            return;
+          }
         }
         if (
           !pending ||
@@ -65,6 +70,7 @@ export class TechnicalRecordAcceptedResults {
         await this.database.acceptedOperationResults.add(result);
         if ('tombstone' in result) await this.commitTombstone(operation, result);
         else await this.commitLive(operation, result);
+        await completeInitialAdmission(this.database, ownership);
       },
       ownership,
     );

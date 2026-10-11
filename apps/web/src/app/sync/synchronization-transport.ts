@@ -6,8 +6,21 @@ import type {
 } from './conformance';
 
 export interface SynchronizationTransport {
+  prepareExchange?(phase: 'push' | 'pull', boundary: ExchangeAttemptBoundary): Promise<void>;
   submitOperation(operation: TechnicalRecordOperation): Promise<OperationResult>;
   pullChanges(cursor?: string): Promise<ChangePage>;
+}
+
+export interface ExchangeAttemptBoundary {
+  readonly localDataSetId: string;
+  readonly exchangeFence: string;
+  readonly fencingToken: number;
+}
+
+export class SynchronizationPausedError extends Error {
+  constructor() {
+    super('Synchronization is paused.');
+  }
 }
 
 export class SynchronizationBoundaryError extends Error {

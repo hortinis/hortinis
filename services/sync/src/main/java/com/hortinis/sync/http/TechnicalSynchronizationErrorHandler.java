@@ -1,6 +1,8 @@
 package com.hortinis.sync.http;
 
+import com.hortinis.sync.access.BindingPreconditionFailedException;
 import com.hortinis.sync.access.SynchronizationAccessDeniedException;
+import com.hortinis.sync.access.SynchronizationAccessUnavailableException;
 import com.hortinis.sync.persistence.PostgreSqlExceptionTranslator;
 import com.hortinis.sync.protocol.InvalidRequestException;
 import com.hortinis.sync.protocol.OperationIdReusedException;
@@ -25,6 +27,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 @RestControllerAdvice
 public class TechnicalSynchronizationErrorHandler {
 
+  private static final String NO_STORE = "no-store";
   private static final Logger LOGGER =
       LoggerFactory.getLogger(TechnicalSynchronizationErrorHandler.class);
 
@@ -32,7 +35,7 @@ public class TechnicalSynchronizationErrorHandler {
   ResponseEntity<SynchronizationUnavailableError> synchronizationUnavailable() {
     return ResponseEntity.status(503)
         .header(HttpHeaders.RETRY_AFTER, "1")
-        .header(HttpHeaders.CACHE_CONTROL, "no-store")
+        .header(HttpHeaders.CACHE_CONTROL, NO_STORE)
         .body(
             new SynchronizationUnavailableError(
                 "SYNCHRONIZATION_UNAVAILABLE", "The synchronization service is unavailable."));
@@ -61,15 +64,31 @@ public class TechnicalSynchronizationErrorHandler {
   @ExceptionHandler({InvalidRequestException.class, HttpMessageNotReadableException.class})
   ResponseEntity<InvalidRequestError> invalidRequest(Exception exception) {
     return ResponseEntity.badRequest()
-        .header(HttpHeaders.CACHE_CONTROL, "no-store")
+        .header(HttpHeaders.CACHE_CONTROL, NO_STORE)
         .body(new InvalidRequestError("INVALID_REQUEST", "The request is invalid."));
   }
 
   @ExceptionHandler(SynchronizationAccessDeniedException.class)
   ResponseEntity<AccessDeniedError> accessDenied() {
     return ResponseEntity.status(403)
-        .header(HttpHeaders.CACHE_CONTROL, "no-store")
+        .header(HttpHeaders.CACHE_CONTROL, NO_STORE)
         .body(new AccessDeniedError("ACCESS_DENIED", "Access is denied."));
+  }
+
+  @ExceptionHandler(BindingPreconditionFailedException.class)
+  ResponseEntity<AccessDeniedError> bindingPreconditionFailed() {
+    return ResponseEntity.status(409)
+        .header(HttpHeaders.CACHE_CONTROL, NO_STORE)
+        .body(
+            new AccessDeniedError(
+                "BINDING_PRECONDITION_FAILED", "The binding precondition no longer holds."));
+  }
+
+  @ExceptionHandler(SynchronizationAccessUnavailableException.class)
+  ResponseEntity<AccessDeniedError> accessUnavailable() {
+    return ResponseEntity.status(503)
+        .header(HttpHeaders.CACHE_CONTROL, NO_STORE)
+        .body(new AccessDeniedError("ACCESS_UNAVAILABLE", "The access service is unavailable."));
   }
 
   @ExceptionHandler(RecordNotFoundException.class)

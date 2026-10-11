@@ -54,6 +54,9 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
           "/actuator/health/liveness",
           "/actuator/health/readiness",
           "/api/v1/sync/operations",
+          "/api/v1/server/capabilities",
+          "/api/v1/sync/bootstrap",
+          "/api/v1/sync/bindings/confirm",
           "/api/v1/sync/changes" ->
           path;
       default -> "/unknown";

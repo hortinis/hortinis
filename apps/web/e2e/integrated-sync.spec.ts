@@ -1,3 +1,4 @@
+import { establishedHeaders, openRetainedDevice } from './support/binding';
 import { expect, test, type APIRequestContext } from '@playwright/test';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -11,6 +12,54 @@ import {
 } from './support/indexeddb';
 
 const execute = promisify(execFile);
+
+test('explicitly binds both supported empty-server rows and pauses a new populated destination', async ({
+  browser,
+}) => {
+  const emptyContext = await browser.newContext({ serviceWorkers: 'block' });
+  const localContext = await browser.newContext({ serviceWorkers: 'block' });
+  const newContext = await browser.newContext({ serviceWorkers: 'block' });
+  try {
+    const empty = await emptyContext.newPage();
+    await empty.goto('/');
+    await empty.getByRole('button', { name: 'Connect to server' }).click();
+    await expect(empty.getByRole('region', { name: 'Server connection' })).toContainText(
+      'connected to its server',
+    );
+    await waitForLeaseRelease(empty);
+    const local = await localContext.newPage();
+    await local.goto('/');
+    await waitForLeaseRelease(local);
+    await localContext.setOffline(true);
+    const operation = {
+      operationId: crypto.randomUUID(),
+      recordId: crypto.randomUUID(),
+      kind: 'create' as const,
+      value: 'standalone first binding',
+    };
+    await seedPendingOperation(local, operation);
+    await localContext.setOffline(false);
+    const submitted = local.waitForRequest('**/api/v1/sync/operations');
+    await local.getByRole('button', { name: 'Connect to server' }).click();
+    expect((await submitted).postDataJSON()).toEqual(operation);
+    await expect.poll(() => acceptedRevision(local, operation.operationId)).toBe('1');
+    const fresh = await newContext.newPage();
+    let contentRequests = 0;
+    fresh.on('request', (request) => {
+      if (/\/sync\/(operations|changes)/.test(request.url())) contentRequests++;
+    });
+    await fresh.goto('/');
+    await fresh.getByRole('button', { name: 'Connect to server' }).click();
+    await expect(fresh.getByRole('region', { name: 'Server connection' })).toContainText(
+      'require reconciliation',
+    );
+    expect(contentRequests).toBe(0);
+  } finally {
+    await emptyContext.close();
+    await localContext.close();
+    await newContext.close();
+  }
+});
 
 test('recovers unchanged pending work after a real PostgreSQL outage', async ({ browser }) => {
   test.setTimeout(60_000);
@@ -40,7 +89,7 @@ test('recovers unchanged pending work after a real PostgreSQL outage', async ({ 
     const initialPull = page.waitForResponse(
       (response) => response.url().endsWith('/api/v1/sync/changes') && response.status() === 200,
     );
-    await page.goto('/');
+    await openRetainedDevice(page);
     await initialPull;
     await waitForLeaseRelease(page);
     await seedPendingOperation(page, operation);
@@ -48,15 +97,15 @@ test('recovers unchanged pending work after a real PostgreSQL outage', async ({ 
     try {
       const unavailable = page.waitForResponse(
         (response) =>
-          response.url().endsWith('/api/v1/sync/operations') && response.status() === 503,
+          response.url().endsWith('/api/v1/server/capabilities') && response.status() === 503,
       );
       await page.reload();
       const response = await unavailable;
       expect(response.headers()['retry-after']).toBe('1');
       expect(response.headers()['cache-control']).toBe('no-store');
       expect(await response.json()).toEqual({
-        code: 'SYNCHRONIZATION_UNAVAILABLE',
-        message: 'The synchronization service is unavailable.',
+        code: 'ACCESS_UNAVAILABLE',
+        message: 'The access service is unavailable.',
       });
     } finally {
       await postgresCommand('start');
@@ -65,7 +114,7 @@ test('recovers unchanged pending work after a real PostgreSQL outage', async ({ 
       .poll(() => acceptedRevision(page, operation.operationId), { timeout: 25_000 })
       .toBe('1');
     await waitForLeaseRelease(page);
-    expect(submitted.length).toBeGreaterThanOrEqual(2);
+    expect(submitted.length).toBeGreaterThanOrEqual(1);
     for (const request of submitted) expect(request).toEqual(operation);
     expect(await journalOperationCount(page.request, operation.operationId)).toBe(1);
   } finally {
@@ -80,13 +129,15 @@ interface JournalPage {
 }
 
 async function ensurePaginatedJournal(request: APIRequestContext): Promise<void> {
-  const response = await request.get('/api/v1/sync/changes');
+  const headers = await establishedHeaders(request);
+  const response = await request.get('/api/v1/sync/changes', { headers });
   expect(response.status()).toBe(200);
   const firstPage = (await response.json()) as JournalPage;
   if (firstPage.hasMore) return;
   // Keep existing history; seed enough accepted changes to cross the server's 100-entry page.
   for (let index = firstPage.changes.length; index <= 100; index++) {
     const accepted = await request.post('/api/v1/sync/operations', {
+      headers,
       data: {
         operationId: crypto.randomUUID(),
         recordId: crypto.randomUUID(),
@@ -102,10 +153,12 @@ async function journalOperationCount(
   request: APIRequestContext,
   operationId: string,
 ): Promise<number> {
+  const headers = await establishedHeaders(request);
   let cursor: string | undefined;
   let count = 0;
   for (;;) {
     const response = await request.get('/api/v1/sync/changes', {
+      headers,
       params: cursor === undefined ? {} : { cursor },
     });
     expect(response.status()).toBe(200);
@@ -140,6 +193,7 @@ async function postgresCommand(command: 'stop' | 'start'): Promise<void> {
 test('replays a lost create acknowledgement and propagates deletion through the real service and PostgreSQL', async ({
   browser,
 }) => {
+  test.setTimeout(60_000);
   // Route-based acknowledgement loss must reach Playwright rather than the service worker.
   const firstContext = await browser.newContext({ serviceWorkers: 'block' });
   try {
@@ -164,7 +218,7 @@ test('replays a lost create acknowledgement and propagates deletion through the 
     const initialPull = firstPage.waitForResponse(
       (response) => response.url().endsWith('/api/v1/sync/changes') && response.status() === 200,
     );
-    await firstPage.goto('/');
+    await openRetainedDevice(firstPage);
     await initialPull;
     await waitForLeaseRelease(firstPage);
     await seedPendingOperation(firstPage, {
@@ -207,7 +261,7 @@ test('replays a lost create acknowledgement and propagates deletion through the 
     const secondContext = await browser.newContext();
     try {
       const secondPage = await secondContext.newPage();
-      await secondPage.goto('/');
+      await openRetainedDevice(secondPage);
       await expect
         .poll(() => tombstoneRevision(secondPage, recordId), { timeout: 15_000 })
         .toBe('3');
@@ -234,7 +288,7 @@ test('synchronizes three offline edits in predecessor order through the real top
     if (request.url().endsWith('/api/v1/sync/operations')) submitted.push(request.postDataJSON());
   });
   try {
-    await page.goto('/');
+    await openRetainedDevice(page);
     await waitForLeaseRelease(page);
     await context.setOffline(true);
     await appendPendingChain(page, [
@@ -330,7 +384,7 @@ test('preserves a lost acknowledgement replay when two later edits arrive', asyn
     } else await route.continue();
   });
   try {
-    await page.goto('/');
+    await openRetainedDevice(page);
     await waitForLeaseRelease(page);
     await appendPendingChain(page, [create]);
     await page.reload();

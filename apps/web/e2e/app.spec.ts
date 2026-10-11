@@ -1,3 +1,4 @@
+import { mockBindingDiscovery, seedRetainedBinding } from './support/binding';
 import { expect, test } from '@playwright/test';
 
 test('loads the application shell', async ({ page }) => {
@@ -12,6 +13,7 @@ test('reloads the application shell offline after the service worker caches it',
   page,
   context,
 }) => {
+  await mockBindingDiscovery(page);
   await page.goto('/');
   await expect(page).toHaveTitle('Hortinis');
 
@@ -87,6 +89,7 @@ test('resumes persisted synchronization work after reloading the application', a
     });
   });
 
+  await mockBindingDiscovery(page);
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1, name: 'Hortinis' })).toBeVisible();
   await page.waitForTimeout(250);
@@ -119,6 +122,7 @@ test('resumes persisted synchronization work after reloading the application', a
     });
   }, operation);
 
+  await seedRetainedBinding(page);
   recoveryEnabled = true;
   await page.reload();
   await page.waitForFunction(
@@ -191,6 +195,7 @@ test('applies a tombstone after reload and resumes from its committed cursor', a
     });
   });
 
+  await mockBindingDiscovery(page);
   await page.goto('/');
   await page.waitForTimeout(250);
   await page.evaluate(async (id) => {
@@ -216,6 +221,7 @@ test('applies a tombstone after reload and resumes from its committed cursor', a
     database.close();
   }, recordId);
 
+  await seedRetainedBinding(page);
   ready = true;
   await page.reload();
   await expect
@@ -327,6 +333,7 @@ test('persists a revision conflict and continues an independent operation', asyn
     });
   });
 
+  await mockBindingDiscovery(page);
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1, name: 'Hortinis' })).toBeVisible();
   await page.evaluate(
@@ -363,6 +370,7 @@ test('persists a revision conflict and continues an independent operation', asyn
     { conflictedOperation, independentOperation },
   );
 
+  await seedRetainedBinding(page);
   await page.reload();
   await page.waitForFunction(
     async ({ operationId }) => {

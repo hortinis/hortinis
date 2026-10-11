@@ -7,6 +7,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.hortinis.sync.access.SynchronizationAccessResolver;
+import com.hortinis.sync.service.BoundSynchronizationService;
+import com.hortinis.sync.service.SynchronizationBindingService;
 import com.zaxxer.hikari.HikariDataSource;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -14,6 +17,7 @@ import java.sql.Statement;
 import java.util.UUID;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -41,6 +45,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @AutoConfigureMockMvc
 class TransientSynchronizationIntegrationTest {
 
+  private static final String EXPECTATION_HEADER = "Sync-Expectation";
   private static final String OPERATIONS = "/api/v1/sync/operations";
   private static final String CHANGES = "/api/v1/sync/changes";
   private static final String UNAVAILABLE =
@@ -52,10 +57,22 @@ class TransientSynchronizationIntegrationTest {
 
   @Autowired private MockMvc mvc;
   @Autowired private JdbcTemplate jdbc;
+  @Autowired private SynchronizationBindingService binding;
+  @Autowired private BoundSynchronizationService boundExchange;
+  private String expectation;
+
+  @BeforeEach
+  void establishBinding() {
+    expectation =
+        EstablishedBindingFixture.establish(binding, boundExchange, technicalContext.resolve());
+  }
+
+  @Autowired private SynchronizationAccessResolver technicalContext;
   @Autowired private DataSource dataSource;
 
   @AfterEach
   void clearData() {
+    jdbc.execute("TRUNCATE technical_exchange_expectation");
     jdbc.execute("DROP TRIGGER IF EXISTS transient_journal_failure ON technical_record_change");
     jdbc.execute("DROP FUNCTION IF EXISTS transient_journal_failure()");
     jdbc.execute(
@@ -73,11 +90,11 @@ class TransientSynchronizationIntegrationTest {
       assertThat(first.isClosed()).isFalse();
       assertThat(second.isClosed()).isFalse();
       assertUnavailable(submit(request));
-      assertUnavailable(mvc.perform(get(CHANGES)));
+      assertUnavailable(mvc.perform(get(CHANGES).header(EXPECTATION_HEADER, expectation)));
     }
     assertNoAcceptance();
     assertStableAcceptance(request);
-    mvc.perform(get(CHANGES)).andExpect(status().isOk());
+    mvc.perform(get(CHANGES).header(EXPECTATION_HEADER, expectation)).andExpect(status().isOk());
   }
 
   @Test
@@ -124,7 +141,7 @@ class TransientSynchronizationIntegrationTest {
     try {
       ((HikariDataSource) dataSource).getHikariPoolMXBean().softEvictConnections();
       assertUnavailable(submit(request));
-      assertUnavailable(mvc.perform(get(CHANGES)));
+      assertUnavailable(mvc.perform(get(CHANGES).header(EXPECTATION_HEADER, expectation)));
     } finally {
       POSTGRES.getDockerClient().unpauseContainerCmd(POSTGRES.getContainerId()).exec();
     }
@@ -142,7 +159,11 @@ class TransientSynchronizationIntegrationTest {
   }
 
   private ResultActions submit(String request) throws Exception {
-    return mvc.perform(post(OPERATIONS).contentType(MediaType.APPLICATION_JSON).content(request));
+    return mvc.perform(
+        post(OPERATIONS)
+            .header(EXPECTATION_HEADER, expectation)
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(request));
   }
 
   private static void assertUnavailable(ResultActions result) throws Exception {

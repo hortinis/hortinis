@@ -92,7 +92,10 @@ test("access operations separate public discovery from protected identity and de
   );
   assert.deepEqual(Object.keys(discovery.responses).sort(), ["200", "503"]);
   const bootstrap = document.paths["/api/v1/sync/bootstrap"].get;
-  assert.deepEqual(Object.keys(bootstrap.responses).sort(), ["200", "401", "403", "503"]);
+  assert.deepEqual(Object.keys(bootstrap.responses).sort(), ["200", "401", "403", "409", "503"]);
+  const retainedExpectation = bootstrap.parameters.find(({ name }) => name === "Sync-Expectation");
+  assert.equal(retainedExpectation.in, "header");
+  assert.equal(retainedExpectation.required, false);
   const confirm = document.paths["/api/v1/sync/bindings/confirm"].post;
   assert.equal(
     confirm.requestBody.content["application/json"].schema.$ref,

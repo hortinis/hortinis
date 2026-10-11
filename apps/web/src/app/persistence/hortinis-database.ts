@@ -1,11 +1,12 @@
 import { Inject, Injectable, InjectionToken } from '@angular/core';
 import Dexie, { Table } from 'dexie';
-import { HORTINIS_DATABASE_SCHEMA_V7 } from './database-schema';
+import { HORTINIS_DATABASE_SCHEMA_V8 } from './database-schema';
 import { generateUuidV7 } from '../sync/uuid-v7';
 import {
   parseAccessContract,
   type LocalDataSetId,
   type LocalServerBinding,
+  type LocalExchangeState,
 } from '../sync/access-contracts.rule';
 import {
   FreshLocalDatabaseRequiredError,
@@ -14,6 +15,11 @@ import {
   readLocalDataSetIdentity,
   type LocalDataSetIdentity,
 } from './local-data-set-identity';
+import {
+  readLocalExchangeState,
+  type OwnedLocalExchangeState,
+  type LocalInitialAdmission,
+} from './local-exchange-metadata';
 import type { LocalRejectedOperation } from './local-rejected-operation';
 import type { LocalTechnicalRecord } from './local-technical-record';
 import type {
@@ -37,6 +43,8 @@ export const HORTINIS_DATABASE_NAME = new InjectionToken<string>('Hortinis datab
 export class HortinisDatabase extends Dexie {
   readonly localDataSetIdentity!: Table<LocalDataSetIdentity, string>;
   readonly localServerBindings!: Table<LocalServerBinding, LocalDataSetId>;
+  readonly localExchangeState!: Table<OwnedLocalExchangeState, LocalDataSetId>;
+  readonly localInitialAdmissions!: Table<LocalInitialAdmission, LocalDataSetId>;
   private openedDataSetId: LocalDataSetId | undefined;
   readonly rejectedOperations!: Table<LocalRejectedOperation, string>;
   readonly acceptedTechnicalRecords!: Table<TechnicalRecord, string>;
@@ -56,21 +64,29 @@ export class HortinisDatabase extends Dexie {
   constructor(@Inject(HORTINIS_DATABASE_NAME) databaseName: string) {
     super(databaseName);
 
-    this.version(7)
-      .stores(HORTINIS_DATABASE_SCHEMA_V7)
+    this.version(8)
+      .stores(HORTINIS_DATABASE_SCHEMA_V8)
       .upgrade(() => {
         throw new FreshLocalDatabaseRequiredError();
       });
     // Keep initial generation synchronous and let Dexie track the write in its creation transaction.
     this.on('populate', () => {
-      return this.localDataSetIdentity.add({
-        key: LOCAL_DATA_SET_KEY,
-        version: '1',
-        localDataSetId: parseAccessContract('LocalDataSetId', generateUuidV7()),
-      });
+      const localDataSetId = parseAccessContract('LocalDataSetId', generateUuidV7());
+      return Dexie.Promise.all([
+        this.localDataSetIdentity.add({
+          key: LOCAL_DATA_SET_KEY,
+          version: '1',
+          localDataSetId,
+        }),
+        this.localExchangeState.add({
+          localDataSetId,
+          value: { state: 'offline', exchangeFence: '1', logoutPending: false },
+        }),
+      ]);
     });
     this.on.ready.subscribe(async () => {
       this.openedDataSetId = await this.requireLocalDataSetId();
+      await this.requireLocalExchangeState(this.openedDataSetId);
     }, true);
   }
 
@@ -81,5 +97,9 @@ export class HortinisDatabase extends Dexie {
       throw new LocalDataSetUnavailableError();
     }
     return identity;
+  }
+
+  requireLocalExchangeState(owner: LocalDataSetId): Promise<LocalExchangeState> {
+    return this.localExchangeState.toArray().then((rows) => readLocalExchangeState(rows, owner));
   }
 }

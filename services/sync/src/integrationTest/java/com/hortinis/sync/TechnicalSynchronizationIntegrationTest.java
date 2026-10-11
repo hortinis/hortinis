@@ -9,11 +9,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.hortinis.sync.access.SynchronizationAccessResolver;
 import com.hortinis.sync.protocol.SyncCursorCodec;
+import com.hortinis.sync.service.BoundSynchronizationService;
+import com.hortinis.sync.service.SynchronizationBindingService;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -36,6 +39,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @AutoConfigureMockMvc
 class TechnicalSynchronizationIntegrationTest {
 
+  private static final String EXPECTATION_HEADER = "Sync-Expectation";
   private static final String POSTGRES_IMAGE = "postgres:18.0";
   private static final String OPERATIONS_PATH = "/api/v1/sync/operations";
   private static final String CHANGES_PATH = "/api/v1/sync/changes";
@@ -73,6 +77,16 @@ class TechnicalSynchronizationIntegrationTest {
 
   @Autowired private MockMvc mockMvc;
   @Autowired private JdbcTemplate jdbc;
+  @Autowired private SynchronizationBindingService binding;
+  @Autowired private BoundSynchronizationService boundExchange;
+  private String expectation;
+
+  @BeforeEach
+  void establishBinding() {
+    expectation =
+        EstablishedBindingFixture.establish(binding, boundExchange, technicalContext.resolve());
+  }
+
   @Autowired private SynchronizationAccessResolver technicalContext;
 
   @Test
@@ -90,6 +104,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createRequest("\\u0000")))
         .andExpect(status().isBadRequest())
@@ -105,6 +120,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createRequest(FIRST_VALUE)))
         .andExpect(status().isOk());
@@ -116,7 +132,11 @@ class TechnicalSynchronizationIntegrationTest {
             replaceRequest(value, "1")
           }) {
         mockMvc
-            .perform(post(OPERATIONS_PATH).contentType(MediaType.APPLICATION_JSON).content(body))
+            .perform(
+                post(OPERATIONS_PATH)
+                    .header(EXPECTATION_HEADER, expectation)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(body))
             .andExpect(status().isBadRequest())
             .andExpect(content().json(INVALID_REQUEST_RESPONSE));
       }
@@ -134,6 +154,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createRequest(escaped)))
         .andExpect(status().isOk())
@@ -141,6 +162,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createRequest(value)))
         .andExpect(status().isOk())
@@ -148,12 +170,13 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(replaceRequest(escaped, "1")))
         .andExpect(status().isOk())
         .andExpect(jsonPath(RECORD_VALUE_PATH).value(value));
     mockMvc
-        .perform(get(CHANGES_PATH))
+        .perform(get(CHANGES_PATH).header(EXPECTATION_HEADER, expectation))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.changes[0].record.value").value(value))
         .andExpect(jsonPath("$.changes[1].record.value").value(value));
@@ -173,7 +196,11 @@ class TechnicalSynchronizationIntegrationTest {
           "[" + "0,".repeat(65) + "0]"
         }) {
       mockMvc
-          .perform(post(OPERATIONS_PATH).contentType(MediaType.APPLICATION_JSON).content(body))
+          .perform(
+              post(OPERATIONS_PATH)
+                  .header(EXPECTATION_HEADER, expectation)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(body))
           .andExpect(status().isBadRequest())
           .andExpect(content().json(INVALID_REQUEST_RESPONSE));
     }
@@ -187,6 +214,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createRequest("")))
         .andExpect(status().isOk())
@@ -194,6 +222,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(replaceRequest(" \\n\\t", "1")))
         .andExpect(status().isOk())
@@ -202,6 +231,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(replaceRequest(STALE_REPLACE_OPERATION_ID, value, "2")))
         .andExpect(status().isOk())
@@ -211,6 +241,7 @@ class TechnicalSynchronizationIntegrationTest {
 
   @AfterEach
   void clearApplicationData() {
+    jdbc.execute("TRUNCATE technical_exchange_expectation");
     jdbc.update("DROP TRIGGER IF EXISTS fail_technical_change ON technical_record_change");
     jdbc.update("DROP FUNCTION IF EXISTS fail_technical_change()");
     jdbc.update(
@@ -233,7 +264,11 @@ class TechnicalSynchronizationIntegrationTest {
           deleteRequest(DELETE_OPERATION_ID, expectedRevision)
         }) {
       mockMvc
-          .perform(post(OPERATIONS_PATH).contentType(MediaType.APPLICATION_JSON).content(request))
+          .perform(
+              post(OPERATIONS_PATH)
+                  .header(EXPECTATION_HEADER, expectation)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(request))
           .andExpect(status().isNotFound())
           .andExpect(jsonPath(ERROR_CODE_PATH).value("RECORD_NOT_FOUND"));
     }
@@ -244,7 +279,11 @@ class TechnicalSynchronizationIntegrationTest {
           deleteRequest(DELETE_OPERATION_ID, expectedRevision)
         }) {
       mockMvc
-          .perform(post(OPERATIONS_PATH).contentType(MediaType.APPLICATION_JSON).content(request))
+          .perform(
+              post(OPERATIONS_PATH)
+                  .header(EXPECTATION_HEADER, expectation)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(request))
           .andExpect(status().isConflict())
           .andExpect(jsonPath(ERROR_CODE_PATH).value("REVISION_CONFLICT"))
           .andExpect(jsonPath("$.expectedRevision").value(expectedRevision));
@@ -252,6 +291,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(replaceRequest(OPERATION_ID, REPLACEMENT_VALUE, expectedRevision)))
         .andExpect(status().isConflict())
@@ -269,7 +309,11 @@ class TechnicalSynchronizationIntegrationTest {
         UUID.fromString(RECORD_ID));
     String replacement = replaceRequest(REPLACEMENT_VALUE, Long.toString(Long.MAX_VALUE - 2));
     mockMvc
-        .perform(post(OPERATIONS_PATH).contentType(MediaType.APPLICATION_JSON).content(replacement))
+        .perform(
+            post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(replacement))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.record.revision").value(Long.toString(Long.MAX_VALUE - 1)));
     assertThat(jdbc.queryForObject(SELECT_RECORD_REVISION, Long.class))
@@ -278,18 +322,25 @@ class TechnicalSynchronizationIntegrationTest {
     String result =
         mockMvc
             .perform(
-                post(OPERATIONS_PATH).contentType(MediaType.APPLICATION_JSON).content(deletion))
+                post(OPERATIONS_PATH)
+                    .header(EXPECTATION_HEADER, expectation)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(deletion))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.tombstone.revision").value(Long.toString(Long.MAX_VALUE)))
             .andReturn()
             .getResponse()
             .getContentAsString();
     mockMvc
-        .perform(post(OPERATIONS_PATH).contentType(MediaType.APPLICATION_JSON).content(deletion))
+        .perform(
+            post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(deletion))
         .andExpect(status().isOk())
         .andExpect(content().string(result));
     mockMvc
-        .perform(get(CHANGES_PATH))
+        .perform(get(CHANGES_PATH).header(EXPECTATION_HEADER, expectation))
         .andExpect(status().isOk())
         .andExpect(
             jsonPath("$.changes[1].record.revision").value(Long.toString(Long.MAX_VALUE - 1)))
@@ -315,7 +366,11 @@ class TechnicalSynchronizationIntegrationTest {
           deleteRequest(DELETE_OPERATION_ID, Long.toString(Long.MAX_VALUE))
         }) {
       mockMvc
-          .perform(post(OPERATIONS_PATH).contentType(MediaType.APPLICATION_JSON).content(request))
+          .perform(
+              post(OPERATIONS_PATH)
+                  .header(EXPECTATION_HEADER, expectation)
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(request))
           .andExpect(status().isInternalServerError());
       assertThat(count(ACCEPTED_OPERATION_TABLE)).isEqualTo(1);
       assertThat(count(CHANGE_TABLE)).isEqualTo(1);
@@ -331,6 +386,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createRequest(FIRST_VALUE)))
         .andExpect(status().isOk())
@@ -348,6 +404,7 @@ class TechnicalSynchronizationIntegrationTest {
         mockMvc
             .perform(
                 post(OPERATIONS_PATH)
+                    .header(EXPECTATION_HEADER, expectation)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(createRequest(FIRST_VALUE)))
             .andExpect(status().isOk())
@@ -359,6 +416,7 @@ class TechnicalSynchronizationIntegrationTest {
         mockMvc
             .perform(
                 post(OPERATIONS_PATH)
+                    .header(EXPECTATION_HEADER, expectation)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
                         "{ \"value\": \""
@@ -385,6 +443,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createRequest(FIRST_VALUE)))
         .andExpect(status().isOk());
@@ -393,6 +452,7 @@ class TechnicalSynchronizationIntegrationTest {
         mockMvc
             .perform(
                 post(OPERATIONS_PATH)
+                    .header(EXPECTATION_HEADER, expectation)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(replaceRequest(REPLACEMENT_VALUE, "1")))
             .andExpect(status().isOk())
@@ -404,6 +464,7 @@ class TechnicalSynchronizationIntegrationTest {
         mockMvc
             .perform(
                 post(OPERATIONS_PATH)
+                    .header(EXPECTATION_HEADER, expectation)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(
                         "{\"expectedRevision\":\"1\",\"kind\":\"replace\","
@@ -436,6 +497,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createRequest(FIRST_VALUE)))
         .andExpect(status().isOk());
@@ -443,6 +505,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createRequest("different value")))
         .andExpect(status().isConflict())
@@ -484,6 +547,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createRequest(FIRST_VALUE)))
         .andExpect(status().isOk());
@@ -491,6 +555,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(replaceRequest(REPLACEMENT_VALUE, "1")))
         .andExpect(status().isOk())
@@ -516,6 +581,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createRequest(FIRST_VALUE)))
         .andExpect(status().isOk());
@@ -523,6 +589,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(deleteRequest(STALE_DELETE_OPERATION_ID, "2")))
         .andExpect(status().isConflict())
@@ -531,6 +598,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(deleteRequest(DELETE_OPERATION_ID, "1")))
         .andExpect(status().isOk())
@@ -549,6 +617,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(replaceRequest(STALE_REPLACE_OPERATION_ID, "after deletion", "1")))
         .andExpect(status().isNotFound())
@@ -556,6 +625,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(deleteRequest(MISSING_DELETE_OPERATION_ID, "2")))
         .andExpect(status().isNotFound())
@@ -593,7 +663,10 @@ class TechnicalSynchronizationIntegrationTest {
         .isEqualTo("tombstone");
 
     mockMvc
-        .perform(get(CHANGES_PATH).param(CURSOR_PARAMETER, cursor(1)))
+        .perform(
+            get(CHANGES_PATH)
+                .header(EXPECTATION_HEADER, expectation)
+                .param(CURSOR_PARAMETER, cursor(1)))
         .andExpect(status().isOk())
         .andExpect(
             content()
@@ -616,6 +689,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createRequest(FIRST_VALUE)))
         .andExpect(status().isOk());
@@ -640,6 +714,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createRequest(RECREATE_OPERATION_ID, RECORD_ID, FIRST_VALUE)))
         .andExpect(status().isConflict())
@@ -668,6 +743,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createRequest(FIRST_VALUE)))
         .andExpect(status().isOk());
@@ -682,6 +758,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(deleteRequest(DELETE_OPERATION_ID, "1")))
         .andExpect(status().isInternalServerError());
@@ -699,6 +776,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(deleteRequest(DELETE_OPERATION_ID, "1")))
         .andExpect(status().isOk())
@@ -710,12 +788,14 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createRequest(FIRST_VALUE)))
         .andExpect(status().isOk());
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(replaceRequest(REPLACEMENT_VALUE, "1")))
         .andExpect(status().isOk());
@@ -723,6 +803,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(replaceRequest(STALE_REPLACE_OPERATION_ID, "stale value", "1")))
         .andExpect(status().isConflict())
@@ -775,18 +856,20 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createRequest(FIRST_VALUE)))
         .andExpect(status().isOk());
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(replaceRequest(REPLACEMENT_VALUE, "1")))
         .andExpect(status().isOk());
 
     mockMvc
-        .perform(get(CHANGES_PATH))
+        .perform(get(CHANGES_PATH).header(EXPECTATION_HEADER, expectation))
         .andExpect(status().isOk())
         .andExpect(
             content()
@@ -802,7 +885,10 @@ class TechnicalSynchronizationIntegrationTest {
                     true));
 
     mockMvc
-        .perform(get(CHANGES_PATH).param(CURSOR_PARAMETER, cursor(1)))
+        .perform(
+            get(CHANGES_PATH)
+                .header(EXPECTATION_HEADER, expectation)
+                .param(CURSOR_PARAMETER, cursor(1)))
         .andExpect(status().isOk())
         .andExpect(
             content()
@@ -819,7 +905,10 @@ class TechnicalSynchronizationIntegrationTest {
   @Test
   void rejectsMalformedPullCursors() throws Exception {
     mockMvc
-        .perform(get(CHANGES_PATH).param(CURSOR_PARAMETER, "not-a-cursor"))
+        .perform(
+            get(CHANGES_PATH)
+                .header(EXPECTATION_HEADER, expectation)
+                .param(CURSOR_PARAMETER, "not-a-cursor"))
         .andExpect(status().isBadRequest())
         .andExpect(content().json(INVALID_REQUEST_RESPONSE, false));
   }
@@ -830,6 +919,7 @@ class TechnicalSynchronizationIntegrationTest {
       mockMvc
           .perform(
               post(OPERATIONS_PATH)
+                  .header(EXPECTATION_HEADER, expectation)
                   .contentType(MediaType.APPLICATION_JSON)
                   .content(
                       createRequest(
@@ -840,7 +930,7 @@ class TechnicalSynchronizationIntegrationTest {
     }
 
     mockMvc
-        .perform(get(CHANGES_PATH))
+        .perform(get(CHANGES_PATH).header(EXPECTATION_HEADER, expectation))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.changes.length()").value(100))
         .andExpect(jsonPath("$.changes[0].sequence").value("1"))
@@ -849,7 +939,10 @@ class TechnicalSynchronizationIntegrationTest {
         .andExpect(jsonPath("$.hasMore").value(true));
 
     mockMvc
-        .perform(get(CHANGES_PATH).param(CURSOR_PARAMETER, cursor(100)))
+        .perform(
+            get(CHANGES_PATH)
+                .header(EXPECTATION_HEADER, expectation)
+                .param(CURSOR_PARAMETER, cursor(100)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.changes.length()").value(1))
         .andExpect(jsonPath("$.changes[0].sequence").value("101"))
@@ -862,6 +955,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createRequest(NON_V7_OPERATION_ID, NON_V7_RECORD_ID, "non-v7 identifier")))
         .andExpect(status().isOk());
@@ -882,6 +976,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createRequest("rolled back")))
         .andExpect(status().isInternalServerError());
@@ -896,6 +991,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     "{\"operationId\":\"01890f3e-7c5a-7b12-8abc-0123456789ab\","
@@ -907,6 +1003,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createRequestWithExtraField()))
         .andExpect(status().isBadRequest());
@@ -914,6 +1011,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     OPERATION_ID_JSON_PREFIX
@@ -928,6 +1026,7 @@ class TechnicalSynchronizationIntegrationTest {
     mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     OPERATION_ID_JSON_PREFIX
@@ -962,6 +1061,7 @@ class TechnicalSynchronizationIntegrationTest {
     return mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createRequest(FIRST_VALUE)))
         .andExpect(status().isOk())
@@ -1006,6 +1106,7 @@ class TechnicalSynchronizationIntegrationTest {
     return mockMvc
         .perform(
             post(OPERATIONS_PATH)
+                .header(EXPECTATION_HEADER, expectation)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(deleteRequest(DELETE_OPERATION_ID, "1")))
         .andExpect(status().isOk())

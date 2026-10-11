@@ -64,15 +64,13 @@ describe('local binding storage ownership', () => {
     expect(await database.localServerBindings.toArray()).toEqual([foreign]);
   });
 
-  it('rolls back replacement when binding storage fails', async () => {
+  it('preserves provenance when an idempotent binding write fails', async () => {
     const original = value(await database.requireLocalDataSetId());
     await persistence.put(original);
     vi.spyOn(database.localServerBindings, 'put').mockRejectedValueOnce(
       new Error('Synthetic binding failure.'),
     );
-    await expect(
-      persistence.put({ ...original, serverOrigin: 'https://other.example' }),
-    ).rejects.toThrow('Synthetic binding failure.');
+    await expect(persistence.put(original)).rejects.toThrow('Synthetic binding failure.');
     expect(await persistence.current()).toEqual(original);
   });
 

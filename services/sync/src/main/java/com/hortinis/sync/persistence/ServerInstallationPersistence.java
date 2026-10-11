@@ -60,6 +60,29 @@ public class ServerInstallationPersistence {
         .orElseThrow(SynchronizationAccessDeniedException::new);
   }
 
+  /** Public non-content capabilities read committed configuration, without selecting a scope. */
+  public PublicIdentity publicIdentity() {
+    return jdbc.sql(
+            "SELECT server_instance_id::text, access_mode FROM "
+                + "technical_server_installation WHERE singleton AND "
+                + "access_mode IS NOT NULL")
+        .query(
+            (row, number) ->
+                new PublicIdentity(
+                    new ServerInstanceId(row.getString(1)),
+                    ServerAccessMode.parse(row.getString(2))))
+        .optional()
+        .orElseThrow(SynchronizationAccessDeniedException::new);
+  }
+
+  /** Only installation identity and explicitly committed mode are public. */
+  public record PublicIdentity(ServerInstanceId instance, ServerAccessMode mode) {
+    @Override
+    public String toString() {
+      return "PublicIdentity[redacted]";
+    }
+  }
+
   /** Non-secret metadata kept out of diagnostic representations. */
   public record TechnicalIdentity(ServerInstanceId instance, SynchronizationScopeId scope) {
     @Override

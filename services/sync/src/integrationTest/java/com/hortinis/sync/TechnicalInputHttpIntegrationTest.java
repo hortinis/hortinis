@@ -2,6 +2,9 @@ package com.hortinis.sync;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.hortinis.sync.access.SynchronizationAccessResolver;
+import com.hortinis.sync.service.BoundSynchronizationService;
+import com.hortinis.sync.service.SynchronizationBindingService;
 import java.io.ByteArrayInputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -12,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,9 +52,21 @@ class TechnicalInputHttpIntegrationTest {
 
   @LocalServerPort private int port;
   @Autowired private JdbcTemplate jdbc;
+  @Autowired private SynchronizationBindingService binding;
+  @Autowired private BoundSynchronizationService boundExchange;
+  private String expectation;
+
+  @BeforeEach
+  void establishBinding() {
+    expectation =
+        EstablishedBindingFixture.establish(binding, boundExchange, technicalContext.resolve());
+  }
+
+  @Autowired private SynchronizationAccessResolver technicalContext;
 
   @AfterEach
   void clearApplicationData() {
+    jdbc.execute("TRUNCATE technical_exchange_expectation");
     jdbc.execute("DROP TRIGGER IF EXISTS private_journal_failure ON technical_record_change");
     jdbc.execute("DROP FUNCTION IF EXISTS private_journal_failure()");
     jdbc.update(
@@ -175,6 +191,7 @@ class TechnicalInputHttpIntegrationTest {
       return client.send(
           HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + path))
               .header("Content-Type", "application/json")
+              .header("Sync-Expectation", expectation)
               .POST(body)
               .build(),
           HttpResponse.BodyHandlers.ofString());

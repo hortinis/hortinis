@@ -1,3 +1,5 @@
+import { SynchronizationBindingService } from './sync/synchronization-binding-service';
+import { TechnicalRecordSynchronizationService } from './sync/technical-record-synchronization-service';
 import { signal } from '@angular/core';
 import { StorageSafetyService } from './storage/storage-safety-service';
 import { type StoragePersistenceStatus } from './storage/storage-persistence';
@@ -14,6 +16,19 @@ describe('App', () => {
     outbox.set({ status: 'available', count: 0 });
     await TestBed.configureTestingModule({
       providers: [
+        {
+          provide: SynchronizationBindingService,
+          useValue: {
+            state: signal('offline'),
+            connecting: signal(false),
+            failedConnection: signal(false),
+            connect: async () => 'offline',
+          },
+        },
+        {
+          provide: TechnicalRecordSynchronizationService,
+          useValue: { retryNow: async () => undefined },
+        },
         {
           provide: StorageSafetyService,
           useValue: {

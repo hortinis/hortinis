@@ -8,7 +8,10 @@ import {
 } from '../persistence/synchronization-ownership';
 import type { PullOutcome } from './synchronization-outcomes';
 import type { SynchronizationExchange } from './synchronization-exchange';
-import { synchronizationPersistence } from './synchronization-failure';
+import {
+  synchronizationPersistence,
+  synchronizationFailureReason,
+} from './synchronization-failure';
 
 export type OwnedPullOutcome = Exclude<
   PullOutcome,
@@ -23,6 +26,15 @@ export class TechnicalRecordPull {
   async run(ownership: SynchronizationOwnership): Promise<OwnedPullOutcome> {
     if (!this.exchange.network.isOnline()) {
       return { status: 'offline' };
+    }
+
+    try {
+      await this.exchange.assertOwner(ownership);
+      await this.transport.prepareExchange?.('pull', ownership.lease);
+      await this.exchange.assertOwner(ownership);
+    } catch (error) {
+      if (error instanceof SynchronizationOwnershipLostError) throw error;
+      return { status: 'failed', error, reason: synchronizationFailureReason(error) };
     }
 
     const boundary = await synchronizationPersistence(() => this.persistence.pullBoundary());

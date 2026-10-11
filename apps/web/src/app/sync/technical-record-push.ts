@@ -14,7 +14,10 @@ import {
 import type { PushOutcome } from './synchronization-outcomes';
 import type { SynchronizationExchange } from './synchronization-exchange';
 import { operationRejectionCategory } from './technical-record-rejection.rule';
-import { synchronizationPersistence } from './synchronization-failure';
+import {
+  synchronizationPersistence,
+  synchronizationFailureReason,
+} from './synchronization-failure';
 
 export type OwnedPushOutcome = Exclude<PushOutcome, { status: 'busy' | 'ownership-lost' }>;
 export class TechnicalRecordPush {
@@ -32,6 +35,19 @@ export class TechnicalRecordPush {
       this.persistence.firstPendingOperation(),
     );
     if (!candidate) return { status: 'empty' };
+    try {
+      await this.exchange.assertOwner(ownership);
+      await this.transport.prepareExchange?.('push', ownership.lease);
+      await this.exchange.assertOwner(ownership);
+    } catch (error) {
+      if (error instanceof SynchronizationOwnershipLostError) throw error;
+      return {
+        status: 'failed',
+        operation: candidate,
+        error,
+        reason: synchronizationFailureReason(error),
+      };
+    }
     if ((await synchronizationPersistence(() => this.persistence.pullBoundary())).repair) {
       return {
         status: 'failed',

@@ -49,12 +49,12 @@ test('preserves an unowned browser database and pauses exchange without assignin
     }
   }, operation);
   await page.goto('/');
-  await expect(page.getByRole('alert')).toHaveText(
+  await expect(page.getByRole('region', { name: 'Browser storage' }).getByRole('alert')).toHaveText(
     'Pending changes could not be checked in browser storage.',
   );
   expect(await readStoredValue(page, 'outboxOperations', operation.operationId)).toEqual(operation);
   await page.reload();
-  await expect(page.getByRole('alert')).toHaveText(
+  await expect(page.getByRole('region', { name: 'Browser storage' }).getByRole('alert')).toHaveText(
     'Pending changes could not be checked in browser storage.',
   );
   expect(await readStoredValue(page, 'outboxOperations', operation.operationId)).toEqual(operation);

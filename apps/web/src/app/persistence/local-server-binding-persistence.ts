@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { parseAccessContract, type LocalServerBinding } from '../sync/access-contracts.rule';
 import { HortinisDatabase } from './hortinis-database';
 import { LocalDataSetUnavailableError } from './local-data-set-identity';
+import { readLocalBinding, sameBinding } from './local-exchange-metadata';
 
 @Injectable({ providedIn: 'root' })
 export class LocalServerBindingPersistence {
@@ -46,6 +47,8 @@ export class LocalServerBindingPersistence {
         ) {
           throw new LocalDataSetUnavailableError();
         }
+        const existing = readLocalBinding(current, binding.localDataSetId);
+        if (existing && !sameBinding(existing, binding)) throw new LocalDataSetUnavailableError();
         await this.database.localServerBindings.put(binding);
       },
     );

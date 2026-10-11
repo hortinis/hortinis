@@ -133,8 +133,13 @@ paths:
     get:
       operationId: readSynchronizationBootstrap
       summary: Observe the currently authorized synchronization destination
-      description: Resolve current access before reading population or identity. This observation does not authorize later exchange or advance a cursor.
-      parameters: []
+      description: Resolve current access before reading population or identity. An optional expectation reobserves the same currently authorized destination without extending its lifetime; it grants no authority and advances no cursor.
+      parameters:
+        - name: Sync-Expectation
+          in: header
+          required: false
+          schema:
+            $ref: '#/components/schemas/Models.ExchangeExpectation'
       responses:
         '200':
           description: The request has succeeded.
@@ -175,6 +180,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.BindingPreconditionFailedError'
         '503':
           description: Service unavailable.
           headers:

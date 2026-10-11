@@ -107,3 +107,25 @@ CREATE TABLE retired_technical_record_identifier (
     PRIMARY KEY (synchronization_scope_id, record_id),
     UNIQUE (synchronization_scope_id, retired_at_sequence)
 );
+
+-- Non-authorizing, expiring protocol observations; current access is resolved independently.
+CREATE TABLE technical_exchange_expectation (
+    synchronization_scope_id UUID NOT NULL
+        REFERENCES technical_synchronization_scope (synchronization_scope_id),
+    expectation TEXT NOT NULL CHECK (
+        length(expectation) BETWEEN 1 AND 256 AND expectation ~ '^[A-Za-z0-9_-]+$'
+    ),
+    server_instance_id UUID NOT NULL
+        REFERENCES technical_server_installation (server_instance_id),
+    access_mode TEXT NOT NULL CHECK (access_mode IN (
+        'single-user-no-auth', 'single-user-auth', 'multi-user-auth'
+    )),
+    account_id UUID,
+    boundary_kind TEXT NOT NULL DEFAULT 'generationless' CHECK (boundary_kind = 'generationless'),
+    phase TEXT NOT NULL CHECK (phase IN ('observed', 'confirmed', 'established')),
+    expires_at TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (synchronization_scope_id, expectation),
+    CHECK ((access_mode = 'single-user-no-auth' AND account_id IS NULL)
+        OR (access_mode <> 'single-user-no-auth' AND account_id IS NOT NULL))
+);
+CREATE INDEX technical_exchange_expectation_expiry ON technical_exchange_expectation (expires_at);

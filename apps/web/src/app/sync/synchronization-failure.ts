@@ -6,6 +6,7 @@ import {
   SynchronizationProtocolError,
   SynchronizationUnexpectedResponseError,
   SynchronizationUnavailableError,
+  SynchronizationPausedError,
 } from './synchronization-transport';
 
 export class SynchronizationPersistenceError extends Error {
@@ -18,6 +19,7 @@ export function synchronizationFailureReason(error: unknown): SynchronizationFai
   if (error instanceof SynchronizationUnavailableError) return 'unavailable';
   if (error instanceof SynchronizationProtocolError) return 'protocol';
   if (error instanceof SynchronizationBoundaryError) return 'boundary';
+  if (error instanceof SynchronizationPausedError) return 'boundary';
   if (error instanceof SynchronizationUnexpectedResponseError) return 'unexpected-response';
   if (error instanceof SynchronizationPersistenceError) return 'local-persistence';
   return 'unknown';

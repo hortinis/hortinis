@@ -1,3 +1,4 @@
+import { mockBindingDiscovery, seedRetainedBinding } from './support/binding';
 import { expect, test, type Page } from '@playwright/test';
 
 import { appendPendingChain } from './support/outbox-chain';
@@ -75,6 +76,7 @@ for (const mode of ['best-effort', 'unsupported', 'persistent'] as const) {
         });
       }
     });
+    await mockBindingDiscovery(context);
     await page.goto('/');
     const storage = page.getByRole('region', { name: 'Browser storage' });
     await expect(storage.getByRole('status')).toContainText(
@@ -101,6 +103,7 @@ for (const mode of ['best-effort', 'unsupported', 'persistent'] as const) {
       ),
     ).toBe(0);
     await waitForReleasedLease(page);
+    await seedRetainedBinding(page);
     const other = await context.newPage();
     await other.goto('/?online=1');
     await waitForReleasedLease(other);

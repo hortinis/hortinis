@@ -356,7 +356,8 @@ preserves local data and pending intent.
 
 ### S6 — Implement safe server discovery and first binding
 
-- Status: `planned`.
+- Status: `validated` (2026-10-11).
+- Implementation plan: [S6 implementation plan](s6-implementation-plan.md).
 - Depends on: S3 through S5.
 - Scope: implement read-only server discovery and the atomic binding workflow. Persist the server origin,
   `serverInstanceId`, local data-set identity, access-mode capability, and synchronization boundary needed
@@ -371,6 +372,27 @@ preserves local data and pending intent.
 - Validation: the empty/empty and populated-local/empty-server rows of the first-connection matrix pass
   through browser, Spring, and PostgreSQL; interruption cannot leave a half-binding or change operation
   identifiers.
+
+- Implementation: public closed no-store discovery, authorized bootstrap/preflight reobservation,
+  15-minute bounded scoped expectations, transactional empty confirmation/first exchange, and fixed
+  access errors. First admission shares the publication lock/transaction and never provisions a scope.
+  Each content attempt reobserves exact destination identity without extending expectation lifetime.
+- Browser: fresh Dexie eight stores owner-bearing readiness and initial progress separately from
+  non-credential provenance. Explicit connection supports empty/empty and standalone-local/empty rows.
+  Unbound startup stays local without submitted markers; populated first destinations pause for S14.
+  Atomic activation advances exchange fences and invalidates leases; known acceptance/pull removes
+  initial progress, while ambiguous exchange preserves original IDs/admission until bounded expiry.
+- Validation: `pnpm validate` passed with 345 browser unit tests, 11 standard Chromium tests,
+  109 Java unit tests, 67 PostgreSQL integration tests, five real-topology Chromium tests, nine browser
+  architecture tests, contracts/generated-drift/schema/OpenAPI checks, documentation, builds, quality,
+  wrapper/Compose/runner checks and repository checks. Disposal removes only test project volumes.
+- Review: fixed expiry-timer completion races, stale binding-workflow writes, storage-only provenance
+  activation, URL whitespace/control normalization, preflight identity checks with bounded issuance,
+  database transaction promise tracking, unavailable access contracts, and retained-device/service-worker
+  fixtures. New Java sources introduce no Checkstyle warnings; existing baseline warnings remain.
+  Reviewed English consistency, DTO minimization, no-secret/prohibited-data diagnostics, exact IDs,
+  rollback and scoped authority checks. No authentication, populated-state reconciliation, migration,
+  full multi-scope topology or production privacy/security readiness is claimed; S7 may start.
 
 ### S7 — Validate scope isolation across the real topology
 

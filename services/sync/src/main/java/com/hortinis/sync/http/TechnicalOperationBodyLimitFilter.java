@@ -22,7 +22,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class TechnicalOperationBodyLimitFilter extends OncePerRequestFilter {
 
   public static final int MAX_BODY_BYTES = 65_536;
-  private static final String OPERATIONS_PATH = "/api/v1/sync/operations";
+  private static final String OPERATIONS_PATH = "/api/v1/sync/";
 
   @Override
   protected boolean shouldNotFilter(HttpServletRequest request) {

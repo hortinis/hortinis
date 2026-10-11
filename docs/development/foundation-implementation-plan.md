@@ -991,14 +991,14 @@ task relies on them.
 
 #### G2f. Partition synchronization by server-owned scope
 
-- Status: `in progress`; S3 database partitioning, S4 no-auth access enforcement, and S5 browser ownership validated
+- Status: `in progress`; S3 database partitioning, S4 no-auth access enforcement, S5 browser ownership, and S6 binding validated
   (2026-10-11).
 - Depends on: G2e and the accepted S1 access/scope decision.
 - Design prerequisite: S1 is validated by ADR-0029 and its access, threat/ASVS, and privacy lifecycle
   records. S2's contract/application-type and cross-runtime parsing boundaries are also validated;
   S3 implements fresh-install database partitioning and scoped service/persistence boundaries;
   S4 implements explicit no-auth access/configuration; S5 implements durable local ownership;
-  S6-S7 binding and full-topology isolation remain planned, using synthetic data only. See the
+  S6 binding is validated; S7 full-topology scope isolation remains planned, using synthetic data only. See the
   [access contract handoff](../api/access-and-binding-contracts.md).
 - Scope: implement S2 through S7 of the
   [access and synchronization-scope implementation plan](access-and-synchronization-scope-implementation-plan.md)
@@ -1041,6 +1041,16 @@ task relies on them.
   and lease fencing, multi-tab recovery, old-schema rejection without ownership inference, and safe
   diagnostics are verified. Same-origin/shared-profile access remains a documented limitation.
   S6-S7 binding and full scope topology remain planned; G2f is not complete.
+- S6 evidence (2026-10-11): `pnpm validate` passed with 345 browser unit tests, 11 standard Chromium
+  tests, 109 Java unit tests, 67 PostgreSQL integration tests, five real-topology Chromium tests, nine
+  architecture tests and all contract/documentation/build/quality/repository gates. Public no-store
+  discovery, trusted bootstrap, scoped expiring expectations, atomic first admission/publication,
+  explicit browser binding and owner-bearing exchange fences preserve operation IDs and ambiguous
+  intent. New populated destinations pause; stored provenance alone cannot activate exchange.
+  Initial expiry and changed destination fence delayed responses without content/identity diagnostics.
+  Existing G2 regressions use retained-device fixtures and pass after the real first-binding matrix.
+  S7 full multi-scope topology remains planned; G2f, authentication and production readiness are incomplete.
+
 
 #### G3. Implement generation rollover and indeterminate outcomes
 

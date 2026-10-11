@@ -1,3 +1,4 @@
+import { BindingSession } from './binding-session';
 import 'fake-indexeddb/auto';
 
 import { TestBed } from '@angular/core/testing';
@@ -498,6 +499,15 @@ function services(
   TestBed.configureTestingModule({
     providers: [
       ...(transport ? [] : [provideHttpClient(), provideHttpClientTesting()]),
+      {
+        provide: BindingSession,
+        useValue: {
+          prepare: async () => undefined,
+          requestContext: async () => ({ expectation: 'established-expectation' }),
+          assertCurrent: async () => undefined,
+          denyAccess: async () => undefined,
+        },
+      },
       { provide: HortinisDatabase, useValue: database },
       transport
         ? { provide: SYNCHRONIZATION_TRANSPORT, useValue: transport }
