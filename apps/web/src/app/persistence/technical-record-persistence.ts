@@ -15,9 +15,37 @@ import type {
   ReadyDependentReplaceTechnicalRecordOperation,
 } from './local-technical-record-operation';
 import { toSubmittedTechnicalRecordOperation } from './local-technical-record-operation';
+import type { LocalSynchronizationOperation } from './local-synchronization-operation';
+import type { PendingTechnicalRecordOperation } from './local-synchronization-operation';
 import type { LocalSynchronizationState } from './local-synchronization-state';
 
 const TECHNICAL_SYNCHRONIZATION_SCOPE = 'technical-records';
+const TECHNICAL_RECORD_ENTITY_TYPE = 'technicalRecords';
+
+function toPendingOperation(
+  operation: LocalTechnicalRecordOperation,
+): PendingTechnicalRecordOperation {
+  return {
+    operationId: operation.operationId,
+    entityType: TECHNICAL_RECORD_ENTITY_TYPE,
+    entityId: operation.recordId,
+    operation,
+  };
+}
+
+function isPendingTechnicalRecordOperation(
+  entry: LocalSynchronizationOperation,
+  operationId: string,
+  recordId: string,
+): entry is PendingTechnicalRecordOperation {
+  return (
+    entry.entityType === TECHNICAL_RECORD_ENTITY_TYPE &&
+    entry.operationId === operationId &&
+    entry.entityId === recordId &&
+    entry.operation.operationId === operationId &&
+    entry.operation.recordId === recordId
+  );
+}
 
 @Injectable({ providedIn: 'root' })
 export class TechnicalRecordPersistence {
@@ -36,7 +64,7 @@ export class TechnicalRecordPersistence {
       this.database.outboxOperations,
       async () => {
         await this.database.technicalRecords.add(localRecord);
-        await this.database.outboxOperations.add(operation);
+        await this.database.outboxOperations.add(toPendingOperation(operation));
       },
     );
 
@@ -62,15 +90,15 @@ export class TechnicalRecordPersistence {
         }
 
         const pendingForRecord = await this.database.outboxOperations
-          .where('recordId')
-          .equals(recordId)
+          .where('[entityType+entityId]')
+          .equals([TECHNICAL_RECORD_ENTITY_TYPE, recordId])
           .toArray();
         if (pendingForRecord.length > 1) {
           throw new Error('Only one dependent successor is supported in this technical slice.');
         }
 
         if (pendingForRecord.length === 1) {
-          const predecessor = pendingForRecord[0];
+          const predecessor = pendingForRecord[0].operation;
           if (predecessor.kind !== 'create') {
             throw new Error('Only a create predecessor is supported in this technical slice.');
           }
@@ -101,7 +129,7 @@ export class TechnicalRecordPersistence {
           value,
         };
         await this.database.technicalRecords.put(committedRecord);
-        await this.database.outboxOperations.add(committedOperation);
+        await this.database.outboxOperations.add(toPendingOperation(committedOperation));
       },
     );
 
@@ -114,13 +142,21 @@ export class TechnicalRecordPersistence {
       if (await this.database.revisionConflicts.get(operation.operationId)) {
         continue;
       }
-      const submitted = toSubmittedTechnicalRecordOperation(operation);
+      if (operation.entityType !== TECHNICAL_RECORD_ENTITY_TYPE) {
+        continue;
+      }
+      if (
+        !isPendingTechnicalRecordOperation(operation, operation.operationId, operation.entityId)
+      ) {
+        continue;
+      }
+      const submitted = toSubmittedTechnicalRecordOperation(operation.operation);
       if (!submitted) {
         continue;
       }
-      if ('predecessorOperationId' in operation) {
+      if ('predecessorOperationId' in operation.operation) {
         const predecessorResult = await this.database.acceptedOperationResults.get(
-          operation.predecessorOperationId,
+          operation.operation.predecessorOperationId,
         );
         if (!predecessorResult) {
           continue;
@@ -154,7 +190,12 @@ export class TechnicalRecordPersistence {
         if (!pending) {
           throw new Error('The conflicted operation is no longer pending.');
         }
-        const submitted = toSubmittedTechnicalRecordOperation(pending);
+        if (
+          !isPendingTechnicalRecordOperation(pending, operation.operationId, operation.recordId)
+        ) {
+          throw new Error('The persisted operation does not match the submitted operation.');
+        }
+        const submitted = toSubmittedTechnicalRecordOperation(pending.operation);
         if (!submitted || !equalTechnicalRecordOperations(submitted, operation)) {
           throw new Error('The persisted operation does not match the submitted operation.');
         }
@@ -184,6 +225,18 @@ export class TechnicalRecordPersistence {
       this.database.outboxOperations,
       this.database.acceptedOperationResults,
       async () => {
+        const pending = await this.database.outboxOperations.get(operation.operationId);
+        if (
+          !pending ||
+          !isPendingTechnicalRecordOperation(pending, operation.operationId, operation.recordId)
+        ) {
+          throw new Error('The accepted operation is no longer pending.');
+        }
+        const submitted = toSubmittedTechnicalRecordOperation(pending.operation);
+        if (!submitted || !equalTechnicalRecordOperations(submitted, operation)) {
+          throw new Error('The persisted operation does not match the submitted operation.');
+        }
+
         await this.database.acceptedOperationResults.add(result);
         const localRecord = await this.database.technicalRecords.get(operation.recordId);
         if (!localRecord) {
@@ -193,10 +246,15 @@ export class TechnicalRecordPersistence {
         const successors = await this.database.outboxOperations
           .toCollection()
           .filter(
-            (candidate): candidate is DeferredReplaceTechnicalRecordOperation =>
-              candidate.kind === 'replace' &&
-              candidate.expectedRevision === null &&
-              candidate.predecessorOperationId === operation.operationId,
+            (
+              candidate,
+            ): candidate is PendingTechnicalRecordOperation & {
+              operation: DeferredReplaceTechnicalRecordOperation;
+            } =>
+              candidate.entityType === TECHNICAL_RECORD_ENTITY_TYPE &&
+              candidate.operation.kind === 'replace' &&
+              candidate.operation.expectedRevision === null &&
+              candidate.operation.predecessorOperationId === operation.operationId,
           )
           .toArray();
         if (successors.length > 1) {
@@ -205,11 +263,15 @@ export class TechnicalRecordPersistence {
 
         if (successors.length === 1) {
           const successor = successors[0];
+          if (successor.entityType !== TECHNICAL_RECORD_ENTITY_TYPE) {
+            throw new Error('The dependent successor is not a technical-record operation.');
+          }
+          const deferredSuccessor = successor.operation;
           const readySuccessor: ReadyDependentReplaceTechnicalRecordOperation = {
-            ...successor,
+            ...deferredSuccessor,
             expectedRevision: result.record.revision,
           };
-          await this.database.outboxOperations.put(readySuccessor);
+          await this.database.outboxOperations.put(toPendingOperation(readySuccessor));
         }
 
         await this.database.technicalRecords.put({
@@ -256,8 +318,8 @@ export class TechnicalRecordPersistence {
           const localRecord = await this.database.technicalRecords.get(change.record.recordId);
           const pending = localRecord
             ? await this.database.outboxOperations
-                .where('recordId')
-                .equals(change.record.recordId)
+                .where('[entityType+entityId]')
+                .equals([TECHNICAL_RECORD_ENTITY_TYPE, change.record.recordId])
                 .count()
             : 0;
           const currentRevision = localRecord?.lastAcceptedRevision;

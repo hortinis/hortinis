@@ -1,19 +1,27 @@
-import { CreateGardenOperation } from '../sync/garden-operation';
-import { HortinisUuid } from '../sync/uuid-v7';
-import { HortinisTables } from './hortinis-database';
-import { LocalTechnicalRecordOperation } from './local-technical-record-operation';
+import type { CreateGardenOperation } from '../sync/garden-operation';
+import type { HortinisUuid } from '../sync/uuid-v7';
+import type { LocalTechnicalRecordOperation } from './local-technical-record-operation';
 
-interface OutboxEntry<TType extends HortinisTables, TOperation> {
-  operationId: HortinisUuid;
+type SynchronizableEntityType = 'garden' | 'technicalRecords';
+
+interface OutboxEntry<
+  TType extends SynchronizableEntityType,
+  TOperation,
+  TOperationId extends string = HortinisUuid,
+  TEntityId extends string = HortinisUuid,
+> {
+  operationId: TOperationId;
   entityType: TType;
-  entityId: HortinisUuid;
+  entityId: TEntityId;
   operation: TOperation;
 }
 
 export type PendingGardenOperation = OutboxEntry<'garden', CreateGardenOperation>;
 export type PendingTechnicalRecordOperation = OutboxEntry<
   'technicalRecords',
-  LocalTechnicalRecordOperation
+  LocalTechnicalRecordOperation,
+  string,
+  string
 >;
 
 export type LocalSynchronizationOperation =

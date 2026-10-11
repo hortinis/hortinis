@@ -8,6 +8,8 @@ import { TechnicalRecordLocalService } from '../sync/technical-record-local-serv
 import { TechnicalRecordSynchronizationService } from '../sync/technical-record-synchronization-service';
 import type { CreateTechnicalRecordOperation } from '../sync/conformance';
 import type { DeferredReplaceTechnicalRecordOperation } from './local-technical-record-operation';
+import type { LocalTechnicalRecordOperation } from './local-technical-record-operation';
+import type { PendingTechnicalRecordOperation } from './local-synchronization-operation';
 import { vi } from 'vitest';
 
 describe('technical record local persistence', () => {
@@ -30,7 +32,7 @@ describe('technical record local persistence', () => {
     const result = await service.create('first value');
 
     await expect(database.technicalRecords.toArray()).resolves.toEqual([result.record]);
-    await expect(database.outboxOperations.toArray()).resolves.toEqual([result.operation]);
+    await expect(database.outboxOperations.toArray()).resolves.toEqual([pending(result.operation)]);
     expect(result.record.lastAcceptedRevision).toBeNull();
     expect(result.operation.kind).toBe('create');
   });
@@ -50,13 +52,13 @@ describe('technical record local persistence', () => {
     const database = openDatabase();
     const persistence = persistenceFor(database);
     const existing = operation('existing-record', 'existing-operation');
-    await database.outboxOperations.add(existing);
+    await database.outboxOperations.add(pending(existing));
 
     const attempted = operation('new-record', existing.operationId);
 
     await expect(persistence.commitCreate(attempted)).rejects.toBeDefined();
     await expect(database.technicalRecords.count()).resolves.toBe(0);
-    await expect(database.outboxOperations.toArray()).resolves.toEqual([existing]);
+    await expect(database.outboxOperations.toArray()).resolves.toEqual([pending(existing)]);
   });
 
   it('does not add an outbox operation when the local projection write fails', async () => {
@@ -81,7 +83,9 @@ describe('technical record local persistence', () => {
     firstDatabase.close();
 
     const reopenedDatabase = openDatabase(name);
-    await expect(reopenedDatabase.outboxOperations.toArray()).resolves.toEqual([result.operation]);
+    await expect(reopenedDatabase.outboxOperations.toArray()).resolves.toEqual([
+      pending(result.operation),
+    ]);
     await expect(reopenedDatabase.technicalRecords.toArray()).resolves.toEqual([result.record]);
   });
 
@@ -144,12 +148,14 @@ describe('technical record local persistence', () => {
       value: operation.value,
       lastAcceptedRevision: operation.expectedRevision,
     });
-    await database.outboxOperations.add(operation);
+    await database.outboxOperations.add(pending(operation));
 
     await persistence.commitRevisionConflict(operation, conflict);
 
     await expect(database.revisionConflicts.get(operation.operationId)).resolves.toEqual(conflict);
-    await expect(database.outboxOperations.get(operation.operationId)).resolves.toEqual(operation);
+    await expect(database.outboxOperations.get(operation.operationId)).resolves.toEqual(
+      pending(operation),
+    );
     await expect(database.technicalRecords.get(operation.recordId)).resolves.toEqual({
       recordId: operation.recordId,
       value: operation.value,
@@ -209,7 +215,10 @@ describe('technical record local persistence', () => {
       predecessorOperationId: predecessor.operationId,
     };
     expect(result.operation).toEqual(deferred);
-    await expect(database.outboxOperations.toArray()).resolves.toEqual([predecessor, deferred]);
+    await expect(database.outboxOperations.toArray()).resolves.toEqual([
+      pending(predecessor),
+      pending(deferred),
+    ]);
     await expect(database.technicalRecords.get(predecessor.recordId)).resolves.toEqual({
       recordId: predecessor.recordId,
       value: 'successor value',
@@ -256,14 +265,14 @@ describe('technical record local persistence', () => {
     await persistence.commitAcceptedResult(predecessor, predecessorResult);
 
     await expect(database.outboxOperations.toArray()).resolves.toEqual([
-      {
+      pending({
         operationId: 'resolve-successor',
         recordId: predecessor.recordId,
         value: 'successor value',
         kind: 'replace',
         expectedRevision: '1',
         predecessorOperationId: predecessor.operationId,
-      },
+      }),
     ]);
     await expect(database.acceptedOperationResults.toArray()).resolves.toEqual([predecessorResult]);
     await expect(database.technicalRecords.get(predecessor.recordId)).resolves.toEqual({
@@ -286,11 +295,13 @@ describe('technical record local persistence', () => {
       expectedRevision: null,
       predecessorOperationId: predecessor.operationId,
     } satisfies DeferredReplaceTechnicalRecordOperation;
-    await database.outboxOperations.add(successor);
-    await database.outboxOperations.add({
-      ...successor,
-      operationId: 'second-successor',
-    });
+    await database.outboxOperations.add(pending(successor));
+    await database.outboxOperations.add(
+      pending({
+        ...successor,
+        operationId: 'second-successor',
+      }),
+    );
     await database.technicalRecords.put({
       recordId: predecessor.recordId,
       value: successor.value,
@@ -332,7 +343,7 @@ describe('technical record local persistence', () => {
       'local record',
     );
     await expect(database.acceptedOperationResults.count()).resolves.toBe(0);
-    await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
+    await expect(database.outboxOperations.toArray()).resolves.toEqual([pending(operation)]);
   });
 
   function openDatabase(name = databaseName()): HortinisDatabase {
@@ -370,6 +381,15 @@ function operation(recordId: string, operationId: string): CreateTechnicalRecord
 
 function operationWithIds(recordId: string, operationId: string): CreateTechnicalRecordOperation {
   return operation(recordId, operationId);
+}
+
+function pending(operation: LocalTechnicalRecordOperation): PendingTechnicalRecordOperation {
+  return {
+    operationId: operation.operationId,
+    entityType: 'technicalRecords',
+    entityId: operation.recordId,
+    operation,
+  };
 }
 
 function databaseName(): string {

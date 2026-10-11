@@ -105,7 +105,12 @@ test('resumes persisted synchronization work after reloading the application', a
           value: pendingOperation.value,
           lastAcceptedRevision: null,
         });
-        transaction.objectStore('outboxOperations').put(pendingOperation);
+        transaction.objectStore('outboxOperations').put({
+          operationId: pendingOperation.operationId,
+          entityType: 'technicalRecords',
+          entityId: pendingOperation.recordId,
+          operation: pendingOperation,
+        });
         transaction.objectStore('synchronizationState').put({
           scope: 'technical-records',
           cursor: 'cursor-one',
@@ -238,8 +243,18 @@ test('persists a revision conflict and continues an independent operation', asyn
             value: independentOperation.value,
             lastAcceptedRevision: null,
           });
-          transaction.objectStore('outboxOperations').put(conflictedOperation);
-          transaction.objectStore('outboxOperations').put(independentOperation);
+          transaction.objectStore('outboxOperations').put({
+            operationId: conflictedOperation.operationId,
+            entityType: 'technicalRecords',
+            entityId: conflictedOperation.recordId,
+            operation: conflictedOperation,
+          });
+          transaction.objectStore('outboxOperations').put({
+            operationId: independentOperation.operationId,
+            entityType: 'technicalRecords',
+            entityId: independentOperation.recordId,
+            operation: independentOperation,
+          });
           transaction.oncomplete = () => {
             database.close();
             resolve();

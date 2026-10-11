@@ -17,6 +17,8 @@ import type { NetworkStatus } from './network-status';
 import { SYNCHRONIZATION_TRANSPORT } from './synchronization-transport.token';
 import { NETWORK_STATUS } from './network-status';
 import type { DeferredReplaceTechnicalRecordOperation } from '../persistence/local-technical-record-operation';
+import type { LocalTechnicalRecordOperation } from '../persistence/local-technical-record-operation';
+import type { PendingTechnicalRecordOperation } from '../persistence/local-synchronization-operation';
 
 describe('TechnicalRecordSynchronizationService', () => {
   const databases: Dexie[] = [];
@@ -96,7 +98,7 @@ describe('TechnicalRecordSynchronizationService', () => {
 
     await expect(service.pushOnePendingOperation()).resolves.toEqual({ status: 'offline' });
     expect(transport.submitOperation).not.toHaveBeenCalled();
-    await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
+    await expect(database.outboxOperations.toArray()).resolves.toEqual([pending(operation)]);
   });
 
   it('retains pending work when transport or result persistence fails', async () => {
@@ -112,7 +114,7 @@ describe('TechnicalRecordSynchronizationService', () => {
     await persistence.commitCreate(operation);
 
     await expect(service.pushOnePendingOperation()).resolves.toMatchObject({ status: 'failed' });
-    await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
+    await expect(database.outboxOperations.toArray()).resolves.toEqual([pending(operation)]);
   });
 
   it('keeps accepting independent local work while synchronization is offline', async () => {
@@ -224,7 +226,10 @@ describe('TechnicalRecordSynchronizationService', () => {
       value: independentOperation.value,
       lastAcceptedRevision: null,
     });
-    await database.outboxOperations.bulkAdd([conflictedOperation, independentOperation]);
+    await database.outboxOperations.bulkAdd([
+      pending(conflictedOperation),
+      pending(independentOperation),
+    ]);
 
     await expect(service.pushOnePendingOperation()).resolves.toEqual({
       status: 'conflict',
@@ -235,7 +240,7 @@ describe('TechnicalRecordSynchronizationService', () => {
       conflict,
     );
     await expect(database.outboxOperations.get(conflictedOperation.operationId)).resolves.toEqual(
-      conflictedOperation,
+      pending(conflictedOperation),
     );
 
     await expect(service.pushOnePendingOperation()).resolves.toMatchObject({
@@ -244,7 +249,7 @@ describe('TechnicalRecordSynchronizationService', () => {
     });
     expect(transport.submitOperation).toHaveBeenCalledTimes(2);
     await expect(database.outboxOperations.get(conflictedOperation.operationId)).resolves.toEqual(
-      conflictedOperation,
+      pending(conflictedOperation),
     );
     await expect(
       database.outboxOperations.get(independentOperation.operationId),
@@ -272,7 +277,7 @@ describe('TechnicalRecordSynchronizationService', () => {
     await persistence.commitCreate(operation);
 
     await expect(service.pushOnePendingOperation()).resolves.toMatchObject({ status: 'failed' });
-    await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
+    await expect(database.outboxOperations.toArray()).resolves.toEqual([pending(operation)]);
 
     await expect(service.pushOnePendingOperation()).resolves.toMatchObject({
       status: 'accepted',
@@ -315,7 +320,7 @@ describe('TechnicalRecordSynchronizationService', () => {
     };
     const { persistence, service } = services(database, transport, onlineStatus(true));
     await persistence.commitCreate(predecessor);
-    await database.outboxOperations.add(successor);
+    await database.outboxOperations.add(pending(successor));
     await database.technicalRecords.put({
       recordId: predecessor.recordId,
       value: successor.value,
@@ -398,11 +403,15 @@ describe('TechnicalRecordSynchronizationService', () => {
     await expect(service.pushOnePendingOperation()).resolves.toMatchObject({ status: 'accepted' });
     await expect(service.pushOnePendingOperation()).resolves.toMatchObject({ status: 'failed' });
     await expect(database.outboxOperations.get(successor.operationId)).resolves.toMatchObject({
-      operationId: successor.operationId,
-      recordId: successor.recordId,
-      value: successor.value,
-      expectedRevision: '1',
-      predecessorOperationId: predecessor.operationId,
+      entityType: 'technicalRecords',
+      entityId: successor.recordId,
+      operation: {
+        operationId: successor.operationId,
+        recordId: successor.recordId,
+        value: successor.value,
+        expectedRevision: '1',
+        predecessorOperationId: predecessor.operationId,
+      },
     });
     await expect(service.pushOnePendingOperation()).resolves.toMatchObject({ status: 'accepted' });
     expect(createAttempts).toBe(2);
@@ -418,7 +427,7 @@ describe('TechnicalRecordSynchronizationService', () => {
       value: operation.value,
       lastAcceptedRevision: null,
     });
-    await firstDatabase.outboxOperations.add(operation);
+    await firstDatabase.outboxOperations.add(pending(operation));
     firstDatabase.close();
 
     const database = openDatabase(name);
@@ -467,7 +476,7 @@ describe('TechnicalRecordSynchronizationService', () => {
       pushed: 0,
       pulled: 0,
     });
-    await expect(database.outboxOperations.toArray()).resolves.toEqual([operation]);
+    await expect(database.outboxOperations.toArray()).resolves.toEqual([pending(operation)]);
     expect(transport.pullChanges).not.toHaveBeenCalled();
   });
 
@@ -534,6 +543,15 @@ function acceptedResult(operation: TechnicalRecordOperation): OperationResult {
     operationId: operation.operationId,
     record: { recordId: operation.recordId, revision: '1', value: operation.value },
     sequence: '1',
+  };
+}
+
+function pending(operation: LocalTechnicalRecordOperation): PendingTechnicalRecordOperation {
+  return {
+    operationId: operation.operationId,
+    entityType: 'technicalRecords',
+    entityId: operation.recordId,
+    operation,
   };
 }
 

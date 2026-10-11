@@ -41,12 +41,18 @@ describe('technical record pull persistence', () => {
       value: 'local value',
       lastAcceptedRevision: '1',
     });
-    await database.outboxOperations.add({
+    const operation = {
       operationId: operationId(),
       recordId: recordId(),
       value: 'local value',
       kind: 'replace',
       expectedRevision: '1',
+    } as const;
+    await database.outboxOperations.add({
+      operationId: operation.operationId,
+      entityType: 'technicalRecords',
+      entityId: operation.recordId,
+      operation,
     });
 
     await persistence.commitPulledPage(page('remote value', '2', 'opaque-two'));
