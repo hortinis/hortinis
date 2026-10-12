@@ -4,6 +4,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { MatButton } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { CreateGarden } from '../features/garden/create-garden/create-garden';
+import { Router } from '@angular/router';
 
 @Component({
   imports: [ReactiveFormsModule, MatButton],
@@ -14,6 +15,7 @@ import { CreateGarden } from '../features/garden/create-garden/create-garden';
 export class BaseConfiguration {
   private readonly configuration = inject(Configuration);
   private readonly dialog = inject(MatDialog);
+  private readonly router = inject(Router);
 
   protected readonly gardenForm = new FormGroup({
     name: new FormControl<string>('My garden', {
@@ -24,16 +26,19 @@ export class BaseConfiguration {
     address: new FormControl<string>('http://hortinis.test', Validators.required),
   });
 
-  protected async configure(): Promise<void> {
-    await this.configuration.configure();
-  }
-  protected newGarden() {
+  protected newGarden(): void {
     const dialogRef = this.dialog.open(CreateGarden, {
       panelClass: 'hortinis-dialog',
+      data: {
+        initialConfiguration: true,
+      },
     });
 
-    dialogRef.afterClosed().subscribe(() => {
+    dialogRef.afterClosed().subscribe(async (result) => {
       console.log('The dialog was closed');
+      if (result?.type === 'success') {
+        await this.router.navigate(['/']);
+      }
     });
   }
 }

@@ -5,6 +5,9 @@
       <mat-label for="name">Nom</mat-label>
       <mat-form-field>
         <input matInput id="name" [formField]="gardenForm.name" />
+        @for (error of gardenForm.name().errors(); track error) {
+          <mat-error>{{ error.message }}</mat-error>
+        }
       </mat-form-field>
     </div>
   </mat-dialog-content>
