@@ -1,0 +1,32 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "WebAuthnAuthenticationOptions.json",
+    "type": "object",
+    "properties": {
+        "challenge": {
+            "$ref": "EncodedRandomValue.json"
+        },
+        "rpId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253
+        },
+        "timeout": {
+            "type": "number",
+            "const": 300000
+        },
+        "userVerification": {
+            "type": "string",
+            "const": "required"
+        }
+    },
+    "required": [
+        "challenge",
+        "rpId",
+        "timeout",
+        "userVerification"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

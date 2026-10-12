@@ -29,14 +29,24 @@ S4 requires `HORTINIS_ACCESS_MODE` (Spring property `hortinis.access.mode`) and
 `HORTINIS_ACCESS_PUBLIC_ORIGIN` (`hortinis.access.public-origin`) explicitly, with no default.
 The public origin is the browser-facing HTTP(S) origin without a trailing slash, credentials, path,
 query, or fragment; malformed or missing values fail startup without echoing configuration.
-Only `single-user-no-auth` currently starts; both authenticated modes fail closed until their actual
-account/session implementation exists. Startup commits the initial selected mode to installation
-metadata and rejects mismatches on restart. A configuration edit cannot claim a scope or downgrade
-an authenticated installation. Missing designated scope denies setup and rolls back initial mode
-commit. Fresh databases are required for this pre-release schema revision; no upgrade migration exists.
+`single-user-no-auth` is used by the local Compose example. S9 also implements
+`single-user-auth` for a fresh single-user installation. That mode requires a configured HTTPS public
+origin and an existing operator-owned directory with mode `0700`; it rejects forwarded-header
+interpretation. Place a TLS boundary at the configured origin and route same-origin `/api/v1/` requests
+to the sync service without using forwarded headers as identity or authority. Set
+`HORTINIS_ACCESS_TLS_VALIDATED=true` only after the operator has verified the TLS boundary. Startup
+commits the initial selected mode to installation metadata and rejects mismatches on restart. A
+configuration edit cannot claim a scope or downgrade an authenticated installation. Fresh databases
+are required for this pre-release schema revision; no upgrade migration exists.
 
 Every reachable caller can read/modify a no-auth installation's data. Browser cross-origin mutation
 checks do not authenticate callers or protect against same-origin compromise. The current guard uses
-the explicit `hortinis.access.public-origin` and ignores Host/forwarded claims; a production trusted-edge configuration,
-TLS, authenticated CSRF/session policy, backup rollback protection, and privacy readiness remain
-S8-S15/deployment work. Keep this technical topology restricted to synthetic data.
+the explicit `hortinis.access.public-origin` and ignores Host/forwarded claims. Authenticated CSRF and
+session controls are implemented for the single-user mode; backup rollback protection, deployment
+verification and privacy readiness remain S15/deployment work. Keep development topology data synthetic.
+
+
+The S9 [authentication operator workflow](authentication-operator.md) documents the isolated host
+ticket command, protected storage/delivery, exceptional ownership verification and remaining release
+gates. The default Compose file still demonstrates no-auth development only; it is not a TLS edge or
+an authenticated deployment recipe.

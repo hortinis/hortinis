@@ -27,8 +27,9 @@ The root command stops at the first failure and runs the existing checks without
 selected framework, two-proof login/recovery, numeric bounds, privacy lifecycle and adapter tests.
 S8 is documentation/design only. Both authenticated modes still fail startup; no login endpoint,
 password corpus, security dependency, session schema or cookie is installed by this step. S9 defines
-TypeSpec/OpenAPI first and then implements/verifies the fresh-database adapters. Production
-security/privacy release evidence remains S15 and the applicable foundation gates.
+TypeSpec/OpenAPI first, then implements the selected single-user authenticated runtime and browser
+account workflows against a fresh database. Multi-user mode and production security/privacy release
+evidence remain S10 and S15 respectively, with the applicable foundation gates still required.
 
 ### Container topology
 
@@ -44,7 +45,7 @@ pnpm compose:validate
 
 Docker Engine with the Compose plugin is required for this topology and for PostgreSQL-backed
 integration tests. Export an explicit access mode and a local database password before validation
-or startup. Only `single-user-no-auth` is implemented at S4; authenticated modes fail startup:
+or startup. This example deliberately starts the development topology in `single-user-no-auth` mode:
 
 ```shell
 export HORTINIS_POSTGRES_PASSWORD='choose-a-local-password'
@@ -64,8 +65,18 @@ mode transitions. Startup validates the designated sole scope without creating s
 Browser synchronization mutations require same-origin Origin/Fetch Metadata when those headers are
 present; non-browser requests remain permitted in no-auth mode. Host and raw forwarded headers cannot relax
 the guard. Explicit `HORTINIS_ACCESS_PUBLIC_ORIGIN` selects the one allowed browser origin; it is
-required at startup and avoids DNS-rebinding/edge-header trust. It does not enable CORS. Same-origin compromise and reachable non-browser callers remain within the documented
-no-auth/shared-device boundary. Edge/proxy trust and authenticated CSRF controls remain later gates.
+required at startup and avoids DNS-rebinding/edge-header trust. It does not enable CORS. Same-origin
+compromise and reachable non-browser callers remain within the documented no-auth/shared-device
+boundary. Production edge trust and deployment readiness remain separate gates.
+
+S9 also implements `single-user-auth` for a fresh, single-user installation. It requires an explicit
+HTTPS public origin and protected operator-ticket directory; it rejects forwarded-header processing
+and does not trust proxy-supplied identity. Configure the TLS boundary and exact same-origin routing
+before selecting it. The local Compose example above remains no-auth and does not supply that TLS
+boundary. The S9 runtime integration test exercises a disposable, certificate-verified loopback HTTPS
+server, secure session cookies, HSTS and the selected Spring filter chain. This is implementation
+evidence, not a production deployment or personal-data readiness claim; S15 and applicable foundation
+gates still apply. See the [authentication operator workflow](../deployment/authentication-operator.md).
 
 The named `postgres-data` volume preserves database files across normal shutdown. Stop the topology
 predictably with:

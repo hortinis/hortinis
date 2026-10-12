@@ -3,6 +3,7 @@ package com.hortinis.sync.http;
 import com.hortinis.sync.access.BindingPreconditionFailedException;
 import com.hortinis.sync.access.SynchronizationAccessDeniedException;
 import com.hortinis.sync.access.SynchronizationAccessUnavailableException;
+import com.hortinis.sync.authentication.AuthenticationRequiredException;
 import com.hortinis.sync.persistence.PostgreSqlExceptionTranslator;
 import com.hortinis.sync.protocol.InvalidRequestException;
 import com.hortinis.sync.protocol.OperationIdReusedException;
@@ -66,6 +67,14 @@ public class TechnicalSynchronizationErrorHandler {
     return ResponseEntity.badRequest()
         .header(HttpHeaders.CACHE_CONTROL, NO_STORE)
         .body(new InvalidRequestError("INVALID_REQUEST", "The request is invalid."));
+  }
+
+  /** Expired/incomplete current authority cannot become configured no-auth access. */
+  @ExceptionHandler(AuthenticationRequiredException.class)
+  ResponseEntity<AccessDeniedError> authenticationRequired() {
+    return ResponseEntity.status(401)
+        .header(HttpHeaders.CACHE_CONTROL, NO_STORE)
+        .body(new AccessDeniedError("AUTHENTICATION_REQUIRED", "Authentication is required."));
   }
 
   @ExceptionHandler(SynchronizationAccessDeniedException.class)

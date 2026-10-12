@@ -63,6 +63,19 @@ remains the reference for strength, factor lifecycle and recovery. The detailed
 [authentication specification](../authentication-and-sessions.md) defines each pathway, bounds,
 privacy properties and adapter verification; no factor bypass is accepted.
 
+### Passkey adapter profile
+
+The S9 adapter implements Spring's relying-party interface through WebAuthn4j 0.31.9 with a
+per-ceremony trusted account snapshot, required user verification and minimized current credential
+state. Accept ES256/P-256, RS256/RSA 2,048–4,096 bits and EdDSA/Ed25519. Reconstruct public-only COSE
+keys and discard optional authenticator metadata. The verifier's supported counter-handler extension
+permits already verified backup-eligible credentials to reset/non-increase their counters, retaining
+the observed maximum; other credentials retain the library's strict counter check. This exception
+runs after signature, presence/verification and unchanged backup-eligibility validation. Every proof
+still needs a consumed one-use server challenge. Signed tests cover all three algorithms and rejection
+of incorrect bindings, flags, signatures, malformed client data and unsupported key profiles. These
+adapter tests do not claim completed HTTP session, challenge lifecycle or release assurance.
+
 ### Password storage
 
 Use `Argon2Password4jPasswordEncoder` with explicitly configured Argon2id: 65,536 KiB total memory,
@@ -76,6 +89,23 @@ The framework documents [Password4j-backed Argon2 configuration](https://docs.sp
 The selected parameters exceed the [OWASP Argon2id minimum](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).
 S9 measures latency and bounded concurrency on the supported environment; S15 verifies the target
 installation. Raising cost is allowed after review; silent reduction or hashing fallback is denied.
+
+### Host command execution
+
+Keep the local operator capability in the existing executable and application project. Its explicit
+`operator` dispatch starts an isolated Spring context with `WebApplicationType.NONE`, the existing
+Boot datasource/Flyway configuration and host-ticket components. The configuration sits outside the
+ordinary application's component scan; it cannot install a listener, default user or garden resolver.
+Closed arguments contain only action, protected directory and an optional non-secret target UUID.
+No credential/ticket secret is accepted or printed. A dedicated logging configuration that discards events
+and fixed process outcomes prevent framework/database failure diagnostics from exposing supplied
+configuration. This preserves one backend project and established transactions without an additional
+service, manual connection protocol or runtime administrative HTTP capability.
+
+Only controlled fresh setup may select authentication from an empty installation with no committed
+mode, atomically with ticket/file publication. Existing committed mode must match; a host invocation
+is not an implicit no-auth conversion. Recovery retains host ownership-verification and protected
+delivery requirements, and the ticket still grants only restricted replacement of both factors.
 
 ### Sessions and request defense
 

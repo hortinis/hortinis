@@ -1,0 +1,31 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "FullAuthenticationStatus.json",
+    "type": "object",
+    "properties": {
+        "state": {
+            "type": "string",
+            "const": "authenticated"
+        },
+        "accountId": {
+            "$ref": "AccountId.json"
+        },
+        "logoutTarget": {
+            "$ref": "EncodedRandomValue.json",
+            "description": "Non-secret logout target, distinct from the session cookie; never authorization."
+        },
+        "absoluteExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+        }
+    },
+    "required": [
+        "state",
+        "accountId",
+        "logoutTarget",
+        "absoluteExpiresAt"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

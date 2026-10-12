@@ -1,0 +1,22 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "AuthenticationFailedError.json",
+    "type": "object",
+    "properties": {
+        "code": {
+            "type": "string",
+            "const": "AUTHENTICATION_FAILED"
+        },
+        "message": {
+            "type": "string",
+            "const": "Authentication failed."
+        }
+    },
+    "required": [
+        "code",
+        "message"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

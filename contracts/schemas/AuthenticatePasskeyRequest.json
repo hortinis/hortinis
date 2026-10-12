@@ -1,0 +1,52 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "AuthenticatePasskeyRequest.json",
+    "type": "object",
+    "properties": {
+        "id": {
+            "$ref": "WebAuthnCredentialId.json"
+        },
+        "rawId": {
+            "$ref": "WebAuthnCredentialId.json"
+        },
+        "type": {
+            "type": "string",
+            "const": "public-key"
+        },
+        "response": {
+            "type": "object",
+            "properties": {
+                "clientDataJSON": {
+                    "$ref": "WebAuthnClientData.json"
+                },
+                "authenticatorData": {
+                    "$ref": "WebAuthnProofPart.json"
+                },
+                "signature": {
+                    "$ref": "WebAuthnProofPart.json"
+                },
+                "userHandle": {
+                    "$ref": "EncodedRandomValue.json"
+                }
+            },
+            "required": [
+                "clientDataJSON",
+                "authenticatorData",
+                "signature",
+                "userHandle"
+            ],
+            "unevaluatedProperties": {
+                "not": {}
+            }
+        }
+    },
+    "required": [
+        "id",
+        "rawId",
+        "type",
+        "response"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

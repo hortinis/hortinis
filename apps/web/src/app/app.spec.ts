@@ -5,6 +5,7 @@ import { StorageSafetyService } from './storage/storage-safety-service';
 import { type StoragePersistenceStatus } from './storage/storage-persistence';
 import { TestBed } from '@angular/core/testing';
 import { App } from './app';
+import { AuthenticationBrowserService } from './authentication/authentication-browser.service';
 
 describe('App', () => {
   const status = signal<StoragePersistenceStatus>('best-effort');
@@ -35,6 +36,18 @@ describe('App', () => {
             persistenceStatus: status,
             pendingStorageWarning: warning,
             outbox,
+          },
+        },
+        {
+          provide: AuthenticationBrowserService,
+          useValue: {
+            view: signal('closed'),
+            notice: signal(''),
+            recoveryCodes: signal([]),
+            open: async () => undefined,
+            login: async () => undefined,
+            setup: async () => undefined,
+            logout: async () => undefined,
           },
         },
       ],

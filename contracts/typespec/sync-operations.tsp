@@ -59,6 +59,7 @@ namespace Hortinis.Sync {
   @route("/api/v1/sync")
   interface SynchronizationOperations {
     @post
+    @useAuth([SessionCookieAuth, CsrfHeaderAuth] | NoAuth)
     @route("/operations")
     @TypeSpec.OpenAPI.operationId("submitTechnicalRecordOperation")
     @summary("Submit one technical-record operation")
@@ -78,6 +79,7 @@ namespace Hortinis.Sync {
       | AccessUnavailableResponse;
 
     @get
+    @useAuth(SessionCookieAuth | NoAuth)
     @route("/changes")
     @TypeSpec.OpenAPI.operationId("pullTechnicalRecordChanges")
     @summary("Pull accepted technical-record changes")
@@ -95,6 +97,7 @@ namespace Hortinis.Sync {
       | AccessUnavailableResponse;
 
     @post
+    @useAuth([SessionCookieAuth, CsrfHeaderAuth] | NoAuth)
     @route("/reconciliations")
     @TypeSpec.OpenAPI.operationId("startTechnicalRecordReconciliation")
     @summary("Start one anchored full-reconciliation session")
@@ -112,6 +115,7 @@ namespace Hortinis.Sync {
       | AccessUnavailableResponse;
 
     @get
+    @useAuth(SessionCookieAuth | NoAuth)
     @route("/reconciliations/{reconciliationId}/snapshot")
     @TypeSpec.OpenAPI.operationId("pullTechnicalRecordSnapshot")
     @summary("Pull one page from an anchored reconciliation snapshot")

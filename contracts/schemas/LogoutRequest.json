@@ -1,0 +1,16 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "LogoutRequest.json",
+    "type": "object",
+    "properties": {
+        "target": {
+            "$ref": "EncodedRandomValue.json"
+        }
+    },
+    "required": [
+        "target"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

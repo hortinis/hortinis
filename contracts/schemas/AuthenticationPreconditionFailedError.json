@@ -1,0 +1,22 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "AuthenticationPreconditionFailedError.json",
+    "type": "object",
+    "properties": {
+        "code": {
+            "type": "string",
+            "const": "AUTHENTICATION_PRECONDITION_FAILED"
+        },
+        "message": {
+            "type": "string",
+            "const": "The authentication precondition no longer holds."
+        }
+    },
+    "required": [
+        "code",
+        "message"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

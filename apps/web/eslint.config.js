@@ -49,6 +49,16 @@ module.exports = defineConfig([
     },
   },
   {
+    files: [
+      'src/app/authentication/**/*.ts',
+      'scripts/architecture-fixtures/authentication/**/*.ts',
+    ],
+    ignores: ['**/*.spec.ts'],
+    rules: {
+      'architecture/no-sync-http-import': 'error',
+    },
+  },
+  {
     files: ['src/app/sync/**/*.ts', 'src/app/persistence/**/*.ts'],
     ignores: ['**/*.spec.ts', '**/testing/**'],
     rules: {

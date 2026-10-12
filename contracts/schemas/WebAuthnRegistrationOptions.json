@@ -1,0 +1,73 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "WebAuthnRegistrationOptions.json",
+    "type": "object",
+    "properties": {
+        "challenge": {
+            "$ref": "EncodedRandomValue.json"
+        },
+        "rp": {
+            "$ref": "WebAuthnRelyingParty.json"
+        },
+        "user": {
+            "$ref": "WebAuthnUser.json"
+        },
+        "pubKeyCredParams": {
+            "type": "array",
+            "items": {
+                "$ref": "WebAuthnAlgorithm.json"
+            },
+            "minItems": 1,
+            "maxItems": 3,
+            "uniqueItems": true
+        },
+        "timeout": {
+            "type": "number",
+            "const": 300000
+        },
+        "excludeCredentials": {
+            "type": "array",
+            "items": {
+                "$ref": "WebAuthnCredentialDescriptor.json"
+            },
+            "maxItems": 8
+        },
+        "authenticatorSelection": {
+            "type": "object",
+            "properties": {
+                "residentKey": {
+                    "type": "string",
+                    "const": "required"
+                },
+                "userVerification": {
+                    "type": "string",
+                    "const": "required"
+                }
+            },
+            "required": [
+                "residentKey",
+                "userVerification"
+            ],
+            "unevaluatedProperties": {
+                "not": {}
+            }
+        },
+        "attestation": {
+            "type": "string",
+            "const": "none"
+        }
+    },
+    "required": [
+        "challenge",
+        "rp",
+        "user",
+        "pubKeyCredParams",
+        "timeout",
+        "excludeCredentials",
+        "authenticatorSelection",
+        "attestation"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

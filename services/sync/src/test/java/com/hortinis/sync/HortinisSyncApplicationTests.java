@@ -4,11 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -37,6 +40,20 @@ class HortinisSyncApplicationTests {
 
   @Test
   void contextLoads() {}
+
+  @ParameterizedTest
+  @ValueSource(strings = {"/login", "/logout", "/login/webauthn", "/webauthn/register/options"})
+  void frameworkExamplesDoNotInstallLoginLogoutOrSessionSideEffects(String path) throws Exception {
+    var result =
+        mockMvc
+            .perform(get(path))
+            .andExpect(status().isNotFound())
+            .andExpect(header().doesNotExist("Set-Cookie"))
+            .andExpect(header().doesNotExist("Location"))
+            .andExpect(header().doesNotExist("Strict-Transport-Security"))
+            .andReturn();
+    assertThat(result.getRequest().getSession(false)).isNull();
+  }
 
   @Test
   void healthEndpointsExposeOnlyStatus() throws Exception {

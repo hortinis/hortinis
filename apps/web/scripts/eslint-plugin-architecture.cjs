@@ -96,10 +96,10 @@ module.exports = {
     'no-sync-http-import': {
       meta: {
         type: 'problem',
-        docs: { description: 'Keep synchronization rules independent of the HTTP adapter' },
+        docs: { description: 'Keep feature rules independent of HTTP adapters' },
         messages: {
           forbidden:
-            'Only synchronization and binding HTTP adapters and their providers may import HTTP transport code.',
+            'Only dedicated feature HTTP adapters and their providers may import HTTP transport code.',
         },
         schema: [],
       },
@@ -108,6 +108,7 @@ module.exports = {
         const isHttpAdapter = [
           '/http-synchronization-transport.ts',
           '/http-binding-transport.ts',
+          '/authentication-http-client.ts',
         ].some((name) => filename.endsWith(name));
         const isProvider = [
           '/synchronization-transport.token.ts',
@@ -121,9 +122,11 @@ module.exports = {
             if (
               source === '@angular/common/http' ||
               (typeof source === 'string' &&
-                ['http-synchronization-transport', 'http-binding-transport'].some((adapter) =>
-                  source.includes(adapter),
-                ))
+                [
+                  'http-synchronization-transport',
+                  'http-binding-transport',
+                  'authentication-http-client',
+                ].some((adapter) => source.includes(adapter)))
             ) {
               context.report({ node, messageId: 'forbidden' });
             }

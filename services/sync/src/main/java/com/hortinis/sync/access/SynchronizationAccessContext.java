@@ -1,6 +1,7 @@
 package com.hortinis.sync.access;
 
 import java.util.Objects;
+import java.util.UUID;
 
 /** Internal trusted authority. Wire parsers cannot construct this context. */
 public final class SynchronizationAccessContext {
@@ -27,9 +28,13 @@ public final class SynchronizationAccessContext {
       ServerInstanceId instance,
       SynchronizationScopeId scope,
       ServerAccessMode mode,
-      AccountId account) {
+      AccountId account,
+      UUID sessionReference,
+      long authorityEpoch) {
     return new SynchronizationAccessContext(
-        instance, scope, new AuthenticatedAuthority(mode, account));
+        instance,
+        scope,
+        new AuthenticatedAuthority(mode, account, sessionReference, authorityEpoch));
   }
 
   /** Returns the installation selected by trusted resolution. */
@@ -58,17 +63,24 @@ public final class SynchronizationAccessContext {
   /** Explicit no-auth configuration is not individual user isolation. */
   public record ConfiguredAuthority() implements Authority {}
 
-  /** An account and authenticated mode validated by the future access resolver. */
-  public record AuthenticatedAuthority(ServerAccessMode mode, AccountId accountId)
+  /** Internal account/session observation, rechecked in every protected persistence transaction. */
+  public record AuthenticatedAuthority(
+      ServerAccessMode mode, AccountId accountId, UUID sessionReference, long authorityEpoch)
       implements Authority {
 
     /** Prevents incomplete or no-auth authenticated contexts. */
     public AuthenticatedAuthority {
       Objects.requireNonNull(mode);
       Objects.requireNonNull(accountId);
-      if (mode == ServerAccessMode.SINGLE_USER_NO_AUTH) {
+      Objects.requireNonNull(sessionReference);
+      if (mode == ServerAccessMode.SINGLE_USER_NO_AUTH || authorityEpoch <= 0) {
         throw new IllegalArgumentException("The access authority is invalid.");
       }
+    }
+
+    @Override
+    public String toString() {
+      return "AuthenticatedAuthority[redacted]";
     }
   }
 }

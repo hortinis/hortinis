@@ -1,0 +1,30 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "SessionSummary.json",
+    "type": "object",
+    "properties": {
+        "target": {
+            "$ref": "EncodedRandomValue.json"
+        },
+        "createdAt": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "absoluteExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+        },
+        "current": {
+            "type": "boolean"
+        }
+    },
+    "required": [
+        "target",
+        "createdAt",
+        "absoluteExpiresAt",
+        "current"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

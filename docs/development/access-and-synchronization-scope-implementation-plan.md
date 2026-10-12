@@ -19,8 +19,10 @@ the [access specification](../architecture/access-and-synchronization-scope.md),
 [ASVS applicability register](../security/asvs-5.0.0-applicability.md), and
 [privacy lifecycle](../privacy/access-data-lifecycle.md). S2 contract/parsing boundaries are validated;
 S3 implements database partitioning; S4 implements explicit no-auth request resolution and mode
-configuration; S5 implements durable browser ownership. Browser binding and authenticated adapters
-remain planned. The design does not select an authentication library or authorize processing real user data.
+configuration; S5 implements durable browser ownership; S6 implements fenced discovery/first binding;
+S7 validates synthetic isolation across the real topology. S8 selects the built-in authentication and
+session design. S9 implements single-user authentication; multi-user authorization and personal-data
+release remain closed until their respective implementation and applicable acceptance gates are complete.
 
 ## Required outcome
 
@@ -473,7 +475,8 @@ preserves local data and pending intent.
 
 ### S9 — Implement authenticated single-user access
 
-- Status: `planned`.
+- Status: `implemented`.
+- Implementation plan: [S9 implementation plan](s9-implementation-plan.md).
 - Depends on: S6 and S8.
 - Scope: implement controlled first-account setup, authentication, server-side sessions, logout, expiry,
   and mapping of the sole account to the existing sole scope. Replace the no-auth resolver with the
@@ -485,6 +488,11 @@ preserves local data and pending intent.
 - Offline acceptance: expiry or logout pauses synchronization without blocking local reads and writes or
   discarding the outbox; reauthentication to the original account resumes; a different account cannot
   receive the pending work.
+- Evidence: TypeSpec/OpenAPI-first contracts and fresh-database persistence, host ticket command,
+  runtime mode selection, session/CSRF filters, lifecycle cleanup, browser password-plus-passkey and
+  recovery workflows, local/logout cookie fencing, strict frontend checks, PostgreSQL integration
+  tests, and certificate-verified loopback HTTPS runtime tests. The default Compose example remains
+  no-auth; TLS edge setup and applicable S15/foundation release gates remain deployment work.
 
 ### S10 — Implement multi-user accounts and scope authorization
 

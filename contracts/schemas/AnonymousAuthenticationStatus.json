@@ -1,0 +1,17 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "AnonymousAuthenticationStatus.json",
+    "type": "object",
+    "properties": {
+        "state": {
+            "type": "string",
+            "const": "anonymous"
+        }
+    },
+    "required": [
+        "state"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

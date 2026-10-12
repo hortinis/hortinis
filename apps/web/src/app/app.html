@@ -61,5 +61,272 @@
       Connect to server
     </button>
   </section>
+  <section aria-label="Account access">
+    @if (!accountPanelOpen()) {
+      <button type="button" (click)="openAccount()">Open account access</button>
+    } @else {
+      <h2>Account access</h2>
+      <p role="status" aria-live="polite">{{ authentication.notice() }}</p>
+      @if (authentication.view() === 'unavailable') {
+        <p>Account services could not be reached. You can continue working with local data.</p>
+        <button type="button" (click)="openAccount()">Try again</button>
+      }
+      @if (authentication.view() === 'pending-logout') {
+        <p>Sign-out is pending. Synchronization is paused and local changes are retained.</p>
+        <button type="button" (click)="authentication.open()">Complete sign-out</button>
+      }
+      @if (authentication.view() === 'anonymous') {
+        <form (ngSubmit)="login()">
+          <label for="account-login">Account name</label>
+          <input
+            id="account-login"
+            name="loginName"
+            autocomplete="username"
+            [(ngModel)]="loginName"
+            required
+          />
+          <label for="account-password">Password</label>
+          <input
+            id="account-password"
+            name="loginPassword"
+            type="password"
+            autocomplete="current-password"
+            [(ngModel)]="loginPassword"
+            required
+          />
+          <button type="submit">Continue with passkey</button>
+        </form>
+        <details>
+          <summary>Set up the first account</summary>
+          <p>Use the setup ticket supplied by the server operator.</p>
+          <form (ngSubmit)="setup()">
+            <label for="setup-ticket">Setup ticket</label>
+            <input
+              id="setup-ticket"
+              name="setupTicket"
+              autocomplete="off"
+              [(ngModel)]="setupTicket"
+              required
+            />
+            <label for="setup-login">Account name</label>
+            <input
+              id="setup-login"
+              name="setupLogin"
+              autocomplete="username"
+              [(ngModel)]="setupLogin"
+              required
+            />
+            <label for="setup-password">Password</label>
+            <input
+              id="setup-password"
+              name="setupPassword"
+              type="password"
+              autocomplete="new-password"
+              [(ngModel)]="setupPassword"
+              required
+            />
+            <button type="submit">Create account and passkey</button>
+          </form>
+        </details>
+      }
+      @if (authentication.view() === 'authenticated') {
+        <p>Signed in. Your account can use its retained server binding.</p>
+        <button type="button" (click)="logout()">Sign out</button>
+        @if (authentication.recoveryStatus(); as recovery) {
+          <p>
+            Recovery codes remaining: {{ recovery.remaining }}.
+            @if (recovery.expiresSoon) {
+              <strong>Some codes expire soon. Replace them and store the new set.</strong>
+            }
+          </p>
+        }
+        <h3>Passkeys</h3>
+        <ul>
+          @for (credential of authentication.credentials(); track credential.id) {
+            <li>
+              {{ credential.label || 'Passkey' }}
+              <button type="button" (click)="revokeCredential(credential.id)">
+                Revoke passkey
+              </button>
+            </li>
+          }
+        </ul>
+        <h3>Sessions</h3>
+        <ul>
+          @for (session of authentication.sessions(); track session.target) {
+            <li>
+              {{ session.current ? 'This session' : 'Another session' }}
+              <time [attr.datetime]="session.expiresAt">Expires {{ session.expiresAt }}</time>
+              @if (!session.current) {
+                <button type="button" (click)="revokeSession(session.target)">
+                  Revoke session
+                </button>
+              }
+            </li>
+          }
+        </ul>
+        <form (ngSubmit)="addPasskey()">
+          <label for="management-password">Password to confirm account change</label>
+          <input
+            id="management-password"
+            name="currentPassword"
+            type="password"
+            autocomplete="current-password"
+            [(ngModel)]="currentPassword"
+            required
+          />
+          <button type="submit">Add a passkey</button>
+        </form>
+        <form (ngSubmit)="changePassword()">
+          <label for="change-current-password">Current password</label>
+          <input
+            id="change-current-password"
+            name="changeCurrentPassword"
+            type="password"
+            autocomplete="current-password"
+            [(ngModel)]="currentPassword"
+            required
+          />
+          <label for="change-new-password">New password</label>
+          <input
+            id="change-new-password"
+            name="replacementPassword"
+            type="password"
+            autocomplete="new-password"
+            [(ngModel)]="replacementPassword"
+            required
+          />
+          <button type="submit">Change password</button>
+        </form>
+        <form (ngSubmit)="regenerateRecoveryCodes()">
+          <label for="recovery-change-password">Password to replace recovery codes</label>
+          <input
+            id="recovery-change-password"
+            name="recoveryChangePassword"
+            type="password"
+            autocomplete="current-password"
+            [(ngModel)]="currentPassword"
+            required
+          />
+          <button type="submit">Replace recovery codes</button>
+        </form>
+      }
+      @if (authentication.recoveryCodes().length > 0) {
+        <section aria-label="Recovery codes">
+          <h3>Save your recovery codes</h3>
+          <p>These codes are shown once. Store them somewhere safe before continuing.</p>
+          <ol>
+            @for (code of authentication.recoveryCodes(); track code) {
+              <li>
+                <code>{{ code }}</code>
+              </li>
+            }
+          </ol>
+        </section>
+      }
+      @if (authentication.view() === 'anonymous') {
+        <details>
+          <summary>Forgot your password?</summary>
+          <form (ngSubmit)="resetForgottenPassword()">
+            <label for="forgot-login">Account name</label>
+            <input
+              id="forgot-login"
+              name="recoveryLogin"
+              autocomplete="username"
+              [(ngModel)]="recoveryLogin"
+              required
+            />
+            <label for="forgot-code">Recovery code</label>
+            <input
+              id="forgot-code"
+              name="recoveryCode"
+              autocomplete="off"
+              [(ngModel)]="recoveryCode"
+              required
+            />
+            <label for="forgot-new-password">New password</label>
+            <input
+              id="forgot-new-password"
+              name="recoveryNewPassword"
+              type="password"
+              autocomplete="new-password"
+              [(ngModel)]="recoveryNewPassword"
+              required
+            />
+            <button type="submit">Verify passkey and reset password</button>
+          </form>
+        </details>
+        <details>
+          <summary>Replace a lost passkey</summary>
+          <form (ngSubmit)="replaceLostPasskey()">
+            <label for="lost-key-login">Account name</label>
+            <input
+              id="lost-key-login"
+              name="lostKeyLogin"
+              autocomplete="username"
+              [(ngModel)]="lostKeyLogin"
+              required
+            />
+            <label for="lost-key-password">Password</label>
+            <input
+              id="lost-key-password"
+              name="lostKeyPassword"
+              type="password"
+              autocomplete="current-password"
+              [(ngModel)]="lostKeyPassword"
+              required
+            />
+            <label for="lost-key-code">Recovery code</label>
+            <input
+              id="lost-key-code"
+              name="lostKeyCode"
+              autocomplete="off"
+              [(ngModel)]="lostKeyCode"
+              required
+            />
+            <button type="submit">Verify and show passkey choices</button>
+          </form>
+          @if (authentication.credentials().length > 0) {
+            <label for="lost-key-credential">Passkey to replace</label>
+            <select
+              id="lost-key-credential"
+              name="lostKeyCredentialId"
+              [(ngModel)]="lostKeyCredentialId"
+            >
+              @for (credential of authentication.credentials(); track credential.id) {
+                <option [value]="credential.id">{{ credential.label || 'Passkey' }}</option>
+              }
+            </select>
+            <button type="button" (click)="completeLostPasskeyRecovery()">
+              Register replacement passkey
+            </button>
+          }
+        </details>
+        <details>
+          <summary>Recover with an operator ticket</summary>
+          <form (ngSubmit)="recoverWithOperatorTicket()">
+            <label for="operator-ticket">Recovery ticket</label>
+            <input
+              id="operator-ticket"
+              name="operatorTicket"
+              autocomplete="off"
+              [(ngModel)]="operatorTicket"
+              required
+            />
+            <label for="operator-new-password">New password</label>
+            <input
+              id="operator-new-password"
+              name="operatorNewPassword"
+              type="password"
+              autocomplete="new-password"
+              [(ngModel)]="operatorNewPassword"
+              required
+            />
+            <button type="submit">Verify and register a new passkey</button>
+          </form>
+        </details>
+      }
+    }
+  </section>
   <router-outlet />
 </main>

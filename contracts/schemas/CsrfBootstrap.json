@@ -1,0 +1,21 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "CsrfBootstrap.json",
+    "type": "object",
+    "properties": {
+        "token": {
+            "$ref": "CsrfValue.json"
+        },
+        "headerName": {
+            "type": "string",
+            "const": "X-CSRF-TOKEN"
+        }
+    },
+    "required": [
+        "token",
+        "headerName"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

@@ -53,6 +53,7 @@ namespace Hortinis.Sync {
   interface BindingOperations {
     @get
     @route("/bootstrap")
+    @useAuth(SessionCookieAuth | NoAuth)
     @TypeSpec.OpenAPI.operationId("readSynchronizationBootstrap")
     @summary("Observe the currently authorized synchronization destination")
     @doc("Resolve current access before reading population or identity. An optional expectation reobserves the same currently authorized destination without extending its lifetime; it grants no authority and advances no cursor.")
@@ -67,6 +68,7 @@ namespace Hortinis.Sync {
 
     @post
     @route("/bindings/confirm")
+    @useAuth([SessionCookieAuth, CsrfHeaderAuth] | NoAuth)
     @TypeSpec.OpenAPI.operationId("confirmEmptySynchronizationBinding")
     @summary("Confirm an observed empty synchronization destination")
     @doc("Revalidate current access, expectation, and empty population atomically. Never provision a scope from this request.")

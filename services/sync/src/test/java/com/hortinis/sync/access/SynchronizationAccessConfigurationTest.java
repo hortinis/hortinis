@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import com.hortinis.sync.authentication.persistence.CurrentAuthenticationAuthorityPersistence;
 import com.hortinis.sync.configuration.SynchronizationAccessConfiguration;
 import com.hortinis.sync.persistence.ServerInstallationPersistence;
 import java.util.Map;
@@ -24,6 +25,8 @@ class SynchronizationAccessConfigurationTest {
 
   private final ServerInstallationPersistence installation =
       mock(ServerInstallationPersistence.class);
+  private final CurrentAuthenticationAuthorityPersistence authority =
+      mock(CurrentAuthenticationAuthorityPersistence.class);
   private final ApplicationContextRunner runner =
       new ApplicationContextRunner()
           .withUserConfiguration(SynchronizationAccessConfiguration.class)
@@ -58,9 +61,10 @@ class SynchronizationAccessConfigurationTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"single-user-auth", "multi-user-auth"})
+  @ValueSource(strings = {"single-user-auth"})
   void authenticationCannotBeDisabledOrReplacedByTestProfile(String mode) {
     runner
+        .withBean(CurrentAuthenticationAuthorityPersistence.class, () -> authority)
         .withPropertyValues(
             "hortinis.access.mode=" + mode,
             "spring.profiles.active=test",
@@ -68,10 +72,23 @@ class SynchronizationAccessConfigurationTest {
             "hortinis.access.test-resolver.enabled=true")
         .run(
             context -> {
+              assertThat(context).hasNotFailed();
+              assertThat(context.getBean(SynchronizationAccessResolver.class))
+                  .isExactlyInstanceOf(AuthenticatedSynchronizationAccessResolver.class);
+              verify(installation).initializeMode(ServerAccessMode.SINGLE_USER_AUTH);
+            });
+  }
+
+  @Test
+  void multiUserModeStillFailsClosed() {
+    runner
+        .withPropertyValues("hortinis.access.mode=multi-user-auth")
+        .run(
+            context -> {
               assertThat(context).hasFailed();
               assertThat(context.getStartupFailure())
-                  .hasRootCauseMessage("Authenticated server access is not implemented.");
-              verifyNoInteractions(installation);
+                  .hasRootCauseMessage("Multi-user server access is not implemented.");
+              verifyNoInteractions(installation, authority);
             });
   }
 

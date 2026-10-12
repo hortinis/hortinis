@@ -97,8 +97,8 @@ public class TechnicalRecordSynchronizationService {
     };
   }
 
-  /** Validates the cursor boundary and returns only the resolved scope's committed changes. */
-  @Transactional(readOnly = true)
+  /** Keeps current account/session locks through the resolved scope's committed changes read. */
+  @Transactional
   public ChangePage pull(SynchronizationAccessContext context, String cursor) {
     long currentSequence = scopes.requireScope(context);
     long afterSequence =

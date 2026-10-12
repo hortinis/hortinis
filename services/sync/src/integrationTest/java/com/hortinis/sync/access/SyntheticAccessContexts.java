@@ -10,12 +10,27 @@ public final class SyntheticAccessContexts {
     return SynchronizationAccessContext.configured(instance, scope);
   }
 
-  /** Constructs unsupported authenticated authority solely for fail-closed boundary tests. */
+  /** Constructs unbacked authenticated metadata solely for fail-closed boundary tests. */
   public static SynchronizationAccessContext authenticated(
       ServerInstanceId instance,
       SynchronizationScopeId scope,
       ServerAccessMode mode,
       AccountId account) {
-    return SynchronizationAccessContext.authenticated(instance, scope, mode, account);
+    return SynchronizationAccessContext.authenticated(
+        instance, scope, mode, account, java.util.UUID.randomUUID(), 1);
+  }
+
+  /**
+   * Uses current synthetic session rows for isolated transaction-boundary tests, never HTTP input.
+   */
+  public static SynchronizationAccessContext authenticatedSession(
+      ServerInstanceId instance,
+      SynchronizationScopeId scope,
+      ServerAccessMode mode,
+      AccountId account,
+      java.util.UUID sessionReference,
+      long epoch) {
+    return SynchronizationAccessContext.authenticated(
+        instance, scope, mode, account, sessionReference, epoch);
   }
 }

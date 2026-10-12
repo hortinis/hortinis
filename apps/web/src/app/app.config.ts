@@ -10,11 +10,14 @@ import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
 import { provideServiceWorker } from '@angular/service-worker';
 import { TechnicalRecordSynchronizationService } from './sync/technical-record-synchronization-service';
+import { AUTHENTICATION_HTTP } from './authentication/authentication-http.port';
+import { AuthenticationHttpClient } from './authentication/authentication-http-client';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideHttpClient(),
+    { provide: AUTHENTICATION_HTTP, useExisting: AuthenticationHttpClient },
     provideRouter(routes),
     provideServiceWorker('ngsw-worker.js', {
       enabled: !isDevMode(),

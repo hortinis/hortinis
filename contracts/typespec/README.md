@@ -14,3 +14,8 @@ expected-revision deletion, accepted tombstone results, ordered tombstone change
 rejection in the contract before their Spring and browser adapters. Reconciliation schemas and endpoints
 remain contract-first inputs to G3 and G4. Keep authentication, authorization, garden resources, and
 domain-specific conflict resolution within their approved implementation increments.
+
+
+S9 adds closed authentication/session contracts before runtime adapters. See the
+[authentication contract handoff](../../docs/api/authentication-contracts.md) for cookie/CSRF schemes,
+limited two-proof ceremonies, canonical bounded WebAuthn envelopes and implementation gates.

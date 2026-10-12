@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Discard framework/database events even when deployment logger levels are overridden. -->
+    <appender name="DISCARD" class="ch.qos.logback.core.helpers.NOPAppender" />
+    <root level="OFF">
+        <appender-ref ref="DISCARD" />
+    </root>
+</configuration>

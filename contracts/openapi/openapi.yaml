@@ -5,6 +5,3057 @@ info:
   description: The contract-first HTTP API for the Hortinis synchronization service.
 tags: []
 paths:
+  /api/v1/auth/activity:
+    post:
+      operationId: recordAuthenticatedInteraction
+      summary: Record qualifying account activity
+      description: Require a full session and explicit visible user interaction. Background synchronization/polling cannot extend inactivity or absolute expiry.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationCompleted'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+  /api/v1/auth/credentials:
+    get:
+      operationId: readAccountCredentials
+      summary: List the current account's passkeys
+      description: Require full account authority or a valid two-proof passkey-replacement ceremony; never return credential private keys, public-key internals or another account's metadata.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.CredentialList'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      security:
+        - SessionCookieAuth: []
+    post:
+      operationId: registerAccountPasskey
+      summary: Register an additional account passkey
+      description: Verify and consume the current registration challenge under recent full account authority; no device or scope inference.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationCompleted'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Models.RegisterPasskeyRequest'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+  /api/v1/auth/credentials/options:
+    post:
+      operationId: beginPasskeyRegistration
+      summary: Begin additional passkey registration
+      description: Require recent full authentication and the eight-credential bound. Does not enroll a device or change account ownership.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.WebAuthnRegistrationOptions'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+  /api/v1/auth/credentials/revoke:
+    post:
+      operationId: revokeAccountPasskey
+      summary: Revoke one account passkey
+      description: Require recent full authentication and same-account ownership; deny removal of the last usable passkey. Invalidate old authority atomically.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationCompleted'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Models.CredentialTargetRequest'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+  /api/v1/auth/csrf:
+    get:
+      operationId: readAuthenticationCsrf
+      summary: Obtain bounded same-origin CSRF state
+      description: Explicit coordinated ceremony bootstrap only. May create a bounded anonymous HttpOnly cookie, never a data-authorized account. Does not extend qualifying inactivity.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.CsrfBootstrap'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      security:
+        - {}
+  /api/v1/auth/login/passkey:
+    post:
+      operationId: authenticateAccountPasskey
+      summary: Complete account login
+      description: Verify the same-account user-present and user-verified assertion against the consumed challenge and rotate the opaque cookie/CSRF state before full authorization.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.FullAuthenticationStatus'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Models.AuthenticatePasskeyRequest'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+  /api/v1/auth/login/password:
+    post:
+      operationId: authenticateAccountPassword
+      summary: Verify the password factor
+      description: Return discoverable-credential options only after valid password proof. Partial authority cannot access binding or content; failed login shapes do not identify an account.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.WebAuthnAuthenticationOptions'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Models.PasswordLoginRequest'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+  /api/v1/auth/logout:
+    post:
+      operationId: logoutAccountSession
+      summary: Invalidate the original session target
+      description: Require CSRF and compare the non-secret target to current cookie authority. Unknown/inactive targets complete idempotently; a different active target denies without invalidating it. Never emit a session Set-Cookie, including deletion.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationCompleted'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Models.LogoutRequest'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+  /api/v1/auth/password:
+    post:
+      operationId: changeAccountPassword
+      summary: Change the current account password
+      description: Require current password and recent normal factors. Update the verifier and authority epoch, invalidate old sessions and return to normal login.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationCompleted'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Models.PasswordChangeRequest'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+  /api/v1/auth/recovery-codes:
+    get:
+      operationId: readAccountRecoveryCodeStatus
+      summary: Observe current recovery-code availability
+      description: Require current full account authority. Return only the number of unexpired unused codes, their common expiry and the server-clock thirty-day warning. Never return codes or verifiers; does not renew inactivity.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.RecoveryCodeStatus'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      security:
+        - SessionCookieAuth: []
+    post:
+      operationId: replaceAccountRecoveryCodes
+      summary: Replace recovery codes
+      description: Require recent normal factors and atomically invalidate the old set; return exactly ten new single-use codes once.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.RecoveryCodeSet'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+  /api/v1/auth/recovery/operator:
+    post:
+      operationId: beginOperatorAccountRecovery
+      summary: Begin controlled operator recovery
+      description: Require a host-issued target-bound one-use ticket after proportionate ownership proof; no ordinary operator garden authority. New password/passkey proof are mandatory.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.WebAuthnRegistrationOptions'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Models.OperatorRecoveryRequest'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+  /api/v1/auth/recovery/operator/proof:
+    post:
+      operationId: completeOperatorAccountRecovery
+      summary: Complete controlled factor recovery
+      description: Verify replacement proof, consume the exact ticket, replace factors and invalidate old authority. Never grant an ordinary session from the ticket.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationCompleted'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Models.RegisterPasskeyRequest'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+  /api/v1/auth/recovery/passkey:
+    post:
+      operationId: beginLostPasskeyRecovery
+      summary: Authorize restricted passkey replacement
+      description: Require current password and unused recovery code for the same account; consume once. Permit only credential selection/replacement, never garden access.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.CredentialList'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Models.LostPasskeyRequest'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+  /api/v1/auth/recovery/passkey/options:
+    post:
+      operationId: beginReplacementPasskeyRegistration
+      summary: Begin replacement of the selected lost passkey
+      description: Require the two-proof limited recovery ceremony and the selected same-account credential. A verified replacement precedes revoking the lost credential.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.WebAuthnRegistrationOptions'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Models.CredentialTargetRequest'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+  /api/v1/auth/recovery/passkey/proof:
+    post:
+      operationId: completeLostPasskeyRecovery
+      summary: Complete restricted passkey replacement
+      description: Verify the replacement challenge and atomically revoke the selected lost credential and old sessions. Require fresh normal login.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationCompleted'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Models.RegisterPasskeyRequest'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+  /api/v1/auth/recovery/password:
+    post:
+      operationId: resetForgottenAccountPassword
+      summary: Complete restricted password reset
+      description: Require the unexpired two-proof reset ceremony and accepted new password. Invalidate old sessions/ceremonies and require a fresh normal login.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationCompleted'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Models.ResetPasswordRequest'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+  /api/v1/auth/recovery/password/options:
+    post:
+      operationId: beginForgottenPasswordRecovery
+      summary: Begin forgotten-password proof
+      description: Start a bounded ceremony without revealing whether login/code identifies an account. A user-verified registered passkey plus an unused code is required before reset authority.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.WebAuthnAuthenticationOptions'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Models.ForgottenPasswordRequest'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+  /api/v1/auth/recovery/password/proof:
+    post:
+      operationId: authorizeForgottenPasswordReset
+      summary: Authorize a restricted password reset
+      description: Verify same-account passkey and atomically consume the unused recovery code. This short ceremony cannot access garden data or become a full session.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationCompleted'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Models.AuthenticatePasskeyRequest'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+  /api/v1/auth/session:
+    get:
+      operationId: readAuthenticationStatus
+      summary: Observe current session status
+      description: Return only current cookie authority; anonymous responses omit account, factor registration, setup availability and scope information. Does not allocate a session or extend qualifying inactivity.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationStatus'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      security:
+        - SessionCookieAuth: []
+        - {}
+  /api/v1/auth/sessions:
+    get:
+      operationId: readAccountSessions
+      summary: List the current account's active sessions
+      description: Require full account authority; expose only non-authorizing targets and necessary lifecycle times, never cookies, source addresses or another account's sessions.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.SessionList'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      security:
+        - SessionCookieAuth: []
+  /api/v1/auth/sessions/revoke:
+    post:
+      operationId: revokeAccountSession
+      summary: Revoke one current-account session
+      description: Require recent full account factors and same-account target ownership. Invalidate the target before later data acceptance; never mutate the response cookie.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationCompleted'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Models.LogoutRequest'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+  /api/v1/auth/setup:
+    post:
+      operationId: beginAccountSetup
+      summary: Begin controlled sole-account setup
+      description: Require the exact unexpired operator ticket and fresh empty installation; password policy and passkey proof precede activation. Never claim an existing no-auth scope.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.WebAuthnRegistrationOptions'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Models.AccountSetupRequest'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+  /api/v1/auth/setup/passkey:
+    post:
+      operationId: completeAccountSetup
+      summary: Complete controlled account activation
+      description: Consume setup proof and atomically activate the intended account/sole-scope owner with a verified passkey. Return recovery codes once; this is not a full garden session.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.RecoveryCodeSet'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Models.RegisterPasskeyRequest'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+  /api/v1/auth/step-up/passkey:
+    post:
+      operationId: completeRecentAuthentication
+      summary: Complete recent two-factor authentication
+      description: Require a valid same-account user-verified challenge, rotate cookie/CSRF state and preserve the original absolute deadline.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.FullAuthenticationStatus'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Models.AuthenticatePasskeyRequest'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+  /api/v1/auth/step-up/password:
+    post:
+      operationId: beginRecentAuthentication
+      summary: Begin recent two-factor authentication
+      description: Require the current full account and current password. Preserve the original absolute session deadline while rotating into the bounded same-account ceremony.
+      parameters: []
+      responses:
+        '200':
+          description: The request has succeeded.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.WebAuthnAuthenticationOptions'
+        '400':
+          description: The server could not understand the request due to invalid syntax.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.InvalidRequestError'
+        '401':
+          description: Access is unauthorized.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - $ref: '#/components/schemas/Models.AuthenticationFailedError'
+                  - $ref: '#/components/schemas/Models.AuthenticationRequiredError'
+        '403':
+          description: Access is forbidden.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessDeniedError'
+        '409':
+          description: The request conflicts with the current state of the server.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationPreconditionFailedError'
+        '429':
+          description: Client error
+          headers:
+            Retry-After:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - '60'
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AuthenticationThrottledError'
+        '503':
+          description: Service unavailable.
+          headers:
+            Cache-Control:
+              required: true
+              schema:
+                type: string
+                enum:
+                  - no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Models.AccessUnavailableError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Models.CurrentPasswordRequest'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
   /api/v1/server/capabilities:
     get:
       operationId: readServerCapabilities
@@ -129,6 +3180,10 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/Models.ConfirmEmptyBindingRequest'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+        - {}
   /api/v1/sync/bootstrap:
     get:
       operationId: readSynchronizationBootstrap
@@ -206,6 +3261,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Models.AccessUnavailableError'
+      security:
+        - SessionCookieAuth: []
+        - {}
   /api/v1/sync/changes:
     get:
       operationId: pullTechnicalRecordChanges
@@ -311,6 +3369,9 @@ paths:
                 anyOf:
                   - $ref: '#/components/schemas/Models.SynchronizationUnavailableError'
                   - $ref: '#/components/schemas/Models.AccessUnavailableError'
+      security:
+        - SessionCookieAuth: []
+        - {}
   /api/v1/sync/operations:
     post:
       operationId: submitTechnicalRecordOperation
@@ -431,6 +3492,10 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/Models.TechnicalRecordOperation'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+        - {}
   /api/v1/sync/reconciliations:
     post:
       operationId: startTechnicalRecordReconciliation
@@ -536,6 +3601,10 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/Models.StartReconciliationRequest'
+      security:
+        - SessionCookieAuth: []
+          CsrfHeaderAuth: []
+        - {}
   /api/v1/sync/reconciliations/{reconciliationId}/snapshot:
     get:
       operationId: pullTechnicalRecordSnapshot
@@ -659,6 +3728,9 @@ paths:
                 anyOf:
                   - $ref: '#/components/schemas/Models.SynchronizationUnavailableError'
                   - $ref: '#/components/schemas/Models.AccessUnavailableError'
+      security:
+        - SessionCookieAuth: []
+        - {}
 components:
   schemas:
     Models.AccessDeniedError:
@@ -698,6 +3770,68 @@ components:
       pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       format: uuid
       description: A server-owned account identity, distinct from its scope.
+    Models.AccountSetupRequest:
+      type: object
+      required:
+        - ticket
+        - login
+        - password
+      properties:
+        ticket:
+          $ref: '#/components/schemas/Models.EncodedRandomValue'
+        login:
+          $ref: '#/components/schemas/Models.LoginIdentifier'
+        password:
+          $ref: '#/components/schemas/Models.NewPassword'
+      unevaluatedProperties:
+        not: {}
+    Models.AnonymousAuthenticationStatus:
+      type: object
+      required:
+        - state
+      properties:
+        state:
+          type: string
+          enum:
+            - anonymous
+      unevaluatedProperties:
+        not: {}
+    Models.AuthenticatePasskeyRequest:
+      type: object
+      required:
+        - id
+        - rawId
+        - type
+        - response
+      properties:
+        id:
+          $ref: '#/components/schemas/Models.WebAuthnCredentialId'
+        rawId:
+          $ref: '#/components/schemas/Models.WebAuthnCredentialId'
+        type:
+          type: string
+          enum:
+            - public-key
+        response:
+          type: object
+          properties:
+            clientDataJSON:
+              $ref: '#/components/schemas/Models.WebAuthnClientData'
+            authenticatorData:
+              $ref: '#/components/schemas/Models.WebAuthnProofPart'
+            signature:
+              $ref: '#/components/schemas/Models.WebAuthnProofPart'
+            userHandle:
+              $ref: '#/components/schemas/Models.EncodedRandomValue'
+          required:
+            - clientDataJSON
+            - authenticatorData
+            - signature
+            - userHandle
+          unevaluatedProperties:
+            not: {}
+      unevaluatedProperties:
+        not: {}
     Models.AuthenticatedScopeIdentity:
       type: object
       required:
@@ -721,6 +3855,49 @@ components:
           $ref: '#/components/schemas/Models.AccountId'
       unevaluatedProperties:
         not: {}
+    Models.AuthenticationCompleted:
+      type: object
+      required:
+        - completed
+      properties:
+        completed:
+          type: boolean
+          enum:
+            - true
+      unevaluatedProperties:
+        not: {}
+    Models.AuthenticationFailedError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - AUTHENTICATION_FAILED
+        message:
+          type: string
+          enum:
+            - Authentication failed.
+      unevaluatedProperties:
+        not: {}
+    Models.AuthenticationPreconditionFailedError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - AUTHENTICATION_PRECONDITION_FAILED
+        message:
+          type: string
+          enum:
+            - The authentication precondition no longer holds.
+      unevaluatedProperties:
+        not: {}
     Models.AuthenticationRequiredError:
       type: object
       required:
@@ -737,10 +3914,49 @@ components:
             - Authentication is required.
       unevaluatedProperties:
         not: {}
+    Models.AuthenticationStatus:
+      anyOf:
+        - $ref: '#/components/schemas/Models.AnonymousAuthenticationStatus'
+        - $ref: '#/components/schemas/Models.LimitedAuthenticationStatus'
+        - $ref: '#/components/schemas/Models.FullAuthenticationStatus'
+    Models.AuthenticationThrottledError:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - AUTHENTICATION_THROTTLED
+        message:
+          type: string
+          enum:
+            - Authentication attempts are temporarily limited.
+      unevaluatedProperties:
+        not: {}
     Models.AuthorizedScopeIdentity:
       anyOf:
         - $ref: '#/components/schemas/Models.ConfiguredScopeIdentity'
         - $ref: '#/components/schemas/Models.AuthenticatedScopeIdentity'
+    Models.AvailableRecoveryCodeStatus:
+      type: object
+      required:
+        - remaining
+        - expiresAt
+        - expiresSoon
+      properties:
+        remaining:
+          type: integer
+          minimum: 1
+          maximum: 10
+        expiresAt:
+          type: string
+          format: date-time
+        expiresSoon:
+          type: boolean
+      unevaluatedProperties:
+        not: {}
     Models.BindingPreconditionFailedError:
       type: object
       required:
@@ -844,6 +4060,68 @@ components:
       unevaluatedProperties:
         not: {}
       description: Create a technical record that does not yet exist.
+    Models.CredentialList:
+      type: object
+      required:
+        - credentials
+      properties:
+        credentials:
+          type: array
+          items:
+            $ref: '#/components/schemas/Models.CredentialSummary'
+          maxItems: 8
+      unevaluatedProperties:
+        not: {}
+    Models.CredentialSummary:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          $ref: '#/components/schemas/Models.WebAuthnCredentialId'
+        label:
+          type: string
+          maxLength: 64
+          pattern: ^[^\u0000]*$
+          description: Optional user label; Unicode scalar text excluding NUL.
+      unevaluatedProperties:
+        not: {}
+    Models.CredentialTargetRequest:
+      type: object
+      required:
+        - credentialId
+      properties:
+        credentialId:
+          $ref: '#/components/schemas/Models.WebAuthnCredentialId'
+      unevaluatedProperties:
+        not: {}
+    Models.CsrfBootstrap:
+      type: object
+      required:
+        - token
+        - headerName
+      properties:
+        token:
+          $ref: '#/components/schemas/Models.CsrfValue'
+        headerName:
+          type: string
+          enum:
+            - X-CSRF-TOKEN
+      unevaluatedProperties:
+        not: {}
+    Models.CsrfValue:
+      type: string
+      pattern: ^[A-Za-z0-9_-]{1,256}$
+      description: Transient session-backed CSRF value; never persist in browser data or carry in URLs.
+    Models.CurrentPasswordRequest:
+      type: object
+      required:
+        - password
+      properties:
+        password:
+          $ref: '#/components/schemas/Models.LoginPassword'
+      unevaluatedProperties:
+        not: {}
     Models.DeleteTechnicalRecordOperation:
       type: object
       required:
@@ -866,10 +4144,48 @@ components:
       unevaluatedProperties:
         not: {}
       description: Delete an existing technical record at its expected server revision.
+    Models.EncodedRandomValue:
+      type: string
+      pattern: ^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$
+      description: Canonical unpadded base64url encoding of 32 bytes; semantics depend on the containing field.
     Models.ExchangeExpectation:
       type: string
       pattern: ^[A-Za-z0-9_-]{1,256}$
       description: A non-secret expectation checked after independent authorization; never carried in URLs.
+    Models.ForgottenPasswordRequest:
+      type: object
+      required:
+        - login
+        - recoveryCode
+      properties:
+        login:
+          $ref: '#/components/schemas/Models.LoginIdentifier'
+        recoveryCode:
+          $ref: '#/components/schemas/Models.EncodedRandomValue'
+      unevaluatedProperties:
+        not: {}
+    Models.FullAuthenticationStatus:
+      type: object
+      required:
+        - state
+        - accountId
+        - logoutTarget
+        - absoluteExpiresAt
+      properties:
+        state:
+          type: string
+          enum:
+            - authenticated
+        accountId:
+          $ref: '#/components/schemas/Models.AccountId'
+        logoutTarget:
+          $ref: '#/components/schemas/Models.EncodedRandomValue'
+          description: Non-secret logout target, distinct from the session cookie; never authorization.
+        absoluteExpiresAt:
+          type: string
+          format: date-time
+      unevaluatedProperties:
+        not: {}
     Models.GenerationSynchronizationBoundary:
       type: object
       required:
@@ -912,6 +4228,19 @@ components:
       unevaluatedProperties:
         not: {}
       description: The request does not satisfy the synchronization contract.
+    Models.LimitedAuthenticationStatus:
+      type: object
+      required:
+        - state
+      properties:
+        state:
+          type: string
+          enum:
+            - password
+            - setup
+            - recovery
+      unevaluatedProperties:
+        not: {}
     Models.LiveSnapshotEntry:
       type: object
       required:
@@ -927,6 +4256,44 @@ components:
       unevaluatedProperties:
         not: {}
       description: A live record in an anchored snapshot.
+    Models.LoginIdentifier:
+      type: string
+      minLength: 3
+      maxLength: 64
+      pattern: ^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$
+    Models.LoginPassword:
+      type: string
+      minLength: 1
+      maxLength: 128
+      description: Exact received password text; runtime validates Unicode scalar and UTF-8 bounds without normalization.
+    Models.LogoutRequest:
+      type: object
+      required:
+        - target
+      properties:
+        target:
+          $ref: '#/components/schemas/Models.EncodedRandomValue'
+      unevaluatedProperties:
+        not: {}
+    Models.LostPasskeyRequest:
+      type: object
+      required:
+        - login
+        - password
+        - recoveryCode
+      properties:
+        login:
+          $ref: '#/components/schemas/Models.LoginIdentifier'
+        password:
+          $ref: '#/components/schemas/Models.LoginPassword'
+        recoveryCode:
+          $ref: '#/components/schemas/Models.EncodedRandomValue'
+      unevaluatedProperties:
+        not: {}
+    Models.NewPassword:
+      type: string
+      minLength: 15
+      maxLength: 128
     Models.OperationIdReusedError:
       type: object
       required:
@@ -951,6 +4318,42 @@ components:
         - $ref: '#/components/schemas/Models.RecordOperationResult'
         - $ref: '#/components/schemas/Models.TombstoneOperationResult'
       description: The stable result returned when an operation is accepted or replayed identically.
+    Models.OperatorRecoveryRequest:
+      type: object
+      required:
+        - ticket
+        - newPassword
+      properties:
+        ticket:
+          $ref: '#/components/schemas/Models.EncodedRandomValue'
+        newPassword:
+          $ref: '#/components/schemas/Models.NewPassword'
+      unevaluatedProperties:
+        not: {}
+    Models.PasswordChangeRequest:
+      type: object
+      required:
+        - currentPassword
+        - newPassword
+      properties:
+        currentPassword:
+          $ref: '#/components/schemas/Models.LoginPassword'
+        newPassword:
+          $ref: '#/components/schemas/Models.NewPassword'
+      unevaluatedProperties:
+        not: {}
+    Models.PasswordLoginRequest:
+      type: object
+      required:
+        - login
+        - password
+      properties:
+        login:
+          $ref: '#/components/schemas/Models.LoginIdentifier'
+        password:
+          $ref: '#/components/schemas/Models.LoginPassword'
+      unevaluatedProperties:
+        not: {}
     Models.PositiveDecimal:
       type: string
       pattern: ^[1-9][0-9]*$
@@ -1085,6 +4488,64 @@ components:
       unevaluatedProperties:
         not: {}
       description: One accepted live-record change in monotonic server-sequence order.
+    Models.RecoveryCodeSet:
+      type: object
+      required:
+        - codes
+        - expiresAt
+      properties:
+        codes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Models.EncodedRandomValue'
+          minItems: 10
+          maxItems: 10
+          uniqueItems: true
+        expiresAt:
+          type: string
+          format: date-time
+      unevaluatedProperties:
+        not: {}
+    Models.RecoveryCodeStatus:
+      anyOf:
+        - $ref: '#/components/schemas/Models.AvailableRecoveryCodeStatus'
+        - $ref: '#/components/schemas/Models.UnavailableRecoveryCodeStatus'
+    Models.RegisterPasskeyRequest:
+      type: object
+      required:
+        - id
+        - rawId
+        - type
+        - response
+      properties:
+        id:
+          $ref: '#/components/schemas/Models.WebAuthnCredentialId'
+        rawId:
+          $ref: '#/components/schemas/Models.WebAuthnCredentialId'
+          description: Must equal id in canonical encoding; verified by the adapter before cryptographic work.
+        type:
+          type: string
+          enum:
+            - public-key
+        response:
+          type: object
+          properties:
+            clientDataJSON:
+              $ref: '#/components/schemas/Models.WebAuthnClientData'
+            attestationObject:
+              $ref: '#/components/schemas/Models.WebAuthnAttestationObject'
+          required:
+            - clientDataJSON
+            - attestationObject
+          unevaluatedProperties:
+            not: {}
+        label:
+          type: string
+          maxLength: 64
+          pattern: ^[^\u0000]*$
+          description: Optional user label; Unicode scalar text excluding NUL.
+      unevaluatedProperties:
+        not: {}
     Models.ReplaceTechnicalRecordOperation:
       type: object
       required:
@@ -1110,6 +4571,15 @@ components:
       unevaluatedProperties:
         not: {}
       description: Replace a technical record at its expected server revision.
+    Models.ResetPasswordRequest:
+      type: object
+      required:
+        - newPassword
+      properties:
+        newPassword:
+          $ref: '#/components/schemas/Models.NewPassword'
+      unevaluatedProperties:
+        not: {}
     Models.RevisionConflictError:
       type: object
       required:
@@ -1177,6 +4647,38 @@ components:
       pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       format: uuid
       description: A stable, non-secret server installation identity.
+    Models.SessionList:
+      type: object
+      required:
+        - sessions
+      properties:
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Models.SessionSummary'
+          maxItems: 5
+      unevaluatedProperties:
+        not: {}
+    Models.SessionSummary:
+      type: object
+      required:
+        - target
+        - createdAt
+        - absoluteExpiresAt
+        - current
+      properties:
+        target:
+          $ref: '#/components/schemas/Models.EncodedRandomValue'
+        createdAt:
+          type: string
+          format: date-time
+        absoluteExpiresAt:
+          type: string
+          format: date-time
+        current:
+          type: boolean
+      unevaluatedProperties:
+        not: {}
     Models.SnapshotContinuationPage:
       type: object
       required:
@@ -1467,8 +4969,200 @@ components:
       unevaluatedProperties:
         not: {}
       description: One accepted deletion in monotonic server-sequence order.
+    Models.UnavailableRecoveryCodeStatus:
+      type: object
+      required:
+        - remaining
+        - expiresSoon
+      properties:
+        remaining:
+          type: number
+          enum:
+            - 0
+        expiresSoon:
+          type: boolean
+          enum:
+            - false
+      unevaluatedProperties:
+        not: {}
     Models.Uuid:
       type: string
       pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
       format: uuid
       description: A canonical lowercase UUID identifier.
+    Models.WebAuthnAlgorithm:
+      type: object
+      required:
+        - type
+        - alg
+      properties:
+        type:
+          type: string
+          enum:
+            - public-key
+        alg:
+          type: number
+          enum:
+            - -7
+            - -257
+            - -8
+      unevaluatedProperties:
+        not: {}
+    Models.WebAuthnAttestationObject:
+      type: string
+      minLength: 2
+      maxLength: 43691
+      pattern: ^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-][AQgw]|[A-Za-z0-9_-]{2}[AEIMQUYcgkosw048])?$
+    Models.WebAuthnAuthenticationOptions:
+      type: object
+      required:
+        - challenge
+        - rpId
+        - timeout
+        - userVerification
+      properties:
+        challenge:
+          $ref: '#/components/schemas/Models.EncodedRandomValue'
+        rpId:
+          type: string
+          minLength: 1
+          maxLength: 253
+        timeout:
+          type: number
+          enum:
+            - 300000
+        userVerification:
+          type: string
+          enum:
+            - required
+      unevaluatedProperties:
+        not: {}
+    Models.WebAuthnClientData:
+      type: string
+      minLength: 2
+      maxLength: 4096
+      pattern: ^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-][AQgw]|[A-Za-z0-9_-]{2}[AEIMQUYcgkosw048])?$
+    Models.WebAuthnCredentialDescriptor:
+      type: object
+      required:
+        - type
+        - id
+      properties:
+        type:
+          type: string
+          enum:
+            - public-key
+        id:
+          $ref: '#/components/schemas/Models.WebAuthnCredentialId'
+      unevaluatedProperties:
+        not: {}
+    Models.WebAuthnCredentialId:
+      type: string
+      minLength: 2
+      maxLength: 2048
+      pattern: ^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-][AQgw]|[A-Za-z0-9_-]{2}[AEIMQUYcgkosw048])?$
+    Models.WebAuthnProofPart:
+      type: string
+      minLength: 2
+      maxLength: 1024
+      pattern: ^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-][AQgw]|[A-Za-z0-9_-]{2}[AEIMQUYcgkosw048])?$
+    Models.WebAuthnRegistrationOptions:
+      type: object
+      required:
+        - challenge
+        - rp
+        - user
+        - pubKeyCredParams
+        - timeout
+        - excludeCredentials
+        - authenticatorSelection
+        - attestation
+      properties:
+        challenge:
+          $ref: '#/components/schemas/Models.EncodedRandomValue'
+        rp:
+          $ref: '#/components/schemas/Models.WebAuthnRelyingParty'
+        user:
+          $ref: '#/components/schemas/Models.WebAuthnUser'
+        pubKeyCredParams:
+          type: array
+          items:
+            $ref: '#/components/schemas/Models.WebAuthnAlgorithm'
+          minItems: 1
+          maxItems: 3
+          uniqueItems: true
+        timeout:
+          type: number
+          enum:
+            - 300000
+        excludeCredentials:
+          type: array
+          items:
+            $ref: '#/components/schemas/Models.WebAuthnCredentialDescriptor'
+          maxItems: 8
+        authenticatorSelection:
+          type: object
+          properties:
+            residentKey:
+              type: string
+              enum:
+                - required
+            userVerification:
+              type: string
+              enum:
+                - required
+          required:
+            - residentKey
+            - userVerification
+          unevaluatedProperties:
+            not: {}
+        attestation:
+          type: string
+          enum:
+            - none
+      unevaluatedProperties:
+        not: {}
+    Models.WebAuthnRelyingParty:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 253
+        name:
+          type: string
+          enum:
+            - Hortinis
+      unevaluatedProperties:
+        not: {}
+    Models.WebAuthnUser:
+      type: object
+      required:
+        - id
+        - name
+        - displayName
+      properties:
+        id:
+          $ref: '#/components/schemas/Models.EncodedRandomValue'
+        name:
+          $ref: '#/components/schemas/Models.LoginIdentifier'
+        displayName:
+          type: string
+          enum:
+            - Hortinis account
+      unevaluatedProperties:
+        not: {}
+  securitySchemes:
+    SessionCookieAuth:
+      type: apiKey
+      in: cookie
+      name: __Host-hortinis-session
+      description: Host-only Secure, HttpOnly, SameSite=Strict session cookie. A limited cookie grants no garden authority; current account/session state is checked independently.
+    CsrfHeaderAuth:
+      type: apiKey
+      in: header
+      name: X-CSRF-TOKEN
+      description: Session-backed CSRF proof for every unsafe authenticated-mode request, including pre-authentication ceremonies. Not a login credential.

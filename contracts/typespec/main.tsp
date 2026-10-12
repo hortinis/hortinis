@@ -6,6 +6,8 @@ import "./sync-models.tsp";
 import "./production-sync-models.tsp";
 import "./access-models.tsp";
 import "./access-operations.tsp";
+import "./authentication-models.tsp";
+import "./authentication-operations.tsp";
 import "./sync-operations.tsp";
 
 using TypeSpec.OpenAPI;

@@ -19,6 +19,7 @@ import {
 } from './access-contracts.rule';
 import type { AccessError } from './access-contracts.rule';
 import { SynchronizationAccessError } from './binding-transport';
+import { AuthenticationCookieGate } from './authentication-cookie-gate';
 
 export interface BindingRequestContext {
   readonly binding: LocalServerBinding;
@@ -31,11 +32,13 @@ export class BindingSession {
   private readonly persistence = inject(LocalBindingExchangePersistence);
   private readonly transport = inject(BINDING_TRANSPORT);
   private readonly clock = inject(SYNCHRONIZATION_CLOCK);
+  private readonly cookieGate = inject(AuthenticationCookieGate);
   private prepared: ExchangeAttemptBoundary | undefined;
   private cached:
     { fencingToken: number; expiresAt: number; context: BindingRequestContext } | undefined;
 
   async prepare(phase: 'push' | 'pull', boundary: ExchangeAttemptBoundary): Promise<void> {
+    this.cookieGate.assertExchangeAllowed();
     const snapshot = await this.persistence.snapshot();
     const binding = await this.requireReady(snapshot);
     if (
@@ -54,6 +57,7 @@ export class BindingSession {
   }
 
   async requestContext(): Promise<BindingRequestContext> {
+    this.cookieGate.assertExchangeAllowed();
     const attempt = this.prepared;
     if (!attempt) throw new SynchronizationPausedError();
     const snapshot = await this.persistence.snapshot();
@@ -142,6 +146,7 @@ export class BindingSession {
   async assertCurrent(
     context: Pick<BindingRequestContext, 'binding' | 'exchangeFence'>,
   ): Promise<void> {
+    this.cookieGate.assertExchangeAllowed();
     const snapshot = await this.persistence.snapshot();
     const binding = await this.requireReady(snapshot);
     if (

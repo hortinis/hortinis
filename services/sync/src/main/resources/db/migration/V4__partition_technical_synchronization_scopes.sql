@@ -129,3 +129,160 @@ CREATE TABLE technical_exchange_expectation (
         OR (access_mode <> 'single-user-no-auth' AND account_id IS NOT NULL))
 );
 CREATE INDEX technical_exchange_expectation_expiry ON technical_exchange_expectation (expires_at);
+
+
+-- S9 fresh-install authentication storage. These rows grant no authority until the complete
+-- controlled password/passkey transaction activates the account and authoritative session.
+CREATE TABLE authentication_account (
+    account_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    server_instance_id UUID NOT NULL
+        REFERENCES technical_server_installation (server_instance_id),
+    synchronization_scope_id UUID NOT NULL UNIQUE
+        REFERENCES technical_synchronization_scope (synchronization_scope_id),
+    login_identifier VARCHAR(64) NOT NULL UNIQUE
+        CHECK (login_identifier ~ '^[a-z0-9][a-z0-9._-]{2,63}$'),
+    status TEXT NOT NULL CHECK (status IN ('active', 'disabled')),
+    authority_epoch BIGINT NOT NULL DEFAULT 1 CHECK (authority_epoch > 0),
+    password_verifier VARCHAR(256) NOT NULL
+        CHECK (password_verifier LIKE '{argon2id}$argon2id$v=19$m=65536,t=3,p=1$%'),
+    user_handle BYTEA NOT NULL UNIQUE CHECK (octet_length(user_handle) = 32),
+    created_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE authentication_credential (
+    credential_id BYTEA PRIMARY KEY CHECK (octet_length(credential_id) BETWEEN 1 AND 1536),
+    account_id UUID NOT NULL REFERENCES authentication_account (account_id) ON DELETE CASCADE,
+    public_key_cose BYTEA NOT NULL CHECK (octet_length(public_key_cose) BETWEEN 1 AND 2048),
+    algorithm INTEGER NOT NULL CHECK (algorithm IN (-7, -257, -8)),
+    signature_count BIGINT NOT NULL CHECK (signature_count BETWEEN 0 AND 4294967295),
+    backup_eligible BOOLEAN NOT NULL,
+    backed_up BOOLEAN NOT NULL,
+    label VARCHAR(64),
+    CHECK (NOT backed_up OR backup_eligible)
+);
+CREATE INDEX authentication_credential_account ON authentication_credential (account_id);
+
+-- Separate current authority survives independently of Spring Session save races. Every protected
+-- transaction checks account epoch/status, session lifetime and scope ownership before content.
+-- Session verifier is SHA-256 of the independent opaque HTTP session ID; logout target is distinct.
+CREATE TABLE authentication_session_authority (
+    session_reference UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_verifier CHAR(64) NOT NULL UNIQUE CHECK (session_verifier ~ '^[a-f0-9]{64}$'),
+    logout_target VARCHAR(43) NOT NULL UNIQUE
+        CHECK (logout_target ~ '^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$'),
+    state TEXT NOT NULL CHECK (state IN ('anonymous', 'password', 'setup', 'recovery', 'full')),
+    account_id UUID REFERENCES authentication_account (account_id) ON DELETE CASCADE,
+    authority_epoch BIGINT CHECK (authority_epoch > 0),
+    created_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    full_login_at TIMESTAMPTZ,
+    last_interaction_at TIMESTAMPTZ,
+    both_factors_at TIMESTAMPTZ,
+    staged_login_identifier VARCHAR(64)
+        CHECK (staged_login_identifier ~ '^[a-z0-9][a-z0-9._-]{2,63}$'),
+    staged_password_verifier VARCHAR(256)
+        CHECK (staged_password_verifier LIKE '{argon2id}$argon2id$v=19$m=65536,t=3,p=1$%'),
+    staged_user_handle BYTEA CHECK (octet_length(staged_user_handle) = 32),
+    recovery_kind TEXT CHECK (recovery_kind IN ('password', 'passkey', 'operator')),
+    replacement_credential_id BYTEA CHECK (octet_length(replacement_credential_id) BETWEEN 1 AND 1536),
+    CHECK (expires_at > created_at),
+    CHECK ((account_id IS NULL AND authority_epoch IS NULL)
+        OR (account_id IS NOT NULL AND authority_epoch IS NOT NULL)),
+    CHECK (state NOT IN ('password', 'full') OR account_id IS NOT NULL),
+    CHECK (state <> 'recovery' OR account_id IS NOT NULL OR (
+        recovery_kind IS NOT DISTINCT FROM 'password' AND both_factors_at IS NULL
+        AND staged_login_identifier IS NOT NULL
+    )),
+    CHECK (state <> 'full' OR (
+        full_login_at IS NOT NULL AND last_interaction_at IS NOT NULL
+        AND both_factors_at IS NOT NULL AND last_interaction_at >= full_login_at
+        AND expires_at <= full_login_at + INTERVAL '12 hours'
+    )),
+    CHECK (state = 'full' OR expires_at <= created_at + INTERVAL '5 minutes'),
+    CHECK (state <> 'setup' OR (
+        account_id IS NULL AND staged_login_identifier IS NOT NULL
+        AND staged_password_verifier IS NOT NULL AND staged_user_handle IS NOT NULL
+    ))
+);
+CREATE INDEX authentication_session_expiry ON authentication_session_authority (expires_at);
+CREATE INDEX authentication_session_account ON authentication_session_authority (account_id);
+
+CREATE TABLE authentication_challenge (
+    session_reference UUID PRIMARY KEY
+        REFERENCES authentication_session_authority (session_reference) ON DELETE CASCADE,
+    challenge BYTEA NOT NULL CHECK (octet_length(challenge) = 32),
+    purpose TEXT NOT NULL CHECK (purpose IN (
+        'setup', 'login', 'step-up', 'credential', 'recover-password', 'recover-passkey', 'operator'
+    )),
+    created_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    recovery_code_verifier CHAR(64) CHECK (recovery_code_verifier ~ '^[a-f0-9]{64}$'),
+    CHECK (expires_at > created_at AND expires_at <= created_at + INTERVAL '5 minutes')
+);
+CREATE INDEX authentication_challenge_expiry ON authentication_challenge (expires_at);
+
+CREATE TABLE authentication_operator_ticket (
+    ticket_reference UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    secret_verifier CHAR(64) NOT NULL CHECK (secret_verifier ~ '^[a-f0-9]{64}$'),
+    purpose TEXT NOT NULL CHECK (purpose IN ('setup', 'operator')),
+    target_id UUID NOT NULL,
+    server_instance_id UUID NOT NULL
+        REFERENCES technical_server_installation (server_instance_id),
+    access_mode TEXT NOT NULL CHECK (access_mode IN ('single-user-auth', 'multi-user-auth')),
+    account_id UUID REFERENCES authentication_account (account_id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    claimed_session_reference UUID
+        REFERENCES authentication_session_authority (session_reference) ON DELETE CASCADE,
+    UNIQUE (purpose, target_id),
+    CHECK ((purpose = 'setup' AND account_id IS NULL)
+        OR (purpose = 'operator' AND account_id IS NOT NULL AND target_id = account_id)),
+    CHECK (expires_at > created_at AND expires_at <= created_at + INTERVAL '10 minutes')
+);
+CREATE INDEX authentication_operator_ticket_expiry ON authentication_operator_ticket (expires_at);
+
+CREATE TABLE authentication_recovery_code (
+    account_id UUID NOT NULL REFERENCES authentication_account (account_id) ON DELETE CASCADE,
+    secret_verifier CHAR(64) NOT NULL CHECK (secret_verifier ~ '^[a-f0-9]{64}$'),
+    created_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (account_id, secret_verifier),
+    CHECK (expires_at > created_at AND expires_at <= created_at + INTERVAL '8760 hours')
+);
+CREATE INDEX authentication_recovery_code_expiry ON authentication_recovery_code (expires_at);
+
+-- Protected security events contain only closed codes, trusted UTC and a fresh request reference.
+-- They deliberately have no account/session/source address/credential mapping or arbitrary payload.
+CREATE TABLE authentication_security_event (
+    request_reference UUID PRIMARY KEY,
+    occurred_at TIMESTAMPTZ NOT NULL,
+    event TEXT NOT NULL CHECK (event IN (
+        'setup', 'login', 'recovery', 'step-up', 'credential-change', 'session-revoke', 'logout'
+    )),
+    outcome TEXT NOT NULL CHECK (outcome IN ('succeeded', 'denied', 'unavailable')),
+    reason TEXT NOT NULL CHECK (reason IN (
+        'completed', 'invalid-proof', 'expired', 'precondition', 'capacity', 'unavailable'
+    ))
+);
+CREATE INDEX authentication_security_event_retention ON authentication_security_event (occurred_at);
+
+-- Spring Session JDBC 4.1.1 PostgreSQL layout, with SESSION_ID widened for the selected independent
+-- 32-byte/43-character session generator. PRIMARY_ID remains the framework's non-secret row key.
+-- Attributes are encoded through the dedicated allowlisted converter, not Java object serialization.
+CREATE TABLE spring_session (
+    primary_id CHAR(36) PRIMARY KEY,
+    session_id VARCHAR(43) NOT NULL UNIQUE
+        CHECK (session_id ~ '^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$'),
+    creation_time BIGINT NOT NULL,
+    last_access_time BIGINT NOT NULL,
+    max_inactive_interval INTEGER NOT NULL,
+    expiry_time BIGINT NOT NULL,
+    principal_name VARCHAR(100) CHECK (principal_name IS NULL)
+);
+CREATE INDEX spring_session_expiry ON spring_session (expiry_time);
+CREATE TABLE spring_session_attributes (
+    session_primary_id CHAR(36) NOT NULL REFERENCES spring_session (primary_id) ON DELETE CASCADE,
+    attribute_name VARCHAR(200) NOT NULL,
+    attribute_bytes BYTEA NOT NULL,
+    PRIMARY KEY (session_primary_id, attribute_name)
+);

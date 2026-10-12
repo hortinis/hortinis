@@ -1,0 +1,51 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "RegisterPasskeyRequest.json",
+    "type": "object",
+    "properties": {
+        "id": {
+            "$ref": "WebAuthnCredentialId.json"
+        },
+        "rawId": {
+            "$ref": "WebAuthnCredentialId.json",
+            "description": "Must equal id in canonical encoding; verified by the adapter before cryptographic work."
+        },
+        "type": {
+            "type": "string",
+            "const": "public-key"
+        },
+        "response": {
+            "type": "object",
+            "properties": {
+                "clientDataJSON": {
+                    "$ref": "WebAuthnClientData.json"
+                },
+                "attestationObject": {
+                    "$ref": "WebAuthnAttestationObject.json"
+                }
+            },
+            "required": [
+                "clientDataJSON",
+                "attestationObject"
+            ],
+            "unevaluatedProperties": {
+                "not": {}
+            }
+        },
+        "label": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[^\\u0000]*$",
+            "description": "Optional user label; Unicode scalar text excluding NUL."
+        }
+    },
+    "required": [
+        "id",
+        "rawId",
+        "type",
+        "response"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

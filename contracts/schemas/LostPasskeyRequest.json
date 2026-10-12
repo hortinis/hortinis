@@ -1,0 +1,24 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "LostPasskeyRequest.json",
+    "type": "object",
+    "properties": {
+        "login": {
+            "$ref": "LoginIdentifier.json"
+        },
+        "password": {
+            "$ref": "LoginPassword.json"
+        },
+        "recoveryCode": {
+            "$ref": "EncodedRandomValue.json"
+        }
+    },
+    "required": [
+        "login",
+        "password",
+        "recoveryCode"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

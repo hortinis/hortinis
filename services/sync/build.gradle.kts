@@ -80,10 +80,15 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-jdbc")
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
+    implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("org.springframework.boot:spring-boot-starter-session-jdbc")
+    implementation("org.springframework.security:spring-security-webauthn")
+    implementation("com.password4j:password4j:1.8.4")
 
     runtimeOnly("org.postgresql:postgresql")
 
     testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
+    testImplementation("org.springframework.boot:spring-boot-starter-security-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     add("integrationTestImplementation", "org.springframework.boot:spring-boot-testcontainers")
@@ -111,6 +116,7 @@ val integrationTest =
         testClassesDirs = integrationTestSourceSet.output.classesDirs
         classpath = integrationTestSourceSet.runtimeClasspath
         shouldRunAfter(tasks.test)
+        systemProperty("hortinis.operator.test.classpath", integrationTestSourceSet.runtimeClasspath.asPath)
         useJUnitPlatform()
     }
 

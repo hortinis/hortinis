@@ -1,0 +1,22 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "AuthenticationThrottledError.json",
+    "type": "object",
+    "properties": {
+        "code": {
+            "type": "string",
+            "const": "AUTHENTICATION_THROTTLED"
+        },
+        "message": {
+            "type": "string",
+            "const": "Authentication attempts are temporarily limited."
+        }
+    },
+    "required": [
+        "code",
+        "message"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

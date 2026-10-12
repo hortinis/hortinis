@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.lang.reflect.Modifier;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class SynchronizationAccessContextTest {
@@ -23,6 +24,31 @@ class SynchronizationAccessContextTest {
   }
 
   @Test
+  void authenticatedObservationRequiresNonSecretSessionReferenceAndPositiveEpoch() {
+    ServerInstanceId instance = new ServerInstanceId(ID);
+    SynchronizationScopeId scope = new SynchronizationScopeId(ID);
+    AccountId account = new AccountId(ID);
+    assertThatThrownBy(
+            () ->
+                SynchronizationAccessContext.authenticated(
+                    instance, scope, ServerAccessMode.SINGLE_USER_AUTH, account, null, 1))
+        .isInstanceOf(NullPointerException.class);
+    for (long epoch : new long[] {0, -1}) {
+      assertThatThrownBy(
+              () ->
+                  SynchronizationAccessContext.authenticated(
+                      instance,
+                      scope,
+                      ServerAccessMode.SINGLE_USER_AUTH,
+                      account,
+                      UUID.randomUUID(),
+                      epoch))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessage("The access authority is invalid.");
+    }
+  }
+
+  @Test
   void rejectsIncompleteAndInconsistentContextsWithoutIdentityDiagnostics() {
     ServerInstanceId instance = new ServerInstanceId(ID);
     SynchronizationScopeId scope = new SynchronizationScopeId(ID);
@@ -32,22 +58,28 @@ class SynchronizationAccessContextTest {
     assertThatThrownBy(
             () ->
                 SynchronizationAccessContext.authenticated(
-                    instance, scope, ServerAccessMode.SINGLE_USER_NO_AUTH, account))
+                    instance,
+                    scope,
+                    ServerAccessMode.SINGLE_USER_NO_AUTH,
+                    account,
+                    UUID.randomUUID(),
+                    1))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("The access authority is invalid.");
     assertThatThrownBy(
             () ->
                 SynchronizationAccessContext.authenticated(
-                    instance, scope, ServerAccessMode.SINGLE_USER_AUTH, null))
+                    instance, scope, ServerAccessMode.SINGLE_USER_AUTH, null, UUID.randomUUID(), 1))
         .isInstanceOf(NullPointerException.class);
     assertThat(SynchronizationAccessContext.configured(instance, scope).authority())
         .isInstanceOf(SynchronizationAccessContext.ConfiguredAuthority.class);
     SynchronizationAccessContext context =
         SynchronizationAccessContext.authenticated(
-            instance, scope, ServerAccessMode.MULTI_USER_AUTH, account);
+            instance, scope, ServerAccessMode.MULTI_USER_AUTH, account, UUID.randomUUID(), 1);
     assertThat(context.synchronizationScopeId()).isEqualTo(scope);
     assertThat(context.serverInstanceId()).isEqualTo(instance);
     assertThat(context.toString()).doesNotContain(ID);
+    assertThat(context.authority().toString()).doesNotContain(ID);
     assertThat(instance.toString()).doesNotContain(ID);
   }
 }

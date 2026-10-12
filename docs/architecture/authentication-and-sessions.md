@@ -26,7 +26,7 @@ never reused. Operator powers remain separate from gardener access; there is no 
 
 WebAuthn uses a random opaque user handle distinct from the login name, and protected credential ID,
 public key, verified algorithm, sign counter/backup flags and optional user label of at most 64 Unicode
-scalar values. Register at most eight credentials per account. Use `attestation=none`; discard unnecessary
+scalar values excluding NUL. Register at most eight credentials per account. Use `attestation=none`; discard unnecessary
 attestation certificates, authenticator model/AAGUID and transport metadata after validation unless
 an independently reviewed purpose requires them. Never collect biometric samples, PINs or private
 keys. Use the established verifier for signatures, RP hash, exact origin, challenge, presence and
@@ -34,6 +34,15 @@ verification. Require verification in options and validate its flag in the respo
 with a zero/non-increasing counter needs the library's supported backup-aware policy; do not invent
 universal counter rules or accept an invalid signature as recovery. Algorithm acceptance is a closed
 set supported by the pinned verifier, tested before activation; unsupported algorithms deny.
+
+The S9 adapter profile selects ES256 with P-256, RS256 with RSA keys of 2,048–4,096 bits, and
+EdDSA with Ed25519. Rebuild the verified public COSE key without optional key ID, operations or IV
+metadata; reject private material. Use the pinned library's counter-handler extension only for an
+already verified backup-eligible credential: preserve the highest observed counter while accepting
+verified resets/non-increasing counters from synced authenticators. Keep the library's strict counter
+rule for non-backup-eligible credentials (including its zero/zero allowance). The library must first
+verify signature, UP/UV and unchanged backup eligibility. One-use server challenges remain mandatory
+for every proof, irrespective of counter behavior; adapter-only tests do not establish that lifecycle.
 
 ## Numeric policy
 

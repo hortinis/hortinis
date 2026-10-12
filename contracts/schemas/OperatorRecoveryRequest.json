@@ -1,0 +1,20 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "OperatorRecoveryRequest.json",
+    "type": "object",
+    "properties": {
+        "ticket": {
+            "$ref": "EncodedRandomValue.json"
+        },
+        "newPassword": {
+            "$ref": "NewPassword.json"
+        }
+    },
+    "required": [
+        "ticket",
+        "newPassword"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}

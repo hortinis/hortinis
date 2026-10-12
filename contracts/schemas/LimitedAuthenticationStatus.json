@@ -1,0 +1,29 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "LimitedAuthenticationStatus.json",
+    "type": "object",
+    "properties": {
+        "state": {
+            "anyOf": [
+                {
+                    "type": "string",
+                    "const": "password"
+                },
+                {
+                    "type": "string",
+                    "const": "setup"
+                },
+                {
+                    "type": "string",
+                    "const": "recovery"
+                }
+            ]
+        }
+    },
+    "required": [
+        "state"
+    ],
+    "unevaluatedProperties": {
+        "not": {}
+    }
+}
