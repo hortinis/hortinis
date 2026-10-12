@@ -1,10 +1,8 @@
 import { Component, inject } from '@angular/core';
-import { Configuration } from './configuration';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
-import { CreateGarden } from '../features/garden/create-garden/create-garden';
 import { Router } from '@angular/router';
+import { CreateGardenHandler } from '../features/garden/create-garden/create-garden-handler';
 
 @Component({
   imports: [ReactiveFormsModule, MatButton],
@@ -13,8 +11,7 @@ import { Router } from '@angular/router';
   templateUrl: './base-configuration.html',
 })
 export class BaseConfiguration {
-  private readonly configuration = inject(Configuration);
-  private readonly dialog = inject(MatDialog);
+  private readonly createGardenHandler = inject(CreateGardenHandler);
   private readonly router = inject(Router);
 
   protected readonly gardenForm = new FormGroup({
@@ -26,19 +23,10 @@ export class BaseConfiguration {
     address: new FormControl<string>('http://hortinis.test', Validators.required),
   });
 
-  protected newGarden(): void {
-    const dialogRef = this.dialog.open(CreateGarden, {
-      panelClass: 'hortinis-dialog',
-      data: {
-        initialConfiguration: true,
-      },
-    });
-
-    dialogRef.afterClosed().subscribe(async (result) => {
-      console.log('The dialog was closed');
-      if (result?.type === 'success') {
-        await this.router.navigate(['/']);
-      }
-    });
+  protected async newGarden(): Promise<void> {
+    const result = await this.createGardenHandler.createGarden(true);
+    if (result) {
+      await this.router.navigate(['/']);
+    }
   }
 }

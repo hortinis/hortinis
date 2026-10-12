@@ -1,1 +1,20 @@
 <p>garden works!</p>
+
+@if (initGardens.isLoading()) {
+  <p>Jardins en cours de chargement</p>
+} @else if (initGardens.error()) {
+  <p>Erreur pendant le chargement des jardins</p>
+} @else {
+  <ul>
+    @for (garden of initGardens.value(); track garden.id) {
+      <li>
+        <span>{{ garden.name }}</span>
+        <button matIconButton (click)="deleteGarden(garden)">
+          <mat-icon>delete</mat-icon>
+        </button>
+      </li>
+    }
+  </ul>
+}
+
+<button (click)="createGarden()">Créer un nouveau jardin</button>
