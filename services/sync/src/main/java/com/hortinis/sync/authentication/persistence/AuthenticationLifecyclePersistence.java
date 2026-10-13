@@ -1,8 +1,6 @@
 package com.hortinis.sync.authentication.persistence;
 
 import com.hortinis.sync.authentication.AuthenticationSession;
-import com.hortinis.sync.authentication.SessionAttributeCodec;
-import com.hortinis.sync.authentication.SessionAuthorityReference;
 import com.hortinis.sync.configuration.SynchronizationPersistenceEnabled;
 import java.sql.Timestamp;
 import java.time.Clock;
@@ -10,7 +8,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.core.convert.ConversionService;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -26,13 +23,14 @@ public class AuthenticationLifecyclePersistence {
   private final JdbcClient jdbc;
   private final Clock clock;
   private final TransactionTemplate transactions;
-  private final ConversionService attributes = SessionAttributeCodec.conversionService();
+  private final AuthenticationSessionRemovalPersistence removal;
 
   /** Uses the same manager as protected publication, with a separate transaction per account. */
   public AuthenticationLifecyclePersistence(
       JdbcClient jdbc, Clock clock, PlatformTransactionManager transactionManager) {
     this.jdbc = jdbc;
     this.clock = clock;
+    removal = new AuthenticationSessionRemovalPersistence(jdbc);
     transactions = new TransactionTemplate(transactionManager);
   }
 
@@ -138,7 +136,7 @@ public class AuthenticationLifecyclePersistence {
                     && parent.epoch() == account.orElseThrow().epoch()
                     && java.util.Objects.equals(parent.account(), before.account());
         if (!owned || !timeIsCurrent(parent, now)) {
-          deleteParent(parent.reference());
+          removal.remove(parent.reference());
         } else {
           jdbc.sql(
                   "DELETE FROM authentication_challenge WHERE session_reference = ? "
@@ -185,7 +183,7 @@ public class AuthenticationLifecyclePersistence {
     Instant now = clock.instant();
     for (AuthenticationSession parent : parents) {
       if (!timeIsCurrent(parent, now)) {
-        deleteParent(parent.reference());
+        removal.remove(parent.reference());
       }
     }
     jdbc.sql(
@@ -228,7 +226,7 @@ public class AuthenticationLifecyclePersistence {
           || !AUTH_MODE.equals(account.mode())
           || parent.epoch() != account.epoch()
           || !timeIsCurrent(parent, now)) {
-        deleteParent(parent.reference());
+        removal.remove(parent.reference());
       }
     }
     jdbc.sql(
@@ -271,19 +269,6 @@ public class AuthenticationLifecyclePersistence {
   private static boolean timeIsCurrent(AuthenticationSession parent, Instant now) {
     return parent.isUnexpired(now)
         && (!"full".equals(parent.state()) || parent.hasCurrentFactors(now));
-  }
-
-  private void deleteParent(UUID reference) {
-    byte[] encoded = attributes.convert(new SessionAuthorityReference(reference), byte[].class);
-    jdbc.sql(
-            "DELETE FROM spring_session WHERE primary_id IN "
-                + "(SELECT session_primary_id FROM spring_session_attributes "
-                + "WHERE attribute_bytes = ?)")
-        .param(encoded)
-        .update();
-    jdbc.sql("DELETE FROM authentication_session_authority WHERE session_reference = ?")
-        .param(reference)
-        .update();
   }
 
   private record Installation(UUID instance, String mode) {

@@ -2,6 +2,7 @@ package com.hortinis.sync.authentication.persistence;
 
 import com.hortinis.sync.authentication.AuthenticationLifetime;
 import com.hortinis.sync.authentication.AuthenticationRequiredException;
+import com.hortinis.sync.authentication.AuthenticationSession;
 import com.hortinis.sync.configuration.SynchronizationPersistenceEnabled;
 import java.time.Clock;
 import java.time.Instant;
@@ -100,33 +101,22 @@ public class CurrentAuthenticationAuthorityPersistence {
         || !SINGLE_USER_AUTH.equals(mode)) {
       throw new AuthenticationRequiredException();
     }
-    SessionState session =
+    AuthenticationSession session =
         jdbc.sql(
-                "SELECT state, account_id, authority_epoch, full_login_at, "
-                    + "last_interaction_at, expires_at, created_at, both_factors_at "
-                    + "FROM authentication_session_authority "
+                "SELECT "
+                    + AuthenticationSessionRows.COLUMNS
+                    + " FROM authentication_session_authority "
                     + "WHERE session_reference = ? FOR SHARE")
             .param(sessionReference)
-            .query(
-                (row, number) ->
-                    new SessionState(
-                        row.getString(1),
-                        row.getObject(2, UUID.class),
-                        row.getLong(3),
-                        row.getTimestamp(4) == null ? null : row.getTimestamp(4).toInstant(),
-                        row.getTimestamp(5) == null ? null : row.getTimestamp(5).toInstant(),
-                        row.getTimestamp(6).toInstant(),
-                        row.getTimestamp(7).toInstant(),
-                        row.getTimestamp(8) == null ? null : row.getTimestamp(8).toInstant()))
+            .query(AuthenticationSessionRows::read)
             .optional()
             .orElseThrow(AuthenticationRequiredException::new);
     Instant now = clock.instant();
     if (!FULL.equals(session.state())
         || !accountId.equals(session.account())
         || session.epoch() != epoch
-        || !AuthenticationLifetime.isUnexpired(session.createdAt(), session.expiresAt(), now)
-        || !AuthenticationLifetime.fullIsCurrent(
-            session.loginAt(), session.interactionAt(), session.bothFactorsAt(), now)) {
+        || !session.isUnexpired(now)
+        || !session.hasCurrentFactors(now)) {
       throw new AuthenticationRequiredException();
     }
     String committedMode =
@@ -170,21 +160,6 @@ public class CurrentAuthenticationAuthorityPersistence {
     @Override
     public String toString() {
       return "AccountState[redacted]";
-    }
-  }
-
-  private record SessionState(
-      String state,
-      UUID account,
-      long epoch,
-      Instant loginAt,
-      Instant interactionAt,
-      Instant expiresAt,
-      Instant createdAt,
-      Instant bothFactorsAt) {
-    @Override
-    public String toString() {
-      return "SessionState[redacted]";
     }
   }
 }
