@@ -6,21 +6,9 @@ import com.hortinis.sync.authentication.http.AuthenticationLifecycleFilter;
 import com.hortinis.sync.authentication.http.AuthenticationProofBoundary;
 import com.hortinis.sync.authentication.http.HeaderOnlyCsrfTokenRequestHandler;
 import com.hortinis.sync.authentication.http.RandomSessionCsrfTokenRepository;
-import com.hortinis.sync.authentication.persistence.AuthenticationAccountPersistence;
-import com.hortinis.sync.authentication.persistence.AuthenticationAccountSecurityPersistence;
-import com.hortinis.sync.authentication.persistence.AuthenticationChallengePersistence;
 import com.hortinis.sync.authentication.persistence.AuthenticationJdbcSessions;
 import com.hortinis.sync.authentication.persistence.AuthenticationLifecyclePersistence;
-import com.hortinis.sync.authentication.persistence.AuthenticationOperatorRecoveryPersistence;
 import com.hortinis.sync.authentication.persistence.AuthenticationOperatorTicketPersistence;
-import com.hortinis.sync.authentication.persistence.AuthenticationRecoveryCodePersistence;
-import com.hortinis.sync.authentication.persistence.AuthenticationSecurityEventPersistence;
-import com.hortinis.sync.authentication.persistence.AuthenticationSessionAdmissionPersistence;
-import com.hortinis.sync.authentication.persistence.AuthenticationSessionManagementPersistence;
-import com.hortinis.sync.authentication.persistence.AuthenticationSessionPublicationPersistence;
-import com.hortinis.sync.authentication.persistence.AuthenticationSessionRemovalPersistence;
-import com.hortinis.sync.authentication.persistence.AuthenticationSetupPersistence;
-import com.hortinis.sync.authentication.persistence.CurrentAuthenticationAuthorityPersistence;
 import java.net.URI;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -28,6 +16,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
@@ -45,16 +34,18 @@ import org.springframework.transaction.PlatformTransactionManager;
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(prefix = "hortinis.access", name = "mode", havingValue = "single-user-auth")
 @EnableScheduling
+@Import({
+  AuthenticationPublication.class,
+  AuthenticationSetupService.class,
+  AuthenticationLoginService.class,
+  AuthenticationCredentialService.class,
+  AuthenticationRecoveryService.class,
+  AuthenticationOperatorRecoveryService.class,
+  AuthenticationSessionService.class,
+  AuthenticationObservationService.class,
+  AuthenticationProofBoundary.class
+})
 public class AuthenticationRuntimeConfiguration {
-
-  /** Supplies the shared transaction-published security event boundary. */
-  @Bean
-  public AuthenticationPublication authenticationPublication(
-      PlatformTransactionManager transactions,
-      AuthenticationSecurityEventPersistence events,
-      Clock clock) {
-    return new AuthenticationPublication(transactions, events, clock);
-  }
 
   /** Constructs WebAuthn verification for the fixed operator-configured HTTPS origin. */
   @Bean
@@ -62,120 +53,6 @@ public class AuthenticationRuntimeConfiguration {
       Environment environment, CryptoWorkLimiter limiter) {
     String origin = publicOrigin(environment);
     return new AuthenticationPasskeys(origin, limiter);
-  }
-
-  /** Publishes a controlled first-owner ceremony through the selected stores and factors. */
-  @Bean
-  public AuthenticationSetupService authenticationSetupService(
-      AuthenticationPublication publication,
-      AuthenticationSetupPersistence setup,
-      AuthenticationSessionPublicationPersistence sessions,
-      AuthenticationChallengePersistence challenges,
-      PasswordPolicy policy,
-      PasswordVerifier passwords,
-      AuthenticationPasskeys passkeys) {
-    return new AuthenticationSetupService(
-        publication, setup, sessions, challenges, policy, passwords, passkeys);
-  }
-
-  /** Publishes normal password-plus-passkey sessions without framework login defaults. */
-  @Bean
-  public AuthenticationLoginService authenticationLoginService(
-      AuthenticationPublication publication,
-      AuthenticationAccountPersistence accounts,
-      AuthenticationSessionPublicationPersistence sessions,
-      AuthenticationChallengePersistence challenges,
-      PasswordVerifier passwords,
-      AuthenticationPasskeys passkeys) {
-    return new AuthenticationLoginService(
-        publication, accounts, sessions, challenges, passwords, passkeys);
-  }
-
-  /** Builds account credential management and its recent-proof authorization boundary. */
-  @Bean
-  public AuthenticationCredentialService authenticationCredentialService(
-      AuthenticationPublication publication,
-      AuthenticationAccountPersistence accounts,
-      AuthenticationSessionPublicationPersistence sessions,
-      AuthenticationChallengePersistence challenges,
-      AuthenticationAccountSecurityPersistence security,
-      AuthenticationRecoveryCodePersistence codes,
-      CurrentAuthenticationAuthorityPersistence authority,
-      PasswordPolicy policy,
-      PasswordVerifier passwords,
-      AuthenticationPasskeys passkeys) {
-    return new AuthenticationCredentialService(
-        publication,
-        accounts,
-        sessions,
-        challenges,
-        security,
-        codes,
-        authority,
-        policy,
-        passwords,
-        passkeys);
-  }
-
-  /** Builds two-proof account recovery and its restricted intermediate authority. */
-  @Bean
-  public AuthenticationRecoveryService authenticationRecoveryService(
-      AuthenticationPublication publication,
-      AuthenticationAccountPersistence accounts,
-      AuthenticationSessionPublicationPersistence sessions,
-      AuthenticationChallengePersistence challenges,
-      AuthenticationRecoveryCodePersistence codes,
-      AuthenticationAccountSecurityPersistence security,
-      PasswordPolicy policy,
-      PasswordVerifier passwords,
-      AuthenticationPasskeys passkeys) {
-    return new AuthenticationRecoveryService(
-        publication, accounts, sessions, challenges, codes, security, policy, passwords, passkeys);
-  }
-
-  /** Builds exceptional host-authorized recovery without creating normal operator sessions. */
-  @Bean
-  public AuthenticationOperatorRecoveryService authenticationOperatorRecoveryService(
-      AuthenticationPublication publication,
-      AuthenticationOperatorRecoveryPersistence recovery,
-      AuthenticationAccountPersistence accounts,
-      AuthenticationSessionPublicationPersistence sessions,
-      AuthenticationChallengePersistence challenges,
-      PasswordPolicy policy,
-      PasswordVerifier passwords,
-      AuthenticationPasskeys passkeys) {
-    return new AuthenticationOperatorRecoveryService(
-        publication, recovery, accounts, sessions, challenges, policy, passwords, passkeys);
-  }
-
-  /** Coordinates ordinary session listing, revocation and explicit sign-out. */
-  @Bean
-  public AuthenticationSessionService authenticationSessionService(
-      AuthenticationPublication publication,
-      AuthenticationSessionPublicationPersistence sessions,
-      AuthenticationSessionManagementPersistence management,
-      AuthenticationSessionRemovalPersistence removal) {
-    return new AuthenticationSessionService(publication, sessions, management, removal);
-  }
-
-  /** Supplies bounded, non-renewing public and authenticated status observations. */
-  @Bean
-  public AuthenticationObservationService authenticationObservationService(
-      AuthenticationPublication publication,
-      AuthenticationSessionAdmissionPersistence admission,
-      AuthenticationSessionPublicationPersistence sessions,
-      AuthenticationAccountPersistence accounts) {
-    return new AuthenticationObservationService(publication, admission, sessions, accounts);
-  }
-
-  /** Ensures proof challenges and minimized security events publish atomically. */
-  @Bean
-  public AuthenticationProofBoundary authenticationProofBoundary(
-      AuthenticationChallengePersistence challenges,
-      AuthenticationAttemptLimiter attempts,
-      AuthenticationPublication publication,
-      AuthenticationSecurityEventPersistence events) {
-    return new AuthenticationProofBoundary(challenges, attempts, publication, events);
   }
 
   /** Restricts ticket storage to the existing operator-owned directory. */
