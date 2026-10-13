@@ -97,9 +97,7 @@ public final class AuthenticationLoginService {
           }
           var account = accounts.findAccount(snapshot.account());
           var bound = passkeys.account(account, accounts.credentials(account.account()));
-          var proof =
-              bound.verifyAssertion(
-                  passkeys.assertion(account.login(), bound, receipt, credential));
+          var proof = bound.verifyAssertion(passkeys.assertion(bound, receipt, credential));
           return publication.complete(
               event,
               () -> {
@@ -124,7 +122,7 @@ public final class AuthenticationLoginService {
       AuthenticationAccountPersistence.AccountSnapshot observed,
       boolean stepUp) {
     var bound = passkeys.account(observed, accounts.credentials(observed.account()));
-    var options = passkeys.assertionOptions(observed.login(), bound, null);
+    var options = bound.assertionOptions(null);
     return publication.mutate(
         () -> {
           var parent =

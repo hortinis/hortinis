@@ -95,9 +95,7 @@ public final class AuthenticationRecoveryService {
                   .findLogin(snapshot.stagedLogin())
                   .orElseThrow(AuthenticationFailedException::new);
           var bound = passkeys.account(account, accounts.credentials(account.account()));
-          var proof =
-              bound.verifyAssertion(
-                  passkeys.assertion(account.login(), bound, receipt, credential));
+          var proof = bound.verifyAssertion(passkeys.assertion(bound, receipt, credential));
           return publication.complete(
               Event.RECOVERY,
               () -> {
@@ -207,7 +205,7 @@ public final class AuthenticationRecoveryService {
                   var account = accounts.findAccount(parent.account());
                   var reference = sessions.replacement(parent, lostCredential, transport);
                   var bound = passkeys.account(account, accounts.credentials(account.account()));
-                  var options = passkeys.creation(account.login(), bound, null);
+                  var options = bound.creationOptions(null);
                   challenges.issue(
                       reference,
                       AuthenticationChallengePurpose.RECOVER_PASSKEY,
@@ -229,9 +227,7 @@ public final class AuthenticationRecoveryService {
           var snapshot = sessions.observe(observation);
           var account = accounts.findAccount(snapshot.account());
           var bound = passkeys.account(account, accounts.credentials(account.account()));
-          var proof =
-              bound.verifyRegistration(
-                  passkeys.registration(account.login(), bound, receipt, credential));
+          var proof = bound.verifyRegistration(passkeys.registration(bound, receipt, credential));
           return publication.complete(
               Event.RECOVERY,
               () -> {

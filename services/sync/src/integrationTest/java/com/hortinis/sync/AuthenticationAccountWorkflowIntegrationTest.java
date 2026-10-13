@@ -557,9 +557,9 @@ class AuthenticationAccountWorkflowIntegrationTest {
     var account = accounts.findLogin(LOGIN).orElseThrow();
     var bound = passkeys.account(account, accounts.credentials(account.account()));
     final var firstProof =
-        bound.verifyAssertion(passkeys.assertion(LOGIN, bound, first.receipt(), first.proof()));
+        bound.verifyAssertion(passkeys.assertion(bound, first.receipt(), first.proof()));
     var secondProof =
-        bound.verifyAssertion(passkeys.assertion(LOGIN, bound, second.receipt(), second.proof()));
+        bound.verifyAssertion(passkeys.assertion(bound, second.receipt(), second.proof()));
     publishVerified(first, account, firstProof, false);
     var denied = publishVerified(second, account, secondProof, true);
     assertThat(denied.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
@@ -2252,7 +2252,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
     var parent = sessions.observe(observation(setupCookie));
     byte[] nonce =
         jdbc.queryForObject("SELECT challenge FROM authentication_challenge", byte[].class);
-    var options = passkeys.creation(LOGIN, passkeys.setup(parent), nonce);
+    var options = passkeys.setup(parent).creationOptions(nonce);
     assertThat(
             JsonMapper.builder()
                 .build()
@@ -2305,8 +2305,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
     var account = accounts.findLogin(LOGIN).orElseThrow();
     var bound = passkeys.account(account, accounts.credentials(account.account()));
     nonce = jdbc.queryForObject("SELECT challenge FROM authentication_challenge", byte[].class);
-    var assertion =
-        key.assertion(passkeys.assertionOptions(LOGIN, bound, nonce), account.userHandle(), 1);
+    var assertion = key.assertion(bound.assertionOptions(nonce), account.userHandle(), 1);
     var response = assertion.getResponse();
     var full =
         httpPost(

@@ -4,7 +4,6 @@ import com.hortinis.sync.authentication.persistence.AuthenticationAccountPersist
 import com.hortinis.sync.authentication.persistence.AuthenticationChallengePersistence;
 import java.util.List;
 import java.util.Set;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.web.webauthn.api.AuthenticatorAssertionResponse;
 import org.springframework.security.web.webauthn.api.Bytes;
 import org.springframework.security.web.webauthn.api.CredentialRecord;
@@ -42,7 +41,7 @@ public final class AuthenticationPasskeys {
    */
   public PublicKeyCredentialRequestOptions recoveryOptions(String requestedLogin) {
     byte[] handle = java.util.Base64.getUrlDecoder().decode(AuthenticationSecrets.randomValue());
-    return assertionOptions(requestedLogin, bound(requestedLogin, handle, List.of()), null);
+    return bound(requestedLogin, handle, List.of()).assertionOptions(null);
   }
 
   /** Setup has no account, registered key or full authentication identity yet. */
@@ -80,57 +79,15 @@ public final class AuthenticationPasskeys {
     return bound(account.login(), account.userHandle(), credentials);
   }
 
-  /**
-   * Recreates server policy options; only the consumed server nonce is reused on proof requests.
-   */
-  public PublicKeyCredentialCreationOptions creation(
-      String login, BoundWebAuthnOperations bound, byte[] nonce) {
-    var base =
-        bound.createPublicKeyCredentialCreationOptions(
-            () -> UsernamePasswordAuthenticationToken.authenticated(login, null, List.of()));
-    if (nonce == null) {
-      return base;
-    }
-    return PublicKeyCredentialCreationOptions.builder()
-        .rp(base.getRp())
-        .user(base.getUser())
-        .challenge(new Bytes(nonce.clone()))
-        .pubKeyCredParams(base.getPubKeyCredParams())
-        .timeout(base.getTimeout())
-        .excludeCredentials(base.getExcludeCredentials())
-        .authenticatorSelection(base.getAuthenticatorSelection())
-        .attestation(base.getAttestation())
-        .build();
-  }
-
-  /** Reconstructs discoverable assertion policy without trusting request-supplied options. */
-  public PublicKeyCredentialRequestOptions assertionOptions(
-      String login, BoundWebAuthnOperations bound, byte[] nonce) {
-    var base =
-        bound.createCredentialRequestOptions(
-            () -> UsernamePasswordAuthenticationToken.authenticated(login, null, List.of()));
-    if (nonce == null) {
-      return base;
-    }
-    return PublicKeyCredentialRequestOptions.builder()
-        .challenge(new Bytes(nonce.clone()))
-        .rpId(base.getRpId())
-        .timeout(base.getTimeout())
-        .allowCredentials(List.of())
-        .userVerification(base.getUserVerification())
-        .build();
-  }
-
   /** Registration proof options are derived solely from the trusted setup and consumed receipt. */
   public RelyingPartyRegistrationRequest registration(
-      String login,
       BoundWebAuthnOperations bound,
       AuthenticationChallengePersistence.ConsumedChallenge receipt,
       RelyingPartyPublicKey key) {
     if (receipt == null) {
       throw new AuthenticationFailedException();
     }
-    var options = creation(login, bound, receipt.challenge());
+    var options = bound.creationOptions(receipt.challenge());
     return new RelyingPartyRegistrationRequest() {
       @Override
       public PublicKeyCredentialCreationOptions getCreationOptions() {
@@ -146,7 +103,6 @@ public final class AuthenticationPasskeys {
 
   /** Assertion proof options derive solely from current ownership and the consumed server nonce. */
   public RelyingPartyAuthenticationRequest assertion(
-      String login,
       BoundWebAuthnOperations bound,
       AuthenticationChallengePersistence.ConsumedChallenge receipt,
       PublicKeyCredential<AuthenticatorAssertionResponse> credential) {
@@ -154,7 +110,7 @@ public final class AuthenticationPasskeys {
       throw new AuthenticationFailedException();
     }
     return new RelyingPartyAuthenticationRequest(
-        assertionOptions(login, bound, receipt.challenge()), credential);
+        bound.assertionOptions(receipt.challenge()), credential);
   }
 
   private BoundWebAuthnOperations bound(
@@ -165,13 +121,6 @@ public final class AuthenticationPasskeys {
             .name(login)
             .displayName("Hortinis account")
             .build();
-    return new BoundWebAuthnOperations(
-        publicOrigin,
-        user,
-        credentials,
-        ignored -> {
-          throw new IllegalStateException("Assertion publication requires a current transaction.");
-        },
-        work);
+    return new BoundWebAuthnOperations(publicOrigin, user, credentials, work);
   }
 }

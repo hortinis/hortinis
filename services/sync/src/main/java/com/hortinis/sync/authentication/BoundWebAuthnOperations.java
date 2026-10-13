@@ -37,8 +37,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Consumer;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.web.webauthn.api.AttestationConveyancePreference;
 import org.springframework.security.web.webauthn.api.AuthenticatorAttestationResponse;
 import org.springframework.security.web.webauthn.api.AuthenticatorSelectionCriteria;
@@ -56,11 +54,8 @@ import org.springframework.security.web.webauthn.api.PublicKeyCredentialType;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialUserEntity;
 import org.springframework.security.web.webauthn.api.ResidentKeyRequirement;
 import org.springframework.security.web.webauthn.api.UserVerificationRequirement;
-import org.springframework.security.web.webauthn.management.PublicKeyCredentialCreationOptionsRequest;
-import org.springframework.security.web.webauthn.management.PublicKeyCredentialRequestOptionsRequest;
 import org.springframework.security.web.webauthn.management.RelyingPartyAuthenticationRequest;
 import org.springframework.security.web.webauthn.management.RelyingPartyRegistrationRequest;
-import org.springframework.security.web.webauthn.management.WebAuthnRelyingPartyOperations;
 import tools.jackson.core.StreamReadConstraints;
 import tools.jackson.core.StreamReadFeature;
 import tools.jackson.core.json.JsonFactory;
@@ -71,7 +66,7 @@ import tools.jackson.dataformat.cbor.CBORMapper;
 /**
  * Per-ceremony Spring adapter bound to one trusted account snapshot and consumed server challenge.
  */
-public final class BoundWebAuthnOperations implements WebAuthnRelyingPartyOperations {
+public final class BoundWebAuthnOperations {
   private static final int RANDOM_BYTES = 32;
   private static final int MAX_CREDENTIAL_BYTES = 1536;
   private static final int MAX_CLIENT_DATA_BYTES = 3072;
@@ -85,7 +80,6 @@ public final class BoundWebAuthnOperations implements WebAuthnRelyingPartyOperat
   private final PublicKeyCredentialRpEntity rp;
   private final PublicKeyCredentialUserEntity user;
   private final List<CredentialRecord> credentials;
-  private final Consumer<CredentialRecord> verifiedAssertion;
   private final CryptoWorkLimiter work;
   private final ObjectConverter converter;
   private final WebAuthnManager verifier;
@@ -95,7 +89,6 @@ public final class BoundWebAuthnOperations implements WebAuthnRelyingPartyOperat
       String publicOrigin,
       PublicKeyCredentialUserEntity expectedUser,
       List<CredentialRecord> currentCredentials,
-      Consumer<CredentialRecord> verifiedAssertion,
       CryptoWorkLimiter work) {
     URI configured = requireOrigin(publicOrigin);
     origin = configured.toASCIIString();
@@ -116,7 +109,6 @@ public final class BoundWebAuthnOperations implements WebAuthnRelyingPartyOperat
         != credentials.size()) {
       throw new IllegalArgumentException("Invalid trusted passkey ceremony.");
     }
-    this.verifiedAssertion = Objects.requireNonNull(verifiedAssertion);
     this.work = Objects.requireNonNull(work);
     StreamReadConstraints jsonBounds =
         StreamReadConstraints.builder()
@@ -162,10 +154,8 @@ public final class BoundWebAuthnOperations implements WebAuthnRelyingPartyOperat
             });
   }
 
-  @Override
-  public PublicKeyCredentialCreationOptions createPublicKeyCredentialCreationOptions(
-      PublicKeyCredentialCreationOptionsRequest request) {
-    requireExpectedAuthentication(request.getAuthentication());
+  /** Builds fixed registration policy using a new or consumed server-owned challenge. */
+  public PublicKeyCredentialCreationOptions creationOptions(byte[] nonce) {
     var descriptors =
         credentials.stream()
             .map(
@@ -179,7 +169,7 @@ public final class BoundWebAuthnOperations implements WebAuthnRelyingPartyOperat
     return PublicKeyCredentialCreationOptions.builder()
         .rp(rp)
         .user(user)
-        .challenge(Bytes.random())
+        .challenge(challenge(nonce))
         .pubKeyCredParams(
             org.springframework.security.web.webauthn.api.PublicKeyCredentialParameters.ES256,
             org.springframework.security.web.webauthn.api.PublicKeyCredentialParameters.RS256,
@@ -195,22 +185,15 @@ public final class BoundWebAuthnOperations implements WebAuthnRelyingPartyOperat
         .build();
   }
 
-  @Override
-  public PublicKeyCredentialRequestOptions createCredentialRequestOptions(
-      PublicKeyCredentialRequestOptionsRequest request) {
-    requireExpectedAuthentication(request.getAuthentication());
+  /** Builds discoverable assertion policy for the account already bound to this adapter. */
+  public PublicKeyCredentialRequestOptions assertionOptions(byte[] nonce) {
     return PublicKeyCredentialRequestOptions.builder()
-        .challenge(Bytes.random())
+        .challenge(challenge(nonce))
         .rpId(rp.getId())
         .timeout(TIMEOUT)
         .allowCredentials(List.of())
         .userVerification(UserVerificationRequirement.REQUIRED)
         .build();
-  }
-
-  @Override
-  public CredentialRecord registerCredential(RelyingPartyRegistrationRequest request) {
-    return verifyRegistration(request).credential();
   }
 
   /** Verifies registration without granting account/session authority or publishing any record. */
@@ -306,13 +289,6 @@ public final class BoundWebAuthnOperations implements WebAuthnRelyingPartyOperat
     }
   }
 
-  @Override
-  public PublicKeyCredentialUserEntity authenticate(RelyingPartyAuthenticationRequest request) {
-    VerifiedCredential proof = verifyAssertion(request);
-    verifiedAssertion.accept(proof.credential());
-    return user;
-  }
-
   /** Returns a verified assertion; current-state publication is a separate locked workflow. */
   public VerifiedCredential verifyAssertion(RelyingPartyAuthenticationRequest request) {
     var options = request.getRequestOptions();
@@ -406,14 +382,6 @@ public final class BoundWebAuthnOperations implements WebAuthnRelyingPartyOperat
         });
   }
 
-  private void requireExpectedAuthentication(Authentication authentication) {
-    if (authentication == null
-        || !authentication.isAuthenticated()
-        || !user.getName().equals(authentication.getName())) {
-      throw new AuthenticationFailedException();
-    }
-  }
-
   private void requireOwnedCredential(CredentialRecord credential) {
     requireBytes(credential.getUserEntityUserId(), RANDOM_BYTES, RANDOM_BYTES);
     requireBytes(credential.getCredentialId(), 1, MAX_CREDENTIAL_BYTES);
@@ -461,6 +429,12 @@ public final class BoundWebAuthnOperations implements WebAuthnRelyingPartyOperat
     if (bytes == null || bytes.getBytes().length < minimum || bytes.getBytes().length > maximum) {
       throw new AuthenticationFailedException();
     }
+  }
+
+  private static Bytes challenge(byte[] nonce) {
+    Bytes value = nonce == null ? Bytes.random() : new Bytes(nonce.clone());
+    requireBytes(value, RANDOM_BYTES, RANDOM_BYTES);
+    return value;
   }
 
   private static Bytes copy(Bytes bytes) {

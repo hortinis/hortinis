@@ -56,7 +56,7 @@ public final class AuthenticationOperatorRecoveryService {
               () -> {
                 var reference = recovery.begin(transport, account, ticket, hash);
                 var bound = passkeys.account(account, accounts.credentials(account.account()));
-                var options = passkeys.creation(account.login(), bound, null);
+                var options = bound.creationOptions(null);
                 challenges.issue(
                     reference,
                     AuthenticationChallengePurpose.OPERATOR,
@@ -82,9 +82,7 @@ public final class AuthenticationOperatorRecoveryService {
           }
           var account = accounts.findAccount(snapshot.account());
           var bound = passkeys.account(account, accounts.credentials(account.account()));
-          var proof =
-              bound.verifyRegistration(
-                  passkeys.registration(account.login(), bound, receipt, credential));
+          var proof = bound.verifyRegistration(passkeys.registration(bound, receipt, credential));
           return publication.complete(
               Event.RECOVERY,
               () -> {

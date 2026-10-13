@@ -129,7 +129,7 @@ public final class AuthenticationCredentialService {
                     throw new AuthenticationPreconditionException();
                   }
                   var bound = passkeys.account(account, credentials);
-                  var options = passkeys.creation(account.login(), bound, null);
+                  var options = bound.creationOptions(null);
                   challenges.issue(
                       parent.reference(),
                       AuthenticationChallengePurpose.CREDENTIAL,
@@ -154,9 +154,7 @@ public final class AuthenticationCredentialService {
           var snapshot = sessions.observe(observation);
           var account = accounts.findAccount(snapshot.account());
           var bound = passkeys.account(account, accounts.credentials(account.account()));
-          var proof =
-              bound.verifyRegistration(
-                  passkeys.registration(account.login(), bound, receipt, credential));
+          var proof = bound.verifyRegistration(passkeys.registration(bound, receipt, credential));
           return publication.complete(
               Event.CREDENTIAL_CHANGE,
               () -> {

@@ -59,7 +59,7 @@ public final class AuthenticationSetupService {
                 var parent =
                     sessions.observe(
                         transport.observe().orElseThrow(AuthenticationFailedException::new));
-                var options = passkeys.creation(parent.stagedLogin(), passkeys.setup(parent), null);
+                var options = passkeys.setup(parent).creationOptions(null);
                 challenges.issue(
                     reference,
                     AuthenticationChallengePurpose.SETUP,
@@ -81,9 +81,7 @@ public final class AuthenticationSetupService {
           var observation = transport.observe().orElseThrow(AuthenticationFailedException::new);
           var snapshot = sessions.observe(observation);
           var bound = passkeys.setup(snapshot);
-          var proof =
-              bound.verifyRegistration(
-                  passkeys.registration(snapshot.stagedLogin(), bound, receipt, credential));
+          var proof = bound.verifyRegistration(passkeys.registration(bound, receipt, credential));
           return publication.complete(
               Event.SETUP,
               () -> {
