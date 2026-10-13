@@ -26,10 +26,12 @@ import { BindingSession, type BindingRequestContext } from './binding-session';
 import { SynchronizationAccessError } from './binding-transport';
 import { bindingTransportFailure } from './http-binding-transport';
 import { SynchronizationOwnershipLostError } from '../persistence/synchronization-ownership';
+import { SAME_ORIGIN_CSRF } from '../security/same-origin-csrf.port';
 
 @Injectable({ providedIn: 'root' })
 export class HttpSynchronizationTransport implements SynchronizationTransport {
   private readonly http = inject(HttpClient);
+  private readonly csrf = inject(SAME_ORIGIN_CSRF);
   private readonly baseUrl = inject(SYNC_API_BASE_URL);
   private readonly requestTimeoutMilliseconds = inject(SYNC_REQUEST_TIMEOUT_MILLISECONDS);
   private readonly binding = inject(BindingSession);
@@ -50,11 +52,15 @@ export class HttpSynchronizationTransport implements SynchronizationTransport {
     let context: BindingRequestContext | undefined;
     try {
       context = await this.binding.requestContext();
+      const securityHeaders =
+        context.binding.identity.accessMode === 'single-user-auth'
+          ? await this.csrf.csrfHeaders()
+          : {};
       const response = await firstValueFrom(
         this.http
           .post<unknown>(`${this.baseUrl}/operations`, operation, {
             observe: 'response',
-            headers: { 'Sync-Expectation': context.expectation },
+            headers: { ...securityHeaders, 'Sync-Expectation': context.expectation },
           })
           .pipe(timeout(this.requestTimeoutMilliseconds)),
       );

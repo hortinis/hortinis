@@ -1,9 +1,10 @@
 import { InjectionToken } from '@angular/core';
+import type { SameOriginCsrfPort } from '../security/same-origin-csrf.port';
 
 export type AuthenticationJsonObject = Record<string, unknown>;
 
 /** Small replaceable transport boundary; only its adapter depends on Angular HTTP. */
-export interface AuthenticationHttpPort {
+export interface AuthenticationHttpPort extends SameOriginCsrfPort {
   ensureCsrf(): Promise<void>;
   clearCsrf(): void;
   refreshCsrf(): Promise<void>;

@@ -104,10 +104,13 @@ export class BindingSession {
       if (observation.population === 'empty') {
         observation = await this.metadata(
           () =>
-            this.transport.confirm({
-              expectation: observation.expectation,
-              expectedPopulation: 'empty',
-            }),
+            this.transport.confirm(
+              {
+                expectation: observation.expectation,
+                expectedPopulation: 'empty',
+              },
+              binding.identity.accessMode,
+            ),
           snapshot,
         );
         await this.requireObservation(snapshot, observation);

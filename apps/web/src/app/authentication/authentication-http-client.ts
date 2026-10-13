@@ -21,6 +21,13 @@ export class AuthenticationHttpClient implements AuthenticationHttpPort {
     if (!this.csrf) await this.refreshCsrf();
   }
 
+  async csrfHeaders(): Promise<Readonly<Record<string, string>>> {
+    await this.ensureCsrf();
+    const csrf = this.csrf;
+    if (!csrf) throw new Error('Refresh account security before continuing.');
+    return { [csrf.headerName]: csrf.token };
+  }
+
   clearCsrf(): void {
     this.csrf = undefined;
   }

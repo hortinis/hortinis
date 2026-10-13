@@ -73,7 +73,9 @@
       }
       @if (authentication.view() === 'pending-logout') {
         <p>Sign-out is pending. Synchronization is paused and local changes are retained.</p>
-        <button type="button" (click)="authentication.open()">Complete sign-out</button>
+        <button type="button" (click)="authentication.retryPendingLogout()">
+          Complete sign-out
+        </button>
       }
       @if (authentication.view() === 'anonymous') {
         <form (ngSubmit)="login()">

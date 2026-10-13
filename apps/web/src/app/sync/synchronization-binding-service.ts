@@ -125,10 +125,13 @@ export class SynchronizationBindingService {
     await this.persistence.begin(ownership);
     let confirmed: SynchronizationBootstrap;
     try {
-      confirmed = await this.transport.confirm({
-        expectation: observation.expectation,
-        expectedPopulation: 'empty',
-      });
+      confirmed = await this.transport.confirm(
+        {
+          expectation: observation.expectation,
+          expectedPopulation: 'empty',
+        },
+        destination.identity.accessMode,
+      );
     } catch (error) {
       if (error instanceof SynchronizationAccessError) {
         await this.pause(

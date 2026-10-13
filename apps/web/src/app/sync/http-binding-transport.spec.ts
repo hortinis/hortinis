@@ -5,6 +5,7 @@ import { HttpBindingTransport } from './http-binding-transport';
 import { SynchronizationAccessError } from './binding-transport';
 import { SynchronizationBoundaryError } from './synchronization-transport';
 import { SYNC_API_BASE_URL } from './sync-api-config';
+import { SAME_ORIGIN_CSRF } from '../security/same-origin-csrf.port';
 
 const capabilities = {
   contractVersion: '1',
@@ -36,7 +37,14 @@ describe('binding HTTP adapter', () => {
   let http: HttpTestingController;
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        {
+          provide: SAME_ORIGIN_CSRF,
+          useValue: { csrfHeaders: async () => ({ 'X-CSRF-TOKEN': 'auth-token' }) },
+        },
+      ],
     });
     transport = TestBed.inject(HttpBindingTransport);
     http = TestBed.inject(HttpTestingController);
@@ -61,10 +69,20 @@ describe('binding HTTP adapter', () => {
     http.expectOne(`${transport.serverOrigin}/api/v1/sync/bootstrap`).flush(bootstrap, { headers });
     await expect(observed).resolves.toEqual(bootstrap);
     const body = { expectation: bootstrap.expectation, expectedPopulation: 'empty' as const };
-    const confirmed = transport.confirm(body);
+    const confirmed = transport.confirm(body, 'single-user-no-auth');
     const request = http.expectOne(`${transport.serverOrigin}/api/v1/sync/bindings/confirm`);
     expect(request.request.method).toBe('POST');
     expect(request.request.body).toEqual(body);
+    request.flush(bootstrap, { headers });
+    await expect(confirmed).resolves.toEqual(bootstrap);
+  });
+
+  it('attaches session CSRF to authenticated empty-binding confirmation', async () => {
+    const body = { expectation: bootstrap.expectation, expectedPopulation: 'empty' as const };
+    const confirmed = transport.confirm(body, 'single-user-auth');
+    await Promise.resolve();
+    const request = http.expectOne(`${transport.serverOrigin}/api/v1/sync/bindings/confirm`);
+    expect(request.request.headers.get('X-CSRF-TOKEN')).toBe('auth-token');
     request.flush(bootstrap, { headers });
     await expect(confirmed).resolves.toEqual(bootstrap);
   });
@@ -122,6 +140,10 @@ describe('binding HTTP adapter', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: SYNC_API_BASE_URL, useValue: 'https://foreign.example/api/v1/sync' },
+        {
+          provide: SAME_ORIGIN_CSRF,
+          useValue: { csrfHeaders: async () => ({ 'X-CSRF-TOKEN': 'auth-token' }) },
+        },
       ],
     });
     http = TestBed.inject(HttpTestingController);

@@ -107,9 +107,9 @@ CSRF filter, exact Origin/Fetch Metadata guard and closed bounded parser. Admitt
 spend their nonce before parsing; replay and wrong-purpose proofs deny. All contract routes delegate
 to the completed services and explicitly project minimized no-store responses. Recovery availability
 supports the thirty-day warning after reload without retaining secrets. This is controlled adapter
-evidence: selected production runtime wiring, browser coordination and the authenticated HTTPS topology
-still must be completed before S9 is validated and committed. S10-S15 and foundation release gates
-remain applicable; a generated contract neither activates authentication nor certifies compliance.
+evidence. S9 now includes the selected production runtime wiring, browser coordination and
+authenticated HTTPS topology. S10-S15 and foundation release gates remain applicable; a generated
+contract neither activates authentication nor certifies compliance.
 
 The protected `GET /api/v1/auth/recovery-codes` projects only unused unexpired code availability,
 common expiry and the trusted-server-clock warning during the last thirty days. The zero-code variant

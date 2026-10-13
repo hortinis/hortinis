@@ -1,6 +1,7 @@
 import { Injectable, OnDestroy, inject, signal } from '@angular/core';
 import { AUTHENTICATION_HTTP } from './authentication-http.port';
 import { BrowserWebAuthnAdapter } from './browser-webauthn.adapter';
+import { AuthenticationCookieGate } from '../sync/authentication-cookie-gate';
 
 type JsonObject = Record<string, unknown>;
 type AuthenticationView =
@@ -42,6 +43,7 @@ const COOKIE_WORKFLOW_LOCK = 'hortinis.authentication-cookie-workflow.v1';
 export class AuthenticationBrowserService implements OnDestroy {
   private readonly http = inject(AUTHENTICATION_HTTP);
   private readonly webauthn = inject(BrowserWebAuthnAdapter);
+  private readonly cookieGate = inject(AuthenticationCookieGate);
   private readonly origin = globalThis.location.origin;
   readonly view = signal<AuthenticationView>('closed');
   readonly notice = signal('');
@@ -88,6 +90,23 @@ export class AuthenticationBrowserService implements OnDestroy {
     }
   }
 
+  /** Retries an online logout after browser storage is available again. */
+  async retryPendingLogout(): Promise<void> {
+    const pending = this.readPendingLogout();
+    if (pending?.target) {
+      this.view.set('pending-logout');
+      await this.completePendingLogout();
+      return;
+    }
+    if (this.view() === 'pending-logout' && this.logoutTarget) {
+      await this.logout();
+      return;
+    }
+    this.notice.set(
+      'Sign-out needs attention. Reopen account access to check the current session.',
+    );
+  }
+
   /** Performs both required factors and refreshes CSRF after each cookie rotation. */
   async login(login: string, password: string): Promise<void> {
     await this.withCookieLock(async () => {
@@ -125,10 +144,26 @@ export class AuthenticationBrowserService implements OnDestroy {
     await this.withCookieLock(async () => {
       const target = this.logoutTarget;
       if (!target) throw new Error('The active session cannot be confirmed for sign-out.');
-      this.storePendingLogout({ origin: this.origin, target });
+      try {
+        this.storePendingLogout({ origin: this.origin, target });
+      } catch {
+        this.cookieGate.markPending();
+        this.applyLogoutPending();
+        this.broadcast('logout-pending');
+        this.notice.set(
+          'Sign-out could not be saved. Synchronization is paused in open tabs; keep this page open and retry.',
+        );
+        throw new Error('Pending sign-out could not be stored.');
+      }
+      this.cookieGate.markPending();
       this.view.set('pending-logout');
       this.broadcast('logout-pending');
-      await this.sendLogout(target);
+      try {
+        await this.sendLogout(target);
+      } catch (error) {
+        this.notice.set('Sign-out is pending. Synchronization is paused until it completes.');
+        throw error;
+      }
       this.finishLogout();
     });
   }
@@ -307,11 +342,13 @@ export class AuthenticationBrowserService implements OnDestroy {
 
   private finishLogout(): void {
     localStorage.removeItem(PENDING_LOGOUT_KEY);
+    this.cookieGate.markComplete();
     this.applyLogoutComplete();
     this.broadcast('logout-complete');
   }
 
   private applyLogoutPending(): void {
+    this.cookieGate.markPending();
     this.http.clearCsrf();
     this.view.set('pending-logout');
     this.notice.set(
@@ -320,6 +357,7 @@ export class AuthenticationBrowserService implements OnDestroy {
   }
 
   private applyLogoutComplete(): void {
+    this.cookieGate.markComplete();
     this.http.clearCsrf();
     this.logoutTarget = undefined;
     this.recoveryCodes.set([]);
@@ -334,7 +372,12 @@ export class AuthenticationBrowserService implements OnDestroy {
   }
 
   private readPendingLogout(): PendingLogout | undefined {
-    const value = localStorage.getItem(PENDING_LOGOUT_KEY);
+    let value: string | null;
+    try {
+      value = localStorage.getItem(PENDING_LOGOUT_KEY);
+    } catch {
+      return undefined;
+    }
     if (!value) return undefined;
     try {
       const parsed: unknown = JSON.parse(value);

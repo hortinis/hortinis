@@ -5,6 +5,8 @@ import { AUTHENTICATION_HTTP } from './authentication-http.port';
 import { AuthenticationHttpClient } from './authentication-http-client';
 import { AuthenticationBrowserService } from './authentication-browser.service';
 import { BrowserWebAuthnAdapter } from './browser-webauthn.adapter';
+import { AuthenticationCookieGate } from '../sync/authentication-cookie-gate';
+import { SynchronizationPausedError } from '../sync/synchronization-transport';
 
 async function allowHttpWorkflowToContinue(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -109,6 +111,47 @@ describe('browser authentication client', () => {
       expect(webAuthn.assert).toHaveBeenCalledWith({ challenge: 'challenge' });
       expect(service.view()).toBe('authenticated');
     } finally {
+      Reflect.deleteProperty(navigator, 'locks');
+    }
+  });
+
+  it('fails closed when it cannot persist the cross-tab logout marker', async () => {
+    Object.defineProperty(navigator, 'locks', {
+      configurable: true,
+      value: {
+        request: (_name: string, _options: unknown, operation: () => Promise<void>) => operation(),
+      },
+    });
+    const opened = service.open();
+    http
+      .expectOne(`${location.origin}/api/v1/auth/session`)
+      .flush(
+        { state: 'authenticated', logoutTarget: 'logout-target' },
+        { headers: { 'Cache-Control': 'no-store' } },
+      );
+    await opened;
+    const originalSetItem = Storage.prototype.setItem;
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
+      this: Storage,
+      key,
+      value,
+    ) {
+      if (key === 'hortinis.pending-authentication-logout.v1') {
+        throw new DOMException('Storage is full.', 'QuotaExceededError');
+      }
+      return originalSetItem.call(this, key, value);
+    });
+    try {
+      await expect(service.logout()).rejects.toThrow('Pending sign-out could not be stored.');
+      expect(setItem).toHaveBeenCalledOnce();
+      expect(service.view()).toBe('pending-logout');
+      expect(service.notice()).toContain('paused in open tabs');
+      expect(() => TestBed.inject(AuthenticationCookieGate).assertExchangeAllowed()).toThrow(
+        SynchronizationPausedError,
+      );
+      http.expectNone(`${location.origin}/api/v1/auth/logout`);
+    } finally {
+      setItem.mockRestore();
       Reflect.deleteProperty(navigator, 'locks');
     }
   });

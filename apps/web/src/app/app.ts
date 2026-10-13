@@ -82,9 +82,7 @@ export class App {
     try {
       await this.authentication.logout();
     } catch {
-      this.authentication.notice.set(
-        'Sign-out is pending. Synchronization remains paused until it completes.',
-      );
+      // The authentication service reports whether sign-out was durably queued or storage failed.
     }
   }
 

@@ -13,6 +13,7 @@ import { BindingSession } from './binding-session';
 import { HttpSynchronizationTransport } from './http-synchronization-transport';
 import type { CreateTechnicalRecordOperation } from './conformance';
 import { SYNC_REQUEST_TIMEOUT_MILLISECONDS } from './sync-api-config';
+import { SAME_ORIGIN_CSRF } from '../security/same-origin-csrf.port';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -26,14 +27,21 @@ const unavailableFixture = JSON.parse(
 describe('HttpSynchronizationTransport', () => {
   let transport: HttpSynchronizationTransport;
   let http: HttpTestingController;
+  let accessMode: 'single-user-no-auth' | 'single-user-auth';
+  const authentication = { csrfHeaders: vi.fn(async () => ({ 'X-CSRF-TOKEN': 'auth-token' })) };
 
   beforeEach(() => {
+    accessMode = 'single-user-no-auth';
+    authentication.csrfHeaders.mockClear();
     TestBed.configureTestingModule({
       providers: [
         {
           provide: BindingSession,
           useValue: {
-            requestContext: async () => ({ expectation: 'confirmed-expectation' }),
+            requestContext: async () => ({
+              expectation: 'confirmed-expectation',
+              binding: { identity: { accessMode } },
+            }),
             assertCurrent: async () => undefined,
             denyAccess: async () => undefined,
           },
@@ -41,6 +49,7 @@ describe('HttpSynchronizationTransport', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: SYNC_REQUEST_TIMEOUT_MILLISECONDS, useValue: 25 },
+        { provide: SAME_ORIGIN_CSRF, useValue: authentication },
       ],
     });
     transport = TestBed.inject(HttpSynchronizationTransport);
@@ -63,6 +72,18 @@ describe('HttpSynchronizationTransport', () => {
     expect(request.request.body).toEqual(operation);
     request.flush(acceptedResult());
 
+    await expect(resultPromise).resolves.toEqual(acceptedResult());
+  });
+
+  it('attaches the current session CSRF token to authenticated synchronization writes', async () => {
+    accessMode = 'single-user-auth';
+    const resultPromise = transport.submitOperation(createOperation());
+    await Promise.resolve();
+    await Promise.resolve();
+    const request = http.expectOne('/api/v1/sync/operations');
+    expect(authentication.csrfHeaders).toHaveBeenCalledOnce();
+    expect(request.request.headers.get('X-CSRF-TOKEN')).toBe('auth-token');
+    request.flush(acceptedResult());
     await expect(resultPromise).resolves.toEqual(acceptedResult());
   });
 
