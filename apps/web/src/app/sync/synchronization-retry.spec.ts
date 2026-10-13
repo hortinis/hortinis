@@ -27,6 +27,7 @@ import {
 } from './synchronization-transport';
 import { SYNCHRONIZATION_TRANSPORT } from './synchronization-transport.token';
 import { TechnicalRecordSynchronizationService } from './technical-record-synchronization-service';
+import { SAME_ORIGIN_CSRF } from '../security/same-origin-csrf.port';
 
 describe('bounded synchronization retry', () => {
   const databases: Dexie[] = [];
@@ -503,9 +504,20 @@ function services(
         provide: BindingSession,
         useValue: {
           prepare: async () => undefined,
-          requestContext: async () => ({ expectation: 'established-expectation' }),
+          requestContext: async () => ({
+            expectation: 'established-expectation',
+            binding: { identity: { accessMode: 'single-user-no-auth' } },
+          }),
           assertCurrent: async () => undefined,
           denyAccess: async () => undefined,
+        },
+      },
+      {
+        provide: SAME_ORIGIN_CSRF,
+        useValue: {
+          csrfHeaders: async () => {
+            throw new Error('No-auth retries must not request CSRF headers.');
+          },
         },
       },
       { provide: HortinisDatabase, useValue: database },
