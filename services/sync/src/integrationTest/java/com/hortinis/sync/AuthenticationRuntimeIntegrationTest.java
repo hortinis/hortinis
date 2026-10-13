@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
@@ -24,6 +25,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.ApplicationContext;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -43,6 +45,12 @@ class AuthenticationRuntimeIntegrationTest {
   static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18.0");
 
   private static final Path OPERATOR_DIRECTORY = createOperatorDirectory();
+  private static final String FETCH_SITE = "Sec-Fetch-Site";
+  private static final String FETCH_MODE = "Sec-Fetch-Mode";
+  private static final String FETCH_DEST = "Sec-Fetch-Dest";
+  private static final String SAME_ORIGIN = "same-origin";
+  private static final String CORS = "cors";
+  private static final String EMPTY_DESTINATION = "empty";
   private static final String TLS_PASSWORD = "s9-test-only-password";
   private static final Path TLS_DIRECTORY = createTlsMaterial();
   private static final HttpClient HTTPS = trustedTestClient();
@@ -106,12 +114,12 @@ class AuthenticationRuntimeIntegrationTest {
     assertThat(status.getStatus()).isEqualTo(200);
     assertThat(status.getHeader("Cache-Control")).contains("no-store");
     assertThat(status.getContentAsString()).contains("\"state\":\"anonymous\"");
-    assertThat(status.getHeader("Set-Cookie")).isNull();
+    assertThat(status.getHeader(HttpHeaders.SET_COOKIE)).isNull();
 
     var csrf = http.perform(browserGet("/api/v1/auth/csrf")).andReturn().getResponse();
     assertThat(csrf.getStatus()).isEqualTo(200);
     assertThat(csrf.getHeader("Cache-Control")).contains("no-store");
-    assertThat(csrf.getHeader("Set-Cookie"))
+    assertThat(csrf.getHeader(HttpHeaders.SET_COOKIE))
         .contains("__Host-hortinis-session=")
         .contains("Secure")
         .contains("HttpOnly")
@@ -126,15 +134,15 @@ class AuthenticationRuntimeIntegrationTest {
         http.perform(
                 post("/api/v1/auth/logout")
                     .header("Origin", "https://hortinis.test")
-                    .header("Sec-Fetch-Site", "same-origin")
-                    .header("Sec-Fetch-Mode", "cors")
-                    .header("Sec-Fetch-Dest", "empty")
+                    .header(FETCH_SITE, SAME_ORIGIN)
+                    .header(FETCH_MODE, CORS)
+                    .header(FETCH_DEST, EMPTY_DESTINATION)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{\"target\":\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\"}"))
             .andReturn()
             .getResponse();
     assertThat(response.getStatus()).isEqualTo(403);
-    assertThat(response.getHeader("Set-Cookie")).isNull();
+    assertThat(response.getHeader(HttpHeaders.SET_COOKIE)).isNull();
     assertThat(response.getHeader("Content-Security-Policy")).contains("default-src 'self'");
   }
 
@@ -150,9 +158,9 @@ class AuthenticationRuntimeIntegrationTest {
     HttpResponse<String> status =
         HTTPS.send(
             HttpRequest.newBuilder(URI.create("https://localhost:" + port + "/api/v1/auth/session"))
-                .header("Sec-Fetch-Site", "same-origin")
-                .header("Sec-Fetch-Mode", "cors")
-                .header("Sec-Fetch-Dest", "empty")
+                .header(FETCH_SITE, SAME_ORIGIN)
+                .header(FETCH_MODE, CORS)
+                .header(FETCH_DEST, EMPTY_DESTINATION)
                 .GET()
                 .build(),
             HttpResponse.BodyHandlers.ofString());
@@ -160,19 +168,19 @@ class AuthenticationRuntimeIntegrationTest {
     assertThat(status.body()).contains("\"state\":\"anonymous\"");
     assertThat(status.headers().firstValue("Strict-Transport-Security"))
         .contains("max-age=31536000");
-    assertThat(status.headers().firstValue("Set-Cookie")).isEmpty();
+    assertThat(status.headers().firstValue(HttpHeaders.SET_COOKIE)).isEmpty();
 
     HttpResponse<String> csrf =
         HTTPS.send(
             HttpRequest.newBuilder(URI.create("https://localhost:" + port + "/api/v1/auth/csrf"))
-                .header("Sec-Fetch-Site", "same-origin")
-                .header("Sec-Fetch-Mode", "cors")
-                .header("Sec-Fetch-Dest", "empty")
+                .header(FETCH_SITE, SAME_ORIGIN)
+                .header(FETCH_MODE, CORS)
+                .header(FETCH_DEST, EMPTY_DESTINATION)
                 .GET()
                 .build(),
             HttpResponse.BodyHandlers.ofString());
     assertThat(csrf.statusCode()).isEqualTo(200);
-    assertThat(csrf.headers().firstValue("Set-Cookie").orElseThrow())
+    assertThat(csrf.headers().firstValue(HttpHeaders.SET_COOKIE).orElseThrow())
         .contains("__Host-hortinis-session=")
         .contains("Secure")
         .contains("HttpOnly")
@@ -183,22 +191,22 @@ class AuthenticationRuntimeIntegrationTest {
         HTTPS.send(
             HttpRequest.newBuilder(URI.create("https://localhost:" + port + "/api/v1/auth/logout"))
                 .header("Origin", "https://localhost")
-                .header("Sec-Fetch-Site", "same-origin")
-                .header("Sec-Fetch-Mode", "cors")
-                .header("Sec-Fetch-Dest", "empty")
+                .header(FETCH_SITE, SAME_ORIGIN)
+                .header(FETCH_MODE, CORS)
+                .header(FETCH_DEST, EMPTY_DESTINATION)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString("{}", StandardCharsets.UTF_8))
                 .build(),
             HttpResponse.BodyHandlers.ofString());
     assertThat(denied.statusCode()).isEqualTo(403);
-    assertThat(denied.headers().firstValue("Set-Cookie")).isEmpty();
+    assertThat(denied.headers().firstValue(HttpHeaders.SET_COOKIE)).isEmpty();
   }
 
   private MockHttpServletRequestBuilder browserGet(String path) {
     return get(path)
-        .header("Sec-Fetch-Site", "same-origin")
-        .header("Sec-Fetch-Mode", "cors")
-        .header("Sec-Fetch-Dest", "empty");
+        .header(FETCH_SITE, SAME_ORIGIN)
+        .header(FETCH_MODE, CORS)
+        .header(FETCH_DEST, EMPTY_DESTINATION);
   }
 
   private static Path createOperatorDirectory() {
@@ -267,7 +275,7 @@ class AuthenticationRuntimeIntegrationTest {
       SSLContext context = SSLContext.getInstance("TLS");
       context.init(null, trust.getTrustManagers(), null);
       return HttpClient.newBuilder().sslContext(context).build();
-    } catch (Exception exception) {
+    } catch (GeneralSecurityException | IOException exception) {
       throw new ExceptionInInitializerError(exception);
     }
   }
