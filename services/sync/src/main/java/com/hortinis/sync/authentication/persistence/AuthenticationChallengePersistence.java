@@ -4,13 +4,11 @@ import com.hortinis.sync.authentication.AuthenticationChallengePurpose;
 import com.hortinis.sync.authentication.AuthenticationFailedException;
 import com.hortinis.sync.authentication.AuthenticationLifetime;
 import com.hortinis.sync.authentication.AuthenticationOverloadedException;
+import com.hortinis.sync.authentication.AuthenticationSession;
 import com.hortinis.sync.configuration.SynchronizationPersistenceEnabled;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.OffsetDateTime;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -27,9 +25,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class AuthenticationChallengePersistence {
   private static final int MAX_ACCOUNT_CHALLENGES = 8;
   private static final String FULL = "full";
-  private static final String PARENT_COLUMNS =
-      "session_reference, account_id, authority_epoch, state, recovery_kind, "
-          + "created_at, expires_at, full_login_at, last_interaction_at, both_factors_at";
   private final JdbcClient jdbc;
   private final Clock clock;
   private final TransactionTemplate consumption;
@@ -67,7 +62,7 @@ public class AuthenticationChallengePersistence {
         || !permitted(locked.parent(), purpose, now)) {
       throw new AuthenticationFailedException();
     }
-    Parent parent = locked.parent();
+    AuthenticationSession parent = locked.parent();
     if (parent.account() != null) {
       int count =
           jdbc.sql(
@@ -148,7 +143,7 @@ public class AuthenticationChallengePersistence {
         || challenge.expiresAt().isAfter(locked.parent().expiresAt())) {
       return Optional.empty();
     }
-    Parent parent = locked.parent();
+    AuthenticationSession parent = locked.parent();
     return Optional.of(
         new ConsumedChallenge(
             parent.reference(),
@@ -161,11 +156,11 @@ public class AuthenticationChallengePersistence {
   }
 
   private LockedParent lockParent(UUID reference, boolean issuing) {
-    Optional<Parent> observed = findParent(reference, false);
+    Optional<AuthenticationSession> observed = findParent(reference, false);
     if (observed.isEmpty()) {
       return new LockedParent(null, false);
     }
-    Parent preliminary = observed.orElseThrow();
+    AuthenticationSession preliminary = observed.orElseThrow();
     boolean accountCurrent = true;
     if (preliminary.account() != null) {
       // Exclusive issuance serializes the per-account cap; consumption retains a shared account
@@ -180,11 +175,11 @@ public class AuthenticationChallengePersistence {
               .optional();
       accountCurrent = epoch.isPresent() && epoch.orElseThrow() == preliminary.epoch();
     }
-    Optional<Parent> current = findParent(reference, true);
+    Optional<AuthenticationSession> current = findParent(reference, true);
     if (current.isEmpty()) {
       return new LockedParent(null, false);
     }
-    Parent parent = current.orElseThrow();
+    AuthenticationSession parent = current.orElseThrow();
     return new LockedParent(
         parent,
         accountCurrent
@@ -200,47 +195,27 @@ public class AuthenticationChallengePersistence {
         .isPresent();
   }
 
-  private Optional<Parent> findParent(UUID reference, boolean lock) {
+  private Optional<AuthenticationSession> findParent(UUID reference, boolean lock) {
     return jdbc.sql(
             "SELECT "
-                + PARENT_COLUMNS
+                + AuthenticationSessionRows.COLUMNS
                 + " FROM authentication_session_authority WHERE session_reference = ? "
                 + (lock ? "FOR UPDATE" : ""))
         .param(reference)
-        .query(
-            (row, number) ->
-                new Parent(
-                    row.getObject(1, UUID.class),
-                    row.getObject(2, UUID.class),
-                    row.getLong(3),
-                    row.getString(4),
-                    row.getString(5),
-                    row.getTimestamp(6).toInstant(),
-                    row.getTimestamp(7).toInstant(),
-                    nullableInstant(row, 8),
-                    nullableInstant(row, 9),
-                    nullableInstant(row, 10)))
+        .query(AuthenticationSessionRows::read)
         .optional();
   }
 
   private static boolean permitted(
-      Parent parent, AuthenticationChallengePurpose purpose, Instant now) {
+      AuthenticationSession parent, AuthenticationChallengePurpose purpose, Instant now) {
     return parent != null
-        && !now.isBefore(parent.createdAt())
-        && now.isBefore(parent.expiresAt())
+        && parent.isUnexpired(now)
         && purpose.permits(parent.state(), parent.recoveryKind(), parent.loginAt() != null)
-        && (parent.loginAt() == null
-            || !now.isBefore(parent.loginAt())
-                && now.isBefore(parent.loginAt().plus(AuthenticationLifetime.FULL_ABSOLUTE)))
+        && parent.hasCurrentLogin(now)
         && (!FULL.equals(parent.state())
             || AuthenticationLifetime.fullIsCurrent(parent.loginAt(), parent.interactionAt(), now))
         && (purpose != AuthenticationChallengePurpose.CREDENTIAL
             || AuthenticationLifetime.recentBothFactors(parent.bothFactorsAt(), now));
-  }
-
-  private static Instant nullableInstant(ResultSet row, int column) throws SQLException {
-    OffsetDateTime value = row.getObject(column, OffsetDateTime.class);
-    return value == null ? null : value.toInstant();
   }
 
   private static void requirePublicationTransaction() {
@@ -277,24 +252,7 @@ public class AuthenticationChallengePersistence {
     }
   }
 
-  private record LockedParent(Parent parent, boolean accountCurrent) {}
-
-  private record Parent(
-      UUID reference,
-      UUID account,
-      long epoch,
-      String state,
-      String recoveryKind,
-      Instant createdAt,
-      Instant expiresAt,
-      Instant loginAt,
-      Instant interactionAt,
-      Instant bothFactorsAt) {
-    @Override
-    public String toString() {
-      return "Parent[redacted]";
-    }
-  }
+  private record LockedParent(AuthenticationSession parent, boolean accountCurrent) {}
 
   private record StoredChallenge(
       byte[] challenge,

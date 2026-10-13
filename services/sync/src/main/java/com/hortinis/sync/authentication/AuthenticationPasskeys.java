@@ -2,7 +2,6 @@ package com.hortinis.sync.authentication;
 
 import com.hortinis.sync.authentication.persistence.AuthenticationAccountPersistence;
 import com.hortinis.sync.authentication.persistence.AuthenticationChallengePersistence;
-import com.hortinis.sync.authentication.persistence.AuthenticationSessionPublicationPersistence;
 import java.util.List;
 import java.util.Set;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -47,7 +46,7 @@ public final class AuthenticationPasskeys {
   }
 
   /** Setup has no account, registered key or full authentication identity yet. */
-  public BoundWebAuthnOperations setup(AuthenticationSessionPublicationPersistence.Parent parent) {
+  public BoundWebAuthnOperations setup(AuthenticationSession parent) {
     if (!"setup".equals(parent.state())) {
       throw new AuthenticationFailedException();
     }

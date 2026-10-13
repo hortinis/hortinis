@@ -2,6 +2,7 @@ package com.hortinis.sync.authentication.persistence;
 
 import com.hortinis.sync.authentication.AuthenticationFailedException;
 import com.hortinis.sync.authentication.AuthenticationPreconditionException;
+import com.hortinis.sync.authentication.AuthenticationSession;
 import com.hortinis.sync.authentication.BoundWebAuthnOperations;
 import com.hortinis.sync.configuration.SynchronizationPersistenceEnabled;
 import java.security.MessageDigest;
@@ -267,8 +268,7 @@ public class AuthenticationAccountPersistence {
   /**
    * Activation is called only after the setup component locks and verifies sole empty ownership.
    */
-  public UUID activate(
-      UUID installation, UUID scope, AuthenticationSessionPublicationPersistence.Parent parent) {
+  public UUID activate(UUID installation, UUID scope, AuthenticationSession parent) {
     AuthenticationSessionPublicationPersistence.requireState(parent, "setup");
     UUID account = UUID.randomUUID();
     jdbc.sql(

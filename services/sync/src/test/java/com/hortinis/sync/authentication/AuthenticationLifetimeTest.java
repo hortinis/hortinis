@@ -9,6 +9,27 @@ class AuthenticationLifetimeTest {
   private static final Instant LOGIN = Instant.parse("2026-10-11T12:00:00Z");
 
   @Test
+  void everyCeremonyRejectsFutureCreationAndExpiresAtItsExactDeadline() {
+    Instant expires = LOGIN.plusSeconds(300);
+    assertThat(AuthenticationLifetime.isUnexpired(LOGIN, expires, LOGIN)).isTrue();
+    assertThat(AuthenticationLifetime.isUnexpired(LOGIN, expires, LOGIN.minusNanos(1))).isFalse();
+    assertThat(AuthenticationLifetime.isUnexpired(LOGIN, expires, expires.minusNanos(1))).isTrue();
+    assertThat(AuthenticationLifetime.isUnexpired(LOGIN, expires, expires)).isFalse();
+  }
+
+  @Test
+  void fullAuthorityRequiresCompletedFactorsWithinItsLoginAndTrustedTime() {
+    assertThat(AuthenticationLifetime.fullIsCurrent(LOGIN, LOGIN, LOGIN, LOGIN)).isTrue();
+    assertThat(AuthenticationLifetime.fullIsCurrent(LOGIN, LOGIN, null, LOGIN)).isFalse();
+    assertThat(AuthenticationLifetime.fullIsCurrent(LOGIN, LOGIN, LOGIN.minusNanos(1), LOGIN))
+        .isFalse();
+    assertThat(AuthenticationLifetime.fullIsCurrent(LOGIN, LOGIN, LOGIN.plusNanos(1), LOGIN))
+        .isFalse();
+    assertThat(AuthenticationLifetime.fullIsCurrent(LOGIN, LOGIN, LOGIN, LOGIN.plusSeconds(1800)))
+        .isFalse();
+  }
+
+  @Test
   void idleExpiresAtEqualityAndBackgroundTimeCannotRenewIt() {
     assertThat(AuthenticationLifetime.fullIsCurrent(LOGIN, LOGIN, LOGIN.plusSeconds(1799)))
         .isTrue();

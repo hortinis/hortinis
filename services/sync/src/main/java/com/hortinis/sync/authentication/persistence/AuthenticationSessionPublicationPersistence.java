@@ -5,11 +5,10 @@ import com.hortinis.sync.authentication.AuthenticationLifetime;
 import com.hortinis.sync.authentication.AuthenticationOverloadedException;
 import com.hortinis.sync.authentication.AuthenticationPreconditionException;
 import com.hortinis.sync.authentication.AuthenticationSecrets;
+import com.hortinis.sync.authentication.AuthenticationSession;
 import com.hortinis.sync.authentication.AuthenticationSessionTransport;
 import com.hortinis.sync.authentication.SessionAuthorityReference;
 import com.hortinis.sync.configuration.SynchronizationPersistenceEnabled;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
@@ -46,12 +45,13 @@ public class AuthenticationSessionPublicationPersistence {
   /**
    * Installation admission first, then current account, then current parent; all held to commit.
    */
-  public Parent lock(AuthenticationSessionTransport.Observation observation) {
+  public AuthenticationSession lock(AuthenticationSessionTransport.Observation observation) {
     return lock(observation, null);
   }
 
   /** Account adoption also locks its intended account before the anonymous parent. */
-  public Parent lock(AuthenticationSessionTransport.Observation observation, UUID targetAccount) {
+  public AuthenticationSession lock(
+      AuthenticationSessionTransport.Observation observation, UUID targetAccount) {
     requireTransaction();
     if (observation == null
         || observation.reference() == null
@@ -66,7 +66,7 @@ public class AuthenticationSessionPublicationPersistence {
             .query(UUID.class)
             .optional()
             .orElseThrow(AuthenticationFailedException::new);
-    Parent before = find(observation, false);
+    AuthenticationSession before = find(observation, false);
     if (targetAccount != null
         && before.account() != null
         && !targetAccount.equals(before.account())) {
@@ -87,7 +87,7 @@ public class AuthenticationSessionPublicationPersistence {
         throw new AuthenticationFailedException();
       }
     }
-    Parent parent = find(observation, true);
+    AuthenticationSession parent = find(observation, true);
     if (!Objects.equals(before.account(), parent.account())
         || before.epoch() != parent.epoch()
         || !current(parent, clock.instant())) {
@@ -97,13 +97,15 @@ public class AuthenticationSessionPublicationPersistence {
   }
 
   /** Non-authorizing read for factor verification; publication always locks and rechecks later. */
-  public Parent observe(AuthenticationSessionTransport.Observation observation) {
+  public AuthenticationSession observe(AuthenticationSessionTransport.Observation observation) {
     return find(observation, false);
   }
 
   /** Rotates an anonymous parent into a ticket-bound, password-hash-only setup ceremony. */
   public UUID stageSetup(
-      Parent parent, SetupMaterial staged, AuthenticationSessionTransport transport) {
+      AuthenticationSession parent,
+      SetupMaterial staged,
+      AuthenticationSessionTransport transport) {
     requireTransaction();
     boolean retry = "setup".equals(parent.state());
     if (!retry && !ANONYMOUS.equals(parent.state())) {
@@ -140,7 +142,7 @@ public class AuthenticationSessionPublicationPersistence {
 
   /** Creates password-only authority; step-up preserves the predecessor's original full login. */
   public UUID password(
-      Parent parent,
+      AuthenticationSession parent,
       AuthenticationAccountPersistence.AccountSnapshot account,
       AuthenticationSessionTransport transport,
       boolean stepUp) {
@@ -183,7 +185,7 @@ public class AuthenticationSessionPublicationPersistence {
   }
 
   /** Full authority follows both factors and cannot silently evict an existing current session. */
-  public UUID full(Parent parent, AuthenticationSessionTransport transport) {
+  public UUID full(AuthenticationSession parent, AuthenticationSessionTransport transport) {
     requireState(parent, PASSWORD_STATE);
     Instant now = clock.instant();
     requireCurrent(parent, now);
@@ -233,7 +235,7 @@ public class AuthenticationSessionPublicationPersistence {
 
   /** Target-bound operator staging preserves the parent deadline and existing account handle. */
   public UUID stageOperator(
-      Parent parent,
+      AuthenticationSession parent,
       AuthenticationAccountPersistence.AccountSnapshot account,
       String hash,
       Instant ticketExpiry,
@@ -272,14 +274,14 @@ public class AuthenticationSessionPublicationPersistence {
 
   /** Pending password recovery has no account lookup or code validation at issuance. */
   public UUID pendingRecovery(
-      Parent parent, String login, AuthenticationSessionTransport transport) {
+      AuthenticationSession parent, String login, AuthenticationSessionTransport transport) {
     requireState(parent, ANONYMOUS);
     return recovery(parent, null, PASSWORD_STATE, login, false, transport);
   }
 
   /** Two independent proofs grant only a fixed-deadline replacement ceremony. */
   public UUID readyRecovery(
-      Parent parent,
+      AuthenticationSession parent,
       AuthenticationAccountPersistence.AccountSnapshot account,
       String kind,
       AuthenticationSessionTransport transport) {
@@ -296,7 +298,7 @@ public class AuthenticationSessionPublicationPersistence {
   }
 
   private UUID recovery(
-      Parent parent,
+      AuthenticationSession parent,
       AuthenticationAccountPersistence.AccountSnapshot account,
       String kind,
       String requestedLogin,
@@ -328,7 +330,7 @@ public class AuthenticationSessionPublicationPersistence {
   }
 
   /** Recovery proof never substitutes for recent full normal authentication. */
-  public void requireRecovery(Parent parent, String kind) {
+  public void requireRecovery(AuthenticationSession parent, String kind) {
     requireState(parent, "recovery");
     requireCurrent(parent, clock.instant());
     if (!kind.equals(parent.recoveryKind())
@@ -341,7 +343,7 @@ public class AuthenticationSessionPublicationPersistence {
 
   /** Selecting a current owned lost key replaces only the nonce/target, never the deadline. */
   public UUID replacement(
-      Parent parent, byte[] credentialId, AuthenticationSessionTransport transport) {
+      AuthenticationSession parent, byte[] credentialId, AuthenticationSessionTransport transport) {
     requireRecovery(parent, "passkey");
     boolean owned =
         jdbc.sql(
@@ -375,7 +377,7 @@ public class AuthenticationSessionPublicationPersistence {
   }
 
   /** Removes the predecessor only inside the caller's publication transaction. */
-  public void retire(Parent parent) {
+  public void retire(AuthenticationSession parent) {
     requireTransaction();
     if (jdbc.sql("DELETE FROM authentication_session_authority WHERE session_reference = ?")
             .param(parent.reference())
@@ -386,7 +388,7 @@ public class AuthenticationSessionPublicationPersistence {
   }
 
   /** Checks a trusted locked parent state within the current writable transaction. */
-  public static void requireState(Parent parent, String state) {
+  public static void requireState(AuthenticationSession parent, String state) {
     requireTransaction();
     if (!state.equals(parent.state())) {
       throw new AuthenticationFailedException();
@@ -394,13 +396,13 @@ public class AuthenticationSessionPublicationPersistence {
   }
 
   /** Current full authority is required even when recent factors are not required. */
-  public void requireFull(Parent parent) {
+  public void requireFull(AuthenticationSession parent) {
     requireState(parent, FULL_STATE);
     requireCurrent(parent, clock.instant());
   }
 
   /** Privileged factor/session changes require recent normal factors, never recovery proof. */
-  public void requireRecent(Parent parent) {
+  public void requireRecent(AuthenticationSession parent) {
     requireFull(parent);
     if (!AuthenticationLifetime.recentBothFactors(parent.bothFactorsAt(), clock.instant())) {
       throw new AuthenticationPreconditionException();
@@ -408,7 +410,8 @@ public class AuthenticationSessionPublicationPersistence {
   }
 
   /** Logout must be able to remove expired/revoked rows without granting them current authority. */
-  public Optional<Parent> lockForLogout(AuthenticationSessionTransport.Observation observation) {
+  public Optional<AuthenticationSession> lockForLogout(
+      AuthenticationSessionTransport.Observation observation) {
     requireTransaction();
     jdbc.sql(
             "SELECT server_instance_id FROM technical_server_installation "
@@ -437,7 +440,7 @@ public class AuthenticationSessionPublicationPersistence {
   /**
    * Checks whether logout currently targets full authority while the account/parent locks are held.
    */
-  public boolean currentFull(Parent parent) {
+  public boolean currentFull(AuthenticationSession parent) {
     requireTransaction();
     if (!FULL_STATE.equals(parent.state()) || !current(parent, clock.instant())) {
       return false;
@@ -453,63 +456,37 @@ public class AuthenticationSessionPublicationPersistence {
         .orElse(false);
   }
 
-  private Parent find(AuthenticationSessionTransport.Observation observation, boolean lock) {
+  private AuthenticationSession find(
+      AuthenticationSessionTransport.Observation observation, boolean lock) {
     return findOptional(observation, lock).orElseThrow(AuthenticationFailedException::new);
   }
 
-  private Optional<Parent> findOptional(
+  private Optional<AuthenticationSession> findOptional(
       AuthenticationSessionTransport.Observation observation, boolean lock) {
     if (observation == null || observation.reference() == null) {
       throw new AuthenticationFailedException();
     }
     return jdbc.sql(
-            "SELECT session_reference, account_id, authority_epoch, state, created_at, "
-                + "expires_at, full_login_at, last_interaction_at, both_factors_at, "
-                + "staged_login_identifier, staged_password_verifier, "
-                + "staged_user_handle, logout_target, recovery_kind, replacement_credential_id "
-                + "FROM authentication_session_authority WHERE session_reference = ? "
+            "SELECT "
+                + AuthenticationSessionRows.COLUMNS
+                + " FROM authentication_session_authority WHERE session_reference = ? "
                 + "AND session_verifier = ? "
                 + (lock ? "FOR UPDATE" : ""))
         .params(observation.reference().value(), observation.verifier())
-        .query(
-            (row, number) ->
-                new Parent(
-                    row.getObject(1, UUID.class),
-                    row.getObject(2, UUID.class),
-                    row.getLong(3),
-                    row.getString(4),
-                    row.getTimestamp(5).toInstant(),
-                    row.getTimestamp(6).toInstant(),
-                    instant(row, 7),
-                    instant(row, 8),
-                    instant(row, 9),
-                    row.getString(10),
-                    row.getString(11),
-                    row.getBytes(12),
-                    row.getString(13),
-                    row.getString(14),
-                    row.getBytes(15)))
+        .query(AuthenticationSessionRows::read)
         .optional();
   }
 
-  private static void requireCurrent(Parent parent, Instant now) {
+  private static void requireCurrent(AuthenticationSession parent, Instant now) {
     if (!current(parent, now)) {
       throw new AuthenticationFailedException();
     }
   }
 
-  private static boolean current(Parent parent, Instant now) {
-    return !now.isBefore(parent.createdAt())
-        && now.isBefore(parent.expiresAt())
-        && (parent.loginAt() == null
-            || !now.isBefore(parent.loginAt())
-                && now.isBefore(parent.loginAt().plus(AuthenticationLifetime.FULL_ABSOLUTE)))
-        && (!FULL_STATE.equals(parent.state())
-            || parent.bothFactorsAt() != null
-                && !now.isBefore(parent.bothFactorsAt())
-                && !parent.bothFactorsAt().isBefore(parent.loginAt())
-                && AuthenticationLifetime.fullIsCurrent(
-                    parent.loginAt(), parent.interactionAt(), now));
+  private static boolean current(AuthenticationSession parent, Instant now) {
+    return parent.isUnexpired(now)
+        && parent.hasCurrentLogin(now)
+        && (!FULL_STATE.equals(parent.state()) || parent.hasCurrentFactors(now));
   }
 
   private void requireLimitedSlot(Instant now) {
@@ -540,11 +517,6 @@ public class AuthenticationSessionPublicationPersistence {
     return left.isBefore(right) ? left : right;
   }
 
-  private static Instant instant(ResultSet row, int index) throws SQLException {
-    java.time.OffsetDateTime value = row.getObject(index, java.time.OffsetDateTime.class);
-    return value == null ? null : value.toInstant();
-  }
-
   private static Timestamp timestamp(Instant value) {
     return value == null ? null : Timestamp.from(value);
   }
@@ -553,49 +525,6 @@ public class AuthenticationSessionPublicationPersistence {
     if (!TransactionSynchronizationManager.isActualTransactionActive()
         || TransactionSynchronizationManager.isCurrentTransactionReadOnly()) {
       throw new IllegalStateException("Session publication requires a writable transaction.");
-    }
-  }
-
-  /** Internal current parent, never serialized into native attributes, HTTP or diagnostics. */
-  public record Parent(
-      UUID reference,
-      UUID account,
-      long epoch,
-      String state,
-      Instant createdAt,
-      Instant expiresAt,
-      Instant loginAt,
-      Instant interactionAt,
-      Instant bothFactorsAt,
-      String stagedLogin,
-      String stagedPassword,
-      byte[] stagedHandle,
-      String logoutTarget,
-      String recoveryKind,
-      byte[] replacementCredential) {
-    /** Copies staged bytes and keeps sensitive material out of diagnostics. */
-    public Parent {
-      if (replacementCredential != null) {
-        replacementCredential = replacementCredential.clone();
-      }
-      if (stagedHandle != null) {
-        stagedHandle = stagedHandle.clone();
-      }
-    }
-
-    @Override
-    public byte[] replacementCredential() {
-      return replacementCredential == null ? null : replacementCredential.clone();
-    }
-
-    @Override
-    public byte[] stagedHandle() {
-      return stagedHandle == null ? null : stagedHandle.clone();
-    }
-
-    @Override
-    public String toString() {
-      return "AuthenticationParent[redacted]";
     }
   }
 

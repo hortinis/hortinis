@@ -2,6 +2,7 @@ package com.hortinis.sync.authentication.persistence;
 
 import com.hortinis.sync.authentication.AuthenticationFailedException;
 import com.hortinis.sync.authentication.AuthenticationSecrets;
+import com.hortinis.sync.authentication.AuthenticationSession;
 import com.hortinis.sync.authentication.AuthenticationSessionTransport;
 import com.hortinis.sync.authentication.BoundWebAuthnOperations;
 import com.hortinis.sync.configuration.SynchronizationPersistenceEnabled;
@@ -91,7 +92,7 @@ public class AuthenticationOperatorRecoveryPersistence {
 
   /** Called after current nonce/purpose/origin/kind verification in the same transaction. */
   public boolean complete(
-      AuthenticationSessionPublicationPersistence.Parent parent,
+      AuthenticationSession parent,
       AuthenticationAccountPersistence.AccountSnapshot observed,
       BoundWebAuthnOperations.VerifiedCredential proof,
       AuthenticationSessionTransport transport) {

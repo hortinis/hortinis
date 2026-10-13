@@ -5,7 +5,6 @@ import com.hortinis.sync.authentication.persistence.AuthenticationSecurityEventP
 import com.hortinis.sync.authentication.persistence.AuthenticationSecurityEventPersistence.Event;
 import com.hortinis.sync.authentication.persistence.AuthenticationSecurityEventPersistence.Outcome;
 import com.hortinis.sync.authentication.persistence.AuthenticationSecurityEventPersistence.Reason;
-import com.hortinis.sync.authentication.persistence.AuthenticationSessionPublicationPersistence;
 import java.security.MessageDigest;
 import java.time.Clock;
 import java.util.Objects;
@@ -78,7 +77,7 @@ public final class AuthenticationPublication {
 
   /** A verified credential or spent receipt alone never authorizes any publication. */
   public void requireBound(
-      AuthenticationSessionPublicationPersistence.Parent parent,
+      AuthenticationSession parent,
       AuthenticationChallengePersistence.ConsumedChallenge receipt,
       BoundWebAuthnOperations.VerifiedCredential proof,
       AuthenticationChallengePurpose purpose,

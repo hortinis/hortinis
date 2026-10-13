@@ -15,6 +15,20 @@ public final class AuthenticationLifetime {
 
   private AuthenticationLifetime() {}
 
+  /** Session creation and expiration bound every ceremony, including anonymous authority. */
+  public static boolean isUnexpired(Instant createdAt, Instant expiresAt, Instant now) {
+    return !now.isBefore(createdAt) && now.isBefore(expiresAt);
+  }
+
+  /** Full authority also requires complete factors belonging to this login. */
+  public static boolean fullIsCurrent(
+      Instant login, Instant lastInteraction, Instant bothFactorsAt, Instant now) {
+    return bothFactorsAt != null
+        && !now.isBefore(bothFactorsAt)
+        && !bothFactorsAt.isBefore(login)
+        && fullIsCurrent(login, lastInteraction, now);
+  }
+
   /** Tests both fixed login lifetime and last explicit user-interaction lifetime. */
   public static boolean fullIsCurrent(Instant login, Instant lastInteraction, Instant now) {
     Objects.requireNonNull(login);

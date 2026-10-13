@@ -1,16 +1,13 @@
 package com.hortinis.sync.authentication.persistence;
 
-import com.hortinis.sync.authentication.AuthenticationLifetime;
+import com.hortinis.sync.authentication.AuthenticationSession;
 import com.hortinis.sync.authentication.SessionAttributeCodec;
 import com.hortinis.sync.authentication.SessionAuthorityReference;
 import com.hortinis.sync.configuration.SynchronizationPersistenceEnabled;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.core.convert.ConversionService;
@@ -24,9 +21,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Repository
 @SynchronizationPersistenceEnabled
 public class AuthenticationLifecyclePersistence {
-  private static final String PARENT_COLUMNS =
-      "session_reference, state, authority_epoch, created_at, expires_at, full_login_at, "
-          + "last_interaction_at, both_factors_at, account_id";
   private static final String AUTH_MODE = "single-user-auth";
   private static final Duration EVENT_RETENTION = Duration.ofDays(30);
   private final JdbcClient jdbc;
@@ -103,10 +97,10 @@ public class AuthenticationLifecyclePersistence {
     var preliminary =
         jdbc.sql(
                 "SELECT "
-                    + PARENT_COLUMNS
+                    + AuthenticationSessionRows.COLUMNS
                     + " FROM authentication_session_authority WHERE session_verifier = ?")
             .param(verifier)
-            .query((row, number) -> parent(row))
+            .query(AuthenticationSessionRows::read)
             .optional();
     if (preliminary.isPresent()) {
       var before = preliminary.orElseThrow();
@@ -127,11 +121,11 @@ public class AuthenticationLifecyclePersistence {
       var current =
           jdbc.sql(
                   "SELECT "
-                      + PARENT_COLUMNS
+                      + AuthenticationSessionRows.COLUMNS
                       + " FROM authentication_session_authority WHERE "
                       + "session_verifier = ? FOR UPDATE")
               .param(verifier)
-              .query((row, number) -> parent(row))
+              .query(AuthenticationSessionRows::read)
               .optional();
       Instant now = clock.instant();
       if (current.isPresent()) {
@@ -187,9 +181,9 @@ public class AuthenticationLifecyclePersistence {
     if (installation.isEmpty() || !AUTH_MODE.equals(installation.orElseThrow().mode())) {
       return false;
     }
-    List<Parent> parents = parents(null);
+    List<AuthenticationSession> parents = parents(null);
     Instant now = clock.instant();
-    for (Parent parent : parents) {
+    for (AuthenticationSession parent : parents) {
       if (!timeIsCurrent(parent, now)) {
         deleteParent(parent.reference());
       }
@@ -227,9 +221,9 @@ public class AuthenticationLifecyclePersistence {
       return;
     }
     Account account = selected.orElseThrow();
-    List<Parent> parents = parents(accountId);
+    List<AuthenticationSession> parents = parents(accountId);
     Instant now = clock.instant();
-    for (Parent parent : parents) {
+    for (AuthenticationSession parent : parents) {
       if (!"active".equals(account.status())
           || !AUTH_MODE.equals(account.mode())
           || parent.epoch() != account.epoch()
@@ -259,43 +253,24 @@ public class AuthenticationLifecyclePersistence {
         .update();
   }
 
-  private List<Parent> parents(UUID account) {
+  private List<AuthenticationSession> parents(UUID account) {
     String ownerPredicate = account == null ? "account_id IS NULL" : "account_id = ?";
     var query =
         jdbc.sql(
             "SELECT "
-                + PARENT_COLUMNS
+                + AuthenticationSessionRows.COLUMNS
                 + " FROM authentication_session_authority WHERE "
                 + ownerPredicate
                 + " ORDER BY session_reference FOR UPDATE");
     if (account != null) {
       query = query.param(account);
     }
-    return query.query((row, number) -> parent(row)).list();
+    return query.query(AuthenticationSessionRows::read).list();
   }
 
-  private static Parent parent(ResultSet row) throws SQLException {
-    return new Parent(
-        row.getObject(1, UUID.class),
-        row.getString(2),
-        row.getLong(3),
-        row.getTimestamp(4).toInstant(),
-        row.getTimestamp(5).toInstant(),
-        instant(row.getObject(6, OffsetDateTime.class)),
-        instant(row.getObject(7, OffsetDateTime.class)),
-        instant(row.getObject(8, OffsetDateTime.class)),
-        row.getObject(9, UUID.class));
-  }
-
-  private static boolean timeIsCurrent(Parent parent, Instant now) {
-    if (now.isBefore(parent.createdAt()) || !now.isBefore(parent.expiresAt())) {
-      return false;
-    }
-    return !"full".equals(parent.state())
-        || parent.bothFactorsAt() != null
-            && !now.isBefore(parent.bothFactorsAt())
-            && !parent.bothFactorsAt().isBefore(parent.loginAt())
-            && AuthenticationLifetime.fullIsCurrent(parent.loginAt(), parent.interactionAt(), now);
+  private static boolean timeIsCurrent(AuthenticationSession parent, Instant now) {
+    return parent.isUnexpired(now)
+        && (!"full".equals(parent.state()) || parent.hasCurrentFactors(now));
   }
 
   private void deleteParent(UUID reference) {
@@ -311,10 +286,6 @@ public class AuthenticationLifecyclePersistence {
         .update();
   }
 
-  private static Instant instant(OffsetDateTime value) {
-    return value == null ? null : value.toInstant();
-  }
-
   private record Installation(UUID instance, String mode) {
     @Override
     public String toString() {
@@ -326,22 +297,6 @@ public class AuthenticationLifecyclePersistence {
     @Override
     public String toString() {
       return "Account[redacted]";
-    }
-  }
-
-  private record Parent(
-      UUID reference,
-      String state,
-      long epoch,
-      Instant createdAt,
-      Instant expiresAt,
-      Instant loginAt,
-      Instant interactionAt,
-      Instant bothFactorsAt,
-      UUID account) {
-    @Override
-    public String toString() {
-      return "Parent[redacted]";
     }
   }
 }

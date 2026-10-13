@@ -2,6 +2,7 @@ package com.hortinis.sync.authentication.persistence;
 
 import com.hortinis.sync.authentication.AuthenticationFailedException;
 import com.hortinis.sync.authentication.AuthenticationLifetime;
+import com.hortinis.sync.authentication.AuthenticationSession;
 import com.hortinis.sync.configuration.SynchronizationPersistenceEnabled;
 import java.sql.Timestamp;
 import java.time.Clock;
@@ -37,7 +38,7 @@ public class AuthenticationSessionManagementPersistence {
   /**
    * Return only live owned full sessions, without location, network or browser fingerprint fields.
    */
-  public List<SessionSummary> list(AuthenticationSessionPublicationPersistence.Parent parent) {
+  public List<SessionSummary> list(AuthenticationSession parent) {
     sessions.requireFull(parent);
     Instant now = clock.instant();
     var result =
@@ -75,7 +76,7 @@ public class AuthenticationSessionManagementPersistence {
   }
 
   /** Qualifying activity extends idle expiry only; absolute login/factor times are unchanged. */
-  public void activity(AuthenticationSessionPublicationPersistence.Parent parent) {
+  public void activity(AuthenticationSession parent) {
     sessions.requireFull(parent);
     Instant now = clock.instant();
     if (!AuthenticationLifetime.fullIsCurrent(parent.loginAt(), parent.interactionAt(), now)) {
@@ -91,7 +92,7 @@ public class AuthenticationSessionManagementPersistence {
   /**
    * Unknown/foreign targets disclose nothing and cannot remove an unrelated account's authority.
    */
-  public boolean revoke(AuthenticationSessionPublicationPersistence.Parent parent, String target) {
+  public boolean revoke(AuthenticationSession parent, String target) {
     sessions.requireRecent(parent);
     var reference =
         jdbc.sql(

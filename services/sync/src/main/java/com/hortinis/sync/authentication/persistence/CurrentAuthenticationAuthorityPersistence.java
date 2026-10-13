@@ -124,12 +124,9 @@ public class CurrentAuthenticationAuthorityPersistence {
     if (!FULL.equals(session.state())
         || !accountId.equals(session.account())
         || session.epoch() != epoch
-        || now.isBefore(session.createdAt())
-        || session.bothFactorsAt() == null
-        || now.isBefore(session.bothFactorsAt())
-        || session.bothFactorsAt().isBefore(session.loginAt())
-        || !now.isBefore(session.expiresAt())
-        || !AuthenticationLifetime.fullIsCurrent(session.loginAt(), session.interactionAt(), now)) {
+        || !AuthenticationLifetime.isUnexpired(session.createdAt(), session.expiresAt(), now)
+        || !AuthenticationLifetime.fullIsCurrent(
+            session.loginAt(), session.interactionAt(), session.bothFactorsAt(), now)) {
       throw new AuthenticationRequiredException();
     }
     String committedMode =
@@ -159,11 +156,8 @@ public class CurrentAuthenticationAuthorityPersistence {
       Instant expiresAt,
       Instant createdAt) {
     private boolean isCurrent(Instant now) {
-      return !now.isBefore(createdAt)
-          && !now.isBefore(bothFactorsAt)
-          && !bothFactorsAt.isBefore(loginAt)
-          && now.isBefore(expiresAt)
-          && AuthenticationLifetime.fullIsCurrent(loginAt, interactionAt, now);
+      return AuthenticationLifetime.isUnexpired(createdAt, expiresAt, now)
+          && AuthenticationLifetime.fullIsCurrent(loginAt, interactionAt, bothFactorsAt, now);
     }
 
     @Override

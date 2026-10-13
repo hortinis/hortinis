@@ -2,6 +2,7 @@ package com.hortinis.sync.authentication.persistence;
 
 import com.hortinis.sync.authentication.AuthenticationFailedException;
 import com.hortinis.sync.authentication.AuthenticationSecrets;
+import com.hortinis.sync.authentication.AuthenticationSession;
 import com.hortinis.sync.authentication.AuthenticationSessionTransport;
 import com.hortinis.sync.authentication.BoundWebAuthnOperations;
 import com.hortinis.sync.configuration.SynchronizationPersistenceEnabled;
@@ -81,7 +82,7 @@ public class AuthenticationSetupPersistence {
    * transaction.
    */
   public AuthenticationRecoveryCodePersistence.IssuedCodes complete(
-      AuthenticationSessionPublicationPersistence.Parent parent,
+      AuthenticationSession parent,
       BoundWebAuthnOperations.VerifiedCredential proof,
       AuthenticationSessionTransport transport) {
     AuthenticationSessionPublicationPersistence.requireState(parent, "setup");
