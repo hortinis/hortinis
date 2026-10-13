@@ -1,10 +1,149 @@
 import org.springframework.boot.gradle.tasks.bundling.BootJar
+import java.io.File
+import java.net.URI
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+import java.security.MessageDigest
+import java.util.HexFormat
 import java.util.zip.ZipFile
 
 plugins {
     java
     id("org.springframework.boot") version "4.1.1"
     id("io.spring.dependency-management") version "1.1.7"
+}
+
+val passwordCorpusRevision = "c205c36a445bff37f8e58a9ec829105cd4975c58"
+val passwordCorpusSourceSha256 = "c95989fecfae9c91aa9f5c730344d5cabd6335bb094c9c60aba16bf1742a72fe"
+val passwordCorpusArtifactSha256 = "2d136a42a3d7d9d4165dec0cf0fabc3e84cee4865ba290a50c9cfcec4b980870"
+val passwordCorpusLicenseSha256 = "3dbdc93d5f8829de0941744841730a09c106d0732e5ae0e98ca1d77be7ded66c"
+val passwordCorpusSourceLineCount = 5_189_454
+val passwordCorpusEligibleLineCount = 141_033
+val passwordCorpusEntryCount = 10_000
+val passwordCorpusSourceUrl =
+    "https://raw.githubusercontent.com/danielmiessler/SecLists/$passwordCorpusRevision/" +
+        "Passwords/Common-Credentials/xato-net-10-million-passwords.txt"
+val passwordCorpusOutput =
+    layout.buildDirectory.file("generated/password-corpus/main/authentication/password-blocklist.sha256")
+val passwordCorpusResources = layout.buildDirectory.dir("generated/password-corpus/main")
+val passwordCorpusLicense = layout.projectDirectory.file("src/main/resources/authentication/LICENSE.txt")
+
+fun sha256(bytes: ByteArray): String = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes))
+
+fun sha256(file: File): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+    Files.newInputStream(file.toPath()).use { input ->
+        val buffer = ByteArray(64 * 1024)
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) break
+            digest.update(buffer, 0, count)
+        }
+    }
+    return HexFormat.of().formatHex(digest.digest())
+}
+
+val generatePasswordCorpus =
+    tasks.register("generatePasswordCorpus") {
+        description = "Fetches and verifies the pinned password reference corpus for the application."
+        group = "build"
+        inputs.properties(
+            mapOf(
+                "sourceUrl" to passwordCorpusSourceUrl,
+                "sourceSha256" to passwordCorpusSourceSha256,
+                "artifactSha256" to passwordCorpusArtifactSha256,
+                "licenseSha256" to passwordCorpusLicenseSha256,
+                "sourceLineCount" to passwordCorpusSourceLineCount,
+                "eligibleLineCount" to passwordCorpusEligibleLineCount,
+                "entryCount" to passwordCorpusEntryCount,
+            ),
+        )
+        inputs.file(passwordCorpusLicense)
+        outputs.file(passwordCorpusOutput)
+
+        doLast {
+            val cacheFile =
+                gradle.gradleUserHomeDir.resolve(
+                    "caches/hortinis/password-corpus/$passwordCorpusRevision/xato-passwords.txt",
+                )
+            val licenseFile = passwordCorpusLicense.asFile
+            require(sha256(licenseFile) == passwordCorpusLicenseSha256) {
+                "Pinned password corpus license is missing or has changed."
+            }
+
+            if (!cacheFile.isFile || sha256(cacheFile) != passwordCorpusSourceSha256) {
+                cacheFile.parentFile.mkdirs()
+                val cacheTemporaryFile =
+                    Files.createTempFile(cacheFile.parentFile.toPath(), "xato-passwords-", ".part").toFile()
+                try {
+                    val connection = URI(passwordCorpusSourceUrl).toURL().openConnection()
+                    connection.connectTimeout = 20_000
+                    connection.readTimeout = 60_000
+                    connection.getInputStream().use { input ->
+                        cacheTemporaryFile.outputStream().buffered().use { output -> input.copyTo(output) }
+                    }
+                    require(sha256(cacheTemporaryFile) == passwordCorpusSourceSha256) {
+                        "Downloaded password reference source does not match its pinned checksum."
+                    }
+                    Files.move(
+                        cacheTemporaryFile.toPath(),
+                        cacheFile.toPath(),
+                        StandardCopyOption.REPLACE_EXISTING,
+                    )
+                } finally {
+                    cacheTemporaryFile.delete()
+                }
+            }
+
+            val eligiblePasswords = LinkedHashSet<String>()
+            var sourceLines = 0
+            var eligibleLines = 0
+            Files.newBufferedReader(cacheFile.toPath(), StandardCharsets.UTF_8).use { reader ->
+                while (true) {
+                    val password = reader.readLine() ?: break
+                    sourceLines++
+                    val scalarCount = password.codePointCount(0, password.length)
+                    val utf8Length = password.toByteArray(StandardCharsets.UTF_8).size
+                    if (scalarCount in 15..128 && utf8Length <= 1024) {
+                        eligibleLines++
+                        if (eligiblePasswords.size < passwordCorpusEntryCount) {
+                            eligiblePasswords.add(password)
+                        }
+                    }
+                }
+            }
+            require(sourceLines == passwordCorpusSourceLineCount) {
+                "Pinned password reference source has an unexpected line count."
+            }
+            require(eligibleLines == passwordCorpusEligibleLineCount) {
+                "Pinned password reference source has an unexpected eligible-entry count."
+            }
+            require(eligiblePasswords.size == passwordCorpusEntryCount) {
+                "Pinned password reference source does not contain enough eligible entries."
+            }
+
+            val artifact =
+                eligiblePasswords
+                    .map { sha256(it.toByteArray(StandardCharsets.UTF_8)) }
+                    .sorted()
+                    .joinToString(separator = "", postfix = "") { "$it\n" }
+                    .toByteArray(StandardCharsets.US_ASCII)
+            require(sha256(artifact) == passwordCorpusArtifactSha256) {
+                "Generated password reference data does not match its pinned checksum."
+            }
+            val outputFile = passwordCorpusOutput.get().asFile
+            outputFile.parentFile.mkdirs()
+            outputFile.writeBytes(artifact)
+        }
+    }
+
+sourceSets.main {
+    resources.srcDir(passwordCorpusResources)
+}
+
+tasks.named("processResources") {
+    dependsOn(generatePasswordCorpus)
 }
 
 val integrationTestSourceSet = sourceSets.create("integrationTest")

@@ -26,6 +26,12 @@ where managed, pin and lock otherwise, and review the complete dependency graph 
 Do not copy illustrative framework default users, generated passwords, in-memory repositories,
 permissive endpoints or conditional-factor examples into production.
 
+Generate the local weak-password reference data during the Gradle build from a pinned SecLists
+revision. Verify the upstream source, license and generated artifact checksums; cache the verified
+upstream file under Gradle's user home; and package only the generated digest list. The running server
+does not fetch data and remains offline-capable. A clean build needs network access to populate the
+cache, while repeated builds can use the verified local cache.
+
 The [Boot dependency coordinates](https://docs.spring.io/spring-boot/appendix/dependency-versions/coordinates.html)
 list Security 7.1.1 and Session 4.1.1 for the repository's Boot 4.1.1 line, checked on 2026-10-11.
 Spring Security supplies [factor-aware authorization](https://docs.spring.io/spring-security/reference/servlet/authentication/mfa.html)
