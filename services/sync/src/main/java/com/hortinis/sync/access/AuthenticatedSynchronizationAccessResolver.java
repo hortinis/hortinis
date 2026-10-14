@@ -1,44 +1,20 @@
 package com.hortinis.sync.access;
 
 import com.hortinis.sync.authentication.AuthenticationRequiredException;
-import com.hortinis.sync.authentication.AuthenticationSecrets;
-import com.hortinis.sync.authentication.SessionAuthorityReference;
 import com.hortinis.sync.authentication.persistence.CurrentAuthenticationAuthorityPersistence;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.security.core.context.SecurityContextHolder;
 
-/** Maps current opaque servlet transport to owned identity; every data transaction rechecks it. */
+/** Maps Spring's current authenticated principal to the framework-independent sync context. */
 public final class AuthenticatedSynchronizationAccessResolver
     implements SynchronizationAccessResolver {
-  private final CurrentAuthenticationAuthorityPersistence authority;
-
-  /**
-   * Current persistence is the sole source of account/scope/epoch; request identity fields are
-   * ignored.
-   */
-  public AuthenticatedSynchronizationAccessResolver(
-      CurrentAuthenticationAuthorityPersistence authority) {
-    this.authority = authority;
-  }
-
   @Override
   public SynchronizationAccessContext resolve() {
-    if (!(RequestContextHolder.getRequestAttributes()
-        instanceof ServletRequestAttributes attributes)) {
-      throw new AuthenticationRequiredException();
-    }
-    var session = attributes.getRequest().getSession(false);
-    if (session == null
-        || !AuthenticationSecrets.isRandomValue(session.getId())
-        || !(session.getAttribute("hortinis.authority")
-            instanceof SessionAuthorityReference reference)) {
-      throw new AuthenticationRequiredException();
-    }
-    var current =
-        authority
-            .findFull(AuthenticationSecrets.digest(session.getId()), reference.value())
-            .orElseThrow(AuthenticationRequiredException::new);
-    if (!ServerAccessMode.SINGLE_USER_AUTH.wireValue().equals(current.mode())) {
+    var authentication = SecurityContextHolder.getContext().getAuthentication();
+    if (authentication == null
+        || !authentication.isAuthenticated()
+        || !(authentication.getPrincipal()
+            instanceof CurrentAuthenticationAuthorityPersistence.FullAuthority current)
+        || !ServerAccessMode.SINGLE_USER_AUTH.wireValue().equals(current.mode())) {
       throw new AuthenticationRequiredException();
     }
     return SynchronizationAccessContext.authenticated(

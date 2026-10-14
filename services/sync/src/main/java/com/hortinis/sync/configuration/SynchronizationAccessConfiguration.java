@@ -4,7 +4,6 @@ import com.hortinis.sync.access.AuthenticatedSynchronizationAccessResolver;
 import com.hortinis.sync.access.ConfiguredSynchronizationAccessResolver;
 import com.hortinis.sync.access.ServerAccessMode;
 import com.hortinis.sync.access.SynchronizationAccessResolver;
-import com.hortinis.sync.authentication.persistence.CurrentAuthenticationAuthorityPersistence;
 import com.hortinis.sync.persistence.ServerInstallationPersistence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,10 +60,8 @@ public class SynchronizationAccessConfiguration {
       name = "mode",
       havingValue = "single-user-auth")
   public SynchronizationAccessResolver authenticatedSynchronizationAccessResolver(
-      ServerAccessMode mode,
-      ServerInstallationPersistence installation,
-      CurrentAuthenticationAuthorityPersistence authority) {
+      ServerAccessMode mode, ServerInstallationPersistence installation) {
     installation.initializeMode(mode);
-    return new AuthenticatedSynchronizationAccessResolver(authority);
+    return new AuthenticatedSynchronizationAccessResolver();
   }
 }

@@ -5,6 +5,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import com.hortinis.sync.access.AuthenticatedSynchronizationAccessResolver;
+import com.hortinis.sync.authentication.AuthenticationSecrets;
+import com.hortinis.sync.authentication.SessionAuthorityReference;
+import com.hortinis.sync.authentication.persistence.AuthenticationJdbcSessions;
+import jakarta.servlet.http.Cookie;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -16,6 +20,9 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.UUID;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManagerFactory;
 import org.junit.jupiter.api.AfterAll;
@@ -28,10 +35,13 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -45,6 +55,7 @@ class AuthenticationRuntimeIntegrationTest {
   static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18.0");
 
   private static final Path OPERATOR_DIRECTORY = createOperatorDirectory();
+  private static final String BOOTSTRAP_PATH = "/api/v1/sync/bootstrap";
   private static final String FETCH_SITE = "Sec-Fetch-Site";
   private static final String FETCH_MODE = "Sec-Fetch-Mode";
   private static final String FETCH_DEST = "Sec-Fetch-Dest";
@@ -59,6 +70,7 @@ class AuthenticationRuntimeIntegrationTest {
   @Autowired private MockMvc http;
   @Autowired private JdbcTemplate jdbc;
   @Autowired private ApplicationContext context;
+  @Autowired private PlatformTransactionManager transactions;
 
   @DynamicPropertySource
   static void properties(DynamicPropertyRegistry registry) {
@@ -148,7 +160,7 @@ class AuthenticationRuntimeIntegrationTest {
 
   @Test
   void unauthenticatedSynchronizationCannotFallBackToNoAuth() throws Exception {
-    var response = http.perform(get("/api/v1/sync/bootstrap")).andReturn().getResponse();
+    var response = http.perform(get(BOOTSTRAP_PATH)).andReturn().getResponse();
     assertThat(response.getStatus()).isEqualTo(401);
     assertThat(response.getContentAsString()).contains("AUTHENTICATION_REQUIRED");
   }
@@ -200,6 +212,156 @@ class AuthenticationRuntimeIntegrationTest {
             HttpResponse.BodyHandlers.ofString());
     assertThat(denied.statusCode()).isEqualTo(403);
     assertThat(denied.headers().firstValue(HttpHeaders.SET_COOKIE)).isEmpty();
+  }
+
+  @Test
+  void springAuthorizesCurrentFullSessionsAndRejectsRevocationWithoutLeakingThePrincipal()
+      throws Exception {
+    verifySpringSessions(AuthenticationJdbcSessions.create(jdbc, transactions));
+  }
+
+  private <S extends org.springframework.session.Session> void verifySpringSessions(
+      org.springframework.session.SessionRepository<S> sessions) throws Exception {
+    UUID account = UUID.randomUUID();
+    UUID reference = UUID.randomUUID();
+    var session = sessions.createSession();
+    session.setAttribute("hortinis.authority", new SessionAuthorityReference(reference));
+    session.setMaxInactiveInterval(java.time.Duration.ofHours(12));
+    String csrf = AuthenticationSecrets.randomValue();
+    session.setAttribute(
+        "hortinis.csrf",
+        new org.springframework.security.web.csrf.DefaultCsrfToken("X-CSRF-TOKEN", "_csrf", csrf));
+    Instant now = Instant.now();
+    new TransactionTemplate(transactions)
+        .executeWithoutResult(
+            status -> {
+              jdbc.update(
+                  "INSERT INTO authentication_account (account_id, server_instance_id, "
+                      + "synchronization_scope_id, login_identifier, status, "
+                      + "password_verifier, user_handle, created_at) "
+                      + "SELECT ?, server_instance_id, synchronization_scope_id, "
+                      + "'spring-test', 'active', "
+                      + "'{argon2id}$argon2id$v=19$m=65536,t=3,p=1$test', ?, ? "
+                      + "FROM technical_synchronization_scope "
+                      + "WHERE technical_default",
+                  account,
+                  new byte[32],
+                  Timestamp.from(now));
+              jdbc.update(
+                  "INSERT INTO authentication_session_authority "
+                      + "(session_reference, session_verifier, "
+                      + "logout_target, state, account_id, authority_epoch, created_at, "
+                      + "expires_at, full_login_at, "
+                      + "last_interaction_at, both_factors_at) "
+                      + "VALUES (?, ?, ?, 'full', ?, 1, ?, ?, ?, ?, ?)",
+                  reference,
+                  AuthenticationSecrets.digest(session.getId()),
+                  AuthenticationSecrets.randomValue(),
+                  account,
+                  Timestamp.from(now),
+                  Timestamp.from(now.plusSeconds(43_200)),
+                  Timestamp.from(now),
+                  Timestamp.from(now),
+                  Timestamp.from(now));
+              sessions.save(session);
+            });
+    Cookie cookie = new Cookie("__Host-hortinis-session", session.getId());
+    try {
+      var response = http.perform(get(BOOTSTRAP_PATH).cookie(cookie)).andReturn().getResponse();
+      assertThat(response.getStatus()).isEqualTo(200);
+      assertThat(response.getContentAsString()).contains(account.toString());
+      assertThat(response.getHeader(HttpHeaders.SET_COOKIE)).isNull();
+      String expectation =
+          tools.jackson.databind.json.JsonMapper.builder()
+              .build()
+              .readTree(response.getContentAsString())
+              .get("expectation")
+              .stringValue();
+      assertThat(
+              http.perform(
+                      browserPost("/api/v1/sync/bindings/confirm", cookie, csrf)
+                          .content(
+                              "{\"expectation\":\""
+                                  + expectation
+                                  + "\",\"expectedPopulation\":\"empty\"}"))
+                  .andReturn()
+                  .getResponse()
+                  .getStatus())
+          .isEqualTo(200);
+      assertThat(
+              http.perform(
+                      get("/api/v1/sync/changes")
+                          .cookie(cookie)
+                          .header("Sync-Expectation", expectation))
+                  .andReturn()
+                  .getResponse()
+                  .getStatus())
+          .isEqualTo(200);
+      assertThat(
+              http.perform(
+                      browserPost("/api/v1/sync/operations", cookie, csrf)
+                          .header("Sync-Expectation", expectation)
+                          .content("{}"))
+                  .andReturn()
+                  .getResponse()
+                  .getStatus())
+          .isEqualTo(400);
+      for (String partial : new String[] {"password", "recovery"}) {
+        jdbc.update(
+            "UPDATE authentication_session_authority SET state = ?, expires_at = ? "
+                + "WHERE session_reference = ?",
+            partial,
+            Timestamp.from(now.plusSeconds(300)),
+            reference);
+        assertThat(
+                http.perform(get(BOOTSTRAP_PATH).cookie(cookie))
+                    .andReturn()
+                    .getResponse()
+                    .getStatus())
+            .isEqualTo(401);
+      }
+      jdbc.update(
+          "UPDATE authentication_session_authority SET state = 'full', expires_at = ? "
+              + "WHERE session_reference = ?",
+          Timestamp.from(now.plusSeconds(43_200)),
+          reference);
+      assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+      assertThat(http.perform(get(BOOTSTRAP_PATH)).andReturn().getResponse().getStatus())
+          .isEqualTo(401);
+      jdbc.update(
+          "UPDATE authentication_account SET authority_epoch = authority_epoch + 1 "
+              + "WHERE account_id = ?",
+          account);
+      assertThat(
+              http.perform(get(BOOTSTRAP_PATH).cookie(cookie))
+                  .andReturn()
+                  .getResponse()
+                  .getStatus())
+          .isEqualTo(401);
+      assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+      assertThat(
+              http.perform(get("/api/v1/server/capabilities"))
+                  .andReturn()
+                  .getResponse()
+                  .getStatus())
+          .isEqualTo(200);
+    } finally {
+      sessions.deleteById(session.getId());
+      jdbc.update("DELETE FROM technical_exchange_expectation WHERE account_id = ?", account);
+      jdbc.update("DELETE FROM authentication_account WHERE account_id = ?", account);
+    }
+  }
+
+  private static MockHttpServletRequestBuilder browserPost(
+      String path, Cookie cookie, String csrf) {
+    return post(path)
+        .cookie(cookie)
+        .header("Origin", "https://localhost")
+        .header(FETCH_SITE, SAME_ORIGIN)
+        .header(FETCH_MODE, CORS)
+        .header(FETCH_DEST, EMPTY_DESTINATION)
+        .header("X-CSRF-TOKEN", csrf)
+        .contentType(MediaType.APPLICATION_JSON);
   }
 
   private MockHttpServletRequestBuilder browserGet(String path) {

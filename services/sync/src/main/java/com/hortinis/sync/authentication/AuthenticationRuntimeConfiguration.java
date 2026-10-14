@@ -2,13 +2,16 @@ package com.hortinis.sync.authentication;
 
 import com.hortinis.sync.access.ServerAccessMode;
 import com.hortinis.sync.authentication.http.AuthenticationBrowserGuard;
+import com.hortinis.sync.authentication.http.AuthenticationHttpErrors;
 import com.hortinis.sync.authentication.http.AuthenticationLifecycleFilter;
 import com.hortinis.sync.authentication.http.AuthenticationProofBoundary;
+import com.hortinis.sync.authentication.http.CurrentAuthenticationSecurityContextRepository;
 import com.hortinis.sync.authentication.http.HeaderOnlyCsrfTokenRequestHandler;
 import com.hortinis.sync.authentication.http.RandomSessionCsrfTokenRepository;
 import com.hortinis.sync.authentication.persistence.AuthenticationJdbcSessions;
 import com.hortinis.sync.authentication.persistence.AuthenticationLifecyclePersistence;
 import com.hortinis.sync.authentication.persistence.AuthenticationOperatorTicketPersistence;
+import com.hortinis.sync.authentication.persistence.CurrentAuthenticationAuthorityPersistence;
 import java.net.URI;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -23,10 +26,11 @@ import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.security.authorization.AllRequiredFactorsAuthorizationManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.context.NullSecurityContextRepository;
+import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.session.web.http.SessionRepositoryFilter;
 import org.springframework.transaction.PlatformTransactionManager;
 
@@ -125,12 +129,15 @@ public class AuthenticationRuntimeConfiguration {
   }
 
   /**
-   * Selects the explicit stateless Spring boundary; application authority stays in its adapters.
+   * Spring owns request authentication and factor authorization; transactions recheck revocation.
    */
   @Bean
   @Order(Ordered.HIGHEST_PRECEDENCE)
   public SecurityFilterChain authenticatedSecurity(
-      HttpSecurity http, RandomSessionCsrfTokenRepository csrf) throws Exception {
+      HttpSecurity http,
+      RandomSessionCsrfTokenRepository csrf,
+      CurrentAuthenticationAuthorityPersistence authority)
+      throws Exception {
     http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.NEVER));
     http.csrf(
         configurer ->
@@ -144,8 +151,42 @@ public class AuthenticationRuntimeConfiguration {
     http.rememberMe(remember -> remember.disable());
     http.requestCache(cache -> cache.disable());
     http.securityContext(
-        context -> context.securityContextRepository(new NullSecurityContextRepository()));
-    http.authorizeHttpRequests(requests -> requests.anyRequest().permitAll());
+        context ->
+            context
+                .requireExplicitSave(true)
+                .securityContextRepository(
+                    new CurrentAuthenticationSecurityContextRepository(authority)));
+    var factors =
+        AllRequiredFactorsAuthorizationManager.<RequestAuthorizationContext>builder()
+            .requireFactor(factor -> factor.passwordAuthority())
+            .requireFactor(factor -> factor.webauthnAuthority())
+            .build();
+    http.exceptionHandling(
+        errors ->
+            errors
+                .authenticationEntryPoint(
+                    (request, response, exception) ->
+                        (CurrentAuthenticationSecurityContextRepository.isUnavailable(request)
+                                ? AuthenticationHttpErrors.UNAVAILABLE
+                                : AuthenticationHttpErrors.REQUIRED)
+                            .write(response))
+                .accessDeniedHandler(
+                    (request, response, exception) ->
+                        AuthenticationHttpErrors.DENIED.write(response)));
+    http.authorizeHttpRequests(
+        requests ->
+            requests
+                .requestMatchers(
+                    "/api/v1/server/capabilities",
+                    "/api/v1/auth/**",
+                    "/actuator/health",
+                    "/actuator/health/**",
+                    "/error")
+                .permitAll()
+                .requestMatchers("/api/v1/sync/**")
+                .access(factors)
+                .anyRequest()
+                .denyAll());
     return http.build();
   }
 

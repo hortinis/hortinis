@@ -40,6 +40,18 @@ Use those mechanisms behind explicit Hortinis application contracts; their examp
 accepted public API. Security framework objects stay inside the authentication adapter. Scope/business
 workflows continue receiving immutable trusted application contexts.
 
+### Spring request authentication
+
+Spring Security owns request contexts and requires password and WebAuthn factor authorities for
+synchronization endpoints. A read-only `SecurityContextRepository` resolves only current, complete
+normal authority from PostgreSQL; saved session principal objects are never trusted or serialized.
+The existing synchronization resolver maps that Spring principal into a framework-independent
+application context. Transaction admission still locks and rechecks account epoch, session expiry
+and scope ownership, so a request context cannot outlive concurrent revocation. Public capability
+discovery and health probes remain public; authentication routes keep their distinct setup, login,
+normal-factor-change and restricted-recovery admission rules. Storage failures deny access through
+closed JSON errors, and Spring clears request identity at completion.
+
 ### Strength and recovery
 
 Ordinary built-in login requires **both a password and a user-verified WebAuthn passkey**, from the same

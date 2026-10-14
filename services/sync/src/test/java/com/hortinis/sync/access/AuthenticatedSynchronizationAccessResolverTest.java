@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.hortinis.sync.authentication.AuthenticationRequiredException;
 import com.hortinis.sync.authentication.AuthenticationSecrets;
 import com.hortinis.sync.authentication.SessionAuthorityReference;
+import com.hortinis.sync.authentication.http.CurrentAuthenticationSecurityContextRepository;
 import com.hortinis.sync.authentication.persistence.CurrentAuthenticationAuthorityPersistence;
 import jakarta.servlet.http.HttpSession;
 import java.time.Instant;
@@ -18,6 +19,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.HttpRequestResponseHolder;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -28,19 +31,22 @@ class AuthenticatedSynchronizationAccessResolverTest {
   private final CurrentAuthenticationAuthorityPersistence authority =
       mock(CurrentAuthenticationAuthorityPersistence.class);
   private final AuthenticatedSynchronizationAccessResolver resolver =
-      new AuthenticatedSynchronizationAccessResolver(authority);
+      new AuthenticatedSynchronizationAccessResolver();
+  private final CurrentAuthenticationSecurityContextRepository contexts =
+      new CurrentAuthenticationSecurityContextRepository(authority);
 
   @AfterEach
   void releaseRequest() {
     RequestContextHolder.resetRequestAttributes();
+    SecurityContextHolder.clearContext();
   }
 
   @Test
   void missingRequestOrSessionDeniesWithoutAllocationOrConfiguredFallback() {
-    assertThatThrownBy(resolver::resolve).isInstanceOf(AuthenticationRequiredException.class);
+    assertThatThrownBy(this::resolve).isInstanceOf(AuthenticationRequiredException.class);
     var request = new MockHttpServletRequest();
     RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
-    assertThatThrownBy(resolver::resolve).isInstanceOf(AuthenticationRequiredException.class);
+    assertThatThrownBy(this::resolve).isInstanceOf(AuthenticationRequiredException.class);
     assertThat(request.getSession(false)).isNull();
     verifyNoInteractions(authority);
   }
@@ -49,10 +55,10 @@ class AuthenticatedSynchronizationAccessResolverTest {
   void rawTransportAndUntypedSavedPrincipalCannotGrantAuthority() {
     var session = requestSession();
     when(session.getId()).thenReturn("untrusted-session-identifier");
-    assertThatThrownBy(resolver::resolve).isInstanceOf(AuthenticationRequiredException.class);
+    assertThatThrownBy(this::resolve).isInstanceOf(AuthenticationRequiredException.class);
     when(session.getId()).thenReturn(IDENTIFIER);
     when(session.getAttribute(ATTRIBUTE)).thenReturn(REFERENCE.toString());
-    assertThatThrownBy(resolver::resolve).isInstanceOf(AuthenticationRequiredException.class);
+    assertThatThrownBy(this::resolve).isInstanceOf(AuthenticationRequiredException.class);
     verifyNoInteractions(authority);
   }
 
@@ -61,10 +67,10 @@ class AuthenticatedSynchronizationAccessResolverTest {
     requestSession();
     when(authority.findFull(AuthenticationSecrets.digest(IDENTIFIER), REFERENCE))
         .thenReturn(Optional.empty());
-    assertThatThrownBy(resolver::resolve).isInstanceOf(AuthenticationRequiredException.class);
+    assertThatThrownBy(this::resolve).isInstanceOf(AuthenticationRequiredException.class);
     when(authority.findFull(AuthenticationSecrets.digest(IDENTIFIER), REFERENCE))
         .thenReturn(Optional.of(current("single-user-no-auth")));
-    assertThatThrownBy(resolver::resolve).isInstanceOf(AuthenticationRequiredException.class);
+    assertThatThrownBy(this::resolve).isInstanceOf(AuthenticationRequiredException.class);
   }
 
   @Test
@@ -73,7 +79,7 @@ class AuthenticatedSynchronizationAccessResolverTest {
     var current = current("single-user-auth");
     when(authority.findFull(AuthenticationSecrets.digest(IDENTIFIER), REFERENCE))
         .thenReturn(Optional.of(current));
-    var resolved = resolver.resolve();
+    var resolved = resolve();
     assertThat(resolved.serverInstanceId().value()).isEqualTo(current.instance().toString());
     assertThat(resolved.synchronizationScopeId().value()).isEqualTo(current.scope().toString());
     var full = (SynchronizationAccessContext.AuthenticatedAuthority) resolved.authority();
@@ -83,17 +89,42 @@ class AuthenticatedSynchronizationAccessResolverTest {
     assertThat(resolved.toString()).isEqualTo("SynchronizationAccessContext[redacted]");
     when(authority.findFull(AuthenticationSecrets.digest(IDENTIFIER), REFERENCE))
         .thenReturn(Optional.empty());
-    assertThatThrownBy(resolver::resolve).isInstanceOf(AuthenticationRequiredException.class);
+    assertThatThrownBy(this::resolve).isInstanceOf(AuthenticationRequiredException.class);
     verify(session, org.mockito.Mockito.times(2)).getAttribute(ATTRIBUTE);
   }
 
+  private SynchronizationAccessContext resolve() {
+    if (RequestContextHolder.getRequestAttributes()
+        instanceof ServletRequestAttributes attributes) {
+      SecurityContextHolder.setContext(
+          contexts.loadContext(
+              new HttpRequestResponseHolder(attributes.getRequest(), attributes.getResponse())));
+    }
+    return resolver.resolve();
+  }
+
+  @Test
+  void unavailableStorageFailsClosedWithoutRetainingThePriorPrincipal() {
+    requestSession();
+    when(authority.findFull(AuthenticationSecrets.digest(IDENTIFIER), REFERENCE))
+        .thenThrow(
+            new org.springframework.dao.DataAccessResourceFailureException(
+                "private database details"));
+    assertThatThrownBy(this::resolve).isInstanceOf(AuthenticationRequiredException.class);
+    var attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+    assertThat(
+            CurrentAuthenticationSecurityContextRepository.isUnavailable(attributes.getRequest()))
+        .isTrue();
+    assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+  }
+
   private static HttpSession requestSession() {
-    var request = mock(jakarta.servlet.http.HttpServletRequest.class);
+    var request = new MockHttpServletRequest();
     var session = mock(HttpSession.class);
-    when(request.getSession(false)).thenReturn(session);
+    request.setSession(session);
     when(session.getId()).thenReturn(IDENTIFIER);
     when(session.getAttribute(ATTRIBUTE)).thenReturn(new SessionAuthorityReference(REFERENCE));
-    when(request.getHeader("X-Account-Id")).thenReturn(UUID.randomUUID().toString());
+    request.addHeader("X-Account-Id", UUID.randomUUID().toString());
     RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
     return session;
   }
