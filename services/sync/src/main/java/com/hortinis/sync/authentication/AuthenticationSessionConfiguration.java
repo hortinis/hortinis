@@ -1,7 +1,6 @@
 package com.hortinis.sync.authentication;
 
 import com.hortinis.sync.configuration.SynchronizationPersistenceEnabled;
-import java.util.Map;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.session.config.SessionRepositoryCustomizer;
@@ -29,7 +28,6 @@ public class AuthenticationSessionConfiguration {
     return repository -> {
       repository.setSessionIdGenerator(AuthenticationSecrets::randomValue);
       repository.setConversionService(SessionAttributeCodec.conversionService());
-      repository.setIndexResolver(session -> Map.of());
     };
   }
 

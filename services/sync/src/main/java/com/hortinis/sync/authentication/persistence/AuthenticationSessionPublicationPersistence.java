@@ -230,6 +230,7 @@ public class AuthenticationSessionPublicationPersistence {
             Timestamp.from(now))
         .update();
     retire(parent);
+    transport.authenticate(parent.account(), parent.epoch(), now);
     return replacement.reference();
   }
 

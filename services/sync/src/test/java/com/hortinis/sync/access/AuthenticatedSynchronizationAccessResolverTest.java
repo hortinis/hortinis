@@ -7,10 +7,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.hortinis.sync.authentication.AuthenticationIdentity;
 import com.hortinis.sync.authentication.AuthenticationRequiredException;
 import com.hortinis.sync.authentication.AuthenticationSecrets;
 import com.hortinis.sync.authentication.SessionAuthorityReference;
-import com.hortinis.sync.authentication.http.CurrentAuthenticationSecurityContextRepository;
 import com.hortinis.sync.authentication.persistence.CurrentAuthenticationAuthorityPersistence;
 import jakarta.servlet.http.HttpSession;
 import java.time.Instant;
@@ -21,19 +21,21 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.context.HttpRequestResponseHolder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 class AuthenticatedSynchronizationAccessResolverTest {
+  private static final UUID ACCOUNT = UUID.randomUUID();
   private static final UUID REFERENCE = UUID.randomUUID();
   private static final String IDENTIFIER = AuthenticationSecrets.randomValue();
   private static final String ATTRIBUTE = "hortinis.authority";
   private final CurrentAuthenticationAuthorityPersistence authority =
       mock(CurrentAuthenticationAuthorityPersistence.class);
   private final AuthenticatedSynchronizationAccessResolver resolver =
-      new AuthenticatedSynchronizationAccessResolver();
-  private final CurrentAuthenticationSecurityContextRepository contexts =
-      new CurrentAuthenticationSecurityContextRepository(authority);
+      new AuthenticatedSynchronizationAccessResolver(authority);
+  private final HttpSessionSecurityContextRepository contexts =
+      new HttpSessionSecurityContextRepository();
 
   @AfterEach
   void releaseRequest() {
@@ -110,11 +112,7 @@ class AuthenticatedSynchronizationAccessResolverTest {
         .thenThrow(
             new org.springframework.dao.DataAccessResourceFailureException(
                 "private database details"));
-    assertThatThrownBy(this::resolve).isInstanceOf(AuthenticationRequiredException.class);
-    var attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
-    assertThat(
-            CurrentAuthenticationSecurityContextRepository.isUnavailable(attributes.getRequest()))
-        .isTrue();
+    assertThatThrownBy(this::resolve).isInstanceOf(SynchronizationAccessUnavailableException.class);
     assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
   }
 
@@ -124,6 +122,10 @@ class AuthenticatedSynchronizationAccessResolverTest {
     request.setSession(session);
     when(session.getId()).thenReturn(IDENTIFIER);
     when(session.getAttribute(ATTRIBUTE)).thenReturn(new SessionAuthorityReference(REFERENCE));
+    var context = SecurityContextHolder.createEmptyContext();
+    context.setAuthentication(AuthenticationIdentity.completed(ACCOUNT, 7, Instant.now()));
+    when(session.getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY))
+        .thenReturn(context);
     request.addHeader("X-Account-Id", UUID.randomUUID().toString());
     RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
     return session;
@@ -133,7 +135,7 @@ class AuthenticatedSynchronizationAccessResolverTest {
     Instant now = Instant.parse("2026-10-12T06:00:00Z");
     return new CurrentAuthenticationAuthorityPersistence.FullAuthority(
         REFERENCE,
-        UUID.randomUUID(),
+        ACCOUNT,
         7,
         UUID.randomUUID(),
         UUID.randomUUID(),

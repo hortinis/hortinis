@@ -5,12 +5,10 @@ import com.hortinis.sync.authentication.http.AuthenticationBrowserGuard;
 import com.hortinis.sync.authentication.http.AuthenticationHttpErrors;
 import com.hortinis.sync.authentication.http.AuthenticationLifecycleFilter;
 import com.hortinis.sync.authentication.http.AuthenticationProofBoundary;
-import com.hortinis.sync.authentication.http.CurrentAuthenticationSecurityContextRepository;
 import com.hortinis.sync.authentication.http.HeaderOnlyCsrfTokenRequestHandler;
 import com.hortinis.sync.authentication.http.RandomSessionCsrfTokenRepository;
 import com.hortinis.sync.authentication.persistence.AuthenticationLifecyclePersistence;
 import com.hortinis.sync.authentication.persistence.AuthenticationOperatorTicketPersistence;
-import com.hortinis.sync.authentication.persistence.CurrentAuthenticationAuthorityPersistence;
 import java.net.URI;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -29,6 +27,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.transaction.PlatformTransactionManager;
 
 /** Explicit S9-only runtime graph for a freshly provisioned sole authenticated account. */
@@ -121,10 +120,7 @@ public class AuthenticationRuntimeConfiguration {
   @Bean
   @Order(Ordered.HIGHEST_PRECEDENCE)
   public SecurityFilterChain authenticatedSecurity(
-      HttpSecurity http,
-      RandomSessionCsrfTokenRepository csrf,
-      CurrentAuthenticationAuthorityPersistence authority)
-      throws Exception {
+      HttpSecurity http, RandomSessionCsrfTokenRepository csrf) throws Exception {
     http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.NEVER));
     http.csrf(
         configurer ->
@@ -141,8 +137,7 @@ public class AuthenticationRuntimeConfiguration {
         context ->
             context
                 .requireExplicitSave(true)
-                .securityContextRepository(
-                    new CurrentAuthenticationSecurityContextRepository(authority)));
+                .securityContextRepository(new HttpSessionSecurityContextRepository()));
     var factors =
         AllRequiredFactorsAuthorizationManager.<RequestAuthorizationContext>builder()
             .requireFactor(factor -> factor.passwordAuthority())
@@ -153,10 +148,7 @@ public class AuthenticationRuntimeConfiguration {
             errors
                 .authenticationEntryPoint(
                     (request, response, exception) ->
-                        (CurrentAuthenticationSecurityContextRepository.isUnavailable(request)
-                                ? AuthenticationHttpErrors.UNAVAILABLE
-                                : AuthenticationHttpErrors.REQUIRED)
-                            .write(response))
+                        AuthenticationHttpErrors.REQUIRED.write(response))
                 .accessDeniedHandler(
                     (request, response, exception) ->
                         AuthenticationHttpErrors.DENIED.write(response)));

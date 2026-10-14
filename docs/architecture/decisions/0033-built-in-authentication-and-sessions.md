@@ -43,10 +43,11 @@ workflows continue receiving immutable trusted application contexts.
 ### Spring request authentication
 
 Spring Security owns request contexts and requires password and WebAuthn factor authorities for
-synchronization endpoints. A read-only `SecurityContextRepository` resolves only current, complete
-normal authority from PostgreSQL; saved session principal objects are never trusted or serialized.
-The existing synchronization resolver maps that Spring principal into a framework-independent
-application context. Transaction admission still locks and rechecks account epoch, session expiry
+synchronization endpoints. `HttpSessionSecurityContextRepository` persists completed authentication
+using Spring's native User and factor authorities. Spring's supported JSON security modules encode
+the credential-free context; Java object deserialization is not enabled. Principal indexing stores
+only the internal account UUID, not the login name. The synchronization resolver maps that principal
+into a framework-independent application context and checks current account ownership and epoch. Transaction admission still locks and rechecks account epoch, session expiry
 and scope ownership, so a request context cannot outlive concurrent revocation. Public capability
 discovery and health probes remain public; authentication routes keep their distinct setup, login,
 normal-factor-change and restricted-recovery admission rules. Storage failures deny access through

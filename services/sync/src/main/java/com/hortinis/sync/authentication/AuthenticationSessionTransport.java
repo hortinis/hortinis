@@ -1,7 +1,9 @@
 package com.hortinis.sync.authentication;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Function;
 
 /**
@@ -24,6 +26,9 @@ public interface AuthenticationSessionTransport {
 
   /** Explicit transactional replacement; no cookie change or authentication-lifetime renewal. */
   void refreshCsrf();
+
+  /** Publishes completed two-factor authentication through the framework's native context. */
+  void authenticate(UUID account, long epoch, Instant verifiedAt);
 
   /** Invalidates native transport inside the caller's authoritative invalidation transaction. */
   void invalidate();

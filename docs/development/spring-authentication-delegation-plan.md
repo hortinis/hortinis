@@ -139,3 +139,26 @@ The user selected alignment with Spring's standard session and recovery flows on
 The next implementation may revise bespoke S9 internal guarantees to use the framework model, while
 retaining mandatory password plus user-verified passkey login, recovery features and offline sync.
 This supersedes the earlier assumption that every bespoke internal guarantee must remain identical.
+
+## Standard authentication rewrite sequence
+
+1. Persist completed authentication with Spring's HttpSessionSecurityContextRepository and native
+   User/factor authorities. Use Spring's JSON security modules for serialization; no password is
+   retained. Remove the custom request security-context loader. Retain current database ownership
+   checks during this intermediate step so the existing API remains reviewable and secure.
+2. Move password authentication to AuthenticationManager/DaoAuthenticationProvider and passkeys to
+   Spring relying-party operations, replacing the bespoke proof orchestration where compatible.
+3. Replace parallel full-session authority, lifetime, session listing/revocation and admission with
+   Spring Session and factor authorization. Retain application-specific account ownership, recovery
+   codes and protected operator provisioning. Update the specification and tests for standard session
+   activity/expiry behavior rather than perpetuating the old parallel state machine.
+4. Review and measure the resulting simplification, run the documented checks, fix findings and
+   commit each completed step. Mandatory two-factor data access and all recovery/offline user flows
+   remain acceptance criteria.
+
+Native context persistence passed 267 unit and 284 PostgreSQL integration tests, plus contracts,
+documentation and six topology browser tests. The old custom request-context repository is removed.
+The current transition retains transaction-time ownership and epoch checks while authentication is
+persisted using Spring's credential-free User and factor authorities. Only account UUIDs are indexed;
+login names and passwords are not cached. The next step replaces manual password authentication with
+Spring's provider pipeline, followed by parallel authority/lifetime/session-management removal.

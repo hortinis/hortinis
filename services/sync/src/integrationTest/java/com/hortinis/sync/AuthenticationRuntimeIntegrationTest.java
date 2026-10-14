@@ -258,6 +258,16 @@ class AuthenticationRuntimeIntegrationTest {
     new TransactionTemplate(transactions)
         .executeWithoutResult(
             status -> {
+              var security =
+                  org.springframework.security.core.context.SecurityContextHolder
+                      .createEmptyContext();
+              security.setAuthentication(
+                  com.hortinis.sync.authentication.AuthenticationIdentity.completed(
+                      account, 1, now));
+              session.setAttribute(
+                  org.springframework.security.web.context.HttpSessionSecurityContextRepository
+                      .SPRING_SECURITY_CONTEXT_KEY,
+                  security);
               jdbc.update(
                   "INSERT INTO authentication_account (account_id, server_instance_id, "
                       + "synchronization_scope_id, login_identifier, status, "

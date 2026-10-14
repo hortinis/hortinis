@@ -4,14 +4,35 @@ import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import org.springframework.core.convert.ConversionService;
 import org.springframework.core.convert.support.GenericConversionService;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.jackson.SecurityJacksonModules;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.csrf.DefaultCsrfToken;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.StreamReadConstraints;
+import tools.jackson.core.json.JsonFactory;
+import tools.jackson.databind.json.JsonMapper;
 
-/** Closed scalar JDBC session encoding; no Java deserialization or arbitrary principal graph. */
+/** Scalar attributes and native Spring JSON security contexts; no Java object deserialization. */
 public final class SessionAttributeCodec {
   private static final String CSRF_PREFIX = "v1:csrf:";
   private static final String REFERENCE_PREFIX = "v1:authority:";
-  private static final int MAX_BYTES = 1024;
+  private static final String CONTEXT_PREFIX = "v1:security:";
+  private static final int MAX_BYTES = 8192;
+  private static final JsonMapper CONTEXTS =
+      JsonMapper.builder(
+              JsonFactory.builder()
+                  .streamReadConstraints(
+                      StreamReadConstraints.builder()
+                          .maxDocumentLength(MAX_BYTES)
+                          .maxNestingDepth(16)
+                          .maxTokenCount(256)
+                          .maxStringLength(1024)
+                          .build())
+                  .build())
+          .addModules(
+              SecurityJacksonModules.getModules(Thread.currentThread().getContextClassLoader()))
+          .build();
 
   private SessionAttributeCodec() {}
 
@@ -25,7 +46,13 @@ public final class SessionAttributeCodec {
 
   static byte[] encode(Object attribute) {
     String encoded;
-    if (attribute instanceof SessionAuthorityReference reference) {
+    if (attribute instanceof SecurityContext context) {
+      AuthenticationIdentity.from(context.getAuthentication());
+      encoded = CONTEXT_PREFIX + CONTEXTS.writeValueAsString(context);
+      if (encoded.length() > MAX_BYTES) {
+        throw invalid();
+      }
+    } else if (attribute instanceof SessionAuthorityReference reference) {
       encoded = REFERENCE_PREFIX + reference.value();
     } else if (attribute instanceof CsrfToken csrf
         && "X-CSRF-TOKEN".equals(csrf.getHeaderName())
@@ -43,7 +70,16 @@ public final class SessionAttributeCodec {
       throw invalid();
     }
     String encoded = new String(bytes, StandardCharsets.US_ASCII);
-    if (encoded.startsWith(CSRF_PREFIX)) {
+    if (encoded.startsWith(CONTEXT_PREFIX)) {
+      try {
+        var context =
+            CONTEXTS.readValue(encoded.substring(CONTEXT_PREFIX.length()), SecurityContext.class);
+        AuthenticationIdentity.from(context.getAuthentication());
+        return context;
+      } catch (JacksonException | AuthenticationRequiredException exception) {
+        throw invalid();
+      }
+    } else if (encoded.startsWith(CSRF_PREFIX)) {
       String token = encoded.substring(CSRF_PREFIX.length());
       if (validToken(token)) {
         return new DefaultCsrfToken("X-CSRF-TOKEN", "_csrf", token);

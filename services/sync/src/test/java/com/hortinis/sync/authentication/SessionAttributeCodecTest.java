@@ -54,4 +54,32 @@ class SessionAttributeCodecTest {
           .hasMessage("Unsupported authentication session attribute.");
     }
   }
+
+  @Test
+  void nativeSecurityContextUsesSpringJsonModulesAndRetainsNoCredentials() {
+    var context =
+        org.springframework.security.core.context.SecurityContextHolder.createEmptyContext();
+    UUID account = UUID.randomUUID();
+    context.setAuthentication(
+        AuthenticationIdentity.completed(account, 7, java.time.Instant.now()));
+    byte[] encoded = SessionAttributeCodec.encode(context);
+    var decoded =
+        (org.springframework.security.core.context.SecurityContext)
+            SessionAttributeCodec.decode(encoded);
+    assertThat(AuthenticationIdentity.from(decoded.getAuthentication()))
+        .isEqualTo(new AuthenticationIdentity(account, 7));
+    assertThat(decoded.getAuthentication().getCredentials()).isNull();
+    assertThat(
+            ((org.springframework.security.core.userdetails.User)
+                    decoded.getAuthentication().getPrincipal())
+                .getPassword())
+        .isNull();
+    assertThat(new String(encoded, StandardCharsets.US_ASCII)).startsWith("v1:security:{");
+    assertThatThrownBy(
+            () ->
+                SessionAttributeCodec.decode(
+                    "v1:security:{\"@class\":\"java.lang.ProcessBuilder\"}"
+                        .getBytes(StandardCharsets.US_ASCII)))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
 }

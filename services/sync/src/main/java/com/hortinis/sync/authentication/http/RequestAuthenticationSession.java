@@ -1,5 +1,6 @@
 package com.hortinis.sync.authentication.http;
 
+import com.hortinis.sync.authentication.AuthenticationIdentity;
 import com.hortinis.sync.authentication.AuthenticationLifetime;
 import com.hortinis.sync.authentication.AuthenticationSecrets;
 import com.hortinis.sync.authentication.AuthenticationSessionTransport;
@@ -9,10 +10,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.function.Function;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.NullSecurityContextRepository;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
@@ -23,6 +28,8 @@ public final class RequestAuthenticationSession implements AuthenticationSession
   private final HttpServletRequest request;
   private final HttpServletResponse response;
   private final RandomSessionCsrfTokenRepository csrf = new RandomSessionCsrfTokenRepository();
+  private final HttpSessionSecurityContextRepository contexts =
+      new HttpSessionSecurityContextRepository();
   private final SecurityContextLogoutHandler logout = logoutHandler();
 
   /** Receives the actual established Spring Session request/response wrappers. */
@@ -79,6 +86,8 @@ public final class RequestAuthenticationSession implements AuthenticationSession
     // With the selected immediate JDBC repository, this attribute flush saves the rotated ID too.
     session.setAttribute(AUTHORITY_ATTRIBUTE, replacement);
     session.setMaxInactiveInterval((int) transportLifetime.toSeconds());
+    contexts.saveContext(SecurityContextHolder.createEmptyContext(), request, response);
+    SecurityContextHolder.clearContext();
     refreshCsrf();
     releaseAfterCommit(identifier, replacement);
     return new Observation(replacement, AuthenticationSecrets.digest(identifier));
@@ -98,6 +107,16 @@ public final class RequestAuthenticationSession implements AuthenticationSession
       throw unavailable();
     }
     csrf.saveToken(csrf.generateToken(request), request, response);
+  }
+
+  @Override
+  public void authenticate(UUID account, long epoch, Instant verifiedAt) {
+    requirePublicationTransaction();
+    requireCookieWorkflow();
+    var context = SecurityContextHolder.createEmptyContext();
+    context.setAuthentication(AuthenticationIdentity.completed(account, epoch, verifiedAt));
+    contexts.saveContext(context, request, response);
+    SecurityContextHolder.setContext(context);
   }
 
   @Override
