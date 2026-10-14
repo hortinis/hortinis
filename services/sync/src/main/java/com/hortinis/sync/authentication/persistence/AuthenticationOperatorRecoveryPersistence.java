@@ -106,8 +106,7 @@ public class AuthenticationOperatorRecoveryPersistence {
         || !parent.reference().equals(ticket.claimed())
         || proof.kind() != BoundWebAuthnOperations.ProofKind.REGISTRATION
         || !MessageDigest.isEqual(parent.stagedHandle(), account.userHandle())
-        || !MessageDigest.isEqual(
-            parent.stagedHandle(), proof.credential().getUserEntityUserId().getBytes())) {
+        || !MessageDigest.isEqual(parent.stagedHandle(), proof.userHandle())) {
       throw new AuthenticationFailedException();
     }
     accounts.replaceAllCredentials(account, proof);

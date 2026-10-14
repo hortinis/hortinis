@@ -38,12 +38,10 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import org.springframework.security.web.webauthn.api.AttestationConveyancePreference;
+import org.springframework.security.web.webauthn.api.AuthenticatorAssertionResponse;
 import org.springframework.security.web.webauthn.api.AuthenticatorAttestationResponse;
 import org.springframework.security.web.webauthn.api.AuthenticatorSelectionCriteria;
 import org.springframework.security.web.webauthn.api.Bytes;
-import org.springframework.security.web.webauthn.api.CredentialRecord;
-import org.springframework.security.web.webauthn.api.ImmutableCredentialRecord;
-import org.springframework.security.web.webauthn.api.ImmutablePublicKeyCose;
 import org.springframework.security.web.webauthn.api.ImmutablePublicKeyCredentialUserEntity;
 import org.springframework.security.web.webauthn.api.PublicKeyCredential;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialCreationOptions;
@@ -54,8 +52,7 @@ import org.springframework.security.web.webauthn.api.PublicKeyCredentialType;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialUserEntity;
 import org.springframework.security.web.webauthn.api.ResidentKeyRequirement;
 import org.springframework.security.web.webauthn.api.UserVerificationRequirement;
-import org.springframework.security.web.webauthn.management.RelyingPartyAuthenticationRequest;
-import org.springframework.security.web.webauthn.management.RelyingPartyRegistrationRequest;
+import org.springframework.security.web.webauthn.management.RelyingPartyPublicKey;
 import tools.jackson.core.StreamReadConstraints;
 import tools.jackson.core.StreamReadFeature;
 import tools.jackson.core.json.JsonFactory;
@@ -79,7 +76,7 @@ public final class BoundWebAuthnOperations {
   private final String origin;
   private final PublicKeyCredentialRpEntity rp;
   private final PublicKeyCredentialUserEntity user;
-  private final List<CredentialRecord> credentials;
+  private final List<AuthenticationCredential> credentials;
   private final CryptoWorkLimiter work;
   private final ObjectConverter converter;
   private final WebAuthnManager verifier;
@@ -88,7 +85,7 @@ public final class BoundWebAuthnOperations {
   public BoundWebAuthnOperations(
       String publicOrigin,
       PublicKeyCredentialUserEntity expectedUser,
-      List<CredentialRecord> currentCredentials,
+      List<AuthenticationCredential> currentCredentials,
       CryptoWorkLimiter work) {
     URI configured = requireOrigin(publicOrigin);
     origin = configured.toASCIIString();
@@ -104,8 +101,9 @@ public final class BoundWebAuthnOperations {
             .name(login)
             .displayName("Hortinis account")
             .build();
-    credentials = currentCredentials.stream().map(this::snapshotCredential).toList();
-    if (credentials.stream().map(CredentialRecord::getCredentialId).distinct().count()
+    credentials = List.copyOf(currentCredentials);
+    credentials.forEach(BoundWebAuthnOperations::requireCredential);
+    if (credentials.stream().map(credential -> new Bytes(credential.id())).distinct().count()
         != credentials.size()) {
       throw new IllegalArgumentException("Invalid trusted passkey ceremony.");
     }
@@ -160,9 +158,8 @@ public final class BoundWebAuthnOperations {
         credentials.stream()
             .map(
                 credential -> {
-                  requireOwnedCredential(credential);
                   return PublicKeyCredentialDescriptor.builder()
-                      .id(copy(credential.getCredentialId()))
+                      .id(new Bytes(credential.id()))
                       .build();
                 })
             .toList();
@@ -197,35 +194,24 @@ public final class BoundWebAuthnOperations {
   }
 
   /** Verifies registration without granting account/session authority or publishing any record. */
-  public VerifiedCredential verifyRegistration(RelyingPartyRegistrationRequest request) {
-    final PublicKeyCredentialCreationOptions options = request.getCreationOptions();
-    PublicKeyCredential<AuthenticatorAttestationResponse> credential =
-        request.getPublicKey().getCredential();
+  public VerifiedCredential verifyRegistration(byte[] nonce, RelyingPartyPublicKey key) {
+    final byte[] challenge = requiredChallenge(nonce);
+    PublicKeyCredential<AuthenticatorAttestationResponse> credential = key.getCredential();
     requireCredentialEnvelope(credential);
     requireBytes(credential.getResponse().getClientDataJSON(), 1, MAX_CLIENT_DATA_BYTES);
     requireBytes(credential.getResponse().getAttestationObject(), 1, MAX_ATTESTATION_BYTES);
-    requireBytes(options.getChallenge(), RANDOM_BYTES, RANDOM_BYTES);
-    if (!rp.getId().equals(options.getRp().getId())
-        || !MessageDigest.isEqual(user.getId().getBytes(), options.getUser().getId().getBytes())
-        || options.getAuthenticatorSelection().getUserVerification()
-            != UserVerificationRequirement.REQUIRED
-        || options.getAuthenticatorSelection().getResidentKey() != ResidentKeyRequirement.REQUIRED
-        || options.getAttestation() != AttestationConveyancePreference.NONE) {
-      throw new AuthenticationFailedException();
-    }
-    String label = request.getPublicKey().getLabel();
+    String label = key.getLabel();
     if (label != null
         && (!PasswordPolicy.isScalarText(label, 0, 64, 256) || label.indexOf(0) >= 0)) {
       throw new AuthenticationFailedException();
     }
-    return work.execute(() -> verifyRegistrationMaterial(options, credential, label));
+    return work.execute(() -> verifyRegistrationMaterial(challenge, credential, label));
   }
 
   private VerifiedCredential verifyRegistrationMaterial(
-      PublicKeyCredentialCreationOptions options,
+      byte[] challenge,
       PublicKeyCredential<AuthenticatorAttestationResponse> credential,
       String label) {
-    byte[] challenge = options.getChallenge().getBytes().clone();
     try {
       RegistrationParameters parameters =
           new RegistrationParameters(
@@ -253,7 +239,9 @@ public final class BoundWebAuthnOperations {
       }
       if (!MessageDigest.isEqual(attested.getCredentialId(), credential.getRawId().getBytes())
           || credentials.stream()
-              .anyMatch(existing -> existing.getCredentialId().equals(credential.getRawId()))) {
+              .anyMatch(
+                  existing ->
+                      MessageDigest.isEqual(existing.id(), credential.getRawId().getBytes()))) {
         throw new AuthenticationFailedException();
       }
       COSEKey key = attested.getCOSEKey();
@@ -262,25 +250,17 @@ public final class BoundWebAuthnOperations {
       if (cose.length > MAX_COSE_BYTES) {
         throw new AuthenticationFailedException();
       }
-      CredentialRecord verified =
-          ImmutableCredentialRecord.builder()
-              .credentialType(PublicKeyCredentialType.PUBLIC_KEY)
-              .credentialId(copy(credential.getRawId()))
-              .userEntityUserId(copy(user.getId()))
-              .publicKey(new ImmutablePublicKeyCose(cose))
-              .signatureCount(data.getSignCount())
-              .uvInitialized(true)
-              .transports(Set.of())
-              .backupEligible(data.isFlagBE())
-              .backupState(data.isFlagBS())
-              .label(label)
-              .build();
+      var verified =
+          new AuthenticationCredential(
+              credential.getRawId().getBytes(),
+              cose,
+              Math.toIntExact(key.getAlgorithm().getValue()),
+              data.getSignCount(),
+              data.isFlagBE(),
+              data.isFlagBS(),
+              label);
       return new VerifiedCredential(
-          verified,
-          challenge,
-          origin,
-          Math.toIntExact(key.getAlgorithm().getValue()),
-          ProofKind.REGISTRATION);
+          verified, user.getId().getBytes(), challenge, origin, ProofKind.REGISTRATION);
     } catch (com.webauthn4j.verifier.exception.VerificationException
         | com.webauthn4j.converter.exception.DataConversionException
         | tools.jackson.core.JacksonException
@@ -290,47 +270,37 @@ public final class BoundWebAuthnOperations {
   }
 
   /** Returns a verified assertion; current-state publication is a separate locked workflow. */
-  public VerifiedCredential verifyAssertion(RelyingPartyAuthenticationRequest request) {
-    var options = request.getRequestOptions();
-    var credential = request.getPublicKey();
+  public VerifiedCredential verifyAssertion(
+      byte[] nonce, PublicKeyCredential<AuthenticatorAssertionResponse> credential) {
+    final byte[] challenge = requiredChallenge(nonce);
     requireCredentialEnvelope(credential);
-    requireBytes(options.getChallenge(), RANDOM_BYTES, RANDOM_BYTES);
     requireBytes(credential.getResponse().getClientDataJSON(), 1, MAX_CLIENT_DATA_BYTES);
     requireBytes(credential.getResponse().getAuthenticatorData(), 1, MAX_PROOF_BYTES);
     requireBytes(credential.getResponse().getSignature(), 1, MAX_PROOF_BYTES);
     requireBytes(credential.getResponse().getUserHandle(), RANDOM_BYTES, RANDOM_BYTES);
-    if (!rp.getId().equals(options.getRpId())
-        || options.getUserVerification() != UserVerificationRequirement.REQUIRED
-        || (options.getAllowCredentials() != null && !options.getAllowCredentials().isEmpty())
-        || !MessageDigest.isEqual(
-            user.getId().getBytes(), credential.getResponse().getUserHandle().getBytes())) {
+    if (!MessageDigest.isEqual(
+        user.getId().getBytes(), credential.getResponse().getUserHandle().getBytes())) {
       throw new AuthenticationFailedException();
     }
-    CredentialRecord current =
+    AuthenticationCredential current =
         credentials.stream()
-            .filter(value -> value.getCredentialId().equals(credential.getRawId()))
+            .filter(value -> MessageDigest.isEqual(value.id(), credential.getRawId().getBytes()))
             .findFirst()
             .orElseThrow(AuthenticationFailedException::new);
-    requireOwnedCredential(current);
-    byte[] challenge = options.getChallenge().getBytes().clone();
     return work.execute(
         () -> {
           try {
-            requireBytes(new Bytes(current.getPublicKey().getBytes()), 1, MAX_COSE_BYTES);
-            COSEKey key =
-                converter
-                    .getCborMapper()
-                    .readValue(current.getPublicKey().getBytes(), COSEKey.class);
+            requireBytes(new Bytes(current.publicKey()), 1, MAX_COSE_BYTES);
+            COSEKey key = converter.getCborMapper().readValue(current.publicKey(), COSEKey.class);
             requireKey(key);
             var record =
                 new CredentialRecordImpl(
                     new NoneAttestationStatement(),
                     true,
-                    current.isBackupEligible(),
-                    current.isBackupState(),
-                    current.getSignatureCount(),
-                    new AttestedCredentialData(
-                        AAGUID.ZERO, current.getCredentialId().getBytes(), key),
+                    current.backupEligible(),
+                    current.backedUp(),
+                    current.counter(),
+                    new AttestedCredentialData(AAGUID.ZERO, current.id(), key),
                     null,
                     null,
                     null,
@@ -350,29 +320,20 @@ public final class BoundWebAuthnOperations {
               throw new AuthenticationFailedException();
             }
             long counter =
-                current.isBackupEligible()
-                    ? Math.max(current.getSignatureCount(), data.getSignCount())
+                current.backupEligible()
+                    ? Math.max(current.counter(), data.getSignCount())
                     : data.getSignCount();
-            CredentialRecord verified =
-                ImmutableCredentialRecord.builder()
-                    .credentialType(PublicKeyCredentialType.PUBLIC_KEY)
-                    .credentialId(copy(current.getCredentialId()))
-                    .userEntityUserId(copy(user.getId()))
-                    .publicKey(
-                        new ImmutablePublicKeyCose(current.getPublicKey().getBytes().clone()))
-                    .signatureCount(counter)
-                    .uvInitialized(true)
-                    .transports(Set.of())
-                    .backupEligible(current.isBackupEligible())
-                    .backupState(data.isFlagBS())
-                    .label(current.getLabel())
-                    .build();
+            var verified =
+                new AuthenticationCredential(
+                    current.id(),
+                    current.publicKey(),
+                    Math.toIntExact(key.getAlgorithm().getValue()),
+                    counter,
+                    current.backupEligible(),
+                    data.isFlagBS(),
+                    current.label());
             return new VerifiedCredential(
-                verified,
-                challenge,
-                origin,
-                Math.toIntExact(key.getAlgorithm().getValue()),
-                ProofKind.ASSERTION);
+                verified, user.getId().getBytes(), challenge, origin, ProofKind.ASSERTION);
           } catch (com.webauthn4j.verifier.exception.VerificationException
               | com.webauthn4j.converter.exception.DataConversionException
               | tools.jackson.core.JacksonException
@@ -382,39 +343,14 @@ public final class BoundWebAuthnOperations {
         });
   }
 
-  private void requireOwnedCredential(CredentialRecord credential) {
-    requireBytes(credential.getUserEntityUserId(), RANDOM_BYTES, RANDOM_BYTES);
-    requireBytes(credential.getCredentialId(), 1, MAX_CREDENTIAL_BYTES);
-    if (credential.getCredentialType() != PublicKeyCredentialType.PUBLIC_KEY
-        || !credential.isUvInitialized()
-        || !MessageDigest.isEqual(
-            credential.getUserEntityUserId().getBytes(), user.getId().getBytes())
-        || credential.getSignatureCount() < 0
-        || credential.getSignatureCount() > MAX_COUNTER
-        || credential.isBackupState() && !credential.isBackupEligible()) {
+  private static void requireCredential(AuthenticationCredential credential) {
+    requireBytes(new Bytes(credential.id()), 1, MAX_CREDENTIAL_BYTES);
+    requireBytes(new Bytes(credential.publicKey()), 1, MAX_COSE_BYTES);
+    if (credential.counter() < 0
+        || credential.counter() > MAX_COUNTER
+        || credential.backedUp() && !credential.backupEligible()) {
       throw new AuthenticationFailedException();
     }
-  }
-
-  private CredentialRecord snapshotCredential(CredentialRecord credential) {
-    requireOwnedCredential(credential);
-    requireBytes(new Bytes(credential.getPublicKey().getBytes()), 1, MAX_COSE_BYTES);
-    return copyCredential(credential);
-  }
-
-  private static CredentialRecord copyCredential(CredentialRecord credential) {
-    return ImmutableCredentialRecord.builder()
-        .credentialType(PublicKeyCredentialType.PUBLIC_KEY)
-        .credentialId(copy(credential.getCredentialId()))
-        .userEntityUserId(copy(credential.getUserEntityUserId()))
-        .publicKey(new ImmutablePublicKeyCose(credential.getPublicKey().getBytes().clone()))
-        .signatureCount(credential.getSignatureCount())
-        .uvInitialized(true)
-        .transports(Set.of())
-        .backupEligible(credential.isBackupEligible())
-        .backupState(credential.isBackupState())
-        .label(credential.getLabel())
-        .build();
   }
 
   private static void requireCredentialEnvelope(PublicKeyCredential<?> credential) {
@@ -429,6 +365,11 @@ public final class BoundWebAuthnOperations {
     if (bytes == null || bytes.getBytes().length < minimum || bytes.getBytes().length > maximum) {
       throw new AuthenticationFailedException();
     }
+  }
+
+  private static byte[] requiredChallenge(byte[] nonce) {
+    requireBytes(nonce == null ? null : new Bytes(nonce), RANDOM_BYTES, RANDOM_BYTES);
+    return nonce.clone();
   }
 
   private static Bytes challenge(byte[] nonce) {
@@ -493,28 +434,33 @@ public final class BoundWebAuthnOperations {
 
   /** Only successful verifier paths construct this internal immutable result. */
   public static final class VerifiedCredential {
-    private final CredentialRecord credentialSnapshot;
+    private final AuthenticationCredential credentialSnapshot;
+    private final byte[] accountHandle;
     private final byte[] serverChallenge;
     private final String configuredOrigin;
-    private final int selectedAlgorithm;
     private final ProofKind proofKind;
 
     private VerifiedCredential(
-        CredentialRecord credential,
+        AuthenticationCredential credential,
+        byte[] userHandle,
         byte[] challenge,
         String origin,
-        int algorithm,
         ProofKind kind) {
-      this.credentialSnapshot = copyCredential(credential);
+      this.credentialSnapshot = credential;
+      this.accountHandle = userHandle.clone();
       this.serverChallenge = challenge.clone();
       this.configuredOrigin = origin;
-      this.selectedAlgorithm = algorithm;
       this.proofKind = kind;
     }
 
-    /** Copies the minimized verified record; callers cannot mutate the retained proof. */
-    public CredentialRecord credential() {
-      return copyCredential(credentialSnapshot);
+    /** The verified record is immutable and contains only the persisted public key fields. */
+    public AuthenticationCredential credential() {
+      return credentialSnapshot;
+    }
+
+    /** Binds the verified credential to the account used by this ceremony. */
+    public byte[] userHandle() {
+      return accountHandle.clone();
     }
 
     /** Copies the exact verified server nonce for comparison to the consumed receipt. */
@@ -529,7 +475,7 @@ public final class BoundWebAuthnOperations {
 
     /** Selected verified COSE algorithm for constrained persistence. */
     public int algorithm() {
-      return selectedAlgorithm;
+      return credentialSnapshot.algorithm();
     }
 
     /** Distinguishes enrollment from an actual signed authentication assertion. */

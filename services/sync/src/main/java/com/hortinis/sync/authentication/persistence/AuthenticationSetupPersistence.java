@@ -90,8 +90,7 @@ public class AuthenticationSetupPersistence {
     Ticket ticket = currentTicket(installation);
     if (!parent.reference().equals(ticket.claimed())
         || proof.kind() != BoundWebAuthnOperations.ProofKind.REGISTRATION
-        || !MessageDigest.isEqual(
-            parent.stagedHandle(), proof.credential().getUserEntityUserId().getBytes())) {
+        || !MessageDigest.isEqual(parent.stagedHandle(), proof.userHandle())) {
       throw new AuthenticationFailedException();
     }
     UUID scope = freshScope(installation);

@@ -1,12 +1,11 @@
 package com.hortinis.sync.authentication.http;
 
+import com.hortinis.sync.authentication.AuthenticationAccountService;
 import com.hortinis.sync.authentication.AuthenticationAttemptLimiter;
-import com.hortinis.sync.authentication.AuthenticationCredentialService;
 import com.hortinis.sync.authentication.AuthenticationLoginService;
 import com.hortinis.sync.authentication.AuthenticationObservationService;
 import com.hortinis.sync.authentication.AuthenticationOperatorRecoveryService;
 import com.hortinis.sync.authentication.AuthenticationOverloadedException;
-import com.hortinis.sync.authentication.AuthenticationRecoveryService;
 import com.hortinis.sync.authentication.AuthenticationSessionService;
 import com.hortinis.sync.authentication.AuthenticationSetupService;
 import com.hortinis.sync.protocol.InvalidRequestException;
@@ -37,8 +36,7 @@ public final class AuthenticationMutationController {
   private static final Map<String, Boolean> COMPLETED = Map.of("completed", true);
   private final AuthenticationSetupService setup;
   private final AuthenticationLoginService login;
-  private final AuthenticationCredentialService credentials;
-  private final AuthenticationRecoveryService recovery;
+  private final AuthenticationAccountService credentials;
   private final AuthenticationOperatorRecoveryService operator;
   private final AuthenticationSessionService sessions;
   private final AuthenticationObservationService observation;
@@ -51,8 +49,7 @@ public final class AuthenticationMutationController {
   public AuthenticationMutationController(
       AuthenticationSetupService setup,
       AuthenticationLoginService login,
-      AuthenticationCredentialService credentials,
-      AuthenticationRecoveryService recovery,
+      AuthenticationAccountService credentials,
       AuthenticationOperatorRecoveryService operator,
       AuthenticationSessionService sessions,
       AuthenticationObservationService observation,
@@ -61,7 +58,6 @@ public final class AuthenticationMutationController {
     this.setup = setup;
     this.login = login;
     this.credentials = credentials;
-    this.recovery = recovery;
     this.operator = operator;
     this.sessions = sessions;
     this.observation = observation;
@@ -123,11 +119,11 @@ public final class AuthenticationMutationController {
         yield COMPLETED;
       }
       case "/api/v1/auth/recovery/password/proof" -> {
-        recovery.passwordProof(transport, proof.receipt(), proof.assertion());
+        credentials.passwordProof(transport, proof.receipt(), proof.assertion());
         yield COMPLETED;
       }
       case "/api/v1/auth/recovery/passkey/proof" -> {
-        recovery.replacePasskey(transport, proof.receipt(), proof.registration());
+        credentials.replacePasskey(transport, proof.receipt(), proof.registration());
         yield COMPLETED;
       }
       case "/api/v1/auth/recovery/operator/proof" -> {
@@ -188,26 +184,26 @@ public final class AuthenticationMutationController {
         body.fields(Set.of(LOGIN, CODE), Set.of());
         admit(request, body.login());
         yield AuthenticationResponseBody.assertion(
-            recovery.forgottenPassword(transport, body.login(), body.random(CODE)));
+            credentials.forgottenPassword(transport, body.login(), body.random(CODE)));
       }
       case "/api/v1/auth/recovery/password" -> {
         body.fields(Set.of(NEW_PASSWORD), Set.of());
         admit(request, observation.login(transport));
-        recovery.resetPassword(transport, body.password(NEW_PASSWORD, true));
+        credentials.resetPassword(transport, body.password(NEW_PASSWORD, true));
         yield COMPLETED;
       }
       case "/api/v1/auth/recovery/passkey" -> {
         body.fields(Set.of(LOGIN, PASSWORD, CODE), Set.of());
         admit(request, body.login());
         yield AuthenticationResponseBody.credentials(
-            recovery.lostPasskey(
+            credentials.lostPasskey(
                 transport, body.login(), body.password(PASSWORD, false), body.random(CODE)));
       }
       case "/api/v1/auth/recovery/passkey/options" -> {
         body.fields(Set.of(CREDENTIAL), Set.of());
         admit(request, observation.login(transport));
         yield AuthenticationResponseBody.registration(
-            recovery.replacementOptions(transport, body.credentialTarget()));
+            credentials.replacementOptions(transport, body.credentialTarget()));
       }
       case "/api/v1/auth/recovery/operator" -> {
         body.fields(Set.of(TICKET, NEW_PASSWORD), Set.of());

@@ -29,7 +29,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.security.web.webauthn.api.AuthenticatorAssertionResponse;
 import org.springframework.security.web.webauthn.api.AuthenticatorAttestationResponse;
 import org.springframework.security.web.webauthn.api.Bytes;
-import org.springframework.security.web.webauthn.api.CredentialRecord;
 import org.springframework.security.web.webauthn.api.ImmutablePublicKeyCredentialUserEntity;
 import org.springframework.security.web.webauthn.api.PublicKeyCredential;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialCreationOptions;
@@ -61,7 +60,7 @@ class BoundWebAuthnOperationsTest {
           .name(LOGIN)
           .displayName("Hortinis account")
           .build();
-  private final AtomicReference<CredentialRecord> updated = new AtomicReference<>();
+  private final AtomicReference<AuthenticationCredential> updated = new AtomicReference<>();
 
   @ParameterizedTest
   @ValueSource(strings = {"EC", RSA_ALGORITHM, ED_ALGORITHM})
@@ -71,8 +70,8 @@ class BoundWebAuthnOperationsTest {
     BoundWebAuthnOperations registering = operations(List.of());
     var options = creation(registering);
     var enrollment =
-        registering.verifyRegistration(
-            registration(options, material, UP_UV | ATTESTED, 0, ORIGIN));
+        registrationProof(
+            registering, registration(options, material, UP_UV | ATTESTED, 0, ORIGIN));
     assertThat(enrollment.kind()).isEqualTo(BoundWebAuthnOperations.ProofKind.REGISTRATION);
     assertThat(enrollment.origin()).isEqualTo(ORIGIN);
     assertThat(enrollment.challenge()).containsExactly(options.getChallenge().getBytes());
@@ -87,26 +86,39 @@ class BoundWebAuthnOperationsTest {
     byte[] changedNonce = enrollment.challenge();
     changedNonce[0] ^= 1;
     assertThat(enrollment.challenge()).containsExactly(options.getChallenge().getBytes());
-    byte[] publicKey = enrollment.credential().getPublicKey().getBytes().clone();
-    enrollment.credential().getPublicKey().getBytes()[0] ^= 1;
-    enrollment.credential().getUserEntityUserId().getBytes()[0] ^= 1;
-    assertThat(enrollment.credential().getPublicKey().getBytes()).containsExactly(publicKey);
-    assertThat(enrollment.credential().getUserEntityUserId()).isEqualTo(user.getId());
+    byte[] publicKey = enrollment.credential().publicKey().clone();
+    enrollment.credential().publicKey()[0] ^= 1;
+    enrollment.credential().id()[0] ^= 1;
+    enrollment.userHandle()[0] ^= 1;
+    assertThat(enrollment.credential().publicKey()).containsExactly(publicKey);
+    assertThat(enrollment.credential().id()).containsExactly(material.id().getBytes());
+    assertThat(enrollment.userHandle()).containsExactly(user.getId().getBytes());
     assertThat(enrollment.toString()).doesNotContain(material.id().toBase64UrlString(), LOGIN);
-    BoundWebAuthnOperations authenticating = operations(List.of(enrollment.credential()));
+    byte[] snapshotId = enrollment.credential().id();
+    byte[] snapshotKey = enrollment.credential().publicKey();
+    var snapshot =
+        new AuthenticationCredential(
+            snapshotId, snapshotKey, expectedAlgorithm, 0, false, false, "");
+    var stored = new java.util.ArrayList<>(List.of(snapshot));
+    BoundWebAuthnOperations authenticating = operations(stored);
+    snapshotId[0] ^= 1;
+    snapshotKey[0] ^= 1;
+    stored.clear();
     var requestOptions = assertionOptions(authenticating);
     var proof =
-        authenticating.verifyAssertion(
+        assertionProof(
+            authenticating,
             assertion(requestOptions, material, UP_UV, 1, ORIGIN, AUTHENTICATOR_RP, user.getId()));
     assertThat(proof.kind()).isEqualTo(BoundWebAuthnOperations.ProofKind.ASSERTION);
     assertThat(proof.challenge()).containsExactly(requestOptions.getChallenge().getBytes());
     assertThat(proof.origin()).isEqualTo(ORIGIN);
     assertThat(proof.algorithm()).isEqualTo(expectedAlgorithm);
-    assertThat(proof.credential().getSignatureCount()).isEqualTo(1);
+    assertThat(proof.credential().counter()).isEqualTo(1);
     assertThat(updated.get()).isNull();
     assertThatThrownBy(
             () ->
-                authenticating.verifyAssertion(
+                assertionProof(
+                    authenticating,
                     assertion(
                         requestOptions,
                         material,
@@ -131,15 +143,11 @@ class BoundWebAuthnOperationsTest {
         .isEqualTo(UserVerificationRequirement.REQUIRED);
     assertThat(creation.getAuthenticatorSelection().getResidentKey())
         .isEqualTo(ResidentKeyRequirement.REQUIRED);
-    CredentialRecord credential =
-        registering
-            .verifyRegistration(registration(creation, material, UP_UV | ATTESTED, 0, ORIGIN))
+    AuthenticationCredential credential =
+        registrationProof(
+                registering, registration(creation, material, UP_UV | ATTESTED, 0, ORIGIN))
             .credential();
-    assertThat(credential.getAttestationObject()).isNull();
-    assertThat(credential.getAttestationClientDataJSON()).isNull();
-    assertThat(credential.getTransports()).isEmpty();
-    assertThat(credential.isUvInitialized()).isTrue();
-    assertThat(credential.getPublicKey().getBytes()).isNotEmpty();
+    assertThat(credential.publicKey()).isNotEmpty();
     BoundWebAuthnOperations authenticating = operations(List.of(credential));
     var options = assertionOptions(authenticating);
     assertThat(options.getAllowCredentials()).isEmpty();
@@ -148,10 +156,9 @@ class BoundWebAuthnOperationsTest {
             verifyAssertion(
                 authenticating,
                 assertion(options, material, UP_UV, 1, ORIGIN, AUTHENTICATOR_RP, user.getId())))
-        .extracting(CredentialRecord::getUserEntityUserId)
-        .isEqualTo(user.getId());
-    assertThat(updated.get().getSignatureCount()).isEqualTo(1);
-    assertThat(updated.get().getAttestationObject()).isNull();
+        .extracting(AuthenticationCredential::id)
+        .isEqualTo(material.id().getBytes());
+    assertThat(updated.get().counter()).isEqualTo(1);
   }
 
   @ParameterizedTest
@@ -161,8 +168,8 @@ class BoundWebAuthnOperationsTest {
     Material material = material("EC");
     var registering = operations(List.of());
     var credential =
-        registering
-            .verifyRegistration(
+        registrationProof(
+                registering,
                 registration(creation(registering), material, UP_UV | ATTESTED, 0, ORIGIN))
             .credential();
     var authenticating = operations(List.of(credential));
@@ -197,8 +204,8 @@ class BoundWebAuthnOperationsTest {
     Material material = material("EC");
     var registering = operations(List.of());
     var credential =
-        registering
-            .verifyRegistration(
+        registrationProof(
+                registering,
                 registration(creation(registering), material, UP_UV | ATTESTED, 0, ORIGIN))
             .credential();
     var first = operations(List.of(credential));
@@ -227,7 +234,7 @@ class BoundWebAuthnOperationsTest {
         second,
         assertion(
             assertionOptions(second), material, UP_UV, 6, ORIGIN, AUTHENTICATOR_RP, user.getId()));
-    assertThat(updated.get().getSignatureCount()).isEqualTo(6);
+    assertThat(updated.get().counter()).isEqualTo(6);
   }
 
   @Test
@@ -236,8 +243,8 @@ class BoundWebAuthnOperationsTest {
     Material material = material("EC");
     var registering = operations(List.of());
     var credential =
-        registering
-            .verifyRegistration(
+        registrationProof(
+                registering,
                 registration(
                     creation(registering),
                     material,
@@ -256,8 +263,8 @@ class BoundWebAuthnOperationsTest {
             ORIGIN,
             AUTHENTICATOR_RP,
             user.getId()));
-    assertThat(updated.get().getSignatureCount()).isEqualTo(10);
-    assertThat(updated.get().isBackupState()).isTrue();
+    assertThat(updated.get().counter()).isEqualTo(10);
+    assertThat(updated.get().backedUp()).isTrue();
     updated.set(null);
     assertThatThrownBy(
             () ->
@@ -287,8 +294,8 @@ class BoundWebAuthnOperationsTest {
     var registering = operations(List.of());
     assertThatThrownBy(
             () ->
-                registering
-                    .verifyRegistration(
+                registrationProof(
+                        registering,
                         registration(
                             creation(registering), privateMaterial, UP_UV | ATTESTED, 0, ORIGIN))
                     .credential())
@@ -328,9 +335,9 @@ class BoundWebAuthnOperationsTest {
             original.getX(),
             original.getY());
     var registering = operations(List.of());
-    CredentialRecord stored =
-        registering
-            .verifyRegistration(
+    AuthenticationCredential stored =
+        registrationProof(
+                registering,
                 registration(
                     creation(registering),
                     new Material(
@@ -340,9 +347,7 @@ class BoundWebAuthnOperationsTest {
                     ORIGIN))
             .credential();
     COSEKey minimized =
-        new ObjectConverter()
-            .getCborMapper()
-            .readValue(stored.getPublicKey().getBytes(), COSEKey.class);
+        new ObjectConverter().getCborMapper().readValue(stored.publicKey(), COSEKey.class);
     assertThat(minimized.getKeyId()).isNull();
     assertThat(minimized.getKeyOps()).isNull();
     assertThat(minimized.getBaseIV()).isNull();
@@ -380,8 +385,8 @@ class BoundWebAuthnOperationsTest {
     var registering = operations(List.of());
     assertThatThrownBy(
             () ->
-                registering
-                    .verifyRegistration(
+                registrationProof(
+                        registering,
                         registration(creation(registering), material, UP_UV | ATTESTED, 0, ORIGIN))
                     .credential())
         .isInstanceOf(AuthenticationFailedException.class);
@@ -393,8 +398,8 @@ class BoundWebAuthnOperationsTest {
     Material material = material("EC");
     var registering = operations(List.of());
     var stored =
-        registering
-            .verifyRegistration(
+        registrationProof(
+                registering,
                 registration(creation(registering), material, UP_UV | ATTESTED, 0, ORIGIN))
             .credential();
     var authenticating = operations(List.of(stored));
@@ -429,8 +434,8 @@ class BoundWebAuthnOperationsTest {
         new BoundWebAuthnOperations(
             "HTTPS://LOCALHOST:443", user, List.of(), new CryptoWorkLimiter());
     var credential =
-        registering
-            .verifyRegistration(
+        registrationProof(
+                registering,
                 registration(
                     creation(registering), material, UP_UV | ATTESTED, 0, "https://localhost"))
             .credential();
@@ -465,14 +470,37 @@ class BoundWebAuthnOperationsTest {
     assertThat(updated.get()).isNull();
   }
 
-  private CredentialRecord verifyAssertion(
+  @Test
+  void verificationRejectsMissingOrInvalidConsumedNoncesBeforeReadingProofs() {
+    var bound = operations(List.of());
+    for (byte[] nonce : new byte[][] {null, new byte[0], new byte[31], new byte[33]}) {
+      assertThatThrownBy(() -> bound.verifyRegistration(nonce, null))
+          .isInstanceOf(AuthenticationFailedException.class);
+      assertThatThrownBy(() -> bound.verifyAssertion(nonce, null))
+          .isInstanceOf(AuthenticationFailedException.class);
+    }
+  }
+
+  private static BoundWebAuthnOperations.VerifiedCredential registrationProof(
+      BoundWebAuthnOperations operations, RelyingPartyRegistrationRequest request) {
+    return operations.verifyRegistration(
+        request.getCreationOptions().getChallenge().getBytes(), request.getPublicKey());
+  }
+
+  private static BoundWebAuthnOperations.VerifiedCredential assertionProof(
       BoundWebAuthnOperations operations, RelyingPartyAuthenticationRequest request) {
-    CredentialRecord verified = operations.verifyAssertion(request).credential();
+    return operations.verifyAssertion(
+        request.getRequestOptions().getChallenge().getBytes(), request.getPublicKey());
+  }
+
+  private AuthenticationCredential verifyAssertion(
+      BoundWebAuthnOperations operations, RelyingPartyAuthenticationRequest request) {
+    AuthenticationCredential verified = assertionProof(operations, request).credential();
     updated.set(verified);
     return verified;
   }
 
-  private BoundWebAuthnOperations operations(List<CredentialRecord> credentials) {
+  private BoundWebAuthnOperations operations(List<AuthenticationCredential> credentials) {
     return new BoundWebAuthnOperations(ORIGIN, user, credentials, new CryptoWorkLimiter());
   }
 

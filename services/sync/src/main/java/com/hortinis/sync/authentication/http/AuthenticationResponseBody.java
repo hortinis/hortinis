@@ -1,6 +1,6 @@
 package com.hortinis.sync.authentication.http;
 
-import com.hortinis.sync.authentication.AuthenticationCredentialService;
+import com.hortinis.sync.authentication.AuthenticationAccountService;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -64,7 +64,7 @@ public final class AuthenticationResponseBody {
 
   /** Current-account choices contain only a canonical identifier and the optional user label. */
   public static Map<String, Object> credentials(
-      List<AuthenticationCredentialService.CredentialSummary> credentials) {
+      List<AuthenticationAccountService.CredentialSummary> credentials) {
     return Map.of(
         "credentials",
         credentials.stream()

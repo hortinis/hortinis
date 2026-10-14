@@ -3,20 +3,12 @@ package com.hortinis.sync.authentication;
 import com.hortinis.sync.authentication.persistence.AuthenticationAccountPersistence;
 import com.hortinis.sync.authentication.persistence.AuthenticationChallengePersistence;
 import java.util.List;
-import java.util.Set;
 import org.springframework.security.web.webauthn.api.AuthenticatorAssertionResponse;
 import org.springframework.security.web.webauthn.api.Bytes;
-import org.springframework.security.web.webauthn.api.CredentialRecord;
-import org.springframework.security.web.webauthn.api.ImmutableCredentialRecord;
-import org.springframework.security.web.webauthn.api.ImmutablePublicKeyCose;
 import org.springframework.security.web.webauthn.api.ImmutablePublicKeyCredentialUserEntity;
 import org.springframework.security.web.webauthn.api.PublicKeyCredential;
-import org.springframework.security.web.webauthn.api.PublicKeyCredentialCreationOptions;
 import org.springframework.security.web.webauthn.api.PublicKeyCredentialRequestOptions;
-import org.springframework.security.web.webauthn.api.PublicKeyCredentialType;
-import org.springframework.security.web.webauthn.management.RelyingPartyAuthenticationRequest;
 import org.springframework.security.web.webauthn.management.RelyingPartyPublicKey;
-import org.springframework.security.web.webauthn.management.RelyingPartyRegistrationRequest;
 
 /**
  * Replaceable per-ceremony WebAuthn adapter constructed only from current server-owned snapshots.
@@ -57,64 +49,35 @@ public final class AuthenticationPasskeys {
    */
   public BoundWebAuthnOperations account(
       AuthenticationAccountPersistence.AccountSnapshot account,
-      List<AuthenticationAccountPersistence.CredentialSnapshot> snapshots) {
-    List<CredentialRecord> credentials =
-        snapshots.stream()
-            .map(
-                snapshot ->
-                    (CredentialRecord)
-                        ImmutableCredentialRecord.builder()
-                            .credentialType(PublicKeyCredentialType.PUBLIC_KEY)
-                            .credentialId(new Bytes(snapshot.id()))
-                            .userEntityUserId(new Bytes(account.userHandle()))
-                            .publicKey(new ImmutablePublicKeyCose(snapshot.publicKey()))
-                            .signatureCount(snapshot.counter())
-                            .uvInitialized(true)
-                            .backupEligible(snapshot.backupEligible())
-                            .backupState(snapshot.backedUp())
-                            .transports(Set.of())
-                            .label(snapshot.label())
-                            .build())
-            .toList();
-    return bound(account.login(), account.userHandle(), credentials);
+      List<AuthenticationCredential> snapshots) {
+    return bound(account.login(), account.userHandle(), snapshots);
   }
 
-  /** Registration proof options are derived solely from the trusted setup and consumed receipt. */
-  public RelyingPartyRegistrationRequest registration(
+  /** Verifies enrollment directly against the consumed server nonce and the bound policy. */
+  public BoundWebAuthnOperations.VerifiedCredential verifyRegistration(
       BoundWebAuthnOperations bound,
       AuthenticationChallengePersistence.ConsumedChallenge receipt,
       RelyingPartyPublicKey key) {
-    if (receipt == null) {
-      throw new AuthenticationFailedException();
-    }
-    var options = bound.creationOptions(receipt.challenge());
-    return new RelyingPartyRegistrationRequest() {
-      @Override
-      public PublicKeyCredentialCreationOptions getCreationOptions() {
-        return options;
-      }
-
-      @Override
-      public RelyingPartyPublicKey getPublicKey() {
-        return key;
-      }
-    };
+    return bound.verifyRegistration(challenge(receipt), key);
   }
 
-  /** Assertion proof options derive solely from current ownership and the consumed server nonce. */
-  public RelyingPartyAuthenticationRequest assertion(
+  /** Verifies assertion directly against the consumed server nonce and current account keys. */
+  public BoundWebAuthnOperations.VerifiedCredential verifyAssertion(
       BoundWebAuthnOperations bound,
       AuthenticationChallengePersistence.ConsumedChallenge receipt,
       PublicKeyCredential<AuthenticatorAssertionResponse> credential) {
+    return bound.verifyAssertion(challenge(receipt), credential);
+  }
+
+  private static byte[] challenge(AuthenticationChallengePersistence.ConsumedChallenge receipt) {
     if (receipt == null) {
       throw new AuthenticationFailedException();
     }
-    return new RelyingPartyAuthenticationRequest(
-        bound.assertionOptions(receipt.challenge()), credential);
+    return receipt.challenge();
   }
 
   private BoundWebAuthnOperations bound(
-      String login, byte[] handle, List<CredentialRecord> credentials) {
+      String login, byte[] handle, List<AuthenticationCredential> credentials) {
     var user =
         ImmutablePublicKeyCredentialUserEntity.builder()
             .id(new Bytes(handle))

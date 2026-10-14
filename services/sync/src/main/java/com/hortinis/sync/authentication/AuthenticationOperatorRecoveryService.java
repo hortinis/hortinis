@@ -82,7 +82,7 @@ public final class AuthenticationOperatorRecoveryService {
           }
           var account = accounts.findAccount(snapshot.account());
           var bound = passkeys.account(account, accounts.credentials(account.account()));
-          var proof = bound.verifyRegistration(passkeys.registration(bound, receipt, credential));
+          var proof = passkeys.verifyRegistration(bound, receipt, credential);
           return publication.complete(
               Event.RECOVERY,
               () -> {

@@ -97,7 +97,7 @@ public final class AuthenticationLoginService {
           }
           var account = accounts.findAccount(snapshot.account());
           var bound = passkeys.account(account, accounts.credentials(account.account()));
-          var proof = bound.verifyAssertion(passkeys.assertion(bound, receipt, credential));
+          var proof = passkeys.verifyAssertion(bound, receipt, credential);
           return publication.complete(
               event,
               () -> {

@@ -71,7 +71,7 @@ privacy properties and adapter verification; no factor bypass is accepted.
 
 ### Passkey adapter profile
 
-The S9 adapter implements Spring's relying-party interface through WebAuthn4j 0.31.9 with a
+The S9 adapter uses Spring's wire option types and WebAuthn4j 0.31.9 verification with a
 per-ceremony trusted account snapshot, required user verification and minimized current credential
 state. Accept ES256/P-256, RS256/RSA 2,048–4,096 bits and EdDSA/Ed25519. Reconstruct public-only COSE
 keys and discard optional authenticator metadata. The verifier's supported counter-handler extension
@@ -81,6 +81,18 @@ runs after signature, presence/verification and unchanged backup-eligibility val
 still needs a consumed one-use server challenge. Signed tests cover all three algorithms and rejection
 of incorrect bindings, flags, signatures, malformed client data and unsupported key profiles. These
 adapter tests do not claim completed HTTP session, challenge lifecycle or release assurance.
+
+Verification accepts the consumed server nonce and typed browser proof directly. Its RP, origin,
+algorithm and verification policy come from the bound adapter, without rebuilding framework request
+options. Persistence and verification share the immutable `AuthenticationCredential` public-key
+model; the private verified-result constructor additionally binds the account handle, nonce, origin
+and proof kind. Only publication under current account/session locks can grant authority.
+
+`AuthenticationAccountService` owns both ordinary factor changes and restricted self-service
+recovery. Shared password and registration publication paths keep their distinct authorization
+checks: recent full authentication for ordinary changes, or the matching completed recovery ceremony
+for recovery. Crypto remains outside publication transactions; nonce consumption remains separately
+committed before proof parsing.
 
 ### Password storage
 

@@ -5,9 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
+import com.hortinis.sync.authentication.AuthenticationAccountService;
 import com.hortinis.sync.authentication.AuthenticationAttemptLimiter;
 import com.hortinis.sync.authentication.AuthenticationChallengePurpose;
-import com.hortinis.sync.authentication.AuthenticationCredentialService;
+import com.hortinis.sync.authentication.AuthenticationCredential;
 import com.hortinis.sync.authentication.AuthenticationFailedException;
 import com.hortinis.sync.authentication.AuthenticationLifecycle;
 import com.hortinis.sync.authentication.AuthenticationLifetime;
@@ -19,7 +20,6 @@ import com.hortinis.sync.authentication.AuthenticationOverloadedException;
 import com.hortinis.sync.authentication.AuthenticationPasskeys;
 import com.hortinis.sync.authentication.AuthenticationPreconditionException;
 import com.hortinis.sync.authentication.AuthenticationPublication;
-import com.hortinis.sync.authentication.AuthenticationRecoveryService;
 import com.hortinis.sync.authentication.AuthenticationSecrets;
 import com.hortinis.sync.authentication.AuthenticationSessionService;
 import com.hortinis.sync.authentication.AuthenticationSessionTransport;
@@ -173,9 +173,9 @@ class AuthenticationAccountWorkflowIntegrationTest {
   private AuthenticationPasskeys passkeys;
   private AuthenticationSetupService setup;
   private AuthenticationLoginService login;
-  private AuthenticationCredentialService credentials;
+  private AuthenticationAccountService credentials;
   private AuthenticationSessionService sessionControl;
-  private AuthenticationRecoveryService recovery;
+  private AuthenticationAccountService recovery;
   private AuthenticationOperatorRecoveryService operatorRecovery;
   private AuthenticationRecoveryCodePersistence.IssuedCodes issuedCodes;
 
@@ -223,7 +223,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
             publication, accounts, sessions, challenges, passwords, passkeys);
     var removal = new AuthenticationSessionRemovalPersistence(client);
     credentials =
-        new AuthenticationCredentialService(
+        new AuthenticationAccountService(
             publication,
             accounts,
             sessions,
@@ -234,17 +234,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
             new PasswordPolicy(PasswordBlocklist.load()),
             passwords,
             passkeys);
-    recovery =
-        new AuthenticationRecoveryService(
-            publication,
-            accounts,
-            sessions,
-            challenges,
-            codes,
-            new AuthenticationAccountSecurityPersistence(client, accounts, removal),
-            new PasswordPolicy(PasswordBlocklist.load()),
-            passwords,
-            passkeys);
+    recovery = credentials;
     operatorRecovery =
         new AuthenticationOperatorRecoveryService(
             publication,
@@ -556,10 +546,8 @@ class AuthenticationAccountWorkflowIntegrationTest {
     var second = prepare(key, 1);
     var account = accounts.findLogin(LOGIN).orElseThrow();
     var bound = passkeys.account(account, accounts.credentials(account.account()));
-    final var firstProof =
-        bound.verifyAssertion(passkeys.assertion(bound, first.receipt(), first.proof()));
-    var secondProof =
-        bound.verifyAssertion(passkeys.assertion(bound, second.receipt(), second.proof()));
+    final var firstProof = passkeys.verifyAssertion(bound, first.receipt(), first.proof());
+    var secondProof = passkeys.verifyAssertion(bound, second.receipt(), second.proof());
     publishVerified(first, account, firstProof, false);
     var denied = publishVerified(second, account, secondProof, true);
     assertThat(denied.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
@@ -1692,9 +1680,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
                 .result())
         .isTrue();
     assertThat(count(CREDENTIAL_COUNT)).isEqualTo(8);
-    assertThat(
-            accounts.credentials(account.account()).stream()
-                .map(AuthenticationAccountPersistence.CredentialSnapshot::id))
+    assertThat(accounts.credentials(account.account()).stream().map(AuthenticationCredential::id))
         .anySatisfy(id -> assertThat(id).containsExactly(newKey.id()))
         .noneSatisfy(id -> assertThat(id).containsExactly(oldKey.id()));
     assertThat(count(CODE_COUNT)).isEqualTo(9);
@@ -2451,7 +2437,6 @@ class AuthenticationAccountWorkflowIntegrationTest {
                 setup,
                 login,
                 credentials,
-                recovery,
                 operatorRecovery,
                 sessionControl,
                 observation,

@@ -81,7 +81,7 @@ public final class AuthenticationSetupService {
           var observation = transport.observe().orElseThrow(AuthenticationFailedException::new);
           var snapshot = sessions.observe(observation);
           var bound = passkeys.setup(snapshot);
-          var proof = bound.verifyRegistration(passkeys.registration(bound, receipt, credential));
+          var proof = passkeys.verifyRegistration(bound, receipt, credential);
           return publication.complete(
               Event.SETUP,
               () -> {

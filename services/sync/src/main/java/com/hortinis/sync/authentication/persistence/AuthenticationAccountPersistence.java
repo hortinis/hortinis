@@ -1,5 +1,6 @@
 package com.hortinis.sync.authentication.persistence;
 
+import com.hortinis.sync.authentication.AuthenticationCredential;
 import com.hortinis.sync.authentication.AuthenticationFailedException;
 import com.hortinis.sync.authentication.AuthenticationPreconditionException;
 import com.hortinis.sync.authentication.AuthenticationSession;
@@ -67,8 +68,8 @@ public class AuthenticationAccountPersistence {
   }
 
   /** Bounded public-key-only credential snapshots for the replaceable verification adapter. */
-  public List<CredentialSnapshot> credentials(UUID account) {
-    List<CredentialSnapshot> result =
+  public List<AuthenticationCredential> credentials(UUID account) {
+    List<AuthenticationCredential> result =
         jdbc.sql(
                 "SELECT credential_id, public_key_cose, algorithm, "
                     + "signature_count, backup_eligible, backed_up, label FROM "
@@ -77,7 +78,7 @@ public class AuthenticationAccountPersistence {
             .param(account)
             .query(
                 (row, number) ->
-                    new CredentialSnapshot(
+                    new AuthenticationCredential(
                         row.getBytes(1),
                         row.getBytes(2),
                         row.getInt(3),
@@ -141,7 +142,7 @@ public class AuthenticationAccountPersistence {
       BoundWebAuthnOperations.VerifiedCredential proof) {
     var current = requireUnchanged(observed);
     if (lostCredential == null
-        || MessageDigest.isEqual(lostCredential, proof.credential().getCredentialId().getBytes())
+        || MessageDigest.isEqual(lostCredential, proof.credential().id())
         || credentialCount(current.account()) > MAX_CREDENTIALS
         || !jdbc.sql(
                 "SELECT EXISTS (SELECT 1 FROM authentication_credential "
@@ -166,7 +167,7 @@ public class AuthenticationAccountPersistence {
     var current = requireUnchanged(observed);
     insertCredential(current.account(), proof);
     jdbc.sql("DELETE FROM authentication_credential WHERE account_id = ? AND credential_id <> ?")
-        .params(current.account(), proof.credential().getCredentialId().getBytes())
+        .params(current.account(), proof.credential().id())
         .update();
   }
 
@@ -191,7 +192,7 @@ public class AuthenticationAccountPersistence {
             .query((row, number) -> row.getBytes(1))
             .optional()
             .orElseThrow(AuthenticationFailedException::new);
-    if (!MessageDigest.isEqual(handle, credential.getUserEntityUserId().getBytes())) {
+    if (!MessageDigest.isEqual(handle, proof.userHandle())) {
       throw new AuthenticationFailedException();
     }
     boolean inserted =
@@ -201,14 +202,14 @@ public class AuthenticationAccountPersistence {
                         + "algorithm, signature_count, backup_eligible, backed_up, label) "
                         + "VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (credential_id) DO NOTHING")
                 .params(
-                    credential.getCredentialId().getBytes(),
+                    credential.id(),
                     account,
-                    credential.getPublicKey().getBytes(),
+                    credential.publicKey(),
                     proof.algorithm(),
-                    credential.getSignatureCount(),
-                    credential.isBackupEligible(),
-                    credential.isBackupState(),
-                    credential.getLabel())
+                    credential.counter(),
+                    credential.backupEligible(),
+                    credential.backedUp(),
+                    credential.label())
                 .update()
             == 1;
     if (!inserted) {
@@ -226,16 +227,16 @@ public class AuthenticationAccountPersistence {
       throw new AuthenticationFailedException();
     }
     var verified = proof.credential();
-    CredentialSnapshot current =
+    AuthenticationCredential current =
         jdbc.sql(
                 "SELECT credential_id, public_key_cose, algorithm, "
                     + "signature_count, backup_eligible, backed_up, label FROM "
                     + "authentication_credential "
                     + "WHERE account_id = ? AND credential_id = ? FOR UPDATE")
-            .params(account.account(), verified.getCredentialId().getBytes())
+            .params(account.account(), verified.id())
             .query(
                 (row, number) ->
-                    new CredentialSnapshot(
+                    new AuthenticationCredential(
                         row.getBytes(1),
                         row.getBytes(2),
                         row.getInt(3),
@@ -245,10 +246,10 @@ public class AuthenticationAccountPersistence {
                         row.getString(7)))
             .optional()
             .orElseThrow(AuthenticationFailedException::new);
-    long counter = verified.getSignatureCount();
-    boolean eligible = Boolean.TRUE.equals(verified.isBackupEligible());
-    if (!MessageDigest.isEqual(account.userHandle(), verified.getUserEntityUserId().getBytes())
-        || !MessageDigest.isEqual(current.publicKey(), verified.getPublicKey().getBytes())
+    long counter = verified.counter();
+    boolean eligible = Boolean.TRUE.equals(verified.backupEligible());
+    if (!MessageDigest.isEqual(account.userHandle(), proof.userHandle())
+        || !MessageDigest.isEqual(current.publicKey(), verified.publicKey())
         || current.algorithm() != proof.algorithm()
         || current.backupEligible() != eligible
         || !eligible && !(counter == 0 && current.counter() == 0) && counter <= current.counter()) {
@@ -259,7 +260,7 @@ public class AuthenticationAccountPersistence {
                 + "WHERE account_id = ? AND credential_id = ?")
         .params(
             Math.max(counter, current.counter()),
-            verified.isBackupState(),
+            verified.backedUp(),
             account.account(),
             current.id())
         .update();
@@ -346,39 +347,6 @@ public class AuthenticationAccountPersistence {
     @Override
     public String toString() {
       return "AccountSnapshot[redacted]";
-    }
-  }
-
-  /**
-   * Minimal immutable public verification state; contains no authenticator/attestation metadata.
-   */
-  public record CredentialSnapshot(
-      byte[] id,
-      byte[] publicKey,
-      int algorithm,
-      long counter,
-      boolean backupEligible,
-      boolean backedUp,
-      String label) {
-    /** Copies all key material. */
-    public CredentialSnapshot {
-      id = id.clone();
-      publicKey = publicKey.clone();
-    }
-
-    @Override
-    public byte[] id() {
-      return id.clone();
-    }
-
-    @Override
-    public byte[] publicKey() {
-      return publicKey.clone();
-    }
-
-    @Override
-    public String toString() {
-      return "CredentialSnapshot[redacted]";
     }
   }
 }

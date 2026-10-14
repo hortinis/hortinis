@@ -1,6 +1,6 @@
 package com.hortinis.sync.authentication.http;
 
-import com.hortinis.sync.authentication.AuthenticationCredentialService;
+import com.hortinis.sync.authentication.AuthenticationAccountService;
 import com.hortinis.sync.authentication.AuthenticationObservationService;
 import com.hortinis.sync.authentication.AuthenticationSessionService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,13 +19,13 @@ import org.springframework.web.bind.annotation.RestController;
 @ConditionalOnProperty(prefix = "hortinis.access", name = "mode", havingValue = "single-user-auth")
 public final class AuthenticationReadController {
   private final AuthenticationObservationService observation;
-  private final AuthenticationCredentialService credentialService;
+  private final AuthenticationAccountService credentialService;
   private final AuthenticationSessionService sessionService;
 
   /** Request-bound servlet wrappers are supplied by the selected established session filter. */
   public AuthenticationReadController(
       AuthenticationObservationService observation,
-      AuthenticationCredentialService credentials,
+      AuthenticationAccountService credentials,
       AuthenticationSessionService sessions) {
     this.observation = observation;
     this.credentialService = credentials;
