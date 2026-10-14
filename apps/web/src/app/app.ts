@@ -69,11 +69,11 @@ export class App {
     try {
       await this.authentication.setup(this.setupTicket, this.setupLogin, this.setupPassword);
       this.setupTicket = '';
-      this.setupPassword = '';
     } catch {
       this.authentication.notice.set(
         'Account setup could not be completed. Check the ticket and try again.',
       );
+    } finally {
       this.setupPassword = '';
     }
   }
@@ -93,12 +93,11 @@ export class App {
         this.recoveryCode,
         this.recoveryNewPassword,
       );
-      this.recoveryCode = '';
-      this.recoveryNewPassword = '';
     } catch {
       this.authentication.notice.set(
         'Password recovery could not be completed. Check the details and try again.',
       );
+    } finally {
       this.recoveryCode = '';
       this.recoveryNewPassword = '';
     }
@@ -111,12 +110,11 @@ export class App {
         this.lostKeyPassword,
         this.lostKeyCode,
       );
-      this.lostKeyPassword = '';
-      this.lostKeyCode = '';
     } catch {
       this.authentication.notice.set(
         'Passkey recovery could not be completed. Check the details and try again.',
       );
+    } finally {
       this.lostKeyPassword = '';
       this.lostKeyCode = '';
     }
@@ -135,70 +133,63 @@ export class App {
     try {
       await this.authentication.operatorRecovery(this.operatorTicket, this.operatorNewPassword);
       this.operatorTicket = '';
-      this.operatorNewPassword = '';
     } catch {
       this.authentication.notice.set(
         'Operator recovery could not be completed. Check the ticket and try again.',
       );
+    } finally {
       this.operatorNewPassword = '';
     }
   }
 
   async changePassword(): Promise<void> {
-    try {
-      await this.authentication.stepUp(this.currentPassword);
-      await this.authentication.changePassword(this.currentPassword, this.replacementPassword);
-      this.currentPassword = '';
-      this.replacementPassword = '';
-      this.authentication.notice.set('Password changed. Sign in again with the new password.');
-    } catch {
-      this.currentPassword = '';
-      this.replacementPassword = '';
-      this.authentication.notice.set(
-        'Password change could not be completed. Verify both factors and try again.',
-      );
-    }
+    await this.changeFactor(
+      () => this.authentication.changePassword(this.currentPassword, this.replacementPassword),
+      'Password changed. Sign in again with the new password.',
+      'Password change could not be completed. Verify both factors and try again.',
+      true,
+    );
   }
 
   async addPasskey(): Promise<void> {
-    try {
-      await this.authentication.stepUp(this.currentPassword);
-      await this.authentication.addPasskey();
-      this.currentPassword = '';
-      this.authentication.notice.set('Passkey added. Sign in again to continue.');
-    } catch {
-      this.currentPassword = '';
-      this.authentication.notice.set(
-        'Passkey could not be added. Verify both factors and try again.',
-      );
-    }
+    await this.changeFactor(
+      () => this.authentication.addPasskey(),
+      'Passkey added. Sign in again to continue.',
+      'Passkey could not be added. Verify both factors and try again.',
+    );
   }
 
   async regenerateRecoveryCodes(): Promise<void> {
-    try {
-      await this.authentication.stepUp(this.currentPassword);
-      await this.authentication.regenerateRecoveryCodes();
-      this.currentPassword = '';
-      this.authentication.notice.set('New recovery codes are ready. Save them now.');
-    } catch {
-      this.currentPassword = '';
-      this.authentication.notice.set(
-        'Recovery codes could not be replaced. Verify both factors and try again.',
-      );
-    }
+    await this.changeFactor(
+      () => this.authentication.regenerateRecoveryCodes(),
+      'New recovery codes are ready. Save them now.',
+      'Recovery codes could not be replaced. Verify both factors and try again.',
+    );
   }
 
   async revokeCredential(credentialId: string): Promise<void> {
+    await this.changeFactor(
+      () => this.authentication.revokeCredential(credentialId),
+      'Passkey revoked. Sign in again to continue.',
+      'Passkey could not be revoked. Verify both factors and try again.',
+    );
+  }
+
+  private async changeFactor(
+    operation: () => Promise<void>,
+    success: string,
+    failure: string,
+    clearReplacement = false,
+  ): Promise<void> {
     try {
       await this.authentication.stepUp(this.currentPassword);
-      await this.authentication.revokeCredential(credentialId);
-      this.currentPassword = '';
-      this.authentication.notice.set('Passkey revoked. Sign in again to continue.');
+      await operation();
+      this.authentication.notice.set(success);
     } catch {
+      this.authentication.notice.set(failure);
+    } finally {
       this.currentPassword = '';
-      this.authentication.notice.set(
-        'Passkey could not be revoked. Verify both factors and try again.',
-      );
+      if (clearReplacement) this.replacementPassword = '';
     }
   }
 
