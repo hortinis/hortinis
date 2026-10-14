@@ -4,10 +4,8 @@ import com.hortinis.operator.HortinisOperatorCommand;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration;
-import org.springframework.boot.session.jdbc.autoconfigure.JdbcSessionAutoConfiguration;
 
-@SpringBootApplication(
-    exclude = {UserDetailsServiceAutoConfiguration.class, JdbcSessionAutoConfiguration.class})
+@SpringBootApplication(exclude = UserDetailsServiceAutoConfiguration.class)
 public class HortinisSyncApplication {
 
   public static void main(String[] args) {

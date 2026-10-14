@@ -1,6 +1,15 @@
 spring:
   application:
     name: hortinis-sync
+  session:
+    timeout: 12h
+    jdbc:
+      initialize-schema: never
+      flush-mode: immediate
+      save-mode: on-set-attribute
+      cleanup-cron: "-"
+    servlet:
+      filter-order: -2147483618
   main:
     log-startup-info: false
   jackson:

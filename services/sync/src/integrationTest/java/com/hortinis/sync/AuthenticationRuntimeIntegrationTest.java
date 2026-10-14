@@ -7,7 +7,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import com.hortinis.sync.access.AuthenticatedSynchronizationAccessResolver;
 import com.hortinis.sync.authentication.AuthenticationSecrets;
 import com.hortinis.sync.authentication.SessionAuthorityReference;
-import com.hortinis.sync.authentication.persistence.AuthenticationJdbcSessions;
 import jakarta.servlet.http.Cookie;
 import java.io.IOException;
 import java.net.URI;
@@ -217,7 +216,31 @@ class AuthenticationRuntimeIntegrationTest {
   @Test
   void springAuthorizesCurrentFullSessionsAndRejectsRevocationWithoutLeakingThePrincipal()
       throws Exception {
-    verifySpringSessions(AuthenticationJdbcSessions.create(jdbc, transactions));
+    verifySpringSessions(
+        context.getBean(org.springframework.session.jdbc.JdbcIndexedSessionRepository.class));
+  }
+
+  @Test
+  void bootSessionWritesRollbackWithThePublicationTransaction() {
+    verifySessionRollback(
+        context.getBean(org.springframework.session.jdbc.JdbcIndexedSessionRepository.class));
+  }
+
+  private <S extends org.springframework.session.Session> void verifySessionRollback(
+      org.springframework.session.SessionRepository<S> sessions) {
+    String identifier =
+        new TransactionTemplate(transactions)
+            .execute(
+                status -> {
+                  var session = sessions.createSession();
+                  session.setAttribute(
+                      "hortinis.authority", new SessionAuthorityReference(UUID.randomUUID()));
+                  sessions.save(session);
+                  status.setRollbackOnly();
+                  return session.getId();
+                });
+    assertThat(sessions.findById(identifier)).isNull();
+    assertThat(context.containsBean("springSessionRepositoryFilter")).isTrue();
   }
 
   private <S extends org.springframework.session.Session> void verifySpringSessions(

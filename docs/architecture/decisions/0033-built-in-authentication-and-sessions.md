@@ -140,6 +140,12 @@ delivery requirements, and the ticket still grants only restricted replacement o
 ### Sessions and request defense
 
 Use PostgreSQL-backed Spring Session as the opaque-cookie transport and established session repository.
+Boot JDBC session auto-configuration owns production repository creation and servlet filter registration.
+Its supported customizer retains the selected identifier, serialization and indexing policy; the named
+transaction-operations bean uses REQUIRED participation so session writes share publication rollback.
+Boot properties select timeout, immediate flush, save mode, disabled independent cleanup and filter
+ordering. Flyway remains the schema owner. No-auth may load this standard infrastructure, but its
+stateless access chain and routes neither allocate sessions nor use them as account authority.
 Generate cookie secrets through its `SessionIdGenerator` extension with 32 independent CSPRNG bytes;
 do not use the UUIDv7 business identifier generator. The cookie is `__Host-hortinis-session`, `Secure`,
 `HttpOnly`, `SameSite=Strict`, `Path=/`, without Domain or persistent Max-Age. A dedicated first-party

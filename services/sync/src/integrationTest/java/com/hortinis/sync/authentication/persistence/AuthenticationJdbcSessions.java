@@ -13,9 +13,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
-/**
- * Established JDBC transport configuration; authoritative rows independently govern data access.
- */
+/** Test-only JDBC transport fixture; production uses Boot session auto-configuration. */
 public final class AuthenticationJdbcSessions {
   private AuthenticationJdbcSessions() {}
 

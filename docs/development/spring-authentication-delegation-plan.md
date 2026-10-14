@@ -113,3 +113,29 @@ production Java by 109 physical lines: it adds the current-authority context ada
 configuration while removing direct servlet identity lookup. It improves framework ownership but
 does not deliver a large code-volume reduction. No schema, public contract, production dependency
 or user-flow change was introduced.
+
+## Boot session auto-configuration implementation plan
+
+Use Boot's JDBC session auto-configuration for production repository creation and servlet filter
+registration. Replace the manual production factory with the supported repository customizer,
+transaction-operations and cookie-resolver beans. Keep REQUIRED transaction participation, closed
+scalar serialization, 256-bit session identifiers, immediate saves, explicit filter ordering and
+application-owned cleanup. Flyway remains the schema owner. Retain the old explicit factory only as
+an integration-test fixture; the real Boot runtime tests must use the actual auto-configured bean.
+
+Review and verify real session bootstrap, rollback, cookie rotation and authenticated request access.
+No-auth startup may load the standard session infrastructure, but its stateless security chain and
+application routes must neither allocate sessions nor emit cookies or use them as account authority.
+Operator invocations remain non-web. Run backend, documentation, contracts and topology checks before
+committing. This infrastructure step does not decide the pending larger session/recovery policy choice.
+
+Boot session wiring passed the complete backend build and the final no-auth cookie/session regression,
+including 266 unit and 284 PostgreSQL integration tests across the final check stages. Documentation,
+contracts and six topology browser tests passed; disposable topology resources were removed.
+Production Java decreased by 15 lines, with nine configuration lines added. The manual repository
+factory now exists only in integration-test sources.
+
+The user selected alignment with Spring's standard session and recovery flows on 2026-10-14.
+The next implementation may revise bespoke S9 internal guarantees to use the framework model, while
+retaining mandatory password plus user-verified passkey login, recovery features and offline sync.
+This supersedes the earlier assumption that every bespoke internal guarantee must remain identical.

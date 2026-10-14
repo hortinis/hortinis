@@ -120,6 +120,28 @@ class AccessResolutionIntegrationTest {
   }
 
   @Test
+  void noAuthRoutesDoNotAllocateSessionsOrEmitCookiesWithBootSessionInfrastructure()
+      throws Exception {
+    access.select(scopeA);
+    int before = jdbc.queryForObject("SELECT count(*) FROM spring_session", Integer.class);
+    for (String path :
+        new String[] {
+          "/actuator/health", "/api/v1/server/capabilities", "/api/v1/sync/bootstrap"
+        }) {
+      mvc.perform(
+              get(path)
+                  .cookie(
+                      new jakarta.servlet.http.Cookie(
+                          "__Host-hortinis-session",
+                          com.hortinis.sync.authentication.AuthenticationSecrets.randomValue())))
+          .andExpect(status().isOk())
+          .andExpect(header().doesNotExist("Set-Cookie"));
+    }
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM spring_session", Integer.class))
+        .isEqualTo(before);
+  }
+
+  @Test
   void httpDispatchKeepsIdenticalIdentifiersAndCursorsInsideResolvedScope(CapturedOutput output)
       throws Exception {
     String operation = UUID.randomUUID().toString();

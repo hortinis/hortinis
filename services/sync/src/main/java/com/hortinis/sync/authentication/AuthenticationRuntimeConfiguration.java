@@ -8,7 +8,6 @@ import com.hortinis.sync.authentication.http.AuthenticationProofBoundary;
 import com.hortinis.sync.authentication.http.CurrentAuthenticationSecurityContextRepository;
 import com.hortinis.sync.authentication.http.HeaderOnlyCsrfTokenRequestHandler;
 import com.hortinis.sync.authentication.http.RandomSessionCsrfTokenRepository;
-import com.hortinis.sync.authentication.persistence.AuthenticationJdbcSessions;
 import com.hortinis.sync.authentication.persistence.AuthenticationLifecyclePersistence;
 import com.hortinis.sync.authentication.persistence.AuthenticationOperatorTicketPersistence;
 import com.hortinis.sync.authentication.persistence.CurrentAuthenticationAuthorityPersistence;
@@ -23,7 +22,6 @@ import org.springframework.context.annotation.Import;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.env.Environment;
-import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.authorization.AllRequiredFactorsAuthorizationManager;
@@ -31,7 +29,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
-import org.springframework.session.web.http.SessionRepositoryFilter;
 import org.springframework.transaction.PlatformTransactionManager;
 
 /** Explicit S9-only runtime graph for a freshly provisioned sole authenticated account. */
@@ -116,16 +113,6 @@ public class AuthenticationRuntimeConfiguration {
   public FilterRegistrationBean<AuthenticationLifecycleFilter> authenticationLifecycleRegistration(
       AuthenticationLifecycleFilter filter) {
     return registration(filter, Ordered.HIGHEST_PRECEDENCE + 20);
-  }
-
-  /** Installs only controlled JDBC sessions and the host-only cookie resolver. */
-  @Bean
-  public FilterRegistrationBean<SessionRepositoryFilter<?>> authenticationSessionRegistration(
-      JdbcOperations jdbc, PlatformTransactionManager transactions) {
-    SessionRepositoryFilter<?> filter =
-        new SessionRepositoryFilter<>(AuthenticationJdbcSessions.create(jdbc, transactions));
-    filter.setHttpSessionIdResolver(new ControlledSessionIdResolver());
-    return registration(filter, Ordered.HIGHEST_PRECEDENCE + 30);
   }
 
   /**
