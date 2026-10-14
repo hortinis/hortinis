@@ -8,10 +8,19 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.InvalidMediaTypeException;
 import org.springframework.http.MediaType;
+import org.springframework.security.web.header.HeaderWriter;
+import org.springframework.security.web.header.writers.CompositeHeaderWriter;
+import org.springframework.security.web.header.writers.ContentSecurityPolicyHeaderWriter;
+import org.springframework.security.web.header.writers.HstsHeaderWriter;
+import org.springframework.security.web.header.writers.PermissionsPolicyHeaderWriter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
+import org.springframework.security.web.header.writers.XContentTypeOptionsHeaderWriter;
+import org.springframework.security.web.header.writers.frameoptions.XFrameOptionsHeaderWriter;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
@@ -33,19 +42,29 @@ public final class AuthenticationBrowserGuard extends OncePerRequestFilter {
           + "font-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; "
           + "base-uri 'none'; frame-ancestors 'none'; form-action 'self'; worker-src 'self'";
   private final String origin;
-  private final boolean validatedTls;
+  private final HeaderWriter headers;
 
   /** TLS validation is an explicit operator gate; request/forwarded headers cannot enable HSTS. */
   public AuthenticationBrowserGuard(String configuredOrigin, boolean validatedTls) {
     origin = BoundWebAuthnOperations.canonicalPublicOrigin(configuredOrigin);
-    this.validatedTls = validatedTls;
+    headers =
+        new CompositeHeaderWriter(
+            List.of(
+                new ContentSecurityPolicyHeaderWriter(CSP),
+                new XContentTypeOptionsHeaderWriter(),
+                new ReferrerPolicyHeaderWriter(),
+                new XFrameOptionsHeaderWriter(),
+                new PermissionsPolicyHeaderWriter(
+                    "camera=(), microphone=(), geolocation=(), publickey-credentials-get=(self), "
+                        + "publickey-credentials-create=(self)"),
+                new HstsHeaderWriter(request -> validatedTls, 31_536_000, false, false)));
   }
 
   @Override
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
-    headers(response);
+    headers.writeHeaders(request, response);
     boolean authentication = request.getRequestURI().startsWith("/api/v1/auth/");
     boolean sensitiveGet = authentication && !"OPTIONS".equals(request.getMethod());
     boolean unsafe = !SAFE.contains(request.getMethod());
@@ -99,20 +118,6 @@ public final class AuthenticationBrowserGuard extends OncePerRequestFilter {
           && (type.getCharset() == null || StandardCharsets.UTF_8.equals(type.getCharset()));
     } catch (InvalidMediaTypeException exception) {
       return false;
-    }
-  }
-
-  private void headers(HttpServletResponse response) {
-    response.setHeader("Content-Security-Policy", CSP);
-    response.setHeader("X-Content-Type-Options", "nosniff");
-    response.setHeader("Referrer-Policy", "no-referrer");
-    response.setHeader("X-Frame-Options", "DENY");
-    response.setHeader(
-        "Permissions-Policy",
-        "camera=(), microphone=(), geolocation=(), publickey-credentials-get=(self), "
-            + "publickey-credentials-create=(self)");
-    if (validatedTls) {
-      response.setHeader("Strict-Transport-Security", "max-age=31536000");
     }
   }
 }

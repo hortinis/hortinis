@@ -72,8 +72,44 @@ Run the resolver/context tests and real authenticated runtime tests first, then 
 build, documentation and contract checks and browser/topology validation. Review the resulting diff
 and commit only after those checks pass.
 
+## Remaining framework boundaries
+
+- Password hashing and verification already delegate to Spring PasswordEncoder/Password4j. The
+  wrapper retains text/cost bounds and equivalent-cost rejection; DaoAuthenticationProvider would
+  need additional snapshot plumbing while publication must still recheck that same account.
+- Session storage, cookie serialization and rotation already delegate to Spring Session and the
+  Servlet API. Database authority rows encode recovery/admission/absolute and explicit-interaction
+  policies; replacing them with a principal cache would lose those checks or need another adapter.
+- CSRF validation and storage already delegate to Spring Security. The extension enforces the
+  selected 256-bit token, header-only contract and transactional bootstrap without implicit cookies.
+- Recovery codes, protected operator tickets, scope ownership and proof publication are application
+  workflows. Spring's generic one-time-token login does not implement their two-proof restricted
+  recovery policy.
+- The strict JSON parser preserves pre-body committed proof consumption, closed properties, exact
+  scalar types, canonical binary encodings and document bounds. Framework defaults do not establish
+  that public contract automatically.
+- Browser offline binding and persistence are frontend application responsibilities.
+
+These retained boundaries must not be described as hand-written cryptographic implementations.
+The cryptographic work is delegated to maintained libraries; the remaining code defines policy,
+binding, persistence and publication.
+
 ## Execution status
 
-The user explicitly approved the request-authorization migration on 2026-10-14. Step 1 implements
-Spring request contexts and factor authorization. The complete backend checks must pass before its
-commit; subsequent steps remain subject to the implementation and review sequence above.
+Step 1 was reviewed and committed after 266 unit and 282 PostgreSQL integration tests passed. Its
+real Spring runtime test covers public discovery, all synchronization routes, partial/recovery-only
+sessions, revocation and request identity cleanup. Frontend and contract checks also passed.
+
+Step 2 delegates header emission and local invalidation to Spring components. The complete final
+backend build passed, including 266 unit and 282 PostgreSQL integration tests, servlet/logout,
+HTTP and signed-proof coverage, PMD, formatting and architecture checks. Documentation, contracts,
+Compose, 366 frontend tests, 11 standalone browser tests and 6 topology browser tests also passed.
+The disposable topology was removed after validation. The pre-existing production web bundle
+budget warning remains unchanged.
+
+The compatibility audit is complete. The remaining application policies cannot be replaced with
+default framework mechanisms while preserving the accepted S9 contract. This migration increases
+production Java by 109 physical lines: it adds the current-authority context adapter and framework
+configuration while removing direct servlet identity lookup. It improves framework ownership but
+does not deliver a large code-volume reduction. No schema, public contract, production dependency
+or user-flow change was introduced.

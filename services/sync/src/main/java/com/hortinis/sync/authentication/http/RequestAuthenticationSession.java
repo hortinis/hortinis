@@ -12,6 +12,8 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
+import org.springframework.security.web.context.NullSecurityContextRepository;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
@@ -21,6 +23,7 @@ public final class RequestAuthenticationSession implements AuthenticationSession
   private final HttpServletRequest request;
   private final HttpServletResponse response;
   private final RandomSessionCsrfTokenRepository csrf = new RandomSessionCsrfTokenRepository();
+  private final SecurityContextLogoutHandler logout = logoutHandler();
 
   /** Receives the actual established Spring Session request/response wrappers. */
   public RequestAuthenticationSession(HttpServletRequest request, HttpServletResponse response) {
@@ -100,10 +103,13 @@ public final class RequestAuthenticationSession implements AuthenticationSession
   @Override
   public void invalidate() {
     requirePublicationTransaction();
-    HttpSession session = request.getSession(false);
-    if (session != null) {
-      session.invalidate();
-    }
+    logout.logout(request, response, null);
+  }
+
+  private static SecurityContextLogoutHandler logoutHandler() {
+    var handler = new SecurityContextLogoutHandler();
+    handler.setSecurityContextRepository(new NullSecurityContextRepository());
+    return handler;
   }
 
   private void releaseAfterCommit(String identifier, SessionAuthorityReference reference) {

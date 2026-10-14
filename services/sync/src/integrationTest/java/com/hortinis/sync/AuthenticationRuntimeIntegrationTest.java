@@ -222,7 +222,7 @@ class AuthenticationRuntimeIntegrationTest {
 
   private <S extends org.springframework.session.Session> void verifySpringSessions(
       org.springframework.session.SessionRepository<S> sessions) throws Exception {
-    UUID account = UUID.randomUUID();
+    final UUID account = UUID.randomUUID();
     UUID reference = UUID.randomUUID();
     var session = sessions.createSession();
     session.setAttribute("hortinis.authority", new SessionAuthorityReference(reference));

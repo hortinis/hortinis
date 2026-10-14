@@ -237,8 +237,19 @@ class AuthenticationServletSessionIntegrationTest {
                 transaction()
                     .executeWithoutResult(
                         status -> {
+                          org.springframework.security.core.context.SecurityContextHolder
+                              .getContext()
+                              .setAuthentication(
+                                  org.springframework.security.authentication
+                                      .UsernamePasswordAuthenticationToken.authenticated(
+                                      "synthetic-test-principal", null, java.util.List.of()));
                           new RequestAuthenticationSession(nativeRequest, nativeResponse)
                               .invalidate();
+                          assertThat(
+                                  org.springframework.security.core.context.SecurityContextHolder
+                                      .getContext()
+                                      .getAuthentication())
+                              .isNull();
                           jdbc.update("DELETE FROM authentication_session_authority");
                           assertThat(count(TRANSPORT_COUNT)).isZero();
                         }));

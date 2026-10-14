@@ -160,6 +160,14 @@ session rotation. CSRF tokens are not login credentials and grant no scope acces
 [session fixation controls](https://docs.spring.io/spring-security/reference/servlet/authentication/session-management.html)
 are implementation references; explicit JSON/generic-error adapters and tests are still required.
 
+The browser guard uses Spring Security header writers for CSP, framing, content-type, referrer,
+permissions and explicitly gated HSTS policy, including rejected requests before the security chain.
+Local invalidation uses `SecurityContextLogoutHandler` within the publication transaction, with a
+null context repository because authority is never persisted as a principal. Target-fenced logout,
+after-commit cookie release and suppression of delayed cookie deletion remain application policy.
+Session-ID rotation already delegates to the Servlet `changeSessionId` mechanism for all bounded
+ceremony transitions; Spring's authentication-only strategy is not substituted for those transitions.
+
 ### OIDC boundary
 
 OIDC remains an optional, disabled replaceable adapter. If separately activated, it must validate
