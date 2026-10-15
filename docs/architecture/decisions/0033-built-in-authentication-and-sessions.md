@@ -107,6 +107,16 @@ checks: recent full authentication for ordinary changes, or the matching complet
 for recovery. Crypto remains outside publication transactions; nonce consumption remains separately
 committed before proof parsing.
 
+### Password authentication
+
+`AuthenticationManager` and `DaoAuthenticationProvider` own password authentication, credential
+erasure and unknown-user equivalent-cost work. A provider-backed User retains the exact current
+account snapshot only for the caller's transactional recheck; it is never cached as a principal.
+The persisted context uses a separate credential-free native User with only the account UUID and
+factor/epoch authorities. Login, step-up and password-plus-code recovery share this provider path.
+The bounded PasswordEncoder adapter retains the selected Argon2id scheme and rejects unsafe stored
+parameters before delegating computational work.
+
 ### Password storage
 
 Use `Argon2Password4jPasswordEncoder` with explicitly configured Argon2id: 65,536 KiB total memory,

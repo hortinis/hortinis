@@ -29,6 +29,7 @@ public final class AuthenticationAccountService {
   private final CurrentAuthenticationAuthorityPersistence authority;
   private final PasswordPolicy policy;
   private final PasswordVerifier passwords;
+  private final AuthenticationPasswordService authentication;
   private final AuthenticationPasskeys passkeys;
 
   /** Shares established providers and explicit transaction components; installs no HTTP route. */
@@ -42,6 +43,7 @@ public final class AuthenticationAccountService {
       CurrentAuthenticationAuthorityPersistence authority,
       PasswordPolicy policy,
       PasswordVerifier passwords,
+      AuthenticationPasswordService authentication,
       AuthenticationPasskeys passkeys) {
     this.publication = publication;
     this.accounts = accounts;
@@ -52,6 +54,7 @@ public final class AuthenticationAccountService {
     this.authority = authority;
     this.policy = policy;
     this.passwords = passwords;
+    this.authentication = authentication;
     this.passkeys = passkeys;
   }
 
@@ -341,18 +344,7 @@ public final class AuthenticationAccountService {
     return publication.attempt(
         Event.RECOVERY,
         () -> {
-          String canonical = PasswordPolicy.canonicalLogin(requestedLogin);
-          var observed = accounts.findLogin(canonical);
-          boolean verified =
-              passwords.matches(
-                  password,
-                  observed
-                      .map(AuthenticationAccountPersistence.AccountSnapshot::passwordVerifier)
-                      .orElse(null));
-          if (!verified || observed.isEmpty()) {
-            throw new AuthenticationFailedException();
-          }
-          var account = observed.orElseThrow();
+          var account = authentication.authenticate(requestedLogin, password);
           return publication.complete(
               Event.RECOVERY,
               () -> {

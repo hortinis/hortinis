@@ -18,6 +18,7 @@ import com.hortinis.sync.authentication.AuthenticationOperatorRecoveryService;
 import com.hortinis.sync.authentication.AuthenticationOperatorTickets;
 import com.hortinis.sync.authentication.AuthenticationOverloadedException;
 import com.hortinis.sync.authentication.AuthenticationPasskeys;
+import com.hortinis.sync.authentication.AuthenticationPasswordService;
 import com.hortinis.sync.authentication.AuthenticationPreconditionException;
 import com.hortinis.sync.authentication.AuthenticationPublication;
 import com.hortinis.sync.authentication.AuthenticationSecrets;
@@ -218,9 +219,10 @@ class AuthenticationAccountWorkflowIntegrationTest {
             new PasswordPolicy(PasswordBlocklist.load()),
             passwords,
             passkeys);
+    var authentication = new AuthenticationPasswordService(accounts, passwords);
     login =
         new AuthenticationLoginService(
-            publication, accounts, sessions, challenges, passwords, passkeys);
+            publication, accounts, sessions, challenges, authentication, passkeys);
     var removal = new AuthenticationSessionRemovalPersistence(client);
     credentials =
         new AuthenticationAccountService(
@@ -233,6 +235,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
             authority,
             new PasswordPolicy(PasswordBlocklist.load()),
             passwords,
+            authentication,
             passkeys);
     recovery = credentials;
     operatorRecovery =

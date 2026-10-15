@@ -38,6 +38,7 @@ import org.springframework.transaction.PlatformTransactionManager;
   AuthenticationPublication.class,
   AuthenticationSetupService.class,
   AuthenticationLoginService.class,
+  AuthenticationPasswordService.class,
   AuthenticationAccountService.class,
   AuthenticationOperatorRecoveryService.class,
   AuthenticationSessionService.class,

@@ -14,7 +14,7 @@ public final class AuthenticationLoginService {
   private final AuthenticationAccountPersistence accounts;
   private final AuthenticationSessionPublicationPersistence sessions;
   private final AuthenticationChallengePersistence challenges;
-  private final PasswordVerifier passwords;
+  private final AuthenticationPasswordService passwords;
   private final AuthenticationPasskeys passkeys;
 
   /** Crypto is separate from explicit current-account/session publication transactions. */
@@ -23,7 +23,7 @@ public final class AuthenticationLoginService {
       AuthenticationAccountPersistence accounts,
       AuthenticationSessionPublicationPersistence sessions,
       AuthenticationChallengePersistence challenges,
-      PasswordVerifier passwords,
+      AuthenticationPasswordService passwords,
       AuthenticationPasskeys passkeys) {
     this.publication = publication;
     this.accounts = accounts;
@@ -39,18 +39,8 @@ public final class AuthenticationLoginService {
     return publication.attempt(
         Event.LOGIN,
         () -> {
-          String login = PasswordPolicy.canonicalLogin(requestedLogin);
-          var observed = accounts.findLogin(login);
-          boolean verified =
-              passwords.matches(
-                  password,
-                  observed
-                      .map(AuthenticationAccountPersistence.AccountSnapshot::passwordVerifier)
-                      .orElse(null));
-          if (!verified || observed.isEmpty()) {
-            throw new AuthenticationFailedException();
-          }
-          return publishPassword(transport, observed.orElseThrow(), false);
+          var observed = passwords.authenticate(requestedLogin, password);
+          return publishPassword(transport, observed, false);
         });
   }
 
@@ -68,10 +58,11 @@ public final class AuthenticationLoginService {
             throw new AuthenticationFailedException();
           }
           var account = accounts.findAccount(parent.account());
-          if (!passwords.matches(password, account.passwordVerifier())) {
+          var verified = passwords.authenticate(account.login(), password);
+          if (!account.account().equals(verified.account())) {
             throw new AuthenticationFailedException();
           }
-          return publishPassword(transport, account, true);
+          return publishPassword(transport, verified, true);
         });
   }
 

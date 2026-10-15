@@ -12,15 +12,14 @@ import org.springframework.security.crypto.password4j.Argon2Password4jPasswordEn
 /**
  * Established verifier adapter with explicit cost and bounded work, never logged or sent on wire.
  */
-public final class PasswordVerifier {
+public final class PasswordVerifier implements PasswordEncoder {
   private static final int SALT_BYTES = 32;
   private static final int VERIFIER_COMPONENTS = 2;
   private static final String PREFIX = "{argon2id}$argon2id$v=19$m=65536,t=3,p=1$";
   private final CryptoWorkLimiter workLimiter;
   private final PasswordEncoder encoder;
-  private final String missingAccountVerifier;
 
-  /** Selects one explicit framework encoder and computes a private independent dummy verifier. */
+  /** Selects one explicit framework encoder; the authentication provider owns unknown-user work. */
   public PasswordVerifier(CryptoWorkLimiter workLimiter) {
     this.workLimiter = workLimiter;
     if (SaltGenerator.get() != SALT_BYTES) {
@@ -30,13 +29,14 @@ public final class PasswordVerifier {
         new Argon2Password4jPasswordEncoder(
             Argon2Function.getInstance(65536, 3, 1, 32, Argon2.ID, 19));
     encoder = new DelegatingPasswordEncoder("argon2id", Map.of("argon2id", argon2));
-    missingAccountVerifier = encode(AuthenticationSecrets.randomValue());
   }
 
   /**
    * Call only after new-password policy validation; this method still enforces safe text bounds.
    */
-  public String encode(String password) {
+  @Override
+  public String encode(CharSequence input) {
+    String password = input == null ? null : input.toString();
     if (!PasswordPolicy.isValidLoginText(password)) {
       throw new IllegalArgumentException("Invalid password text.");
     }
@@ -44,15 +44,15 @@ public final class PasswordVerifier {
   }
 
   /**
-   * Absent/invalid stored state does equivalent-cost dummy work, then returns a generic failure.
+   * Rejects malformed verifier parameters before the framework can execute attacker-selected work.
    */
-  public boolean matches(String password, String storedVerifier) {
-    boolean validInput = PasswordPolicy.isValidLoginText(password);
-    boolean validVerifier = isSelectedVerifier(storedVerifier);
-    String candidate = validInput ? password : "invalid-input";
-    String verifier = validVerifier ? storedVerifier : missingAccountVerifier;
-    boolean matched = workLimiter.execute(() -> encoder.matches(candidate, verifier));
-    return validInput && validVerifier && matched;
+  @Override
+  public boolean matches(CharSequence input, String storedVerifier) {
+    String password = input == null ? null : input.toString();
+    if (!PasswordPolicy.isValidLoginText(password) || !isSelectedVerifier(storedVerifier)) {
+      return false;
+    }
+    return workLimiter.execute(() -> encoder.matches(password, storedVerifier));
   }
 
   private static boolean isSelectedVerifier(String verifier) {

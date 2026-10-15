@@ -162,3 +162,12 @@ The current transition retains transaction-time ownership and epoch checks while
 persisted using Spring's credential-free User and factor authorities. Only account UUIDs are indexed;
 login names and passwords are not cached. The next step replaces manual password authentication with
 Spring's provider pipeline, followed by parallel authority/lifetime/session-management removal.
+
+Password authentication now uses Spring's DaoAuthenticationProvider and ProviderManager for normal
+login, step-up and password-based passkey recovery. The provider owns unknown-user dummy work and
+credential erasure; a transient exact account snapshot supports transactional publication rechecks.
+Storage failures retain their unavailable response rather than becoming credential failures. Review
+excluded the temporary snapshot from serialization. The complete backend build passed 270 unit and
+284 PostgreSQL integration tests, formatting, static analysis and architecture checks. Documentation
+and contract validation also passed. This stage replaces provider orchestration; the larger session
+state reduction remains in progress.
