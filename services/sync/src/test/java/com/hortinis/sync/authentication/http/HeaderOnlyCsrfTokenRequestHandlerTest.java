@@ -56,11 +56,12 @@ class HeaderOnlyCsrfTokenRequestHandlerTest {
   }
 
   @Test
-  void missingSessionDeniesWithoutAllocationOrTransactionalSave() throws Exception {
+  void missingSessionDeniesWithNativeAnonymousSessionAndSafeRequestsRemainDeferred()
+      throws Exception {
     var request = new ParameterForbiddenRequest("POST", PATH);
     request.addHeader(HEADER, AuthenticationSecrets.randomValue());
     assertThat(apply(request).getStatus()).isEqualTo(403);
-    assertThat(request.getSession(false)).isNull();
+    assertThat(request.getSession(false)).isNotNull();
     var safe = new ParameterForbiddenRequest("GET", "/api/v1/auth/status");
     assertThat(apply(safe).getStatus()).isEqualTo(200);
     assertThat(safe.getSession(false)).isNull();
@@ -75,7 +76,10 @@ class HeaderOnlyCsrfTokenRequestHandlerTest {
   }
 
   private static MockHttpServletResponse apply(MockHttpServletRequest request) throws Exception {
-    var filter = new CsrfFilter(new RandomSessionCsrfTokenRepository());
+    var filter =
+        new CsrfFilter(
+            com.hortinis.sync.authentication.AuthenticationRuntimeConfiguration
+                .authenticationCsrfTokenRepository());
     filter.setRequestHandler(new HeaderOnlyCsrfTokenRequestHandler());
     filter.setAccessDeniedHandler(
         (req, response, failure) -> AuthenticationHttpErrors.DENIED.write(response));

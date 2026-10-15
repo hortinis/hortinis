@@ -306,7 +306,7 @@ namespace Hortinis.Sync {
     @route("/logout")
     @TypeSpec.OpenAPI.operationId("logoutAccountSession")
     @summary("Invalidate the original session target")
-    @doc("Require CSRF and compare the non-secret target to current cookie authority. Unknown/inactive targets complete idempotently; a different active target denies without invalidating it. Never emit a session Set-Cookie, including deletion.")
+    @doc("Require CSRF and compare the non-secret target to current cookie authority. Unknown/inactive targets complete idempotently; a different active target denies without invalidating it. Spring Session expires the browser cookie when its current session is invalidated.")
     logoutAccountSession(@body request: Models.LogoutRequest):
       | AuthenticationSuccessResponse<Models.AuthenticationCompleted>
       | AuthenticationFailures;

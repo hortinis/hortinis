@@ -7,7 +7,7 @@ import com.hortinis.sync.authentication.persistence.AuthenticationSessionRemoval
 import java.time.Instant;
 import java.util.List;
 
-/** Current-session management and target-fenced logout; no workflow emits a replacement cookie. */
+/** Native session management and target-fenced logout. */
 public final class AuthenticationSessionService {
   private final AuthenticationPublication publication;
   private final AuthenticationSessionPublicationPersistence sessions;
@@ -53,10 +53,7 @@ public final class AuthenticationSessionService {
         });
   }
 
-  /**
-   * Same-account recent authority may revoke itself or another target; cookie deletion stays
-   * disabled.
-   */
+  /** Same-account recent authority may revoke itself or another target. */
   public boolean revoke(AuthenticationSessionTransport transport, String target) {
     return publication.attempt(
         Event.SESSION_REVOKE,

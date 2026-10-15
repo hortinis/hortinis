@@ -22,11 +22,11 @@ import com.hortinis.sync.authentication.AuthenticationPasswordService;
 import com.hortinis.sync.authentication.AuthenticationPreconditionException;
 import com.hortinis.sync.authentication.AuthenticationPublication;
 import com.hortinis.sync.authentication.AuthenticationSecrets;
+import com.hortinis.sync.authentication.AuthenticationSessionConfiguration;
 import com.hortinis.sync.authentication.AuthenticationSessionService;
 import com.hortinis.sync.authentication.AuthenticationSessionTransport;
 import com.hortinis.sync.authentication.AuthenticationSetupService;
 import com.hortinis.sync.authentication.BoundWebAuthnOperations;
-import com.hortinis.sync.authentication.ControlledSessionIdResolver;
 import com.hortinis.sync.authentication.CryptoWorkLimiter;
 import com.hortinis.sync.authentication.OperatorTicketFiles;
 import com.hortinis.sync.authentication.PasswordBlocklist;
@@ -40,7 +40,6 @@ import com.hortinis.sync.authentication.http.AuthenticationMutationController;
 import com.hortinis.sync.authentication.http.AuthenticationProofBoundary;
 import com.hortinis.sync.authentication.http.AuthenticationReadController;
 import com.hortinis.sync.authentication.http.HeaderOnlyCsrfTokenRequestHandler;
-import com.hortinis.sync.authentication.http.RandomSessionCsrfTokenRepository;
 import com.hortinis.sync.authentication.http.RequestAuthenticationSession;
 import com.hortinis.sync.authentication.persistence.AuthenticationAccountPersistence;
 import com.hortinis.sync.authentication.persistence.AuthenticationAccountSecurityPersistence;
@@ -127,6 +126,9 @@ class AuthenticationAccountWorkflowIntegrationTest {
   private static final String UNKNOWN_CASE = "unknown";
   private static final String PASSWORD_FIELD = "password";
   private static final String STATUS_PATH = "/api/v1/auth/session";
+  private static final String COOKIE_EXPIRATION = "Max-Age=0";
+  private static final String SELF_CASE = "self";
+  private static final String IDLE_CASE = "idle";
   private static final String CSRF_PATH = "/api/v1/auth/csrf";
   private static final String CSRF_HEADER = "X-CSRF-TOKEN";
   private static final String JSON_MEDIA = "application/json";
@@ -459,7 +461,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
                   .isInstanceOf(RuntimeException.class);
               return true;
             });
-    assertThat(failed.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    assertThat(failed.response().getHeader(HttpHeaders.SET_COOKIE)).contains(COOKIE_EXPIRATION);
     assertThat(count(ACCOUNT_COUNT)).isZero();
     assertThat(count(CREDENTIAL_COUNT)).isZero();
     assertThat(count(CODE_COUNT)).isZero();
@@ -722,7 +724,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
             CHANGE_PASSWORD_PATH,
             first.cookie(),
             transport -> credentials.password(transport, PASSWORD, newPassword));
-    assertThat(changed.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    assertThat(changed.response().getHeader(HttpHeaders.SET_COOKIE)).contains(COOKIE_EXPIRATION);
     assertThat(count(AUTHORITY_COUNT)).isZero();
     assertThat(count(NATIVE_COUNT)).isZero();
     assertThat(count(TICKET_COUNT)).isZero();
@@ -787,7 +789,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
             CREDENTIAL_PATH,
             loggedIn.cookie(),
             transport -> credentials.register(transport, receipt, proof));
-    assertThat(registered.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    assertThat(registered.response().getHeader(HttpHeaders.SET_COOKIE)).contains(COOKIE_EXPIRATION);
     assertThat(count(CREDENTIAL_COUNT)).isEqualTo(2);
     assertThat(count(AUTHORITY_COUNT)).isZero();
     var newLogin = finish(prepare(replacement, 1), false);
@@ -801,7 +803,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
             "/api/v1/auth/credentials/revoke",
             newLogin.cookie(),
             transport -> credentials.revoke(transport, originalKey.id()));
-    assertThat(revoked.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    assertThat(revoked.response().getHeader(HttpHeaders.SET_COOKIE)).contains(COOKIE_EXPIRATION);
     assertThat(count(CREDENTIAL_COUNT)).isEqualTo(1);
     assertThat(accounts.findLogin(LOGIN).orElseThrow().epoch()).isEqualTo(3);
     var lastLogin = finish(prepare(replacement, 2), false);
@@ -898,7 +900,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
                   .isInstanceOf(RuntimeException.class);
               return true;
             });
-    assertThat(failed.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    assertThat(failed.response().getHeader(HttpHeaders.SET_COOKIE)).contains(COOKIE_EXPIRATION);
     assertThat(accounts.findLogin(LOGIN).orElseThrow().passwordVerifier())
         .isEqualTo(original.passwordVerifier());
     assertThat(accounts.findLogin(LOGIN).orElseThrow().epoch()).isEqualTo(original.epoch());
@@ -918,7 +920,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
         jdbc.queryForList("SELECT secret_verifier FROM authentication_recovery_code", String.class);
     prepare(key, 2);
     var changed = request(RECOVERY_CODES_PATH, loggedIn.cookie(), credentials::recoveryCodes);
-    assertThat(changed.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    assertThat(changed.response().getHeader(HttpHeaders.SET_COOKIE)).contains(COOKIE_EXPIRATION);
     assertThat(changed.result().codes()).hasSize(10).doesNotHaveDuplicates();
     var currentHashes =
         jdbc.queryForList("SELECT secret_verifier FROM authentication_recovery_code", String.class);
@@ -985,8 +987,8 @@ class AuthenticationAccountWorkflowIntegrationTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"self", "other", UNKNOWN_CASE})
-  void targetedRevocationKeepsOtherAuthorityAndNeverDeletesResponseCookie(String selected)
+  @ValueSource(strings = {SELF_CASE, "other", UNKNOWN_CASE})
+  void targetedRevocationKeepsOtherAuthorityAndExpiresOnlyCurrentSessionCookie(String selected)
       throws Exception {
     final var key = setupAccount(false);
     final var first = finish(prepare(key, 1), false);
@@ -995,20 +997,24 @@ class AuthenticationAccountWorkflowIntegrationTest {
         UNKNOWN_CASE.equals(selected)
             ? AuthenticationSecrets.randomValue()
             : sessions
-                .observe("self".equals(selected) ? first.result() : other.result())
+                .observe(SELF_CASE.equals(selected) ? first.result() : other.result())
                 .logoutTarget();
     var revoked =
         request(
             "/api/v1/auth/sessions/revoke",
             first.cookie(),
             transport -> sessionControl.revoke(transport, target));
-    assertThat(revoked.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    if (SELF_CASE.equals(selected)) {
+      assertThat(revoked.response().getHeader(HttpHeaders.SET_COOKIE)).contains(COOKIE_EXPIRATION);
+    } else {
+      assertThat(revoked.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    }
     assertThat(count(FULL_COUNT)).isEqualTo(UNKNOWN_CASE.equals(selected) ? 2 : 1);
     assertThat(
             authority
                 .findFull(first.result().verifier(), first.result().reference().value())
                 .isPresent())
-        .isEqualTo(!"self".equals(selected));
+        .isEqualTo(!SELF_CASE.equals(selected));
     assertThat(
             authority
                 .findFull(other.result().verifier(), other.result().reference().value())
@@ -1041,7 +1047,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
             LOGOUT_PATH,
             newer.cookie(),
             transport -> sessionControl.logout(transport, currentTarget));
-    assertThat(complete.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    assertThat(complete.response().getHeader(HttpHeaders.SET_COOKIE)).contains(COOKIE_EXPIRATION);
     var repeated =
         request(
             LOGOUT_PATH,
@@ -1055,12 +1061,13 @@ class AuthenticationAccountWorkflowIntegrationTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"idle", "absolute", "revoked-epoch", DISABLED_CASE, "missing-authority"})
+  @ValueSource(
+      strings = {IDLE_CASE, "absolute", "revoked-epoch", DISABLED_CASE, "missing-authority"})
   void logoutOfInactiveAuthorityCompletesAndPhysicallyRemovesItsNativeRow(String failure)
       throws Exception {
     var loggedIn = finish(prepare(setupAccount(false), 1), false);
     switch (failure) {
-      case "idle" -> {
+      case IDLE_CASE -> {
         jdbc.update("UPDATE spring_session SET last_access_time = 0, expiry_time = 0");
         new AuthenticationLifecyclePersistence(
                 JdbcClient.create(jdbc), clock, transactions, this.nativeSessions)
@@ -1081,7 +1088,11 @@ class AuthenticationAccountWorkflowIntegrationTest {
             loggedIn.cookie(),
             transport -> sessionControl.logout(transport, AuthenticationSecrets.randomValue()));
     assertThat(complete.result()).isTrue();
-    assertThat(complete.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    if (IDLE_CASE.equals(failure)) {
+      assertThat(complete.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    } else {
+      assertThat(complete.response().getHeader(HttpHeaders.SET_COOKIE)).contains(COOKIE_EXPIRATION);
+    }
     assertThat(count(AUTHORITY_COUNT)).isZero();
     assertThat(count(NATIVE_COUNT)).isZero();
   }
@@ -1136,7 +1147,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
             LOGOUT_PATH,
             actor.cookie(),
             transport -> sessionControl.logout(transport, actorTarget));
-    assertThat(loggedOut.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    assertThat(loggedOut.response().getHeader(HttpHeaders.SET_COOKIE)).contains(COOKIE_EXPIRATION);
     assertThat(count(FULL_COUNT)).isEqualTo(1);
     assertThat(authority.findFull(other.result().verifier(), other.result().reference().value()))
         .isPresent();
@@ -1208,8 +1219,8 @@ class AuthenticationAccountWorkflowIntegrationTest {
         release.countDown();
       }
       assertThat(held.get(10, TimeUnit.SECONDS)).isTrue();
-      assertThat(changing.get(10, TimeUnit.SECONDS).response().getHeaders(HttpHeaders.SET_COOKIE))
-          .isEmpty();
+      assertThat(changing.get(10, TimeUnit.SECONDS).response().getHeader(HttpHeaders.SET_COOKIE))
+          .contains(COOKIE_EXPIRATION);
     } finally {
       release.countDown();
     }
@@ -1324,7 +1335,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
             ready.cookie(),
             transport -> recovery.resetPassword(transport, NEW_PASSWORD));
     assertThat(completed.result()).isTrue();
-    assertThat(completed.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    assertThat(completed.response().getHeader(HttpHeaders.SET_COOKIE)).contains(COOKIE_EXPIRATION);
     assertThat(count(AUTHORITY_COUNT)).isZero();
     assertThat(count(NATIVE_COUNT)).isZero();
     assertThat(accounts.findLogin(LOGIN).orElseThrow().epoch()).isEqualTo(2);
@@ -1493,7 +1504,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
             options.cookie(),
             transport -> recovery.replacePasskey(transport, receipt, signed));
     assertThat(completed.result()).isTrue();
-    assertThat(completed.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    assertThat(completed.response().getHeader(HttpHeaders.SET_COOKIE)).contains(COOKIE_EXPIRATION);
     assertThat(count(CREDENTIAL_COUNT)).isEqualTo(1);
     assertThat(
             accounts.credentials(accounts.findLogin(LOGIN).orElseThrow().account()).getFirst().id())
@@ -1726,7 +1737,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
                   .isInstanceOf(RuntimeException.class);
               return true;
             });
-    assertThat(failed.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    assertThat(failed.response().getHeader(HttpHeaders.SET_COOKIE)).contains(COOKIE_EXPIRATION);
     assertThat(count(CODE_COUNT)).isEqualTo(9);
     assertThat(count(CREDENTIAL_COUNT)).isEqualTo(1);
     assertThat(accounts.findLogin(LOGIN).orElseThrow().passwordVerifier())
@@ -1766,7 +1777,12 @@ class AuthenticationAccountWorkflowIntegrationTest {
                   .isInstanceOf(RuntimeException.class);
               return true;
             });
-    assertThat(failed.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM spring_session WHERE session_id = ?",
+                Integer.class,
+                failed.cookie().getValue()))
+        .isZero();
     assertThat(count(CODE_COUNT)).isEqualTo(10);
     assertThat(count(COUNTER)).isZero();
     assertThat(count(CHALLENGE_COUNT)).isZero();
@@ -1871,7 +1887,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
             limited.cookie(),
             transport -> operatorRecovery.complete(transport, receipt, proof));
     assertThat(completed.result()).isTrue();
-    assertThat(completed.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    assertThat(completed.response().getHeader(HttpHeaders.SET_COOKIE)).contains(COOKIE_EXPIRATION);
     assertThat(count(CREDENTIAL_COUNT)).isEqualTo(1);
     assertThat(accounts.credentials(account.account()).getFirst().id())
         .containsExactly(replacement.id());
@@ -2067,7 +2083,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
                   .isInstanceOf(RuntimeException.class);
               return true;
             });
-    assertThat(failed.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    assertThat(failed.response().getHeader(HttpHeaders.SET_COOKIE)).contains(COOKIE_EXPIRATION);
     assertThat(count(CODE_COUNT)).isEqualTo(10);
     assertThat(count(CREDENTIAL_COUNT)).isEqualTo(1);
     assertThat(accounts.credentials(account.account()).getFirst().id())
@@ -2230,7 +2246,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
   }
 
   @Test
-  void httpWorkflowPerformsFreshSetupBothFactorLoginMinimizedReadsAndCookieFreeLogout()
+  void httpWorkflowPerformsFreshSetupBothFactorLoginMinimizedReadsAndNativeLogout()
       throws Exception {
     var mvc = authenticationHttp();
     assertThat(httpGet(mvc, STATUS_PATH, null).getContentAsString())
@@ -2277,7 +2293,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
                     "attestationObject",
                         registeredResponse.getAttestationObject().toBase64UrlString())));
     assertThat(activation.getStatus()).isEqualTo(200);
-    assertThat(activation.getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    assertThat(activation.getHeader(HttpHeaders.SET_COOKIE)).contains(COOKIE_EXPIRATION);
     assertThat(
             JsonMapper.builder()
                 .build()
@@ -2347,7 +2363,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
             java.util.Map.of("target", status.get("logoutTarget").stringValue()));
     assertThat(logout.getStatus()).isEqualTo(200);
     assertThat(logout.getContentAsString()).isEqualTo("{\"completed\":true}");
-    assertThat(logout.getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    assertThat(logout.getHeader(HttpHeaders.SET_COOKIE)).contains(COOKIE_EXPIRATION);
     assertThat(count(FULL_COUNT)).isZero();
     assertThat(count(NATIVE_COUNT)).isZero();
     var expiredStatus = httpGet(mvc, STATUS_PATH, fullCookie);
@@ -2402,8 +2418,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
   }
 
   @Test
-  void httpWorkflowNextAccessPurgesExpiredTransportBeforeStatusWithoutCookieDeletion()
-      throws Exception {
+  void httpWorkflowNextAccessPurgesExpiredTransportBeforeStatus() throws Exception {
     setupAccount(false);
     var partial =
         request(
@@ -2429,8 +2444,12 @@ class AuthenticationAccountWorkflowIntegrationTest {
             accounts);
     var nativeSessions =
         new SessionRepositoryFilter<>(AuthenticationJdbcSessions.create(jdbc, transactions));
-    nativeSessions.setHttpSessionIdResolver(new ControlledSessionIdResolver());
-    var csrf = new CsrfFilter(new RandomSessionCsrfTokenRepository());
+    nativeSessions.setHttpSessionIdResolver(
+        AuthenticationSessionConfiguration.authenticationSessionIdResolver());
+    var csrf =
+        new CsrfFilter(
+            com.hortinis.sync.authentication.AuthenticationRuntimeConfiguration
+                .authenticationCsrfTokenRepository());
     csrf.setRequestHandler(new HeaderOnlyCsrfTokenRequestHandler());
     csrf.setAccessDeniedHandler(
         (request, response, failure) -> AuthenticationHttpErrors.DENIED.write(response));
@@ -2458,7 +2477,8 @@ class AuthenticationAccountWorkflowIntegrationTest {
         .setControllerAdvice(new AuthenticationErrorHandler())
         .addFilters(
             new AuthenticationBrowserGuard(SyntheticAuthenticationPasskey.ORIGIN, false),
-            new AuthenticationLifecycleFilter(lifecycle),
+            new AuthenticationLifecycleFilter(
+                lifecycle, AuthenticationSessionConfiguration.authenticationSessionIdResolver()),
             nativeSessions,
             csrf)
         .build();
@@ -2625,7 +2645,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
             SETUP_PROOF_PATH,
             staged.cookie(),
             transport -> setup.complete(transport, receipt, signed));
-    assertThat(completed.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    assertThat(completed.response().getHeader(HttpHeaders.SET_COOKIE)).contains(COOKIE_EXPIRATION);
     var issued = completed.result();
     issuedCodes = issued;
     assertThat(issued.codes()).hasSize(10).doesNotHaveDuplicates();
@@ -2777,7 +2797,8 @@ class AuthenticationAccountWorkflowIntegrationTest {
       Function<RequestAuthenticationSession, T> operation)
       throws Exception {
     var filter = new SessionRepositoryFilter<>(repository);
-    filter.setHttpSessionIdResolver(new ControlledSessionIdResolver());
+    filter.setHttpSessionIdResolver(
+        AuthenticationSessionConfiguration.authenticationSessionIdResolver());
     var request = new MockHttpServletRequest(path.endsWith("/csrf") ? "GET" : "POST", path);
     if (cookie != null) {
       request.setCookies(cookie);

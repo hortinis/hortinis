@@ -6,7 +6,6 @@ import com.hortinis.sync.authentication.http.AuthenticationHttpErrors;
 import com.hortinis.sync.authentication.http.AuthenticationLifecycleFilter;
 import com.hortinis.sync.authentication.http.AuthenticationProofBoundary;
 import com.hortinis.sync.authentication.http.HeaderOnlyCsrfTokenRequestHandler;
-import com.hortinis.sync.authentication.http.RandomSessionCsrfTokenRepository;
 import com.hortinis.sync.authentication.persistence.AuthenticationLifecyclePersistence;
 import com.hortinis.sync.authentication.persistence.AuthenticationNativeSessions;
 import com.hortinis.sync.authentication.persistence.AuthenticationOperatorTicketPersistence;
@@ -31,6 +30,8 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
+import org.springframework.session.web.http.HttpSessionIdResolver;
 import org.springframework.transaction.PlatformTransactionManager;
 
 /** Explicit S9-only runtime graph for a freshly provisioned sole authenticated account. */
@@ -88,8 +89,8 @@ public class AuthenticationRuntimeConfiguration {
   /** Makes next-access physical cleanup available to the servlet boundary. */
   @Bean
   public AuthenticationLifecycleFilter authenticationLifecycleFilter(
-      AuthenticationLifecycle lifecycle) {
-    return new AuthenticationLifecycleFilter(lifecycle);
+      AuthenticationLifecycle lifecycle, HttpSessionIdResolver identifiers) {
+    return new AuthenticationLifecycleFilter(lifecycle, identifiers);
   }
 
   /** Guards same-origin requests and emits fixed browser security headers. */
@@ -101,10 +102,12 @@ public class AuthenticationRuntimeConfiguration {
     return new AuthenticationBrowserGuard(origin, validatedTls);
   }
 
-  /** Uses random, session-bound CSRF values without implicit cookie creation. */
+  /** Uses native Spring token generation, deferred loading and session storage. */
   @Bean
-  public RandomSessionCsrfTokenRepository authenticationCsrfTokenRepository() {
-    return new RandomSessionCsrfTokenRepository();
+  public static HttpSessionCsrfTokenRepository authenticationCsrfTokenRepository() {
+    var repository = new HttpSessionCsrfTokenRepository();
+    repository.setSessionAttributeName("hortinis.csrf");
+    return repository;
   }
 
   /** Runs browser-origin validation before lifecycle, session, CSRF and request parsing. */
@@ -127,7 +130,7 @@ public class AuthenticationRuntimeConfiguration {
   @Bean
   @Order(Ordered.HIGHEST_PRECEDENCE)
   public SecurityFilterChain authenticatedSecurity(
-      HttpSecurity http, RandomSessionCsrfTokenRepository csrf, Clock clock) throws Exception {
+      HttpSecurity http, HttpSessionCsrfTokenRepository csrf, Clock clock) throws Exception {
     http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.NEVER));
     http.csrf(
         configurer ->

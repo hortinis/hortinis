@@ -18,9 +18,7 @@ public interface AuthenticationSessionTransport {
   /** Trusted allocator receives the generated ID only inside the admission transaction. */
   Observation bootstrap(Function<String, SessionAuthorityReference> admission);
 
-  /**
-   * Atomically rotates cookie identity, CSRF and reference; the replacement row is caller-owned.
-   */
+  /** Rotates native session identity, CSRF and ceremony reference within publication. */
   Observation rotate(SessionAuthorityReference replacement);
 
   /** Script-memory CSRF value; reading does not allocate transport or renew normal-factor proof. */

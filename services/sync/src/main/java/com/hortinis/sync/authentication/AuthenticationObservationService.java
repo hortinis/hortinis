@@ -26,7 +26,7 @@ public final class AuthenticationObservationService {
     this.accounts = accounts;
   }
 
-  /** Only this explicit GET may allocate a fresh anonymous native session. */
+  /** This explicit GET admits a bounded ceremony, reusing any native anonymous CSRF session. */
   public Map<String, String> csrf(AuthenticationSessionTransport transport) {
     return publication.mutate(
         () -> {

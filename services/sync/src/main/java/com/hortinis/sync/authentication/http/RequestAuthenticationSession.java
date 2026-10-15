@@ -1,9 +1,9 @@
 package com.hortinis.sync.authentication.http;
 
 import com.hortinis.sync.authentication.AuthenticationIdentity;
+import com.hortinis.sync.authentication.AuthenticationRuntimeConfiguration;
 import com.hortinis.sync.authentication.AuthenticationSecrets;
 import com.hortinis.sync.authentication.AuthenticationSessionTransport;
-import com.hortinis.sync.authentication.ControlledSessionIdResolver;
 import com.hortinis.sync.authentication.SessionAuthorityReference;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -17,7 +17,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.NullSecurityContextRepository;
-import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /** Concrete servlet transport; it installs no filter, principal or runtime access mode. */
@@ -25,7 +25,8 @@ public final class RequestAuthenticationSession implements AuthenticationSession
   private static final String AUTHORITY_ATTRIBUTE = "hortinis.authority";
   private final HttpServletRequest request;
   private final HttpServletResponse response;
-  private final RandomSessionCsrfTokenRepository csrf = new RandomSessionCsrfTokenRepository();
+  private final HttpSessionCsrfTokenRepository csrf =
+      AuthenticationRuntimeConfiguration.authenticationCsrfTokenRepository();
   private final HttpSessionSecurityContextRepository contexts =
       new HttpSessionSecurityContextRepository();
   private final SecurityContextLogoutHandler logout = logoutHandler();
@@ -53,22 +54,23 @@ public final class RequestAuthenticationSession implements AuthenticationSession
     requirePublicationTransaction();
     if (!"GET".equals(request.getMethod())
         || !"/api/v1/auth/csrf".equals(request.getRequestURI())
-        || request.getSession(false) != null) {
-      throw new IllegalStateException("Session creation requires explicit fresh CSRF bootstrap.");
+        || observe().isPresent()) {
+      throw new IllegalStateException("Ceremony admission requires explicit CSRF bootstrap.");
     }
     HttpSession session = request.getSession(true);
     requireFrameworkId(session.getId());
     SessionAuthorityReference reference = Objects.requireNonNull(admission.apply(session.getId()));
     session.setAttribute(AUTHORITY_ATTRIBUTE, reference);
+    session.removeAttribute(AuthenticationSessionTransport.LOGOUT_TARGET_ATTRIBUTE);
+    contexts.saveContext(SecurityContextHolder.createEmptyContext(), request, response);
+    SecurityContextHolder.clearContext();
     refreshCsrf();
-    releaseAfterCommit(session.getId(), reference);
     return new Observation(reference, AuthenticationSecrets.digest(session.getId()));
   }
 
   @Override
   public Observation rotate(SessionAuthorityReference replacement) {
     requirePublicationTransaction();
-    requireCookieWorkflow();
     Observation previous = observe().orElseThrow(RequestAuthenticationSession::unavailable);
     if (replacement == null || replacement.equals(previous.reference())) {
       throw new IllegalArgumentException("Rotation requires a fresh reference.");
@@ -82,7 +84,6 @@ public final class RequestAuthenticationSession implements AuthenticationSession
     contexts.saveContext(SecurityContextHolder.createEmptyContext(), request, response);
     SecurityContextHolder.clearContext();
     refreshCsrf();
-    releaseAfterCommit(identifier, replacement);
     return new Observation(replacement, AuthenticationSecrets.digest(identifier));
   }
 
@@ -95,7 +96,6 @@ public final class RequestAuthenticationSession implements AuthenticationSession
   @Override
   public void refreshCsrf() {
     requirePublicationTransaction();
-    requireCookieWorkflow();
     if (request.getSession(false) == null) {
       throw unavailable();
     }
@@ -105,7 +105,6 @@ public final class RequestAuthenticationSession implements AuthenticationSession
   @Override
   public void authenticate(UUID account, long epoch, Instant verifiedAt, String logoutTarget) {
     requirePublicationTransaction();
-    requireCookieWorkflow();
     var context = SecurityContextHolder.createEmptyContext();
     context.setAuthentication(AuthenticationIdentity.completed(account, epoch, verifiedAt));
     Objects.requireNonNull(request.getSession(false))
@@ -124,27 +123,6 @@ public final class RequestAuthenticationSession implements AuthenticationSession
     var handler = new SecurityContextLogoutHandler();
     handler.setSecurityContextRepository(new NullSecurityContextRepository());
     return handler;
-  }
-
-  private void releaseAfterCommit(String identifier, SessionAuthorityReference reference) {
-    TransactionSynchronizationManager.registerSynchronization(
-        new TransactionSynchronization() {
-          @Override
-          public void afterCommit() {
-            HttpSession current = request.getSession(false);
-            if (current != null
-                && identifier.equals(current.getId())
-                && reference.equals(current.getAttribute(AUTHORITY_ATTRIBUTE))) {
-              ControlledSessionIdResolver.authorizeCookieWrite(request, identifier);
-            }
-          }
-        });
-  }
-
-  private void requireCookieWorkflow() {
-    if (!ControlledSessionIdResolver.isCookieWorkflow(request)) {
-      throw new IllegalStateException("Session rotation requires a controlled cookie workflow.");
-    }
   }
 
   private static void requirePublicationTransaction() {

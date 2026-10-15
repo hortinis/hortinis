@@ -34,7 +34,12 @@ export class AuthenticationHttpClient implements AuthenticationHttpPort {
 
   async refreshCsrf(): Promise<void> {
     const value = await this.get<CsrfBootstrap>('/csrf');
-    if (!value || value.headerName !== 'X-CSRF-TOKEN' || !/^[A-Za-z0-9_-]{43}$/.test(value.token)) {
+    if (
+      !value ||
+      value.headerName !== 'X-CSRF-TOKEN' ||
+      typeof value.token !== 'string' ||
+      !/^[A-Za-z0-9_-]{1,256}$/.test(value.token)
+    ) {
       throw new Error('The account service returned an invalid security token.');
     }
     this.csrf = value;

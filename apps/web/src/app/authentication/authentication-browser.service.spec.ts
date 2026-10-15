@@ -55,6 +55,18 @@ describe('browser authentication client', () => {
     expect(service.notice()).toContain('unavailable');
   });
 
+  it('rejects a non-string CSRF token rather than coercing it into a header', async () => {
+    const refreshed = TestBed.inject(AuthenticationHttpClient).refreshCsrf();
+    const rejected = expect(refreshed).rejects.toThrow('invalid security token');
+    http
+      .expectOne(`${location.origin}/api/v1/auth/csrf`)
+      .flush(
+        { token: 123, headerName: 'X-CSRF-TOKEN' },
+        { headers: { 'Cache-Control': 'no-store' } },
+      );
+    await rejected;
+  });
+
   it('keeps password and passkey login in one coordinated CSRF-bound workflow', async () => {
     Object.defineProperty(navigator, 'locks', {
       configurable: true,
@@ -67,14 +79,16 @@ describe('browser authentication client', () => {
       const csrf = http.expectOne(`${location.origin}/api/v1/auth/csrf`);
       expect(csrf.request.method).toBe('GET');
       csrf.flush(
-        { token: 'A'.repeat(43), headerName: 'X-CSRF-TOKEN' },
+        { token: 'fc172f68-a11e-4c9e-91d8-1f1b44693789', headerName: 'X-CSRF-TOKEN' },
         { headers: { 'Cache-Control': 'no-store' } },
       );
       await allowHttpWorkflowToContinue();
 
       const password = http.expectOne(`${location.origin}/api/v1/auth/login/password`);
       expect(password.request.withCredentials).toBe(true);
-      expect(password.request.headers.get('X-CSRF-TOKEN')).toBe('A'.repeat(43));
+      expect(password.request.headers.get('X-CSRF-TOKEN')).toBe(
+        'fc172f68-a11e-4c9e-91d8-1f1b44693789',
+      );
       expect(password.request.body).toEqual({
         login: 'owner',
         password: 'password held only for this call',
@@ -84,13 +98,15 @@ describe('browser authentication client', () => {
 
       const rotatedCsrf = http.expectOne(`${location.origin}/api/v1/auth/csrf`);
       rotatedCsrf.flush(
-        { token: 'B'.repeat(43), headerName: 'X-CSRF-TOKEN' },
+        { token: 'f6c8a5f4-45e0-4278-9d7a-5fde43231c0e', headerName: 'X-CSRF-TOKEN' },
         { headers: { 'Cache-Control': 'no-store' } },
       );
       await allowHttpWorkflowToContinue();
 
       const passkey = http.expectOne(`${location.origin}/api/v1/auth/login/passkey`);
-      expect(passkey.request.headers.get('X-CSRF-TOKEN')).toBe('B'.repeat(43));
+      expect(passkey.request.headers.get('X-CSRF-TOKEN')).toBe(
+        'f6c8a5f4-45e0-4278-9d7a-5fde43231c0e',
+      );
       expect(passkey.request.body).toEqual({ assertion: 'test-proof' });
       passkey.flush({}, { headers: { 'Cache-Control': 'no-store' } });
       await allowHttpWorkflowToContinue();

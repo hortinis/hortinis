@@ -2,6 +2,9 @@
 
 ## Scope
 
+This document records successive implementation steps. Later standard-flow decisions supersede
+earlier compatibility limits; the original cookie-fencing and no-implicit-session policies are retired.
+
 Preserve S9 user flows, public JSON contracts, offline behavior and security invariants on fresh
 databases. Prefer existing Spring Security 7.1.1 and Spring Session JDBC 4.1.1 mechanisms.
 
@@ -257,3 +260,42 @@ after those style-only fixes. Documentation and contracts also passed. Existing 
 warnings remain at their prior baseline. Password/passkey, recovery, operator and offline flows retain
 coverage. This stage changes authority ownership; additional adapter/locking code means it must not
 be reported as a production Java line-count reduction.
+
+
+## Native cookie and CSRF simplification plan
+
+Replace the controlled cookie resolver and custom CSRF repository with Spring Session's configured
+CookieHttpSessionIdResolver and Spring Security's HttpSessionCsrfTokenRepository. Delete route-based
+cookie authorization, after-commit cookie release, custom token generation/validation and custom
+deferred-token machinery. Retain the secure host cookie settings, header-only request adapter,
+transactional authority publication, account revocation checks and bounded ceremony admission.
+
+The user's standard-flow choice supersedes earlier delayed-cookie and no-implicit-session guarantees.
+Spring may create an anonymous transport session on CSRF denial. Explicit bootstrap admits bounded
+ceremony authority; an anonymous native session cannot access account or synchronization data.
+Cookie expiration follows Spring defaults. Rollback must preserve server-side authority; it need not
+suppress an in-memory cookie ID. Delayed responses can require login again but cannot restore access.
+The frontend accepts the existing opaque bounded CSRF contract, including native UUID tokens.
+
+Review actual JDBC wrapper rollback and invalidation, missing/duplicate/parameter CSRF denial,
+anonymous bootstrap after a failed unsafe request, normal two-factor and restricted recovery flows,
+secure cookies, no-auth isolation and offline synchronization. Run backend build, frontend tests,
+contract/documentation checks and topology validation; fix findings and measure deletions before commit.
+
+Review also requires bootstrap to clear any unowned native security context and logout target before
+admitting an anonymous ceremony. JDBC tests exercise that case, native CSRF generation and denial,
+rollback preservation of server authority, session rotation and standard invalidation. The browser
+login regression uses native UUID tokens for both proofs; a separate regression rejects numeric token
+values rather than coercing them into headers.
+
+The native cookie/CSRF implementation passed 265 unit tests, 288 PostgreSQL integration tests,
+367 frontend tests and six real offline topology browser tests. Contract, documentation, frontend
+lint/type/format and backend architecture/static checks passed. Review fixed anonymous bootstrap
+context clearing and strict frontend token typing. Six integration-test PMD findings were then fixed
+only by extracting constants; compilation, formatting, Checkstyle, PMD and the aggregate backend build
+passed without repeating the unchanged functional suites. Existing Checkstyle and production bundle
+budget warnings remain at their prior baselines. Disposable topology resources were removed.
+
+This step deletes the controlled cookie resolver and custom CSRF repository and removes 180 net
+production Java lines. It completes the cookie/CSRF step; MVC request binding, relying-party operations
+and intermediate factor orchestration remain separate candidates for further framework delegation.

@@ -191,14 +191,13 @@ resurrect an invalidated epoch/device when a stale request saves after logout or
 ## Protected online and offline logout
 
 Online logout is POST-only, same-origin, CSRF-protected and no-store. Atomically invalidate the target
-session, then advance the local exchange fence and clear transient authentication state. Logout and
-expired/stale protected requests emit no session `Set-Cookie` header, including deletion: a delayed
-cookie-deletion response could erase a newer session. Configure the framework session-ID response
-adapter accordingly and test it; do not assume default invalidation handlers have this property. The
-remaining HttpOnly cookie points to invalid authority until a successful controlled login replaces it
-or browser session closure removes it. This bounded cookie residue is disclosed; server revocation is
-immediate. No `Clear-Site-Data` erases offline intent as a side effect. Failed remote logout is explicitly
-pending; the browser cannot delete or read the HttpOnly cookie itself.
+session, then advance the local exchange fence and clear transient authentication state. Spring Session
+publishes and expires its cookie normally, including on logout and stale-cookie requests. A delayed
+cookie-deletion response can clear a newer browser cookie and require reauthentication; it cannot
+grant authority or undo server revocation. Transaction rollback retains server-side predecessor
+state, but standard cookie publication may leave the browser referring to a rolled-back identifier.
+The browser recovers through CSRF bootstrap and login. No `Clear-Site-Data` erases offline intent as a
+side effect. Failed remote logout is explicitly pending; script cannot read the HttpOnly cookie.
 
 Expose a fresh non-secret random logout target reference in authorized session status, distinct from
 the cookie secret, account and device IDs. It grants no authority. Persist only that target reference,
@@ -210,16 +209,16 @@ expiry continues even while offline.
 
 On reconnection obtain fresh CSRF state and complete logout for the retained target before starting
 another login. Under the server session lock compare the cookie's current non-secret target with the
-submitted original target. If they match, invalidate without cookie mutation; if no full target is active, return an
-idempotent completed result; if a different target is active, return a generic precondition failure
-without invalidating it or mutating its cookie. Recovery then requires explicit local acknowledgement,
-never an automatic logout of the newer session. Only coordinated CSRF/login/step-up workflows may set
-or rotate this cookie; anonymous/stale data requests cannot create a replacement session. A login
-cannot overlap an unresolved cookie-setting response. Logout responses never mutate cookies, so a
-late old logout cannot erase new authority even after interruption/reload. Server expiry/revocation
-and local response fencing remain independent; a stale target reference alone can never revoke any
+submitted original target. If they match, invalidate the session; if no full target is active, return
+an idempotent completed result; if a different target is active, return a generic precondition failure
+without invalidating it. Recovery then requires explicit local acknowledgement, never an automatic
+logout of the newer session. Spring Session owns cookie publication and expiration. Coordinate
+login workflows across tabs to limit stale-response disruption; a delayed deletion may still require
+reauthentication after interruption/reload. Server expiry/revocation and local response fencing remain
+independent; a stale target reference alone can never revoke any
 session. For logout of an expired/unknown full session, CSRF bootstrap supplies a bounded anonymous
-ceremony solely through the explicit coordinated workflow, never as a protected-data side effect.
+ceremony through the explicit coordinated workflow. Native CSRF rejection may allocate an anonymous
+transport session; that session alone grants no ceremony or data authority.
 S12 implements interruption, multi-tab/session-change and delayed-response tests.
 
 ## HTTP, browser and deployment rules

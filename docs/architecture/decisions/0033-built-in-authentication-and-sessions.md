@@ -203,8 +203,17 @@ The browser guard uses Spring Security header writers for CSP, framing, content-
 permissions and explicitly gated HSTS policy, including rejected requests before the security chain.
 Local invalidation uses `SecurityContextLogoutHandler` within the publication transaction, with a
 null context repository because native invalidation already removes the saved context and must not
-allocate an empty replacement session. Target-fenced logout,
-after-commit cookie release and suppression of delayed cookie deletion remain application policy.
+allocate an empty replacement session. Target-fenced logout remains application policy.
+Spring Session owns cookie publication and expiration using CookieHttpSessionIdResolver and
+DefaultCookieSerializer; no route allowlist or after-commit cookie authorization adapter remains.
+Spring Security owns CSRF token generation, deferred loading and storage through
+HttpSessionCsrfTokenRepository. Unsafe requests without a token may create a native anonymous session
+before denial; it grants no ceremony, account or synchronization authority. CSRF bootstrap admits a
+bounded ceremony into that session. A small header-only request handler rejects parameter fallback
+and duplicate headers. Tokens are opaque bounded text, including Spring's UUID representation.
+A rolled-back transition cannot publish server authority, although the standard response handling
+may issue a cookie referring to the rolled-back session ID. A stale deletion response can require
+reauthentication in another tab; it cannot restore a revoked session or grant data access.
 Session-ID rotation already delegates to the Servlet `changeSessionId` mechanism for all bounded
 ceremony transitions; Spring's authentication-only strategy is not substituted for those transitions.
 

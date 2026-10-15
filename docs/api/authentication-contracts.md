@@ -15,8 +15,10 @@ ownership still have to be validated independently before protected work.
 
 Every auth mutation declares both that cookie and `X-CSRF-TOKEN`. CSRF bootstrap is an explicit
 same-origin bounded GET and returns only token/header metadata to transient memory. It may establish
-a bounded anonymous cookie; it cannot grant a data session. Session status does not allocate/rotate a
-session or extend qualifying inactivity. Anonymous status omits account identity, setup availability,
+a bounded anonymous ceremony; it cannot grant a data session. Native CSRF rejection may also allocate
+an anonymous session without ceremony or account authority. Tokens are opaque bounded text generated
+by Spring Security, including its UUID format. Session status does not allocate or rotate a
+session; requests to an existing session refresh native inactivity without renewing normal factors. Anonymous status omits account identity, setup availability,
 factor registration and scope state. Full status exposes the authorized account and a non-secret
 logout target distinct from the cookie secret, plus the absolute deadline.
 
@@ -75,10 +77,10 @@ JSON filter/error adapters must not leak framework HTML, redirects, exception te
 
 Logout carries only the original non-authorizing target under cookie/CSRF proof. A matching target
 invalidates; no active full target completes idempotently; a different target denies without touching
-it. Logout/stale data responses never set/delete a session cookie. This prevents a delayed old response
-from deleting a newer cookie; the inactive old cookie has no server authority and is replaced by a
-successful coordinated login. Durable offline pending logout/all-tab fencing remains browser work,
-not authority derived from the target field.
+it. Spring Session owns cookie publication and expiration, including deletion on logout or stale-cookie
+requests. A delayed response may clear a newer browser cookie and require reauthentication; server
+revocation and pending offline changes remain intact. Durable offline pending logout/all-tab fencing
+remains browser work, not authority derived from the target field.
 
 ## Current evidence and remaining gates
 

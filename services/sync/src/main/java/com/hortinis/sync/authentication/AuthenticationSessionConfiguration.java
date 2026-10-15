@@ -5,7 +5,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.session.config.SessionRepositoryCustomizer;
 import org.springframework.session.jdbc.JdbcIndexedSessionRepository;
-import org.springframework.session.web.http.HttpSessionIdResolver;
+import org.springframework.session.web.http.CookieHttpSessionIdResolver;
+import org.springframework.session.web.http.DefaultCookieSerializer;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionOperations;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -31,9 +32,18 @@ public class AuthenticationSessionConfiguration {
     };
   }
 
-  /** Cookie publication remains fenced to committed explicit authentication workflows. */
+  /** Spring Session owns cookie publication, rotation and expiration. */
   @Bean
-  public HttpSessionIdResolver authenticationSessionIdResolver() {
-    return new ControlledSessionIdResolver();
+  public static CookieHttpSessionIdResolver authenticationSessionIdResolver() {
+    var serializer = new DefaultCookieSerializer();
+    serializer.setCookieName("__Host-hortinis-session");
+    serializer.setCookiePath("/");
+    serializer.setUseSecureCookie(true);
+    serializer.setUseHttpOnlyCookie(true);
+    serializer.setSameSite("Strict");
+    serializer.setUseBase64Encoding(false);
+    var resolver = new CookieHttpSessionIdResolver();
+    resolver.setCookieSerializer(serializer);
+    return resolver;
   }
 }

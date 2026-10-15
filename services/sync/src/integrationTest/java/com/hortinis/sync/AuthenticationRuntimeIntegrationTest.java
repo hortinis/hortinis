@@ -212,7 +212,8 @@ class AuthenticationRuntimeIntegrationTest {
                 .build(),
             HttpResponse.BodyHandlers.ofString());
     assertThat(denied.statusCode()).isEqualTo(403);
-    assertThat(denied.headers().firstValue(HttpHeaders.SET_COOKIE)).isEmpty();
+    assertThat(denied.headers().firstValue(HttpHeaders.SET_COOKIE).orElseThrow())
+        .contains("__Host-hortinis-session=", "Secure", "HttpOnly", "SameSite=Strict");
   }
 
   @org.junit.jupiter.params.ParameterizedTest

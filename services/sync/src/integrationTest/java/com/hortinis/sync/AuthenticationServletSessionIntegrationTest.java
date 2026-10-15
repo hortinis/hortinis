@@ -4,8 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.hortinis.sync.authentication.AuthenticationSecrets;
+import com.hortinis.sync.authentication.AuthenticationSessionConfiguration;
 import com.hortinis.sync.authentication.AuthenticationSessionTransport;
-import com.hortinis.sync.authentication.ControlledSessionIdResolver;
 import com.hortinis.sync.authentication.SessionAuthorityReference;
 import com.hortinis.sync.authentication.http.RequestAuthenticationSession;
 import com.hortinis.sync.authentication.persistence.AuthenticationJdbcSessions;
@@ -41,6 +41,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  */
 @Testcontainers
 class AuthenticationServletSessionIntegrationTest {
+  private static final String COOKIE_SECURE = "Secure";
+  private static final String COOKIE_HTTP_ONLY = "HttpOnly";
   private static final String GET_METHOD = "GET";
   private static final String POST_METHOD = "POST";
   private static final String COOKIE_NAME = "__Host-hortinis-session";
@@ -77,7 +79,7 @@ class AuthenticationServletSessionIntegrationTest {
   }
 
   @Test
-  void nativeBootstrapReleasesExactCookieOnlyAfterCommitAndStoresClosedCsrf() throws Exception {
+  void nativeBootstrapUsesSecureCookieAndNativeCsrf() throws Exception {
     MockHttpServletResponse response =
         request(
             GET_METHOD,
@@ -92,17 +94,11 @@ class AuthenticationServletSessionIntegrationTest {
                       status -> {
                         bootstrap(transport);
                         assertThat(count(TRANSPORT_COUNT)).isEqualTo(1);
-                        MockHttpServletResponse premature = new MockHttpServletResponse();
-                        new ControlledSessionIdResolver()
-                            .setSessionId(
-                                nativeRequest, premature, nativeRequest.getSession(false).getId());
-                        assertThat(premature.getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
                       });
-              assertThat(AuthenticationSecrets.isRandomValue(transport.csrfValue().orElseThrow()))
-                  .isTrue();
+              assertThat(transport.csrfValue().orElseThrow()).matches("[a-f0-9-]{36}");
             });
     assertThat(response.getHeader(HttpHeaders.SET_COOKIE))
-        .contains("Secure", "HttpOnly", "SameSite=Strict", "Path=/")
+        .contains(COOKIE_SECURE, COOKIE_HTTP_ONLY, "SameSite=Strict", "Path=/")
         .doesNotContain("Domain=", "Max-Age=", "Expires=");
     Cookie cookie = cookie(response);
     assertThat(
@@ -114,7 +110,7 @@ class AuthenticationServletSessionIntegrationTest {
   }
 
   @Test
-  void rolledBackBootstrapDoesNotEmitCookieOrResurrectRowsOnFinalServletSave() throws Exception {
+  void rolledBackBootstrapCannotPublishServerAuthority() throws Exception {
     MockHttpServletResponse response =
         request(
             GET_METHOD,
@@ -128,7 +124,8 @@ class AuthenticationServletSessionIntegrationTest {
                               new RequestAuthenticationSession(nativeRequest, nativeResponse));
                           status.setRollbackOnly();
                         }));
-    assertThat(response.getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    assertThat(response.getHeader(HttpHeaders.SET_COOKIE))
+        .contains(COOKIE_SECURE, COOKIE_HTTP_ONLY);
     assertThat(count(TRANSPORT_COUNT)).isZero();
     assertThat(count(AUTHORITY_COUNT)).isZero();
   }
@@ -139,7 +136,7 @@ class AuthenticationServletSessionIntegrationTest {
   }
 
   @Test
-  void rollbackPreservesPredecessorAndCannotEmitChangedInMemoryCookie() throws Exception {
+  void rollbackPreservesServerSidePredecessor() throws Exception {
     verifyRotation(true);
   }
 
@@ -175,7 +172,6 @@ class AuthenticationServletSessionIntegrationTest {
                       });
             });
     if (rollback) {
-      assertThat(response.getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
       assertThat(csrfFrom(previous)).isEqualTo(oldCsrf);
       assertThat(jdbc.queryForObject("SELECT session_id FROM spring_session", String.class))
           .isEqualTo(previous.getValue());
@@ -198,7 +194,7 @@ class AuthenticationServletSessionIntegrationTest {
   }
 
   @Test
-  void earlierCommitCannotAuthorizeLaterRolledBackIdentifierInSameRequest() throws Exception {
+  void laterRolledBackRotationCannotReplaceCommittedServerAuthority() throws Exception {
     MockHttpServletResponse response =
         request(
             GET_METHOD,
@@ -214,13 +210,14 @@ class AuthenticationServletSessionIntegrationTest {
                         status.setRollbackOnly();
                       });
             });
-    assertThat(response.getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    assertThat(jdbc.queryForObject("SELECT session_id FROM spring_session", String.class))
+        .isNotEqualTo(cookie(response).getValue());
     assertThat(count(TRANSPORT_COUNT)).isEqualTo(1);
     assertThat(count(AUTHORITY_COUNT)).isEqualTo(1);
   }
 
   @Test
-  void logoutInvalidationIsImmediateAtomicAndNeverDeletesBrowserCookie() throws Exception {
+  void logoutInvalidationIsImmediateAtomicAndDeletesBrowserCookie() throws Exception {
     Cookie previous = cookie(bootstrapResponse());
     MockHttpServletResponse response =
         request(
@@ -247,7 +244,8 @@ class AuthenticationServletSessionIntegrationTest {
                           jdbc.update("DELETE FROM authentication_session_authority");
                           assertThat(count(TRANSPORT_COUNT)).isZero();
                         }));
-    assertThat(response.getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
+    assertThat(response.getHeader(HttpHeaders.SET_COOKIE))
+        .contains("Max-Age=0", COOKIE_SECURE, COOKIE_HTTP_ONLY);
     assertThat(count(AUTHORITY_COUNT)).isZero();
   }
 
@@ -304,7 +302,7 @@ class AuthenticationServletSessionIntegrationTest {
   }
 
   @Test
-  void deferredCsrfCannotAllocateTransportOutsideBoundedPublication() throws Exception {
+  void nativeDeferredCsrfCreatesNonAuthorizingSessionOnDeniedUnsafeRequest() throws Exception {
     MockHttpServletResponse response =
         request(
             POST_METHOD,
@@ -312,12 +310,13 @@ class AuthenticationServletSessionIntegrationTest {
             null,
             (nativeRequest, nativeResponse) -> {
               var csrf =
-                  new com.hortinis.sync.authentication.http.RandomSessionCsrfTokenRepository();
+                  com.hortinis.sync.authentication.AuthenticationRuntimeConfiguration
+                      .authenticationCsrfTokenRepository();
               var deferred = csrf.loadDeferredToken(nativeRequest, nativeResponse);
               assertThat(deferred.isGenerated()).isTrue();
               assertThat(deferred.get()).isSameAs(deferred.get());
-              assertThat(AuthenticationSecrets.isRandomValue(deferred.get().getToken())).isTrue();
-              assertThat(csrf.loadToken(nativeRequest)).isNull();
+              assertThat(deferred.get().getToken()).matches("[a-f0-9-]{36}");
+              assertThat(csrf.loadToken(nativeRequest)).isNotNull();
               var guard = new org.springframework.security.web.csrf.CsrfFilter(csrf);
               guard.setRequestHandler(
                   new com.hortinis.sync.authentication.http.HeaderOnlyCsrfTokenRequestHandler());
@@ -335,13 +334,47 @@ class AuthenticationServletSessionIntegrationTest {
               } catch (java.io.IOException | jakarta.servlet.ServletException exception) {
                 throw new AssertionError("Unexpected CSRF filter failure.", exception);
               }
-              assertThat(nativeRequest.getSession(false)).isNull();
+              assertThat(nativeRequest.getSession(false)).isNotNull();
             });
     assertThat(response.getStatus()).isEqualTo(403);
     assertThat(response.getHeader(HttpHeaders.CACHE_CONTROL)).isEqualTo("no-store");
-    assertThat(response.getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
-    assertThat(count(TRANSPORT_COUNT)).isZero();
+    assertThat(response.getHeader(HttpHeaders.SET_COOKIE))
+        .contains(COOKIE_SECURE, COOKIE_HTTP_ONLY);
+    assertThat(count(TRANSPORT_COUNT)).isEqualTo(1);
     assertThat(count(AUTHORITY_COUNT)).isZero();
+    Cookie anonymous = cookie(response);
+    request(
+        GET_METHOD,
+        CSRF_PATH,
+        anonymous,
+        (nativeRequest, nativeResponse) -> {
+          var transport = new RequestAuthenticationSession(nativeRequest, nativeResponse);
+          assertThat(transport.observe()).isEmpty();
+          transaction()
+              .executeWithoutResult(
+                  status -> {
+                    // An unowned native context must not become account authority through CSRF
+                    // admission.
+                    transport.authenticate(
+                        UUID.randomUUID(), 1, NOW, AuthenticationSecrets.randomValue());
+                    bootstrap(transport);
+                  });
+          assertThat(
+                  nativeRequest
+                      .getSession(false)
+                      .getAttribute(
+                          org.springframework.security.web.context
+                              .HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY))
+              .isNull();
+          assertThat(
+                  nativeRequest
+                      .getSession(false)
+                      .getAttribute(AuthenticationSessionTransport.LOGOUT_TARGET_ATTRIBUTE))
+              .isNull();
+          assertThat(transport.observe()).isPresent();
+        });
+    assertThat(count(TRANSPORT_COUNT)).isEqualTo(1);
+    assertThat(count(AUTHORITY_COUNT)).isEqualTo(1);
   }
 
   @Test
@@ -434,7 +467,8 @@ class AuthenticationServletSessionIntegrationTest {
       BiConsumer<HttpServletRequest, HttpServletResponse> operation)
       throws Exception {
     var filter = new SessionRepositoryFilter<>(repository);
-    filter.setHttpSessionIdResolver(new ControlledSessionIdResolver());
+    filter.setHttpSessionIdResolver(
+        AuthenticationSessionConfiguration.authenticationSessionIdResolver());
     MockHttpServletRequest request = new MockHttpServletRequest(method, path);
     if (cookie != null) {
       request.setCookies(cookie);

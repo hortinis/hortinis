@@ -179,13 +179,14 @@ Controlled host recovery cannot become an ordinary operator garden login. No ema
 default user, password-only activation or implicit account/scope linking is accepted.
 
 T03/T04/T07/T08/T10/T11/T13/T15 now have concrete policy for cookie protection, factor/secret handling,
-CSRF, finite absolute and user-inactivity bounds, replay consumption, current authority/epoch checks,
+CSRF, finite factor-age and native request-inactivity bounds, replay consumption, current authority/epoch checks,
 account/device/scope lock order, concurrency/CPU/memory/rate bounds and cleanup. The logout review
-identified delayed cookie deletion as a threat to newer sessions: logout and stale data responses emit
-no session Set-Cookie, while target references and all-tab workflow fencing prevent stale invalidation.
-The remaining invalidated HttpOnly cookie grants no access and has a disclosed browser lifetime.
-S9-S12 must prove these controls at their actual transaction/filter/browser boundaries; no design claim
-substitutes for that evidence.
+identified delayed cookie deletion as an availability risk to newer browser sessions. The accepted
+Spring standard-flow alignment delegates cookie publication and expiration to Spring Session:
+a delayed deletion can require reauthentication, but cannot restore server authority or erase offline
+intent. Target references still prevent stale requests from invalidating a different active session.
+Native anonymous CSRF sessions grant no account or ceremony authority. S9-S12 must prove these
+controls at their actual transaction/filter/browser boundaries; no design claim substitutes for evidence.
 
 T05/T09/T12/T14 remain deployment/offline risks. Shared profiles and same-origin compromise can read
 retained local data; passkey cloud backup is user-controlled and no hardware-only assurance is claimed.

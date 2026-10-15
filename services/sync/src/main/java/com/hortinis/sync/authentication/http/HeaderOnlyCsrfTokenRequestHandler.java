@@ -1,6 +1,5 @@
 package com.hortinis.sync.authentication.http;
 
-import com.hortinis.sync.authentication.AuthenticationSecrets;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Collections;
 import org.springframework.security.web.csrf.CsrfToken;
@@ -13,8 +12,6 @@ public final class HeaderOnlyCsrfTokenRequestHandler extends CsrfTokenRequestAtt
   @Override
   public String resolveCsrfTokenValue(HttpServletRequest request, CsrfToken token) {
     var values = Collections.list(request.getHeaders("X-CSRF-TOKEN"));
-    return values.size() == 1 && AuthenticationSecrets.isRandomValue(values.getFirst())
-        ? values.getFirst()
-        : null;
+    return values.size() == 1 ? values.getFirst() : null;
   }
 }
