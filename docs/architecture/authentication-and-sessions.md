@@ -55,7 +55,7 @@ reviewed decision; clock tests cover each equality/expiry boundary. All times us
 | Password | 15-128 Unicode scalar values, at most 1,024 UTF-8 bytes. Verify exact received text; no trim, normalization, case change or truncation. Permit spaces/paste/password managers; no composition or periodic-change rule. |
 | Password verifier | Argon2id: 65,536 KiB, three iterations, parallelism one, independent random salt of at least 16 bytes, 32-byte result. At most two costly verification/hash jobs concurrently per service; overload fails generically without a hashing downgrade. |
 | Common/breached-password check | Local versioned corpus with at least 3,000 policy-compatible common candidates plus breached-password coverage, checked at setup/change/reset. Reject login-name and `hortinis` context derivatives. No password or prefix goes to an external service. Corpus provenance/license/hash and coverage are verified in S9; absent/invalid corpus blocks authenticated activation. |
-| Full session | 30 minutes since last qualifying user interaction; 12 hours absolute since full login. Background sync/poll/CSRF refresh never extends user inactivity. Completing both normal factors again starts a new 12-hour factor lifetime; cookie rotation alone does not renew it. |
+| Full session | 30 minutes since the last native session request, including synchronization, polling and CSRF/status requests; normal factors remain valid for 12 hours. Completing both normal factors again starts a new 12-hour factor lifetime; cookie rotation alone does not renew it. |
 | Recent authentication | Both required normal factors verified within five minutes for credential changes, recovery-code replacement, enrollment/revocation, deletion, claims and other privileged transitions. A fresh bounded step-up rotates the cookie and CSRF state. |
 | Pre-authentication/partial/recovery-only session | Five minutes absolute; no idle refresh; no binding identity, data, export, sync or ordinary enrollment authority. Maximum 1,000 live pre-authentication sessions per installation; exhausted capacity denies before allocation. |
 | WebAuthn challenge | Independent 32-byte CSPRNG challenge, valid five minutes or the earlier parent-session/ticket expiry; consumed atomically once even on a failed verification. At most one current challenge per ceremony, eight live ceremonies per account. |
@@ -118,12 +118,15 @@ its predecessor in the same ordered session workflow. Rotate CSRF state as well.
 uncommitted cookies cannot authorize access. Never upgrade partial authority solely because an account
 has a registered credential.
 
-Absolute and inactivity checks use additional trusted policy metadata before protected work, not just
-the framework repository's last-access time. A same-origin CSRF-protected activity request may extend
-inactivity while the page is visible following an actual user interaction; automated exchange and
-background tabs do not emit it. XSS can impersonate interaction and remains a documented same-origin
-compromise. A clock rollback or invalid timestamp fails closed. Browser cookie closure is not proof of
-server expiry; server limits and cleanup remain authoritative across restart.
+Spring Session owns the 30-minute request inactivity limit and updates its last-access time for
+ordinary requests, including background synchronization. Spring factor authorities retain their
+12-hour lifetime; completing password plus user-verified passkey reauthentication starts a new
+factor lifetime. Cookie rotation, CSRF refresh and the compatibility activity acknowledgement do not
+renew factor proof. There is no separate qualifying-interaction clock or interaction timestamp.
+Limited setup/password/recovery ceremonies retain their five-minute absolute boundary. Application
+account ownership and epoch checks remain inside protected transactions. Cleanup reads native expiry
+metadata rather than recalculating a second inactivity policy. Browser cookie closure is not proof
+of server expiry; server limits and cleanup remain authoritative across restart.
 
 Expiry/logout pauses synchronization and preserves offline data, outbox, frozen bodies and binding
 provenance. Reauthentication resumes only the original retained origin/instance/account/scope and,

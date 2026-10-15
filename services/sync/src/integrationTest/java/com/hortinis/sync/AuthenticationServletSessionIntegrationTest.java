@@ -3,7 +3,6 @@ package com.hortinis.sync;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.hortinis.sync.authentication.AuthenticationLifetime;
 import com.hortinis.sync.authentication.AuthenticationSecrets;
 import com.hortinis.sync.authentication.AuthenticationSessionTransport;
 import com.hortinis.sync.authentication.ControlledSessionIdResolver;
@@ -161,10 +160,7 @@ class AuthenticationServletSessionIntegrationTest {
               transaction()
                   .executeWithoutResult(
                       status -> {
-                        var changed =
-                            transport.rotate(
-                                new SessionAuthorityReference(replacement),
-                                AuthenticationLifetime.LIMITED_ABSOLUTE);
+                        var changed = transport.rotate(new SessionAuthorityReference(replacement));
                         jdbc.update(
                             "UPDATE authentication_session_authority SET session_reference = ?, "
                                 + "session_verifier = ? WHERE session_reference = ?",
@@ -214,9 +210,7 @@ class AuthenticationServletSessionIntegrationTest {
               transaction()
                   .executeWithoutResult(
                       status -> {
-                        transport.rotate(
-                            new SessionAuthorityReference(UUID.randomUUID()),
-                            AuthenticationLifetime.LIMITED_ABSOLUTE);
+                        transport.rotate(new SessionAuthorityReference(UUID.randomUUID()));
                         status.setRollbackOnly();
                       });
             });
@@ -300,8 +294,7 @@ class AuthenticationServletSessionIntegrationTest {
                           assertThatThrownBy(
                                   () ->
                                       transport.rotate(
-                                          new SessionAuthorityReference(UUID.randomUUID()),
-                                          AuthenticationLifetime.FULL_ABSOLUTE))
+                                          new SessionAuthorityReference(UUID.randomUUID())))
                               .isInstanceOf(IllegalStateException.class);
                           assertThatThrownBy(transport::refreshCsrf)
                               .isInstanceOf(IllegalStateException.class);
@@ -361,10 +354,7 @@ class AuthenticationServletSessionIntegrationTest {
         (nativeRequest, nativeResponse) -> {
           var transport = new RequestAuthenticationSession(nativeRequest, nativeResponse);
           assertThatThrownBy(
-                  () ->
-                      transport.rotate(
-                          new SessionAuthorityReference(UUID.randomUUID()),
-                          AuthenticationLifetime.FULL_ABSOLUTE))
+                  () -> transport.rotate(new SessionAuthorityReference(UUID.randomUUID())))
               .isInstanceOf(IllegalStateException.class);
           TransactionTemplate readOnly = transaction();
           readOnly.setReadOnly(true);
@@ -372,24 +362,15 @@ class AuthenticationServletSessionIntegrationTest {
                   () ->
                       readOnly.executeWithoutResult(
                           status ->
-                              transport.rotate(
-                                  new SessionAuthorityReference(UUID.randomUUID()),
-                                  AuthenticationLifetime.FULL_ABSOLUTE)))
+                              transport.rotate(new SessionAuthorityReference(UUID.randomUUID()))))
               .isInstanceOf(IllegalStateException.class);
           transaction()
               .executeWithoutResult(
                   status -> {
                     var current = transport.observe().orElseThrow();
-                    assertThatThrownBy(
-                            () ->
-                                transport.rotate(
-                                    current.reference(), AuthenticationLifetime.FULL_ABSOLUTE))
+                    assertThatThrownBy(() -> transport.rotate(current.reference()))
                         .isInstanceOf(IllegalArgumentException.class);
-                    assertThatThrownBy(
-                            () ->
-                                transport.rotate(
-                                    new SessionAuthorityReference(UUID.randomUUID()),
-                                    java.time.Duration.ofDays(1)))
+                    assertThatThrownBy(() -> transport.rotate(null))
                         .isInstanceOf(IllegalArgumentException.class);
                   });
         });

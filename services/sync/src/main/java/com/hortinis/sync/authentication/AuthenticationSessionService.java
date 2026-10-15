@@ -1,46 +1,54 @@
 package com.hortinis.sync.authentication;
 
+import com.hortinis.sync.authentication.persistence.AuthenticationNativeSessions;
 import com.hortinis.sync.authentication.persistence.AuthenticationSecurityEventPersistence.Event;
-import com.hortinis.sync.authentication.persistence.AuthenticationSessionManagementPersistence;
 import com.hortinis.sync.authentication.persistence.AuthenticationSessionPublicationPersistence;
 import com.hortinis.sync.authentication.persistence.AuthenticationSessionRemovalPersistence;
+import java.time.Instant;
 import java.util.List;
 
 /** Current-session management and target-fenced logout; no workflow emits a replacement cookie. */
 public final class AuthenticationSessionService {
   private final AuthenticationPublication publication;
   private final AuthenticationSessionPublicationPersistence sessions;
-  private final AuthenticationSessionManagementPersistence management;
+  private final AuthenticationNativeSessions nativeSessions;
   private final AuthenticationSessionRemovalPersistence removal;
 
   /** Request transport and current persistent authority remain distinct boundaries. */
   public AuthenticationSessionService(
       AuthenticationPublication publication,
       AuthenticationSessionPublicationPersistence sessions,
-      AuthenticationSessionManagementPersistence management,
+      AuthenticationNativeSessions nativeSessions,
       AuthenticationSessionRemovalPersistence removal) {
     this.publication = publication;
     this.sessions = sessions;
-    this.management = management;
+    this.nativeSessions = nativeSessions;
     this.removal = removal;
   }
 
-  /**
-   * Listing requires full authority but does not refresh inactivity or rotate CSRF/cookie state.
-   */
-  public List<AuthenticationSessionManagementPersistence.SessionSummary> list(
-      AuthenticationSessionTransport transport) {
-    return publication.mutate(() -> management.list(sessions.lock(observe(transport))));
+  /** Listing requires full authority; request activity follows Spring Session policy. */
+  public List<SessionSummary> list(AuthenticationSessionTransport transport) {
+    return publication.mutate(
+        () -> {
+          var parent = sessions.lock(observe(transport));
+          sessions.requireFull(parent);
+          return nativeSessions.list(parent.account(), parent.epoch()).stream()
+              .map(
+                  session ->
+                      new SessionSummary(
+                          session.target(),
+                          session.createdAt(),
+                          session.expiresAt(),
+                          session.reference().equals(parent.reference())))
+              .toList();
+        });
   }
 
-  /**
-   * Called only by the protected explicit user-interaction HTTP route, never by background
-   * exchange.
-   */
+  /** Compatibility acknowledgement; the native session filter owns request activity. */
   public boolean activity(AuthenticationSessionTransport transport) {
     return publication.mutate(
         () -> {
-          management.activity(sessions.lock(observe(transport)));
+          sessions.requireFull(sessions.lock(observe(transport)));
           return true;
         });
   }
@@ -57,9 +65,17 @@ public final class AuthenticationSessionService {
                 Event.SESSION_REVOKE,
                 () -> {
                   var parent = sessions.lock(observe(transport));
-                  if (management.revoke(parent, target)) {
-                    transport.invalidate();
-                  }
+                  sessions.requireRecent(parent);
+                  nativeSessions.list(parent.account(), parent.epoch()).stream()
+                      .filter(session -> session.target().equals(target))
+                      .findFirst()
+                      .ifPresent(
+                          session -> {
+                            removal.remove(session.reference());
+                            if (session.reference().equals(parent.reference())) {
+                              transport.invalidate();
+                            }
+                          });
                   return true;
                 }));
   }
@@ -90,6 +106,15 @@ public final class AuthenticationSessionService {
                   transport.invalidate();
                   return true;
                 }));
+  }
+
+  /** Coarse session metadata without cookie identifiers or browser/network fingerprints. */
+  public record SessionSummary(
+      String target, Instant createdAt, Instant absoluteExpiresAt, boolean current) {
+    @Override
+    public String toString() {
+      return "SessionSummary[redacted]";
+    }
   }
 
   private static AuthenticationSessionTransport.Observation observe(

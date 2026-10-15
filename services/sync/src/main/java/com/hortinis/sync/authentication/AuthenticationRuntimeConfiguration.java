@@ -23,6 +23,8 @@ import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.security.authorization.AllRequiredFactorsAuthorizationManager;
+import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.security.authorization.FactorAuthorizationDecision;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
@@ -121,7 +123,7 @@ public class AuthenticationRuntimeConfiguration {
   @Bean
   @Order(Ordered.HIGHEST_PRECEDENCE)
   public SecurityFilterChain authenticatedSecurity(
-      HttpSecurity http, RandomSessionCsrfTokenRepository csrf) throws Exception {
+      HttpSecurity http, RandomSessionCsrfTokenRepository csrf, Clock clock) throws Exception {
     http.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.NEVER));
     http.csrf(
         configurer ->
@@ -141,9 +143,14 @@ public class AuthenticationRuntimeConfiguration {
                 .securityContextRepository(new HttpSessionSecurityContextRepository()));
     var factors =
         AllRequiredFactorsAuthorizationManager.<RequestAuthorizationContext>builder()
-            .requireFactor(factor -> factor.passwordAuthority())
-            .requireFactor(factor -> factor.webauthnAuthority())
+            .requireFactor(
+                factor ->
+                    factor.passwordAuthority().validDuration(AuthenticationLifetime.FULL_ABSOLUTE))
+            .requireFactor(
+                factor ->
+                    factor.webauthnAuthority().validDuration(AuthenticationLifetime.FULL_ABSOLUTE))
             .build();
+    factors.setClock(clock);
     http.exceptionHandling(
         errors ->
             errors
@@ -151,8 +158,15 @@ public class AuthenticationRuntimeConfiguration {
                     (request, response, exception) ->
                         AuthenticationHttpErrors.REQUIRED.write(response))
                 .accessDeniedHandler(
-                    (request, response, exception) ->
-                        AuthenticationHttpErrors.DENIED.write(response)));
+                    (request, response, exception) -> {
+                      if (exception instanceof AuthorizationDeniedException denied
+                          && denied.getAuthorizationResult()
+                              instanceof FactorAuthorizationDecision) {
+                        AuthenticationHttpErrors.REQUIRED.write(response);
+                      } else {
+                        AuthenticationHttpErrors.DENIED.write(response);
+                      }
+                    }));
     http.authorizeHttpRequests(
         requests ->
             requests

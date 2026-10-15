@@ -18,41 +18,17 @@ class AuthenticationLifetimeTest {
   }
 
   @Test
-  void fullAuthorityRequiresCompletedFactorsWithinItsLoginAndTrustedTime() {
-    assertThat(AuthenticationLifetime.fullIsCurrent(LOGIN, LOGIN, LOGIN, LOGIN)).isTrue();
-    assertThat(AuthenticationLifetime.fullIsCurrent(LOGIN, LOGIN, null, LOGIN)).isFalse();
-    assertThat(AuthenticationLifetime.fullIsCurrent(LOGIN, LOGIN, LOGIN.minusNanos(1), LOGIN))
-        .isFalse();
-    assertThat(AuthenticationLifetime.fullIsCurrent(LOGIN, LOGIN, LOGIN.plusNanos(1), LOGIN))
-        .isFalse();
-    assertThat(AuthenticationLifetime.fullIsCurrent(LOGIN, LOGIN, LOGIN, LOGIN.plusSeconds(1800)))
-        .isFalse();
-  }
-
-  @Test
-  void idleExpiresAtEqualityAndBackgroundTimeCannotRenewIt() {
-    assertThat(AuthenticationLifetime.fullIsCurrent(LOGIN, LOGIN, LOGIN.plusSeconds(1799)))
-        .isTrue();
+  void completedFactorsRequireCurrentLoginAndTrustedTimes() {
+    assertThat(AuthenticationLifetime.fullIsCurrent(LOGIN, LOGIN, LOGIN)).isTrue();
+    assertThat(AuthenticationLifetime.fullIsCurrent(LOGIN, null, LOGIN)).isFalse();
+    assertThat(AuthenticationLifetime.fullIsCurrent(LOGIN, LOGIN.minusNanos(1), LOGIN)).isFalse();
+    assertThat(AuthenticationLifetime.fullIsCurrent(LOGIN, LOGIN.plusNanos(1), LOGIN)).isFalse();
     assertThat(AuthenticationLifetime.fullIsCurrent(LOGIN, LOGIN, LOGIN.plusSeconds(1800)))
-        .isFalse();
-    assertThat(
-            AuthenticationLifetime.fullIsCurrent(
-                LOGIN, LOGIN.plusSeconds(600), LOGIN.plusSeconds(2399)))
         .isTrue();
-    assertThat(
-            AuthenticationLifetime.fullIsCurrent(
-                LOGIN, LOGIN.plusSeconds(600), LOGIN.plusSeconds(2400)))
+    assertThat(AuthenticationLifetime.fullIsCurrent(LOGIN, LOGIN, LOGIN.plusSeconds(43199)))
+        .isTrue();
+    assertThat(AuthenticationLifetime.fullIsCurrent(LOGIN, LOGIN, LOGIN.plusSeconds(43200)))
         .isFalse();
-  }
-
-  @Test
-  void interactionAndRotationNeverExtendAbsoluteExpiryAndFutureTimesDeny() {
-    Instant interaction = LOGIN.plusSeconds(43199);
-    assertThat(AuthenticationLifetime.fullIsCurrent(LOGIN, interaction, interaction)).isTrue();
-    assertThat(AuthenticationLifetime.fullIsCurrent(LOGIN, interaction, LOGIN.plusSeconds(43200)))
-        .isFalse();
-    assertThat(AuthenticationLifetime.fullIsCurrent(LOGIN, LOGIN.minusSeconds(1), LOGIN)).isFalse();
-    assertThat(AuthenticationLifetime.fullIsCurrent(LOGIN, LOGIN.plusSeconds(1), LOGIN)).isFalse();
   }
 
   @Test

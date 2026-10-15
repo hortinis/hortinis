@@ -50,7 +50,7 @@ namespace Hortinis.Sync {
     @useAuth(NoAuth)
     @TypeSpec.OpenAPI.operationId("readAuthenticationCsrf")
     @summary("Obtain bounded same-origin CSRF state")
-    @doc("Explicit coordinated ceremony bootstrap only. May create a bounded anonymous HttpOnly cookie, never a data-authorized account. Does not extend qualifying inactivity.")
+    @doc("Explicit coordinated ceremony bootstrap only. May create a bounded anonymous HttpOnly cookie, never a data-authorized account. Existing session request activity is managed by Spring Session.")
     readCsrf():
       | AuthenticationSuccessResponse<Models.CsrfBootstrap>
       | AuthenticationFailures;
@@ -60,7 +60,7 @@ namespace Hortinis.Sync {
     @useAuth(SessionCookieAuth | NoAuth)
     @TypeSpec.OpenAPI.operationId("readAuthenticationStatus")
     @summary("Observe current session status")
-    @doc("Return only current cookie authority; anonymous responses omit account, factor registration, setup availability and scope information. Does not allocate a session or extend qualifying inactivity.")
+    @doc("Return only current cookie authority; anonymous responses omit account, factor registration, setup availability and scope information. Does not allocate a session. Existing session request activity is managed by Spring Session.")
     readStatus():
       | AuthenticationSuccessResponse<Models.AuthenticationStatus>
       | AuthenticationFailures;
@@ -80,7 +80,7 @@ namespace Hortinis.Sync {
     @useAuth(SessionCookieAuth)
     @TypeSpec.OpenAPI.operationId("readAccountRecoveryCodeStatus")
     @summary("Observe current recovery-code availability")
-    @doc("Require current full account authority. Return only the number of unexpired unused codes, their common expiry and the server-clock thirty-day warning. Never return codes or verifiers; does not renew inactivity.")
+    @doc("Require current full account authority. Return only the number of unexpired unused codes, their common expiry and the server-clock thirty-day warning. Never return codes or verifiers; request activity follows Spring Session inactivity rules.")
     readRecoveryCodeStatus():
       | AuthenticationSuccessResponse<Models.RecoveryCodeStatus>
       | AuthenticationFailures;
@@ -141,7 +141,7 @@ namespace Hortinis.Sync {
     @route("/step-up/password")
     @TypeSpec.OpenAPI.operationId("beginRecentAuthentication")
     @summary("Begin recent two-factor authentication")
-    @doc("Require the current full account and current password. Preserve the original absolute session deadline while rotating into the bounded same-account ceremony.")
+    @doc("Require the current full account and current password. Rotate into a new five-minute same-account ceremony before passkey proof.")
     beginRecentAuthentication(@body request: Models.CurrentPasswordRequest):
       | AuthenticationSuccessResponse<Models.WebAuthnAuthenticationOptions>
       | AuthenticationFailures;
@@ -150,7 +150,7 @@ namespace Hortinis.Sync {
     @route("/step-up/passkey")
     @TypeSpec.OpenAPI.operationId("completeRecentAuthentication")
     @summary("Complete recent two-factor authentication")
-    @doc("Require a valid same-account user-verified challenge, rotate cookie/CSRF state and preserve the original absolute deadline.")
+    @doc("Require a valid same-account user-verified challenge, rotate cookie/CSRF state and start the new twelve-hour normal-factor lifetime.")
     completeRecentAuthentication(
       @body request: Models.AuthenticatePasskeyRequest,
     ):
@@ -287,8 +287,8 @@ namespace Hortinis.Sync {
     @post
     @route("/activity")
     @TypeSpec.OpenAPI.operationId("recordAuthenticatedInteraction")
-    @summary("Record qualifying account activity")
-    @doc("Require a full session and explicit visible user interaction. Background synchronization/polling cannot extend inactivity or absolute expiry.")
+    @summary("Acknowledge authenticated account activity")
+    @doc("Require a full session. Spring Session updates inactivity for ordinary requests, including synchronization and polling. This compatibility acknowledgement does not renew the normal-factor lifetime.")
     recordAuthenticatedInteraction():
       | AuthenticationSuccessResponse<Models.AuthenticationCompleted>
       | AuthenticationFailures;

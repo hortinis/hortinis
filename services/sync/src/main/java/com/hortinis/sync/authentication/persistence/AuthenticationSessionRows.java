@@ -11,7 +11,7 @@ import java.util.UUID;
 final class AuthenticationSessionRows {
   static final String COLUMNS =
       "session_reference, account_id, authority_epoch, state, created_at, "
-          + "expires_at, full_login_at, last_interaction_at, both_factors_at, "
+          + "expires_at, full_login_at, both_factors_at, "
           + "staged_login_identifier, staged_password_verifier, staged_user_handle, "
           + "logout_target, recovery_kind, replacement_credential_id";
 
@@ -27,13 +27,12 @@ final class AuthenticationSessionRows {
         row.getTimestamp(6).toInstant(),
         instant(row, 7),
         instant(row, 8),
-        instant(row, 9),
+        row.getString(9),
         row.getString(10),
-        row.getString(11),
-        row.getBytes(12),
+        row.getBytes(11),
+        row.getString(12),
         row.getString(13),
-        row.getString(14),
-        row.getBytes(15));
+        row.getBytes(14));
   }
 
   private static Instant instant(ResultSet row, int column) throws SQLException {

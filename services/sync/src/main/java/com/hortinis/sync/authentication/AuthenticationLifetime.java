@@ -2,11 +2,9 @@ package com.hortinis.sync.authentication;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Objects;
 
-/** Trusted-clock policy; expiry is exclusive and background traffic never renews authority. */
+/** Trusted-clock ceremony and factor limits; Spring Session owns request inactivity. */
 public final class AuthenticationLifetime {
-  public static final Duration FULL_IDLE = Duration.ofMinutes(30);
   public static final Duration FULL_ABSOLUTE = Duration.ofHours(12);
   public static final Duration LIMITED_ABSOLUTE = Duration.ofMinutes(5);
   public static final Duration RECENT_AUTHENTICATION = Duration.ofMinutes(5);
@@ -20,24 +18,13 @@ public final class AuthenticationLifetime {
     return !now.isBefore(createdAt) && now.isBefore(expiresAt);
   }
 
-  /** Full authority also requires complete factors belonging to this login. */
-  public static boolean fullIsCurrent(
-      Instant login, Instant lastInteraction, Instant bothFactorsAt, Instant now) {
-    return bothFactorsAt != null
+  /** Completed factors remain bounded independently of Spring Session inactivity. */
+  public static boolean fullIsCurrent(Instant login, Instant bothFactorsAt, Instant now) {
+    return login != null
+        && bothFactorsAt != null
         && !now.isBefore(bothFactorsAt)
         && !bothFactorsAt.isBefore(login)
-        && fullIsCurrent(login, lastInteraction, now);
-  }
-
-  /** Tests both fixed login lifetime and last explicit user-interaction lifetime. */
-  public static boolean fullIsCurrent(Instant login, Instant lastInteraction, Instant now) {
-    Objects.requireNonNull(login);
-    Objects.requireNonNull(lastInteraction);
-    Objects.requireNonNull(now);
-    return !lastInteraction.isBefore(login)
-        && !now.isBefore(lastInteraction)
-        && now.isBefore(login.plus(FULL_ABSOLUTE))
-        && now.isBefore(lastInteraction.plus(FULL_IDLE));
+        && isUnexpired(login, login.plus(FULL_ABSOLUTE), now);
   }
 
   /** Privileged authorization expires exactly five minutes after the complete factor proof. */

@@ -12,7 +12,6 @@ public record AuthenticationSession(
     Instant createdAt,
     Instant expiresAt,
     Instant loginAt,
-    Instant interactionAt,
     Instant bothFactorsAt,
     String stagedLogin,
     String stagedPassword,
@@ -35,16 +34,9 @@ public record AuthenticationSession(
     return AuthenticationLifetime.isUnexpired(createdAt, expiresAt, now);
   }
 
-  /** A step-up ceremony retains the preceding full login's absolute deadline. */
-  public boolean hasCurrentLogin(Instant now) {
-    return loginAt == null
-        || !now.isBefore(loginAt)
-            && now.isBefore(loginAt.plus(AuthenticationLifetime.FULL_ABSOLUTE));
-  }
-
-  /** Full authority requires both factors and the login's idle and absolute lifetimes. */
+  /** Full authority requires completed factors within the current login lifetime. */
   public boolean hasCurrentFactors(Instant now) {
-    return AuthenticationLifetime.fullIsCurrent(loginAt, interactionAt, bothFactorsAt, now);
+    return AuthenticationLifetime.fullIsCurrent(loginAt, bothFactorsAt, now);
   }
 
   @Override

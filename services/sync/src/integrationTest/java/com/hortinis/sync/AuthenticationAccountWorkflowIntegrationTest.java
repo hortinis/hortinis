@@ -53,7 +53,6 @@ import com.hortinis.sync.authentication.persistence.AuthenticationOperatorTicket
 import com.hortinis.sync.authentication.persistence.AuthenticationRecoveryCodePersistence;
 import com.hortinis.sync.authentication.persistence.AuthenticationSecurityEventPersistence;
 import com.hortinis.sync.authentication.persistence.AuthenticationSessionAdmissionPersistence;
-import com.hortinis.sync.authentication.persistence.AuthenticationSessionManagementPersistence;
 import com.hortinis.sync.authentication.persistence.AuthenticationSessionPublicationPersistence;
 import com.hortinis.sync.authentication.persistence.AuthenticationSessionRemovalPersistence;
 import com.hortinis.sync.authentication.persistence.AuthenticationSetupPersistence;
@@ -258,12 +257,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
             passwords,
             passkeys);
     sessionControl =
-        new AuthenticationSessionService(
-            publication,
-            sessions,
-            new AuthenticationSessionManagementPersistence(
-                client, clock, sessions, removal, nativeSessions),
-            removal);
+        new AuthenticationSessionService(publication, sessions, nativeSessions, removal);
   }
 
   @Test
@@ -651,14 +645,13 @@ class AuthenticationAccountWorkflowIntegrationTest {
   }
 
   @Test
-  void stepUpPartialAndNonceCannotOutliveTheOriginalTwelveHourDeadline() throws Exception {
+  void stepUpCeremonyHasItsOwnFiveMinuteBoundaryBeforeTheNewFactorLifetime() throws Exception {
     final var key = setupAccount(false);
     var loggedIn = finish(prepare(key, 1), false);
     Instant originalLogin =
         clock.instant().minus(AuthenticationLifetime.FULL_ABSOLUTE).plusSeconds(60);
     jdbc.update(
-        "UPDATE authentication_session_authority SET full_login_at = ?, "
-            + "expires_at = ? WHERE state = 'full'",
+        "UPDATE authentication_session_authority SET full_login_at = ?, expires_at = ? WHERE state = 'full'",
         java.sql.Timestamp.from(originalLogin),
         java.sql.Timestamp.from(clock.instant().plusSeconds(60)));
     var partial =
@@ -668,21 +661,17 @@ class AuthenticationAccountWorkflowIntegrationTest {
             transport -> login.stepUpPassword(transport, PASSWORD));
     var receipt =
         challenges.consume(reference(partial.cookie()), AuthenticationChallengePurpose.STEP_UP);
-    assertThat(receipt.expiresAt()).isEqualTo(clock.instant().plusSeconds(60));
+    assertThat(receipt.expiresAt()).isEqualTo(clock.instant().plusSeconds(300));
     var signed =
         key.assertion(partial.result(), accounts.findLogin(LOGIN).orElseThrow().userHandle(), 2);
     clock.advance(java.time.Duration.ofSeconds(60));
-    var denied =
+    var completed =
         request(
             "/api/v1/auth/step-up/passkey",
             partial.cookie(),
-            transport -> {
-              assertThatThrownBy(() -> login.passkey(transport, receipt, signed, true))
-                  .isInstanceOf(AuthenticationFailedException.class);
-              return true;
-            });
-    assertThat(denied.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
-    assertThat(count(FULL_COUNT)).isZero();
+            transport -> login.passkey(transport, receipt, signed, true));
+    assertThat(completed.cookie()).isNotNull();
+    assertThat(count(FULL_COUNT)).isEqualTo(1);
   }
 
   @Test
@@ -939,7 +928,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
   }
 
   @Test
-  void sessionListingOmitsPartialAuthorityAndDoesNotRefreshQualifyingActivity() throws Exception {
+  void sessionListingOmitsPartialAuthorityAndDoesNotRenewNormalFactors() throws Exception {
     final var key = setupAccount(false);
     final var first = finish(prepare(key, 1), false);
     finish(prepare(key, 2), false);
@@ -956,11 +945,11 @@ class AuthenticationAccountWorkflowIntegrationTest {
         authority
             .findFull(first.result().verifier(), first.result().reference().value())
             .orElseThrow();
-    assertThat(current.interactionAt()).isEqualTo(NOW);
+    assertThat(current.bothFactorsAt()).isEqualTo(NOW);
   }
 
   @Test
-  void explicitActivityRefreshesIdleOnlyAndCannotReviveAnExpiredSession() throws Exception {
+  void activityUsesNativeInactivityWithoutRenewingNormalFactors() throws Exception {
     var loggedIn = finish(prepare(setupAccount(false), 1), false);
     var original =
         authority
@@ -974,8 +963,11 @@ class AuthenticationAccountWorkflowIntegrationTest {
     assertThat(current.expiresAt()).isEqualTo(original.expiresAt());
     assertThat(current.loginAt()).isEqualTo(original.loginAt());
     assertThat(current.bothFactorsAt()).isEqualTo(original.bothFactorsAt());
-    assertThat(current.interactionAt()).isEqualTo(clock.instant());
-    clock.advance(AuthenticationLifetime.FULL_IDLE);
+    assertThat(
+            jdbc.queryForObject("SELECT max_inactive_interval FROM spring_session", Integer.class))
+        .isEqualTo(1800);
+    jdbc.update("UPDATE spring_session SET last_access_time = 0, expiry_time = 0");
+    new AuthenticationLifecyclePersistence(JdbcClient.create(jdbc), clock, transactions).purge();
     var denied =
         request(
             "/api/v1/auth/activity",
@@ -986,8 +978,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
               return true;
             });
     assertThat(denied.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
-    assertThat(authority.findFull(loggedIn.result().verifier(), original.sessionReference()))
-        .isEmpty();
+    assertThat(count(NATIVE_COUNT)).isZero();
   }
 
   @ParameterizedTest
@@ -1066,7 +1057,11 @@ class AuthenticationAccountWorkflowIntegrationTest {
       throws Exception {
     var loggedIn = finish(prepare(setupAccount(false), 1), false);
     switch (failure) {
-      case "idle" -> clock.advance(AuthenticationLifetime.FULL_IDLE);
+      case "idle" -> {
+        jdbc.update("UPDATE spring_session SET last_access_time = 0, expiry_time = 0");
+        new AuthenticationLifecyclePersistence(JdbcClient.create(jdbc), clock, transactions)
+            .purge();
+      }
       case "absolute" -> clock.advance(AuthenticationLifetime.FULL_ABSOLUTE);
       case "revoked-epoch" ->
           jdbc.update(
@@ -2332,7 +2327,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
         .doesNotContain("publicKey", "signatureCount", "transports");
     assertThat(
             jdbc.queryForObject(
-                    "SELECT last_interaction_at FROM authentication_session_authority",
+                    "SELECT both_factors_at FROM authentication_session_authority",
                     java.sql.Timestamp.class)
                 .toInstant())
         .isEqualTo(NOW);
@@ -2545,7 +2540,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
     assertThat(count(CODE_COUNT)).isZero();
     assertThat(
             jdbc.queryForObject(
-                    "SELECT last_interaction_at FROM authentication_session_authority",
+                    "SELECT both_factors_at FROM authentication_session_authority",
                     java.sql.Timestamp.class)
                 .toInstant())
         .isEqualTo(NOW);

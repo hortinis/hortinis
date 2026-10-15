@@ -2,7 +2,7 @@ spring:
   application:
     name: hortinis-sync
   session:
-    timeout: 12h
+    timeout: 30m
     jdbc:
       initialize-schema: never
       flush-mode: immediate

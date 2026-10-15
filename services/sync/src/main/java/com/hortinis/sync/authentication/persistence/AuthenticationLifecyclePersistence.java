@@ -266,9 +266,27 @@ public class AuthenticationLifecyclePersistence {
     return query.query(AuthenticationSessionRows::read).list();
   }
 
-  private static boolean timeIsCurrent(AuthenticationSession parent, Instant now) {
+  private boolean timeIsCurrent(AuthenticationSession parent, Instant now) {
     return parent.isUnexpired(now)
-        && (!"full".equals(parent.state()) || parent.hasCurrentFactors(now));
+        && (!"full".equals(parent.state())
+            || parent.hasCurrentFactors(now) && hasCurrentNativeTransport(parent.reference(), now));
+  }
+
+  private boolean hasCurrentNativeTransport(UUID reference, Instant now) {
+    return jdbc.sql(
+            "SELECT s.expiry_time FROM spring_session s "
+                + "JOIN spring_session_attributes t ON t.session_primary_id = s.primary_id "
+                + "JOIN authentication_session_authority a ON a.session_reference = ? "
+                + "WHERE t.attribute_name = 'hortinis.authority' AND t.attribute_bytes = "
+                + "convert_to('v1:authority:' || a.session_reference::text, 'UTF8') "
+                + "AND a.session_verifier = "
+                + "encode(sha256(convert_to(s.session_id, 'UTF8')), 'hex') "
+                + "FOR UPDATE OF s")
+        .param(reference)
+        .query(Long.class)
+        .optional()
+        .map(expiry -> expiry > now.toEpochMilli())
+        .orElse(false);
   }
 
   private record Installation(UUID instance, String mode) {

@@ -73,7 +73,7 @@ public final class AuthenticationAccountService {
         });
   }
 
-  /** Reload-safe availability requires full authority and never renews interaction time. */
+  /** Reload-safe availability requires full authority and does not renew normal-factor proof. */
   public AuthenticationRecoveryCodePersistence.CodeStatus recoveryCodeStatus(
       AuthenticationSessionTransport transport) {
     return publication.mutate(

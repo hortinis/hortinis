@@ -124,7 +124,7 @@ public class AuthenticationSessionPublicationPersistence {
     if (!now.isBefore(expires)) {
       throw new AuthenticationFailedException();
     }
-    Replacement replacement = rotate(transport, AuthenticationLifetime.LIMITED_ABSOLUTE);
+    Replacement replacement = rotate(transport);
     jdbc.sql(
             INSERT_AUTHORITY
                 + "logout_target, state, created_at, expires_at, staged_login_identifier, "
@@ -143,7 +143,7 @@ public class AuthenticationSessionPublicationPersistence {
     return replacement.reference();
   }
 
-  /** Creates password-only authority; step-up preserves the predecessor's original full login. */
+  /** Creates a bounded password-only ceremony before normal or step-up passkey proof. */
   public UUID password(
       AuthenticationSession parent,
       AuthenticationAccountPersistence.AccountSnapshot account,
@@ -160,18 +160,12 @@ public class AuthenticationSessionPublicationPersistence {
       requireLimitedSlot(now);
     }
     Instant expires = now.plus(AuthenticationLifetime.LIMITED_ABSOLUTE);
-    if (stepUp) {
-      expires = earlier(expires, parent.loginAt().plus(AuthenticationLifetime.FULL_ABSOLUTE));
-    }
-    if (!now.isBefore(expires)) {
-      throw new AuthenticationFailedException();
-    }
-    Replacement replacement = rotate(transport, AuthenticationLifetime.LIMITED_ABSOLUTE);
+    Replacement replacement = rotate(transport);
     jdbc.sql(
             INSERT_AUTHORITY
                 + OWNED_AUTHORITY_COLUMNS
-                + "full_login_at, last_interaction_at) VALUES (?, ?, ?, 'password', "
-                + "?, ?, ?, ?, ?, ?)")
+                + "full_login_at) VALUES (?, ?, ?, 'password', "
+                + "?, ?, ?, ?, ?)")
         .params(
             replacement.reference(),
             replacement.verifier(),
@@ -180,8 +174,7 @@ public class AuthenticationSessionPublicationPersistence {
             account.epoch(),
             Timestamp.from(now),
             Timestamp.from(expires),
-            timestamp(stepUp ? parent.loginAt() : null),
-            timestamp(stepUp ? parent.interactionAt() : null))
+            timestamp(stepUp ? now : null))
         .update();
     retire(parent);
     return replacement.reference();
@@ -196,12 +189,12 @@ public class AuthenticationSessionPublicationPersistence {
       throw new AuthenticationOverloadedException();
     }
     Instant login = now;
-    Replacement replacement = rotate(transport, AuthenticationLifetime.FULL_ABSOLUTE);
+    Replacement replacement = rotate(transport);
     jdbc.sql(
             INSERT_AUTHORITY
                 + OWNED_AUTHORITY_COLUMNS
-                + "full_login_at, last_interaction_at, both_factors_at) "
-                + "VALUES (?, ?, ?, 'full', ?, ?, ?, ?, ?, ?, ?)")
+                + "full_login_at, both_factors_at) "
+                + "VALUES (?, ?, ?, 'full', ?, ?, ?, ?, ?, ?)")
         .params(
             replacement.reference(),
             replacement.verifier(),
@@ -211,7 +204,6 @@ public class AuthenticationSessionPublicationPersistence {
             Timestamp.from(now),
             Timestamp.from(login.plus(AuthenticationLifetime.FULL_ABSOLUTE)),
             Timestamp.from(login),
-            Timestamp.from(now),
             Timestamp.from(now))
         .update();
     retire(parent);
@@ -238,7 +230,7 @@ public class AuthenticationSessionPublicationPersistence {
     if (!clock.instant().isBefore(expires)) {
       throw new AuthenticationFailedException();
     }
-    Replacement replacement = rotate(transport, AuthenticationLifetime.LIMITED_ABSOLUTE);
+    Replacement replacement = rotate(transport);
     jdbc.sql(
             INSERT_AUTHORITY
                 + OWNED_AUTHORITY_COLUMNS
@@ -293,7 +285,7 @@ public class AuthenticationSessionPublicationPersistence {
     requireTransaction();
     Instant now = clock.instant();
     requireCurrent(parent, now);
-    Replacement replacement = rotate(transport, AuthenticationLifetime.LIMITED_ABSOLUTE);
+    Replacement replacement = rotate(transport);
     jdbc.sql(
             INSERT_AUTHORITY
                 + OWNED_AUTHORITY_COLUMNS
@@ -341,7 +333,7 @@ public class AuthenticationSessionPublicationPersistence {
     if (!owned) {
       throw new AuthenticationFailedException();
     }
-    Replacement replacement = rotate(transport, AuthenticationLifetime.LIMITED_ABSOLUTE);
+    Replacement replacement = rotate(transport);
     jdbc.sql(
             INSERT_AUTHORITY
                 + OWNED_AUTHORITY_COLUMNS
@@ -471,7 +463,6 @@ public class AuthenticationSessionPublicationPersistence {
 
   private static boolean current(AuthenticationSession parent, Instant now) {
     return parent.isUnexpired(now)
-        && parent.hasCurrentLogin(now)
         && (!FULL_STATE.equals(parent.state()) || parent.hasCurrentFactors(now));
   }
 
@@ -488,10 +479,9 @@ public class AuthenticationSessionPublicationPersistence {
     }
   }
 
-  private static Replacement rotate(
-      AuthenticationSessionTransport transport, java.time.Duration lifetime) {
+  private static Replacement rotate(AuthenticationSessionTransport transport) {
     UUID reference = UUID.randomUUID();
-    var observed = transport.rotate(new SessionAuthorityReference(reference), lifetime);
+    var observed = transport.rotate(new SessionAuthorityReference(reference));
     if (!reference.equals(observed.reference().value())
         || !observed.verifier().matches("[a-f0-9]{64}")) {
       throw new AuthenticationFailedException();

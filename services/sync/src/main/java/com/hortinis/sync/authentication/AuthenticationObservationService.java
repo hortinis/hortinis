@@ -5,7 +5,7 @@ import com.hortinis.sync.authentication.persistence.AuthenticationSessionAdmissi
 import com.hortinis.sync.authentication.persistence.AuthenticationSessionPublicationPersistence;
 import java.util.Map;
 
-/** Minimized status and explicit CSRF bootstrap; reads never renew user-interaction lifetime. */
+/** Minimized status and explicit CSRF bootstrap; reads do not renew normal-factor proof. */
 public final class AuthenticationObservationService {
   private static final String STATE = "state";
   private static final String FULL = "full";

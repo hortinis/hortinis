@@ -142,7 +142,6 @@ class AuthenticatedSynchronizationAccessResolverTest {
         mode,
         now,
         now,
-        now,
         now.plusSeconds(43_200),
         now);
   }

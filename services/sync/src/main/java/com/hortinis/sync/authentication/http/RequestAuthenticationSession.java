@@ -1,7 +1,6 @@
 package com.hortinis.sync.authentication.http;
 
 import com.hortinis.sync.authentication.AuthenticationIdentity;
-import com.hortinis.sync.authentication.AuthenticationLifetime;
 import com.hortinis.sync.authentication.AuthenticationSecrets;
 import com.hortinis.sync.authentication.AuthenticationSessionTransport;
 import com.hortinis.sync.authentication.ControlledSessionIdResolver;
@@ -9,7 +8,6 @@ import com.hortinis.sync.authentication.SessionAuthorityReference;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
@@ -60,7 +58,6 @@ public final class RequestAuthenticationSession implements AuthenticationSession
     }
     HttpSession session = request.getSession(true);
     requireFrameworkId(session.getId());
-    session.setMaxInactiveInterval((int) AuthenticationLifetime.LIMITED_ABSOLUTE.toSeconds());
     SessionAuthorityReference reference = Objects.requireNonNull(admission.apply(session.getId()));
     session.setAttribute(AUTHORITY_ATTRIBUTE, reference);
     refreshCsrf();
@@ -69,23 +66,18 @@ public final class RequestAuthenticationSession implements AuthenticationSession
   }
 
   @Override
-  public Observation rotate(SessionAuthorityReference replacement, Duration transportLifetime) {
+  public Observation rotate(SessionAuthorityReference replacement) {
     requirePublicationTransaction();
     requireCookieWorkflow();
     Observation previous = observe().orElseThrow(RequestAuthenticationSession::unavailable);
-    if (replacement == null
-        || replacement.equals(previous.reference())
-        || (!AuthenticationLifetime.LIMITED_ABSOLUTE.equals(transportLifetime)
-            && !AuthenticationLifetime.FULL_ABSOLUTE.equals(transportLifetime))) {
-      throw new IllegalArgumentException(
-          "Rotation requires a fresh reference and bounded lifetime.");
+    if (replacement == null || replacement.equals(previous.reference())) {
+      throw new IllegalArgumentException("Rotation requires a fresh reference.");
     }
     String identifier = request.changeSessionId();
     requireFrameworkId(identifier);
     HttpSession session = Objects.requireNonNull(request.getSession(false));
     // With the selected immediate JDBC repository, this attribute flush saves the rotated ID too.
     session.setAttribute(AUTHORITY_ATTRIBUTE, replacement);
-    session.setMaxInactiveInterval((int) transportLifetime.toSeconds());
     session.removeAttribute(AuthenticationSessionTransport.LOGOUT_TARGET_ATTRIBUTE);
     contexts.saveContext(SecurityContextHolder.createEmptyContext(), request, response);
     SecurityContextHolder.clearContext();

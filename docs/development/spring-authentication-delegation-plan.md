@@ -193,3 +193,28 @@ repository proxying, lazy repository resolution for non-web contexts, explicit n
 and a rejected-principal fixture affected by standard principal indexing. Framework security/session
 diagnostic logging is disabled to keep login names and cookie identifiers out of logs. Full normal
 reauthentication now starts the new factor lifetime. The duplicate inactivity clock is the next step.
+
+
+## Native request inactivity implementation plan
+
+Delegate the 30-minute full-session inactivity timeout to Spring Session and Boot. Remove the
+application interaction timestamp, its SQL writes, and the duplicate idle calculation. Retain the
+activity route as a compatible authenticated acknowledgement. Ordinary requests, including background
+synchronization, refresh native inactivity; password plus passkey reauthentication starts a new
+12-hour factor lifetime. Limited proof ceremonies retain independent five-minute boundaries. Cleanup
+reads native expiry metadata and removes expired transport/ceremony records under the existing locks.
+Update TypeSpec descriptions before implementing this behavior and regenerate contracts. Review
+password/passkey recovery, transaction-time epoch checks and offline binding behavior, then run the
+backend, frontend, contract and topology checks before committing.
+
+Native request inactivity passed the complete backend build: 269 unit tests and 286 PostgreSQL
+integration tests, formatting, PMD and architecture checks. The obsolete interaction-clock unit
+cases were replaced by native expiry/factor-age runtime coverage. A new concurrent activity/cleanup
+regression verifies that cleanup locks and rechecks native expiry before deleting linked ceremony
+state. Boot's timeout property owns native inactivity; transport rotation no longer accepts or sets
+an idle lifetime. The separate management facade and interaction column are removed. This step
+removes 84 production Java lines. Six real topology browser tests passed and their disposable
+resources were removed; the 366 frontend tests also passed during this migration. Mandatory password
+plus passkey authorization, recovery workflows, account epoch checks and offline synchronization
+remain covered. The broader framework migration is still in progress; this measurement is for the
+inactivity step, not a claim of an overall code-volume reduction.

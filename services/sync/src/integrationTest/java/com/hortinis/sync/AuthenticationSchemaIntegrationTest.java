@@ -555,11 +555,7 @@ class AuthenticationSchemaIntegrationTest {
         .hasMessage("Authentication authority requires a protected transaction.");
     transaction().executeWithoutResult(status -> requireAuthority(authority, observed));
     assertThat(authorityAt(login.plusSeconds(1799)).findFull("b".repeat(64), session)).isPresent();
-    assertThat(authorityAt(login.plusSeconds(1800)).findFull("b".repeat(64), session)).isEmpty();
-    jdbc.update(
-        SESSION_UPDATE_PREFIX + "last_interaction_at = ? WHERE session_reference = " + "?",
-        java.sql.Timestamp.from(login.plusSeconds(43199)),
-        session);
+    assertThat(authorityAt(login.plusSeconds(1800)).findFull("b".repeat(64), session)).isPresent();
     assertThat(authorityAt(login.plusSeconds(43199)).findFull("b".repeat(64), session)).isPresent();
     assertThat(authorityAt(login.plusSeconds(43200)).findFull("b".repeat(64), session)).isEmpty();
     assertThat(authority.findFull("invalid", session)).isEmpty();
@@ -1497,16 +1493,15 @@ class AuthenticationSchemaIntegrationTest {
         SESSION_INSERT_PREFIX
             + SESSION_COLUMNS_PREFIX
             + "account_id, authority_epoch, created_at, "
-            + "expires_at, full_login_at, last_interaction_at, "
+            + "expires_at, full_login_at, "
             + "both_factors_at) VALUES (?, ?, 'full', ?, 1, ?, "
-            + "?, ?, ?, ?) RETURNING session_reference",
+            + "?, ?, ?) RETURNING session_reference",
         UUID.class,
         "b".repeat(64),
         CANONICAL_RANDOM_FIXTURE,
         account,
         java.sql.Timestamp.from(login),
         java.sql.Timestamp.from(login.plusSeconds(43200)),
-        java.sql.Timestamp.from(login),
         java.sql.Timestamp.from(login),
         java.sql.Timestamp.from(login));
   }

@@ -1,6 +1,5 @@
 package com.hortinis.sync.authentication.persistence;
 
-import com.hortinis.sync.authentication.AuthenticationLifetime;
 import com.hortinis.sync.authentication.AuthenticationSecrets;
 import com.hortinis.sync.authentication.SessionAttributeCodec;
 import org.springframework.jdbc.core.JdbcOperations;
@@ -27,7 +26,6 @@ public final class AuthenticationJdbcSessions {
     JdbcIndexedSessionRepository repository = new JdbcIndexedSessionRepository(jdbc, transactions);
     repository.setSessionIdGenerator(AuthenticationSecrets::randomValue);
     repository.setConversionService(SessionAttributeCodec.conversionService());
-    repository.setDefaultMaxInactiveInterval(AuthenticationLifetime.FULL_ABSOLUTE);
     repository.setFlushMode(FlushMode.IMMEDIATE);
     repository.setSaveMode(SaveMode.ON_SET_ATTRIBUTE);
     // Ordered authority cleanup owns physical retention, rather than a second uncoordinated job.

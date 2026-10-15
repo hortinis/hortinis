@@ -43,7 +43,7 @@ public class CurrentAuthenticationAuthorityPersistence {
             "SELECT s.session_reference, a.account_id, a.authority_epoch, "
                 + "a.server_instance_id, a.synchronization_scope_id, i.access_mode, "
                 + "s.full_login_at, "
-                + "s.last_interaction_at, s.both_factors_at, s.expires_at, s.created_at "
+                + "s.both_factors_at, s.expires_at, s.created_at "
                 + "FROM authentication_session_authority s JOIN authentication_account a "
                 + "ON a.account_id = s.account_id JOIN technical_server_installation i "
                 + "ON i.server_instance_id = a.server_instance_id "
@@ -63,8 +63,7 @@ public class CurrentAuthenticationAuthorityPersistence {
                     row.getTimestamp(7).toInstant(),
                     row.getTimestamp(8).toInstant(),
                     row.getTimestamp(9).toInstant(),
-                    row.getTimestamp(10).toInstant(),
-                    row.getTimestamp(11).toInstant()))
+                    row.getTimestamp(10).toInstant()))
         .optional()
         .filter(authority -> authority.isCurrent(clock.instant()));
   }
@@ -141,13 +140,12 @@ public class CurrentAuthenticationAuthorityPersistence {
       UUID scope,
       String mode,
       Instant loginAt,
-      Instant interactionAt,
       Instant bothFactorsAt,
       Instant expiresAt,
       Instant createdAt) {
     private boolean isCurrent(Instant now) {
       return AuthenticationLifetime.isUnexpired(createdAt, expiresAt, now)
-          && AuthenticationLifetime.fullIsCurrent(loginAt, interactionAt, bothFactorsAt, now);
+          && AuthenticationLifetime.fullIsCurrent(loginAt, bothFactorsAt, now);
     }
 
     @Override

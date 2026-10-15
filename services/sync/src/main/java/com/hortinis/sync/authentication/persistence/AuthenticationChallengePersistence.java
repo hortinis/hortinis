@@ -211,9 +211,8 @@ public class AuthenticationChallengePersistence {
     return parent != null
         && parent.isUnexpired(now)
         && purpose.permits(parent.state(), parent.recoveryKind(), parent.loginAt() != null)
-        && parent.hasCurrentLogin(now)
         && (!FULL.equals(parent.state())
-            || AuthenticationLifetime.fullIsCurrent(parent.loginAt(), parent.interactionAt(), now))
+            || AuthenticationLifetime.fullIsCurrent(parent.loginAt(), parent.bothFactorsAt(), now))
         && (purpose != AuthenticationChallengePurpose.CREDENTIAL
             || AuthenticationLifetime.recentBothFactors(parent.bothFactorsAt(), now));
   }

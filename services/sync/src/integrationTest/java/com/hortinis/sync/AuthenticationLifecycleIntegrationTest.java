@@ -110,10 +110,13 @@ class AuthenticationLifecycleIntegrationTest {
 
   @Test
   void exactIdleExpiryDeletesParentTransportChallengeAndClaimedTicket() {
-    UUID parent = fullParent(LOGIN);
+    UUID parent = fullParent();
     transport(parent, true);
     challenge(parent, LOGIN.plusSeconds(1600), LOGIN.plusSeconds(1900));
     operatorTicket(parent, LOGIN.plusSeconds(1500), LOGIN.plusSeconds(2100));
+    jdbc.update(
+        "UPDATE spring_session SET max_inactive_interval = 1800, expiry_time = ?",
+        LOGIN.plusSeconds(1800).toEpochMilli());
     lifecycle(LOGIN.plusSeconds(1799)).purge();
     assertThat(count(AUTHORITY_COUNT)).isEqualTo(1);
     assertThat(count(TRANSPORT_COUNT)).isEqualTo(1);
@@ -129,9 +132,13 @@ class AuthenticationLifecycleIntegrationTest {
   }
 
   @Test
-  void originalAbsoluteDeadlineSurvivesRecentExplicitInteraction() {
-    UUID parent = fullParent(LOGIN.plusSeconds(43100));
+  void factorDeadlineRemainsIndependentOfNativeRequestActivity() {
+    UUID parent = fullParent();
     transport(parent, true);
+    jdbc.update(
+        "UPDATE spring_session SET last_access_time = ?, expiry_time = ?",
+        LOGIN.plusSeconds(43100).toEpochMilli(),
+        LOGIN.plusSeconds(44900).toEpochMilli());
     lifecycle(LOGIN.plusSeconds(43199)).purge();
     assertThat(count(AUTHORITY_COUNT)).isEqualTo(1);
     lifecycle(LOGIN.plusSeconds(43200)).purge();
@@ -141,7 +148,7 @@ class AuthenticationLifecycleIntegrationTest {
 
   @Test
   void partialDeadlineIsExactAndCleanupPreservesCurrentParents() {
-    UUID full = fullParent(LOGIN);
+    UUID full = fullParent();
     UUID partial = passwordParent(LOGIN);
     transport(full, true);
     transport(partial, true);
@@ -155,15 +162,14 @@ class AuthenticationLifecycleIntegrationTest {
     assertThat(count(TRANSPORT_COUNT)).isEqualTo(1);
     assertThat(
             jdbc.queryForObject(
-                "SELECT last_interaction_at FROM authentication_session_authority",
-                Timestamp.class))
+                "SELECT both_factors_at FROM authentication_session_authority", Timestamp.class))
         .isEqualTo(timestamp(LOGIN));
   }
 
   @ParameterizedTest
   @ValueSource(strings = {"status = 'disabled'", "authority_epoch = 2"})
   void staleAccountAuthorityIsPhysicallyRemoved(String trustedFixtureChange) {
-    transport(fullParent(LOGIN), true);
+    transport(fullParent(), true);
     jdbc.update("UPDATE authentication_account SET " + trustedFixtureChange);
     lifecycle(LOGIN).purge();
     assertThat(count(AUTHORITY_COUNT)).isZero();
@@ -181,7 +187,8 @@ class AuthenticationLifecycleIntegrationTest {
 
   @Test
   void expiredProofMaterialAndThirtyDayEventsArePurgedWithoutRefreshingAuthority() {
-    UUID parent = fullParent(LOGIN);
+    UUID parent = fullParent();
+    transport(parent, true);
     challenge(parent, LOGIN, LOGIN.plusSeconds(60));
     operatorTicket(null, LOGIN.minusSeconds(540), LOGIN.plusSeconds(60));
     String expiredCode = AuthenticationSecrets.digest(AuthenticationSecrets.randomValue());
@@ -212,7 +219,8 @@ class AuthenticationLifecycleIntegrationTest {
   @ParameterizedTest
   @ValueSource(strings = {"challenge", "operator_ticket", "recovery_code"})
   void futureProofMaterialIsRemovedAfterClockRollback(String trustedFixtureKind) {
-    UUID parent = fullParent(LOGIN);
+    UUID parent = fullParent();
+    transport(parent, true);
     switch (trustedFixtureKind) {
       case "challenge" -> challenge(parent, LOGIN.plusSeconds(1), LOGIN.plusSeconds(301));
       case "operator_ticket" -> operatorTicket(null, LOGIN.plusSeconds(1), LOGIN.plusSeconds(601));
@@ -231,7 +239,7 @@ class AuthenticationLifecycleIntegrationTest {
 
   @Test
   void orphanRemovalRequiresBothCurrentAuthorityReferenceAndMatchingCookieVerifier() {
-    UUID parent = fullParent(LOGIN);
+    UUID parent = fullParent();
     transport(parent, true);
     transport(parent, false);
     transport(UUID.randomUUID(), false);
@@ -263,7 +271,7 @@ class AuthenticationLifecycleIntegrationTest {
 
   @Test
   void cleanupRejectsEnclosingTransactionsAndDoesNotRunInUnselectedMode() {
-    transport(fullParent(LOGIN), true);
+    transport(fullParent(), true);
     assertThatThrownBy(
             () ->
                 new TransactionTemplate(transactionManager)
@@ -278,7 +286,7 @@ class AuthenticationLifecycleIntegrationTest {
 
   @Test
   void failedAuthorityDeletionRollsBackMatchingTransportDeletion() {
-    transport(fullParent(LOGIN), true);
+    transport(fullParent(), true);
     jdbc.execute(
         "CREATE FUNCTION reject_synthetic_cleanup() RETURNS trigger LANGUAGE plpgsql "
             + "AS $$ BEGIN RAISE EXCEPTION 'Synthetic cleanup failure'; END $$");
@@ -297,7 +305,7 @@ class AuthenticationLifecycleIntegrationTest {
 
   @Test
   void cleanupWaitsForProtectedAccountTransactionBeforeExpiringItsSession() throws Exception {
-    transport(fullParent(LOGIN), true);
+    transport(fullParent(), true);
     CountDownLatch locked = new CountDownLatch(1);
     CountDownLatch release = new CountDownLatch(1);
     try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -346,6 +354,53 @@ class AuthenticationLifecycleIntegrationTest {
   }
 
   @Test
+  void cleanupWaitsForNativeActivityAndPreservesTheRenewedSession() throws Exception {
+    transport(fullParent(), true);
+    CountDownLatch refreshed = new CountDownLatch(1);
+    CountDownLatch release = new CountDownLatch(1);
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+      var activity =
+          executor.submit(
+              () ->
+                  new TransactionTemplate(transactionManager)
+                      .executeWithoutResult(
+                          status -> {
+                            jdbc.update(
+                                "UPDATE spring_session SET last_access_time = ?, expiry_time = ?",
+                                LOGIN.plusSeconds(1799).toEpochMilli(),
+                                LOGIN.plusSeconds(3599).toEpochMilli());
+                            refreshed.countDown();
+                            await(release);
+                          }));
+      try {
+        assertThat(refreshed.await(10, TimeUnit.SECONDS)).isTrue();
+        var cleanup = executor.submit(() -> lifecycle(LOGIN.plusSeconds(1800)).purge());
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
+        boolean waiting = false;
+        while (!waiting && System.nanoTime() < deadline) {
+          waiting =
+              Boolean.TRUE.equals(
+                  jdbc.queryForObject(
+                      "SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE wait_event_type = 'Lock' "
+                          + "AND query LIKE 'SELECT s.expiry_time%')",
+                      Boolean.class));
+          if (!waiting) {
+            Thread.sleep(10);
+          }
+        }
+        assertThat(waiting).isTrue();
+        release.countDown();
+        activity.get(10, TimeUnit.SECONDS);
+        cleanup.get(10, TimeUnit.SECONDS);
+      } finally {
+        release.countDown();
+      }
+    }
+    assertThat(count(AUTHORITY_COUNT)).isEqualTo(1);
+    assertThat(count(TRANSPORT_COUNT)).isEqualTo(1);
+  }
+
+  @Test
   void protectedEventsStoreOnlyClosedCodesTrustedTimeAndFreshUnrelatedReferences() {
     var events = events();
     new TransactionTemplate(transactionManager)
@@ -386,7 +441,7 @@ class AuthenticationLifecycleIntegrationTest {
     new TransactionTemplate(transactionManager)
         .executeWithoutResult(
             status -> {
-              fullParent(LOGIN);
+              fullParent();
               events().append(Event.LOGIN, Outcome.SUCCEEDED, Reason.COMPLETED);
               status.setRollbackOnly();
             });
@@ -477,7 +532,7 @@ class AuthenticationLifecycleIntegrationTest {
 
   @Test
   void nextAccessPurgesOnlyItsExpiredTransportAndReconcilesConsumedFiles() throws Exception {
-    UUID current = fullParent(LOGIN);
+    UUID current = fullParent();
     UUID expired = passwordParent(LOGIN);
     transport(current, true);
     transport(expired, true);
@@ -554,7 +609,7 @@ class AuthenticationLifecycleIntegrationTest {
 
   @Test
   void targetedCleanupRejectsFutureFactorsAndOrphanAttributesWithoutTouchingOtherSessions() {
-    UUID invalid = fullParent(LOGIN);
+    UUID invalid = fullParent();
     transport(invalid, true);
     String verifier = jdbc.queryForObject(PARENT_VERIFIER_QUERY, String.class, invalid);
     jdbc.update(
@@ -565,12 +620,12 @@ class AuthenticationLifecycleIntegrationTest {
     assertThat(lifecycle(LOGIN).purgeAccess(verifier)).isTrue();
     assertThat(count(AUTHORITY_COUNT)).isZero();
     assertThat(count(TRANSPORT_COUNT)).isZero();
-    UUID current = fullParent(LOGIN);
+    UUID current = fullParent();
     transport(current, true);
     verifier = jdbc.queryForObject(PARENT_VERIFIER_QUERY, String.class, current);
     jdbc.update("UPDATE spring_session_attributes SET attribute_name = 'synthetic-wrong-name'");
     assertThat(lifecycle(LOGIN).purgeAccess(verifier)).isTrue();
-    assertThat(count(AUTHORITY_COUNT)).isEqualTo(1);
+    assertThat(count(AUTHORITY_COUNT)).isZero();
     assertThat(count(TRANSPORT_COUNT)).isZero();
   }
 
@@ -657,11 +712,11 @@ class AuthenticationLifecycleIntegrationTest {
         JdbcClient.create(jdbc), Clock.fixed(now, ZoneOffset.UTC), transactionManager);
   }
 
-  private UUID fullParent(Instant interaction) {
+  private UUID fullParent() {
     return jdbc.queryForObject(
         "INSERT INTO authentication_session_authority (session_verifier, logout_target, "
             + "state, account_id, authority_epoch, created_at, expires_at, full_login_at, "
-            + "last_interaction_at, both_factors_at) VALUES (?, ?, 'full', ?, 1, ?, ?, ?, ?, ?) "
+            + "both_factors_at) VALUES (?, ?, 'full', ?, 1, ?, ?, ?, ?) "
             + "RETURNING session_reference",
         UUID.class,
         AuthenticationSecrets.digest(AuthenticationSecrets.randomValue()),
@@ -670,7 +725,6 @@ class AuthenticationLifecycleIntegrationTest {
         timestamp(LOGIN),
         timestamp(LOGIN.plusSeconds(43200)),
         timestamp(LOGIN),
-        timestamp(interaction),
         timestamp(LOGIN));
   }
 
@@ -693,12 +747,12 @@ class AuthenticationLifecycleIntegrationTest {
     jdbc.update(
         "INSERT INTO spring_session (primary_id, session_id, creation_time, "
             + "last_access_time, max_inactive_interval, expiry_time) "
-            + "VALUES (?, ?, ?, ?, 43200, ?)",
+            + "VALUES (?, ?, ?, ?, 1800, ?)",
         primary,
         cookie,
         LOGIN.toEpochMilli(),
         LOGIN.toEpochMilli(),
-        LOGIN.plusSeconds(43200).toEpochMilli());
+        LOGIN.plusSeconds(1800).toEpochMilli());
     jdbc.update(
         "INSERT INTO spring_session_attributes VALUES (?, 'hortinis.authority', ?)",
         primary,

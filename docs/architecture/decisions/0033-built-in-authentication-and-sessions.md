@@ -118,8 +118,9 @@ factor lifetime. Account locks still serialize the five-session admission limit 
 Spring Security and Spring Session framework logging is disabled in Boot configuration: diagnostic
 logging in these libraries can include submitted login names, principals or session identifiers.
 Application-owned minimized security events remain available.
-The parallel explicit-interaction policy is transitional and is removed in the next implementation
-step in favor of Spring Session request activity.
+Spring Session owns request inactivity; the separate explicit-interaction clock and database
+column are removed. Background sync refreshes the native 30-minute idle timeout. Normal-factor
+expiry remains independent of request activity. The activity endpoint is a compatible acknowledgement.
 
 ### Password authentication
 
@@ -179,7 +180,7 @@ returned in JSON or copied to browser script storage. Disable URL rewriting and 
 
 The [session ID extension](https://docs.spring.io/spring-session/reference/configuration/common.html)
 and [JDBC cleanup](https://docs.spring.io/spring-session/reference/configuration/jdbc.html) are framework
-capabilities. Hortinis adds bounded absolute/user-inactivity policy and transactional account/device
+capabilities. Hortinis adds bounded factor/ceremony policy and transactional account/device
 invalidation; a repository's idle timeout alone does not satisfy that policy. No JWT access/refresh
 scheme or positive authorization cache replaces current ownership/revocation checks.
 

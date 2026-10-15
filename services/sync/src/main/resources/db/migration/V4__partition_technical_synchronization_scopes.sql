@@ -176,7 +176,6 @@ CREATE TABLE authentication_session_authority (
     created_at TIMESTAMPTZ NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
     full_login_at TIMESTAMPTZ,
-    last_interaction_at TIMESTAMPTZ,
     both_factors_at TIMESTAMPTZ,
     staged_login_identifier VARCHAR(64)
         CHECK (staged_login_identifier ~ '^[a-z0-9][a-z0-9._-]{2,63}$'),
@@ -194,8 +193,7 @@ CREATE TABLE authentication_session_authority (
         AND staged_login_identifier IS NOT NULL
     )),
     CHECK (state <> 'full' OR (
-        full_login_at IS NOT NULL AND last_interaction_at IS NOT NULL
-        AND both_factors_at IS NOT NULL AND last_interaction_at >= full_login_at
+        full_login_at IS NOT NULL AND both_factors_at IS NOT NULL
         AND expires_at <= full_login_at + INTERVAL '12 hours'
     )),
     CHECK (state = 'full' OR expires_at <= created_at + INTERVAL '5 minutes'),

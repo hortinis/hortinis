@@ -1,6 +1,5 @@
 package com.hortinis.sync.authentication;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
@@ -22,12 +21,12 @@ public interface AuthenticationSessionTransport {
   /**
    * Atomically rotates cookie identity, CSRF and reference; the replacement row is caller-owned.
    */
-  Observation rotate(SessionAuthorityReference replacement, Duration transportLifetime);
+  Observation rotate(SessionAuthorityReference replacement);
 
-  /** Script-memory CSRF value; reading does not allocate or renew an authentication lifetime. */
+  /** Script-memory CSRF value; reading does not allocate transport or renew normal-factor proof. */
   Optional<String> csrfValue();
 
-  /** Explicit transactional replacement; no cookie change or authentication-lifetime renewal. */
+  /** Explicit transactional replacement; no cookie change or normal-factor renewal. */
   void refreshCsrf();
 
   /** Publishes completed two-factor authentication through the framework's native context. */
