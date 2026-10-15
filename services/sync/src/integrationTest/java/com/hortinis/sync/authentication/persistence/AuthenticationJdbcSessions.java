@@ -3,7 +3,6 @@ package com.hortinis.sync.authentication.persistence;
 import com.hortinis.sync.authentication.AuthenticationLifetime;
 import com.hortinis.sync.authentication.AuthenticationSecrets;
 import com.hortinis.sync.authentication.SessionAttributeCodec;
-import java.util.Map;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.session.FlushMode;
@@ -28,7 +27,6 @@ public final class AuthenticationJdbcSessions {
     JdbcIndexedSessionRepository repository = new JdbcIndexedSessionRepository(jdbc, transactions);
     repository.setSessionIdGenerator(AuthenticationSecrets::randomValue);
     repository.setConversionService(SessionAttributeCodec.conversionService());
-    repository.setIndexResolver(session -> Map.of());
     repository.setDefaultMaxInactiveInterval(AuthenticationLifetime.FULL_ABSOLUTE);
     repository.setFlushMode(FlushMode.IMMEDIATE);
     repository.setSaveMode(SaveMode.ON_SET_ATTRIBUTE);

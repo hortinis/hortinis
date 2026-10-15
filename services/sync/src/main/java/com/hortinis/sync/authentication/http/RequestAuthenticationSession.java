@@ -86,6 +86,7 @@ public final class RequestAuthenticationSession implements AuthenticationSession
     // With the selected immediate JDBC repository, this attribute flush saves the rotated ID too.
     session.setAttribute(AUTHORITY_ATTRIBUTE, replacement);
     session.setMaxInactiveInterval((int) transportLifetime.toSeconds());
+    session.removeAttribute(AuthenticationSessionTransport.LOGOUT_TARGET_ATTRIBUTE);
     contexts.saveContext(SecurityContextHolder.createEmptyContext(), request, response);
     SecurityContextHolder.clearContext();
     refreshCsrf();
@@ -110,11 +111,13 @@ public final class RequestAuthenticationSession implements AuthenticationSession
   }
 
   @Override
-  public void authenticate(UUID account, long epoch, Instant verifiedAt) {
+  public void authenticate(UUID account, long epoch, Instant verifiedAt, String logoutTarget) {
     requirePublicationTransaction();
     requireCookieWorkflow();
     var context = SecurityContextHolder.createEmptyContext();
     context.setAuthentication(AuthenticationIdentity.completed(account, epoch, verifiedAt));
+    Objects.requireNonNull(request.getSession(false))
+        .setAttribute(AuthenticationSessionTransport.LOGOUT_TARGET_ATTRIBUTE, logoutTarget);
     contexts.saveContext(context, request, response);
     SecurityContextHolder.setContext(context);
   }

@@ -35,11 +35,14 @@ public class AuthenticationSessionPublicationPersistence {
   private static final int ONE_ROW = 1;
   private final JdbcClient jdbc;
   private final Clock clock;
+  private final AuthenticationNativeSessions nativeSessions;
 
   /** All publications use the application datasource and trusted clock. */
-  public AuthenticationSessionPublicationPersistence(JdbcClient jdbc, Clock clock) {
+  public AuthenticationSessionPublicationPersistence(
+      JdbcClient jdbc, Clock clock, AuthenticationNativeSessions nativeSessions) {
     this.jdbc = jdbc;
     this.clock = clock;
+    this.nativeSessions = nativeSessions;
   }
 
   /**
@@ -189,28 +192,10 @@ public class AuthenticationSessionPublicationPersistence {
     requireState(parent, PASSWORD_STATE);
     Instant now = clock.instant();
     requireCurrent(parent, now);
-    int active =
-        jdbc.sql(
-                "SELECT count(*) FROM authentication_session_authority "
-                    + "WHERE account_id = ? AND authority_epoch = ? AND state = 'full' "
-                    + "AND created_at <= ? AND expires_at > ? AND full_login_at <= ? "
-                    + "AND full_login_at > ? AND last_interaction_at <= ? AND "
-                    + "last_interaction_at > ?")
-            .params(
-                parent.account(),
-                parent.epoch(),
-                Timestamp.from(now),
-                Timestamp.from(now),
-                Timestamp.from(now),
-                Timestamp.from(now.minus(AuthenticationLifetime.FULL_ABSOLUTE)),
-                Timestamp.from(now),
-                Timestamp.from(now.minus(AuthenticationLifetime.FULL_IDLE)))
-            .query(Integer.class)
-            .single();
-    if (active >= MAX_FULL) {
+    if (nativeSessions.list(parent.account(), parent.epoch()).size() >= MAX_FULL) {
       throw new AuthenticationOverloadedException();
     }
-    Instant login = parent.loginAt() == null ? now : parent.loginAt();
+    Instant login = now;
     Replacement replacement = rotate(transport, AuthenticationLifetime.FULL_ABSOLUTE);
     jdbc.sql(
             INSERT_AUTHORITY
@@ -230,7 +215,7 @@ public class AuthenticationSessionPublicationPersistence {
             Timestamp.from(now))
         .update();
     retire(parent);
-    transport.authenticate(parent.account(), parent.epoch(), now);
+    transport.authenticate(parent.account(), parent.epoch(), now, replacement.logoutTarget());
     return replacement.reference();
   }
 

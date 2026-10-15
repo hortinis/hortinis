@@ -17,6 +17,7 @@ import tools.jackson.databind.json.JsonMapper;
 public final class SessionAttributeCodec {
   private static final String CSRF_PREFIX = "v1:csrf:";
   private static final String REFERENCE_PREFIX = "v1:authority:";
+  private static final String TARGET_PREFIX = "v1:target:";
   private static final String CONTEXT_PREFIX = "v1:security:";
   private static final int MAX_BYTES = 8192;
   private static final JsonMapper CONTEXTS =
@@ -52,6 +53,8 @@ public final class SessionAttributeCodec {
       if (encoded.length() > MAX_BYTES) {
         throw invalid();
       }
+    } else if (attribute instanceof String target && AuthenticationSecrets.isRandomValue(target)) {
+      encoded = TARGET_PREFIX + target;
     } else if (attribute instanceof SessionAuthorityReference reference) {
       encoded = REFERENCE_PREFIX + reference.value();
     } else if (attribute instanceof CsrfToken csrf
@@ -78,6 +81,11 @@ public final class SessionAttributeCodec {
         return context;
       } catch (JacksonException | AuthenticationRequiredException exception) {
         throw invalid();
+      }
+    } else if (encoded.startsWith(TARGET_PREFIX)) {
+      String target = encoded.substring(TARGET_PREFIX.length());
+      if (AuthenticationSecrets.isRandomValue(target)) {
+        return target;
       }
     } else if (encoded.startsWith(CSRF_PREFIX)) {
       String token = encoded.substring(CSRF_PREFIX.length());

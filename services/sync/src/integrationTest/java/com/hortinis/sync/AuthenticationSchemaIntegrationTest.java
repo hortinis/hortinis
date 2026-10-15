@@ -517,7 +517,12 @@ class AuthenticationSchemaIntegrationTest {
                               AUTHORITY_ATTRIBUTE,
                               admissionAt(SYNTHETIC_LOGIN).admitAnonymous(session.getId()));
                           session.setAttribute(
-                              "SPRING_SECURITY_CONTEXT", "unsupported-synthetic-principal");
+                              "synthetic-principal",
+                              org.springframework.security.core.userdetails.User.withUsername(
+                                      "synthetic")
+                                  .password("synthetic")
+                                  .authorities("synthetic")
+                                  .build());
                         }))
         .isInstanceOf(org.springframework.core.convert.ConversionFailedException.class);
     assertThat(transportCount()).isZero();

@@ -10,6 +10,9 @@ import java.util.function.Function;
  * Request-bound transport entry point; persistent policy alone determines account/data authority.
  */
 public interface AuthenticationSessionTransport {
+  /** Non-authorizing target stored alongside the native context; never a cookie identifier. */
+  String LOGOUT_TARGET_ATTRIBUTE = "hortinis.logout-target";
+
   /** Reads reference and verifier without allocating a session or exposing its cookie secret. */
   Optional<Observation> observe();
 
@@ -28,7 +31,7 @@ public interface AuthenticationSessionTransport {
   void refreshCsrf();
 
   /** Publishes completed two-factor authentication through the framework's native context. */
-  void authenticate(UUID account, long epoch, Instant verifiedAt);
+  void authenticate(UUID account, long epoch, Instant verifiedAt, String logoutTarget);
 
   /** Invalidates native transport inside the caller's authoritative invalidation transaction. */
   void invalidate();

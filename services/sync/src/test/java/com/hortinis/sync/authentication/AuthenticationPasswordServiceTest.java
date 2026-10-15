@@ -47,7 +47,7 @@ class AuthenticationPasswordServiceTest {
   }
 
   @Test
-  void preservesStorageUnavailableRatherThanReportingAFalseCredentialFailure() {
+  void preservesStorageUnavailableInsteadOfReportingCredentialFailure() {
     var unavailable = new DataAccessResourceFailureException("private database details");
     when(accounts.findLogin(LOGIN)).thenThrow(unavailable);
     var service = new AuthenticationPasswordService(accounts, encoder);

@@ -47,6 +47,7 @@ import com.hortinis.sync.authentication.persistence.AuthenticationAccountSecurit
 import com.hortinis.sync.authentication.persistence.AuthenticationChallengePersistence;
 import com.hortinis.sync.authentication.persistence.AuthenticationJdbcSessions;
 import com.hortinis.sync.authentication.persistence.AuthenticationLifecyclePersistence;
+import com.hortinis.sync.authentication.persistence.AuthenticationNativeSessions;
 import com.hortinis.sync.authentication.persistence.AuthenticationOperatorRecoveryPersistence;
 import com.hortinis.sync.authentication.persistence.AuthenticationOperatorTicketPersistence;
 import com.hortinis.sync.authentication.persistence.AuthenticationRecoveryCodePersistence;
@@ -200,7 +201,10 @@ class AuthenticationAccountWorkflowIntegrationTest {
     jdbc.update("UPDATE technical_server_installation SET access_mode = 'single-user-auth'");
     var client = JdbcClient.create(jdbc);
     accounts = new AuthenticationAccountPersistence(client, clock);
-    sessions = new AuthenticationSessionPublicationPersistence(client, clock);
+    var nativeSessions =
+        new AuthenticationNativeSessions(
+            AuthenticationJdbcSessions.create(jdbc, transactions), clock);
+    sessions = new AuthenticationSessionPublicationPersistence(client, clock, nativeSessions);
     challenges = new AuthenticationChallengePersistence(client, clock, transactions);
     tickets = new AuthenticationOperatorTicketPersistence(client, clock);
     authority = new CurrentAuthenticationAuthorityPersistence(client, clock);
@@ -257,7 +261,8 @@ class AuthenticationAccountWorkflowIntegrationTest {
         new AuthenticationSessionService(
             publication,
             sessions,
-            new AuthenticationSessionManagementPersistence(client, clock, sessions, removal),
+            new AuthenticationSessionManagementPersistence(
+                client, clock, sessions, removal, nativeSessions),
             removal);
   }
 
@@ -581,10 +586,10 @@ class AuthenticationAccountWorkflowIntegrationTest {
   }
 
   @Test
-  void stepUpRotatesBothFactorsAndPreservesOriginalAbsoluteDeadline() throws Exception {
+  void stepUpRotatesBothFactorsAndStartsTheNewFactorLifetime() throws Exception {
     final var key = setupAccount(false);
     var loggedIn = finish(prepare(key, 1), false);
-    var original =
+    final var original =
         authority
             .findFull(loggedIn.result().verifier(), loggedIn.result().reference().value())
             .orElseThrow();
@@ -607,8 +612,9 @@ class AuthenticationAccountWorkflowIntegrationTest {
         authority
             .findFull(completed.result().verifier(), completed.result().reference().value())
             .orElseThrow();
-    assertThat(current.loginAt()).isEqualTo(original.loginAt());
-    assertThat(current.expiresAt()).isEqualTo(original.expiresAt());
+    assertThat(current.loginAt()).isEqualTo(clock.instant());
+    assertThat(current.expiresAt())
+        .isEqualTo(clock.instant().plus(AuthenticationLifetime.FULL_ABSOLUTE));
     assertThat(current.bothFactorsAt()).isEqualTo(clock.instant());
     assertThat(current.sessionReference()).isNotEqualTo(original.sessionReference());
     assertThat(authority.findFull(loggedIn.result().verifier(), original.sessionReference()))

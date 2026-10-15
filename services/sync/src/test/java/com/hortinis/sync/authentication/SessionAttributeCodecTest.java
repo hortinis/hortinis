@@ -21,6 +21,9 @@ class SessionAttributeCodecTest {
     assertThat(decoded.getHeaderName()).isEqualTo(csrf.getHeaderName());
     assertThat(decoded.getParameterName()).isEqualTo(csrf.getParameterName());
     assertThat(decoded.getToken()).isEqualTo(csrf.getToken());
+    String target = AuthenticationSecrets.randomValue();
+    assertThat(conversion.convert(conversion.convert(target, byte[].class), Object.class))
+        .isEqualTo(target);
     SessionAuthorityReference reference = new SessionAuthorityReference(UUID.randomUUID());
     assertThat(conversion.convert(conversion.convert(reference, byte[].class), Object.class))
         .isEqualTo(reference);
@@ -46,6 +49,7 @@ class SessionAttributeCodecTest {
           new byte[] {(byte) 0xac, (byte) 0xed, 0, 5},
           "v1:authority:1-1-1-1-1".getBytes(StandardCharsets.US_ASCII),
           "v1:csrf:unexpected whitespace".getBytes(StandardCharsets.US_ASCII),
+          "v1:target:unexpected".getBytes(StandardCharsets.US_ASCII),
           new byte[1025],
           new byte[] {'v', '1', ':', 'c', 's', 'r', 'f', ':', (byte) 0xff}
         }) {

@@ -17,22 +17,24 @@ import org.springframework.stereotype.Repository;
 @Repository
 @SynchronizationPersistenceEnabled
 public class AuthenticationSessionManagementPersistence {
-  private static final int MAX_FULL_SESSIONS = 5;
   private final JdbcClient jdbc;
   private final Clock clock;
   private final AuthenticationSessionPublicationPersistence sessions;
   private final AuthenticationSessionRemovalPersistence removal;
+  private final AuthenticationNativeSessions nativeSessions;
 
   /** The caller holds the same ordered account/parent locks used by protected synchronization. */
   public AuthenticationSessionManagementPersistence(
       JdbcClient jdbc,
       Clock clock,
       AuthenticationSessionPublicationPersistence sessions,
-      AuthenticationSessionRemovalPersistence removal) {
+      AuthenticationSessionRemovalPersistence removal,
+      AuthenticationNativeSessions nativeSessions) {
     this.jdbc = jdbc;
     this.clock = clock;
     this.sessions = sessions;
     this.removal = removal;
+    this.nativeSessions = nativeSessions;
   }
 
   /**
@@ -40,39 +42,15 @@ public class AuthenticationSessionManagementPersistence {
    */
   public List<SessionSummary> list(AuthenticationSession parent) {
     sessions.requireFull(parent);
-    Instant now = clock.instant();
-    var result =
-        jdbc.sql(
-                "SELECT logout_target, created_at, expires_at, session_reference = ? "
-                    + "FROM authentication_session_authority WHERE account_id = ? AND "
-                    + "authority_epoch = ? "
-                    + "AND state = 'full' AND created_at <= ? AND expires_at > ? "
-                    + "AND full_login_at > ? AND last_interaction_at <= ? AND "
-                    + "last_interaction_at > ? "
-                    + "AND both_factors_at <= ? AND both_factors_at >= full_login_at "
-                    + "ORDER BY created_at, session_reference LIMIT 6")
-            .params(
-                parent.reference(),
-                parent.account(),
-                parent.epoch(),
-                Timestamp.from(now),
-                Timestamp.from(now),
-                Timestamp.from(now.minus(AuthenticationLifetime.FULL_ABSOLUTE)),
-                Timestamp.from(now),
-                Timestamp.from(now.minus(AuthenticationLifetime.FULL_IDLE)),
-                Timestamp.from(now))
-            .query(
-                (row, number) ->
-                    new SessionSummary(
-                        row.getString(1),
-                        row.getTimestamp(2).toInstant(),
-                        row.getTimestamp(3).toInstant(),
-                        row.getBoolean(4)))
-            .list();
-    if (result.size() > MAX_FULL_SESSIONS) {
-      throw new AuthenticationFailedException();
-    }
-    return result;
+    return nativeSessions.list(parent.account(), parent.epoch()).stream()
+        .map(
+            session ->
+                new SessionSummary(
+                    session.target(),
+                    session.createdAt(),
+                    session.expiresAt(),
+                    session.reference().equals(parent.reference())))
+        .toList();
   }
 
   /** Qualifying activity extends idle expiry only; absolute login/factor times are unchanged. */
@@ -94,18 +72,16 @@ public class AuthenticationSessionManagementPersistence {
    */
   public boolean revoke(AuthenticationSession parent, String target) {
     sessions.requireRecent(parent);
-    var reference =
-        jdbc.sql(
-                "SELECT session_reference FROM authentication_session_authority "
-                    + "WHERE account_id = ? AND logout_target = ? FOR UPDATE")
-            .params(parent.account(), target)
-            .query(java.util.UUID.class)
-            .optional();
-    if (reference.isEmpty()) {
+    var selected =
+        nativeSessions.list(parent.account(), parent.epoch()).stream()
+            .filter(session -> session.target().equals(target))
+            .findFirst();
+    if (selected.isEmpty()) {
       return false;
     }
-    removal.remove(reference.orElseThrow());
-    return reference.orElseThrow().equals(parent.reference());
+    var reference = selected.orElseThrow().reference();
+    removal.remove(reference);
+    return reference.equals(parent.reference());
   }
 
   /**

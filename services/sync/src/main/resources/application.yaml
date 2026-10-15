@@ -21,6 +21,9 @@ spring:
           max-token-count: 64
 
 logging:
+  level:
+    org.springframework.security: OFF
+    org.springframework.session: OFF
   structured:
     format:
       console: logstash

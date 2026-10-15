@@ -171,3 +171,25 @@ excluded the temporary snapshot from serialization. The complete backend build p
 284 PostgreSQL integration tests, formatting, static analysis and architecture checks. Documentation
 and contract validation also passed. This stage replaces provider orchestration; the larger session
 state reduction remains in progress.
+
+## Native session registry implementation plan
+
+Use Spring Session's principal index to count, list and select completed sessions. Store only the
+non-authorizing logout target alongside the existing native context and ceremony reference. Keep
+native cookie identifiers internal. Remove the duplicated full-session admission and listing SQL;
+revocation continues to remove the one-use ceremony records in the same transaction. Filter indexed
+sessions by the current account epoch and native factor lifetime. Preserve the five-session limit,
+account locks, two-factor admission and existing JSON shapes. The registry must use Boot's actual
+repository; integration fixtures must enable the same principal index.
+
+This step removes duplicated discovery and admission queries. The following lifetime step makes
+Spring's request activity and factor authorization authoritative and removes the custom inactivity
+clock. Validate concurrent admission, partial-session exclusion, same-account targeting, revoked
+contexts, serialized target bounds, and the complete backend suite before committing.
+
+Native session discovery passed the complete backend build with 271 unit and 284 PostgreSQL
+integration tests, plus 366 frontend tests, documentation and contract validation. Review fixed
+repository proxying, lazy repository resolution for non-web contexts, explicit native idle expiry,
+and a rejected-principal fixture affected by standard principal indexing. Framework security/session
+diagnostic logging is disabled to keep login names and cookie identifiers out of logs. Full normal
+reauthentication now starts the new factor lifetime. The duplicate inactivity clock is the next step.

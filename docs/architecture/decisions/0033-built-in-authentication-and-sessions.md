@@ -107,6 +107,20 @@ checks: recent full authentication for ordinary changes, or the matching complet
 for recovery. Crypto remains outside publication transactions; nonce consumption remains separately
 committed before proof parsing.
 
+### Native session registry
+
+Completed sessions are counted, listed and selected for revocation through Spring Session's native
+principal index. The index stores only account UUIDs. Native idle expiry and Spring factor validity
+exclude expired sessions; stale account epochs and partial contexts do not consume completed-session
+capacity. A separate non-authorizing logout target preserves the public API without exposing native
+cookie identifiers. Completing normal password plus passkey reauthentication starts a new 12-hour
+factor lifetime. Account locks still serialize the five-session admission limit and revocation.
+Spring Security and Spring Session framework logging is disabled in Boot configuration: diagnostic
+logging in these libraries can include submitted login names, principals or session identifiers.
+Application-owned minimized security events remain available.
+The parallel explicit-interaction policy is transitional and is removed in the next implementation
+step in favor of Spring Session request activity.
+
 ### Password authentication
 
 `AuthenticationManager` and `DaoAuthenticationProvider` own password authentication, credential
