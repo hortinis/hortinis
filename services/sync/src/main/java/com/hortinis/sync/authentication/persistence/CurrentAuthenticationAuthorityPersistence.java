@@ -1,6 +1,5 @@
 package com.hortinis.sync.authentication.persistence;
 
-import com.hortinis.sync.authentication.AuthenticationLifetime;
 import com.hortinis.sync.authentication.AuthenticationRequiredException;
 import com.hortinis.sync.authentication.AuthenticationSession;
 import com.hortinis.sync.configuration.SynchronizationPersistenceEnabled;
@@ -22,11 +21,14 @@ public class CurrentAuthenticationAuthorityPersistence {
   private static final String FULL = "full";
   private static final String SINGLE_USER_AUTH = "single-user-auth";
   private final JdbcClient jdbc;
+  private final AuthenticationNativeSessions nativeSessions;
   private final Clock clock;
 
   /** Uses the shared JDBC transaction manager and trusted clock, not transport or browser time. */
-  public CurrentAuthenticationAuthorityPersistence(JdbcClient jdbc, Clock clock) {
+  public CurrentAuthenticationAuthorityPersistence(
+      JdbcClient jdbc, Clock clock, AuthenticationNativeSessions nativeSessions) {
     this.jdbc = jdbc;
+    this.nativeSessions = nativeSessions;
     this.clock = clock;
   }
 
@@ -39,40 +41,42 @@ public class CurrentAuthenticationAuthorityPersistence {
         || expectedReference == null) {
       return Optional.empty();
     }
-    return jdbc.sql(
-            "SELECT s.session_reference, a.account_id, a.authority_epoch, "
-                + "a.server_instance_id, a.synchronization_scope_id, i.access_mode, "
-                + "s.full_login_at, "
-                + "s.both_factors_at, s.expires_at, s.created_at "
-                + "FROM authentication_session_authority s JOIN authentication_account a "
-                + "ON a.account_id = s.account_id JOIN technical_server_installation i "
-                + "ON i.server_instance_id = a.server_instance_id "
-                + "WHERE s.session_verifier = ? AND s.session_reference = ? AND s.state = 'full' "
-                + "AND a.status = 'active' AND s.authority_epoch = a.authority_epoch "
-                + "AND i.access_mode = 'single-user-auth'")
-        .params(sessionVerifier, expectedReference)
-        .query(
-            (row, number) ->
-                new FullAuthority(
-                    row.getObject(1, UUID.class),
-                    row.getObject(2, UUID.class),
-                    row.getLong(3),
-                    row.getObject(4, UUID.class),
-                    row.getObject(5, UUID.class),
-                    row.getString(6),
-                    row.getTimestamp(7).toInstant(),
-                    row.getTimestamp(8).toInstant(),
-                    row.getTimestamp(9).toInstant(),
-                    row.getTimestamp(10).toInstant()))
-        .optional()
-        .filter(authority -> authority.isCurrent(clock.instant()));
+    return nativeSessions
+        .findFull(expectedReference, sessionVerifier, AuthenticationNativeSessions.Lock.NONE)
+        .filter(
+            session ->
+                session.isUnexpired(clock.instant()) && session.hasCurrentFactors(clock.instant()))
+        .flatMap(
+            session ->
+                jdbc.sql(
+                        "SELECT a.server_instance_id, a.synchronization_scope_id, i.access_mode "
+                            + "FROM authentication_account a JOIN technical_server_installation i "
+                            + "ON i.server_instance_id = a.server_instance_id "
+                            + "WHERE a.account_id = ? AND a.authority_epoch = ? AND "
+                            + "a.status = 'active' "
+                            + "AND i.access_mode = 'single-user-auth'")
+                    .params(session.account(), session.epoch())
+                    .query(
+                        (row, number) ->
+                            new FullAuthority(
+                                session.reference(),
+                                session.account(),
+                                session.epoch(),
+                                row.getObject(1, UUID.class),
+                                row.getObject(2, UUID.class),
+                                row.getString(3),
+                                session.loginAt(),
+                                session.bothFactorsAt(),
+                                session.expiresAt(),
+                                session.createdAt()))
+                    .optional());
   }
 
   /**
    * Locks account first and session second, retaining both through the caller's content
    * transaction.
    */
-  public void requireCurrent(
+  public AuthenticationSession requireCurrent(
       UUID accountId, UUID sessionReference, long epoch, UUID instance, UUID scope, String mode) {
     if (!TransactionSynchronizationManager.isActualTransactionActive()
         || TransactionSynchronizationManager.isCurrentTransactionReadOnly()) {
@@ -101,14 +105,8 @@ public class CurrentAuthenticationAuthorityPersistence {
       throw new AuthenticationRequiredException();
     }
     AuthenticationSession session =
-        jdbc.sql(
-                "SELECT "
-                    + AuthenticationSessionRows.COLUMNS
-                    + " FROM authentication_session_authority "
-                    + "WHERE session_reference = ? FOR SHARE")
-            .param(sessionReference)
-            .query(AuthenticationSessionRows::read)
-            .optional()
+        nativeSessions
+            .findFull(sessionReference, null, AuthenticationNativeSessions.Lock.SHARE)
             .orElseThrow(AuthenticationRequiredException::new);
     Instant now = clock.instant();
     if (!FULL.equals(session.state())
@@ -129,6 +127,7 @@ public class CurrentAuthenticationAuthorityPersistence {
     if (!mode.equals(committedMode)) {
       throw new AuthenticationRequiredException();
     }
+    return session;
   }
 
   /** No secrets or identity representations are exposed to diagnostics. */
@@ -143,11 +142,6 @@ public class CurrentAuthenticationAuthorityPersistence {
       Instant bothFactorsAt,
       Instant expiresAt,
       Instant createdAt) {
-    private boolean isCurrent(Instant now) {
-      return AuthenticationLifetime.isUnexpired(createdAt, expiresAt, now)
-          && AuthenticationLifetime.fullIsCurrent(loginAt, bothFactorsAt, now);
-    }
-
     @Override
     public String toString() {
       return "FullAuthority[redacted]";

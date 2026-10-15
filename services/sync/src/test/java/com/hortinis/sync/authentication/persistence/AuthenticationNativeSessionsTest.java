@@ -29,7 +29,10 @@ class AuthenticationNativeSessionsTest {
       mock(FindByIndexNameSessionRepository.class);
 
   private final AuthenticationNativeSessions sessions =
-      new AuthenticationNativeSessions(repository, Clock.fixed(NOW, ZoneOffset.UTC));
+      new AuthenticationNativeSessions(
+          repository,
+          Clock.fixed(NOW, ZoneOffset.UTC),
+          mock(org.springframework.jdbc.core.simple.JdbcClient.class));
 
   @Test
   void listsOnlyCompletedCurrentEpochSessionsWithUsableNonAuthorizingTargets() {

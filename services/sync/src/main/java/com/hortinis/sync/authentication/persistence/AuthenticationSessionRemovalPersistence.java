@@ -14,11 +14,14 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @SynchronizationPersistenceEnabled
 public class AuthenticationSessionRemovalPersistence {
   private final JdbcClient jdbc;
+  private final AuthenticationNativeSessions nativeSessions;
   private final ConversionService codec = SessionAttributeCodec.conversionService();
 
   /** Shares the application's datasource; no asynchronous save can restore removed authority. */
-  public AuthenticationSessionRemovalPersistence(JdbcClient jdbc) {
+  public AuthenticationSessionRemovalPersistence(
+      JdbcClient jdbc, AuthenticationNativeSessions nativeSessions) {
     this.jdbc = jdbc;
+    this.nativeSessions = nativeSessions;
   }
 
   /** Caller holds the current account lock before removing its ordered parent rows. */
@@ -31,7 +34,12 @@ public class AuthenticationSessionRemovalPersistence {
             .param(account)
             .query(UUID.class)
             .list();
-    for (UUID reference : references) {
+    for (UUID reference :
+        java.util.stream.Stream.concat(
+                references.stream(), nativeSessions.references(account).stream())
+            .distinct()
+            .sorted()
+            .toList()) {
       remove(reference);
     }
   }
@@ -39,6 +47,9 @@ public class AuthenticationSessionRemovalPersistence {
   /** Caller has locked this exact parent, or established that its authority is already absent. */
   public void remove(UUID reference) {
     requireTransaction();
+    jdbc.sql("DELETE FROM authentication_challenge WHERE session_reference = ?")
+        .param(reference)
+        .update();
     byte[] encoded = codec.convert(new SessionAuthorityReference(reference), byte[].class);
     jdbc.sql(
             "DELETE FROM spring_session WHERE primary_id IN "

@@ -26,13 +26,18 @@ public class AuthenticationChallengePersistence {
   private static final int MAX_ACCOUNT_CHALLENGES = 8;
   private static final String FULL = "full";
   private final JdbcClient jdbc;
+  private final AuthenticationNativeSessions nativeSessions;
   private final Clock clock;
   private final TransactionTemplate consumption;
 
   /** Uses the application's transaction manager; consumption must commit before proof begins. */
   public AuthenticationChallengePersistence(
-      JdbcClient jdbc, Clock clock, PlatformTransactionManager transactions) {
+      JdbcClient jdbc,
+      Clock clock,
+      PlatformTransactionManager transactions,
+      AuthenticationNativeSessions nativeSessions) {
     this.jdbc = jdbc;
+    this.nativeSessions = nativeSessions;
     this.clock = clock;
     consumption = new TransactionTemplate(transactions);
     consumption.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
@@ -67,9 +72,7 @@ public class AuthenticationChallengePersistence {
       int count =
           jdbc.sql(
                   "SELECT count(*) FROM authentication_challenge c "
-                      + "JOIN authentication_session_authority s "
-                      + "ON s.session_reference = c.session_reference "
-                      + "WHERE s.account_id = ? AND c.session_reference <> ? "
+                      + "WHERE c.account_id = ? AND c.session_reference <> ? "
                       + "AND c.expires_at > ? AND c.created_at <= ?")
               .params(parent.account(), sessionReference, Timestamp.from(now), Timestamp.from(now))
               .query(Integer.class)
@@ -81,18 +84,21 @@ public class AuthenticationChallengePersistence {
     Instant expires = AuthenticationLifetime.challengeExpiresAt(now, parent.expiresAt());
     jdbc.sql(
             "INSERT INTO authentication_challenge (session_reference, challenge, purpose, "
-                + "created_at, expires_at, recovery_code_verifier) VALUES (?, ?, ?, ?, ?, ?) "
+                + "created_at, expires_at, recovery_code_verifier, account_id) VALUES "
+                + "(?, ?, ?, ?, ?, ?, ?) "
                 + "ON CONFLICT (session_reference) DO UPDATE SET challenge = EXCLUDED.challenge, "
                 + "purpose = EXCLUDED.purpose, created_at = EXCLUDED.created_at, "
                 + "expires_at = EXCLUDED.expires_at, "
-                + "recovery_code_verifier = EXCLUDED.recovery_code_verifier")
+                + "recovery_code_verifier = EXCLUDED.recovery_code_verifier, account_id "
+                + "= EXCLUDED.account_id")
         .params(
             sessionReference,
             challenge.clone(),
             purpose.wireValue(),
             Timestamp.from(now),
             Timestamp.from(expires),
-            recoveryCodeVerifier)
+            recoveryCodeVerifier,
+            parent.account())
         .update();
     return expires;
   }
@@ -203,7 +209,15 @@ public class AuthenticationChallengePersistence {
                 + (lock ? "FOR UPDATE" : ""))
         .param(reference)
         .query(AuthenticationSessionRows::read)
-        .optional();
+        .optional()
+        .or(
+            () ->
+                nativeSessions.findFull(
+                    reference,
+                    null,
+                    lock
+                        ? AuthenticationNativeSessions.Lock.UPDATE
+                        : AuthenticationNativeSessions.Lock.NONE));
   }
 
   private static boolean permitted(

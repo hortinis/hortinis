@@ -164,7 +164,7 @@ public class AuthenticationSessionPublicationPersistence {
     jdbc.sql(
             INSERT_AUTHORITY
                 + OWNED_AUTHORITY_COLUMNS
-                + "full_login_at) VALUES (?, ?, ?, 'password', "
+                + "step_up) VALUES (?, ?, ?, 'password', "
                 + "?, ?, ?, ?, ?)")
         .params(
             replacement.reference(),
@@ -174,7 +174,7 @@ public class AuthenticationSessionPublicationPersistence {
             account.epoch(),
             Timestamp.from(now),
             Timestamp.from(expires),
-            timestamp(stepUp ? now : null))
+            stepUp)
         .update();
     retire(parent);
     return replacement.reference();
@@ -188,24 +188,7 @@ public class AuthenticationSessionPublicationPersistence {
     if (nativeSessions.list(parent.account(), parent.epoch()).size() >= MAX_FULL) {
       throw new AuthenticationOverloadedException();
     }
-    Instant login = now;
     Replacement replacement = rotate(transport);
-    jdbc.sql(
-            INSERT_AUTHORITY
-                + OWNED_AUTHORITY_COLUMNS
-                + "full_login_at, both_factors_at) "
-                + "VALUES (?, ?, ?, 'full', ?, ?, ?, ?, ?, ?)")
-        .params(
-            replacement.reference(),
-            replacement.verifier(),
-            replacement.logoutTarget(),
-            parent.account(),
-            parent.epoch(),
-            Timestamp.from(now),
-            Timestamp.from(login.plus(AuthenticationLifetime.FULL_ABSOLUTE)),
-            Timestamp.from(login),
-            Timestamp.from(now))
-        .update();
     retire(parent);
     transport.authenticate(parent.account(), parent.epoch(), now, replacement.logoutTarget());
     return replacement.reference();
@@ -357,10 +340,14 @@ public class AuthenticationSessionPublicationPersistence {
   /** Removes the predecessor only inside the caller's publication transaction. */
   public void retire(AuthenticationSession parent) {
     requireTransaction();
-    if (jdbc.sql("DELETE FROM authentication_session_authority WHERE session_reference = ?")
+    jdbc.sql("DELETE FROM authentication_challenge WHERE session_reference = ?")
+        .param(parent.reference())
+        .update();
+    int retired =
+        jdbc.sql("DELETE FROM authentication_session_authority WHERE session_reference = ?")
             .param(parent.reference())
-            .update()
-        != ONE_ROW) {
+            .update();
+    if (!FULL_STATE.equals(parent.state()) && retired != ONE_ROW) {
       throw new AuthenticationFailedException();
     }
   }
@@ -452,7 +439,15 @@ public class AuthenticationSessionPublicationPersistence {
                 + (lock ? "FOR UPDATE" : ""))
         .params(observation.reference().value(), observation.verifier())
         .query(AuthenticationSessionRows::read)
-        .optional();
+        .optional()
+        .or(
+            () ->
+                nativeSessions.findFull(
+                    observation.reference().value(),
+                    observation.verifier(),
+                    lock
+                        ? AuthenticationNativeSessions.Lock.UPDATE
+                        : AuthenticationNativeSessions.Lock.NONE));
   }
 
   private static void requireCurrent(AuthenticationSession parent, Instant now) {
@@ -468,9 +463,7 @@ public class AuthenticationSessionPublicationPersistence {
 
   private void requireLimitedSlot(Instant now) {
     int count =
-        jdbc.sql(
-                "SELECT count(*) FROM authentication_session_authority "
-                    + "WHERE state <> 'full' AND expires_at > ?")
+        jdbc.sql("SELECT count(*) FROM authentication_session_authority " + "WHERE expires_at > ?")
             .param(Timestamp.from(now))
             .query(Integer.class)
             .single();

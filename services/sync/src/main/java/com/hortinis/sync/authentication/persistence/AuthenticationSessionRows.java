@@ -11,7 +11,7 @@ import java.util.UUID;
 final class AuthenticationSessionRows {
   static final String COLUMNS =
       "session_reference, account_id, authority_epoch, state, created_at, "
-          + "expires_at, full_login_at, both_factors_at, "
+          + "expires_at, step_up, both_factors_at, "
           + "staged_login_identifier, staged_password_verifier, staged_user_handle, "
           + "logout_target, recovery_kind, replacement_credential_id";
 
@@ -25,7 +25,7 @@ final class AuthenticationSessionRows {
         row.getString(4),
         row.getTimestamp(5).toInstant(),
         row.getTimestamp(6).toInstant(),
-        instant(row, 7),
+        row.getBoolean(7) ? row.getTimestamp(5).toInstant() : null,
         instant(row, 8),
         row.getString(9),
         row.getString(10),

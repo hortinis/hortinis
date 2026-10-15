@@ -151,9 +151,10 @@ class AuthenticationAccountWorkflowIntegrationTest {
   private static final String CREDENTIAL_COUNT = "SELECT count(*) FROM authentication_credential";
   private static final String CODE_COUNT = "SELECT count(*) FROM authentication_recovery_code";
   private static final String FULL_COUNT =
-      "SELECT count(*) FROM authentication_session_authority WHERE state = 'full'";
+      "SELECT count(*) FROM spring_session WHERE principal_name IS NOT NULL";
   private static final String AUTHORITY_COUNT =
-      "SELECT count(*) FROM authentication_session_authority";
+      "SELECT (SELECT count(*) FROM authentication_session_authority) "
+          + "+ (SELECT count(*) FROM spring_session WHERE principal_name IS NOT NULL)";
   private static final String CHALLENGE_COUNT = "SELECT count(*) FROM authentication_challenge";
   private static final String COUNTER = "SELECT signature_count FROM authentication_credential";
   private static final Instant NOW = Instant.parse("2026-10-11T12:00:00Z");
@@ -178,6 +179,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
   private AuthenticationSessionService sessionControl;
   private AuthenticationAccountService recovery;
   private AuthenticationOperatorRecoveryService operatorRecovery;
+  private AuthenticationNativeSessions nativeSessions;
   private AuthenticationRecoveryCodePersistence.IssuedCodes issuedCodes;
 
   @BeforeEach
@@ -200,13 +202,14 @@ class AuthenticationAccountWorkflowIntegrationTest {
     jdbc.update("UPDATE technical_server_installation SET access_mode = 'single-user-auth'");
     var client = JdbcClient.create(jdbc);
     accounts = new AuthenticationAccountPersistence(client, clock);
-    var nativeSessions =
+    nativeSessions =
         new AuthenticationNativeSessions(
-            AuthenticationJdbcSessions.create(jdbc, transactions), clock);
+            AuthenticationJdbcSessions.create(jdbc, transactions), clock, client);
     sessions = new AuthenticationSessionPublicationPersistence(client, clock, nativeSessions);
-    challenges = new AuthenticationChallengePersistence(client, clock, transactions);
+    challenges =
+        new AuthenticationChallengePersistence(client, clock, transactions, nativeSessions);
     tickets = new AuthenticationOperatorTicketPersistence(client, clock);
-    authority = new CurrentAuthenticationAuthorityPersistence(client, clock);
+    authority = new CurrentAuthenticationAuthorityPersistence(client, clock, nativeSessions);
     var codes = new AuthenticationRecoveryCodePersistence(client, clock, authority);
     var eventStore = new AuthenticationSecurityEventPersistence(client, clock);
     publication = new AuthenticationPublication(transactions, eventStore, clock);
@@ -226,7 +229,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
     login =
         new AuthenticationLoginService(
             publication, accounts, sessions, challenges, authentication, passkeys);
-    var removal = new AuthenticationSessionRemovalPersistence(client);
+    var removal = new AuthenticationSessionRemovalPersistence(client, nativeSessions);
     credentials =
         new AuthenticationAccountService(
             publication,
@@ -650,10 +653,8 @@ class AuthenticationAccountWorkflowIntegrationTest {
     var loggedIn = finish(prepare(key, 1), false);
     Instant originalLogin =
         clock.instant().minus(AuthenticationLifetime.FULL_ABSOLUTE).plusSeconds(60);
-    jdbc.update(
-        "UPDATE authentication_session_authority SET full_login_at = ?, expires_at = ? WHERE state = 'full'",
-        java.sql.Timestamp.from(originalLogin),
-        java.sql.Timestamp.from(clock.instant().plusSeconds(60)));
+    new NativeAuthenticationSessions(jdbc, transactions)
+        .factors(loggedIn.result().reference().value(), originalLogin);
     var partial =
         request(
             "/api/v1/auth/step-up/password",
@@ -967,7 +968,9 @@ class AuthenticationAccountWorkflowIntegrationTest {
             jdbc.queryForObject("SELECT max_inactive_interval FROM spring_session", Integer.class))
         .isEqualTo(1800);
     jdbc.update("UPDATE spring_session SET last_access_time = 0, expiry_time = 0");
-    new AuthenticationLifecyclePersistence(JdbcClient.create(jdbc), clock, transactions).purge();
+    new AuthenticationLifecyclePersistence(
+            JdbcClient.create(jdbc), clock, transactions, this.nativeSessions)
+        .purge();
     var denied =
         request(
             "/api/v1/auth/activity",
@@ -1059,7 +1062,8 @@ class AuthenticationAccountWorkflowIntegrationTest {
     switch (failure) {
       case "idle" -> {
         jdbc.update("UPDATE spring_session SET last_access_time = 0, expiry_time = 0");
-        new AuthenticationLifecyclePersistence(JdbcClient.create(jdbc), clock, transactions)
+        new AuthenticationLifecyclePersistence(
+                JdbcClient.create(jdbc), clock, transactions, this.nativeSessions)
             .purge();
       }
       case "absolute" -> clock.advance(AuthenticationLifetime.FULL_ABSOLUTE);
@@ -1067,7 +1071,9 @@ class AuthenticationAccountWorkflowIntegrationTest {
           jdbc.update(
               "UPDATE authentication_account SET authority_epoch = " + "authority_epoch + 1");
       case DISABLED_CASE -> jdbc.update("UPDATE authentication_account SET status = 'disabled'");
-      default -> jdbc.update("DELETE FROM authentication_session_authority");
+      default ->
+          jdbc.update(
+              "DELETE FROM spring_session_attributes WHERE attribute_name = 'hortinis.authority'");
     }
     var complete =
         request(
@@ -1186,7 +1192,8 @@ class AuthenticationAccountWorkflowIntegrationTest {
           waiting =
               count(
                       "SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = "
-                          + "'Lock' AND query LIKE '%authentication_account%FOR UPDATE%' AND "
+                          + "'Lock' AND (query ILIKE '%authentication_account%FOR UPDATE%' "
+                          + "OR query ILIKE '%UPDATE SPRING_SESSION%') AND "
                           + "pid <> pg_backend_pid()")
                   > 0;
           if (!waiting) {
@@ -2326,10 +2333,11 @@ class AuthenticationAccountWorkflowIntegrationTest {
         .contains("credentials")
         .doesNotContain("publicKey", "signatureCount", "transports");
     assertThat(
-            jdbc.queryForObject(
-                    "SELECT both_factors_at FROM authentication_session_authority",
-                    java.sql.Timestamp.class)
-                .toInstant())
+            authority
+                .findFull(
+                    AuthenticationSecrets.digest(fullCookie.getValue()), reference(fullCookie))
+                .orElseThrow()
+                .bothFactorsAt())
         .isEqualTo(NOW);
     var logout =
         httpPost(
@@ -2430,7 +2438,8 @@ class AuthenticationAccountWorkflowIntegrationTest {
         httpTicketDirectory, java.nio.file.attribute.PosixFilePermissions.fromString("rwx------"));
     var lifecycle =
         new AuthenticationLifecycle(
-            new AuthenticationLifecyclePersistence(JdbcClient.create(jdbc), clock, transactions),
+            new AuthenticationLifecyclePersistence(
+                JdbcClient.create(jdbc), clock, transactions, this.nativeSessions),
             new AuthenticationOperatorTickets(
                 tickets, new OperatorTicketFiles(httpTicketDirectory), transactions),
             limiter);
@@ -2539,10 +2548,12 @@ class AuthenticationAccountWorkflowIntegrationTest {
         .doesNotContain("expiresAt");
     assertThat(count(CODE_COUNT)).isZero();
     assertThat(
-            jdbc.queryForObject(
-                    "SELECT both_factors_at FROM authentication_session_authority",
-                    java.sql.Timestamp.class)
-                .toInstant())
+            authority
+                .findFull(
+                    AuthenticationSecrets.digest(full.cookie().getValue()),
+                    reference(full.cookie()))
+                .orElseThrow()
+                .bothFactorsAt())
         .isEqualTo(NOW);
   }
 
@@ -2740,12 +2751,17 @@ class AuthenticationAccountWorkflowIntegrationTest {
   }
 
   private UUID reference(Cookie cookie) {
-    return Objects.requireNonNull(
+    byte[] stored =
         jdbc.queryForObject(
-            "SELECT session_reference FROM authentication_session_authority "
-                + "WHERE session_verifier = ?",
-            UUID.class,
-            AuthenticationSecrets.digest(cookie.getValue())));
+            "SELECT a.attribute_bytes FROM spring_session s "
+                + "JOIN spring_session_attributes a ON a.session_primary_id = s.primary_id "
+                + "WHERE s.session_id = ? AND a.attribute_name = 'hortinis.authority'",
+            byte[].class,
+            cookie.getValue());
+    return ((com.hortinis.sync.authentication.SessionAuthorityReference)
+            com.hortinis.sync.authentication.SessionAttributeCodec.conversionService()
+                .convert(stored, Object.class))
+        .value();
   }
 
   private <T> Exchange<T> request(

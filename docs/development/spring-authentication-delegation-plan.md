@@ -218,3 +218,42 @@ resources were removed; the 366 frontend tests also passed during this migration
 plus passkey authorization, recovery workflows, account epoch checks and offline synchronization
 remain covered. The broader framework migration is still in progress; this measurement is for the
 inactivity step, not a claim of an overall code-volume reduction.
+
+## Native completed-session authority implementation plan
+
+1. Resolve completed identity, factor timestamps and logout metadata from Spring Session's saved
+   security context and supported repository. Keep opaque cookie identifiers internal and redact all
+   diagnostic representations. Lock the native session row after the account lock when a protected
+   transaction or proof transition requires a stable current session.
+2. Stop inserting full-session rows into the parallel authority table. Retain bounded anonymous,
+   password, setup and restricted recovery ceremonies. Build their full-session service view from the
+   native context. Keep account status, epoch, instance, scope and persisted-mode checks inside data
+   transactions; Spring's context does not replace account ownership.
+3. Decouple one-use challenges from the retired full-row foreign key. Persist their owning account
+   directly for bounded admission and account deletion. Remove challenges explicitly when their native
+   reference is retired or revoked. Keep protected operator claims linked to limited ceremonies.
+4. Make full-session lookup, targeted removal, account-wide revocation and cleanup use native session
+   identity and principal indexing. Cleanup must retain account/native lock ordering and must not
+   classify a valid native completed session as an orphan merely because it has no limited row.
+5. Update fresh-schema fixtures and assertions to the native model. Replace obsolete full-row timestamp
+   mutation tests with native-context expiry, role, epoch and rotation tests. Review cross-account,
+   stale-reference, rollback and in-flight revocation cases. Run the documented backend, contract,
+   documentation and relevant browser checks, fix findings, measure and commit before proceeding.
+
+Public JSON shapes and password/passkey, recovery, operator and offline user flows remain unchanged.
+
+Completed-session authority now comes from the native Spring Security context, with native-row locks
+inside account-protected transactions. Fresh schema constraints reject a full application authority
+row. Limited password ceremonies use an explicit step-up flag; recovery-code replacement rechecks
+current native factor timestamps. Challenge ownership and cleanup no longer depend on a duplicate
+full row. Native cleanup was reviewed for concurrent activity and revocation, and the updated fixtures
+use real Spring sessions rather than synthetic full authority rows.
+
+Validation passed 269 unit tests, 288 PostgreSQL integration tests and six real topology browser tests.
+The topology removed its disposable resources. The complete backend run passed all functional tests
+and production static checks; three test-fixture PMD findings were then fixed through field renames
+and removal of a redundant per-test null reset. Integration-test compilation, Checkstyle and PMD passed
+after those style-only fixes. Documentation and contracts also passed. Existing production Checkstyle
+warnings remain at their prior baseline. Password/passkey, recovery, operator and offline flows retain
+coverage. This stage changes authority ownership; additional adapter/locking code means it must not
+be reported as a production Java line-count reduction.

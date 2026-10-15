@@ -49,23 +49,16 @@ public class AuthenticationRecoveryCodePersistence {
     if (!lockCurrentAccount(observed.account(), observed.epoch())) {
       throw new AuthenticationRequiredException();
     }
-    authority.requireCurrent(
-        observed.account(),
-        observed.sessionReference(),
-        observed.epoch(),
-        observed.instance(),
-        observed.scope(),
-        observed.mode());
+    var current =
+        authority.requireCurrent(
+            observed.account(),
+            observed.sessionReference(),
+            observed.epoch(),
+            observed.instance(),
+            observed.scope(),
+            observed.mode());
     Instant now = clock.instant();
-    Optional<Instant> verifiedAt =
-        jdbc.sql(
-                "SELECT both_factors_at FROM authentication_session_authority "
-                    + "WHERE session_reference = ?")
-            .param(observed.sessionReference())
-            .query((row, number) -> row.getTimestamp(1).toInstant())
-            .optional();
-    if (verifiedAt.isEmpty()
-        || !AuthenticationLifetime.recentBothFactors(verifiedAt.orElseThrow(), now)) {
+    if (!AuthenticationLifetime.recentBothFactors(current.bothFactorsAt(), now)) {
       throw new AuthenticationFailedException();
     }
     return replaceCodes(observed.account(), now);

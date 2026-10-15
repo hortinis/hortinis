@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
 import com.hortinis.sync.access.AuthenticatedSynchronizationAccessResolver;
+import com.hortinis.sync.authentication.AuthenticationIdentity;
 import com.hortinis.sync.authentication.AuthenticationSecrets;
 import com.hortinis.sync.authentication.SessionAuthorityReference;
 import jakarta.servlet.http.Cookie;
@@ -35,6 +36,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -214,12 +216,13 @@ class AuthenticationRuntimeIntegrationTest {
   }
 
   @org.junit.jupiter.params.ParameterizedTest
-  @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
-  void springAuthorizesCurrentFullSessionsAndRejectsExpiryOrRevocation(boolean idleExpiry)
+  @org.junit.jupiter.params.provider.ValueSource(
+      strings = {"epoch", "idle", "password", "recovery", "factors"})
+  void springAuthorizesCurrentFullSessionsAndRejectsExpiryOrRevocation(String invalidation)
       throws Exception {
     verifySpringSessions(
         context.getBean(org.springframework.session.jdbc.JdbcIndexedSessionRepository.class),
-        idleExpiry);
+        invalidation);
   }
 
   @Test
@@ -246,13 +249,12 @@ class AuthenticationRuntimeIntegrationTest {
   }
 
   private <S extends org.springframework.session.Session> void verifySpringSessions(
-      org.springframework.session.SessionRepository<S> sessions, boolean idleExpiry)
+      org.springframework.session.SessionRepository<S> sessions, String invalidation)
       throws Exception {
     final UUID account = UUID.randomUUID();
     UUID reference = UUID.randomUUID();
     var session = sessions.createSession();
     session.setAttribute("hortinis.authority", new SessionAuthorityReference(reference));
-    session.setMaxInactiveInterval(java.time.Duration.ofMinutes(30));
     String csrf = AuthenticationSecrets.randomValue();
     session.setAttribute(
         "hortinis.csrf",
@@ -264,9 +266,7 @@ class AuthenticationRuntimeIntegrationTest {
               var security =
                   org.springframework.security.core.context.SecurityContextHolder
                       .createEmptyContext();
-              security.setAuthentication(
-                  com.hortinis.sync.authentication.AuthenticationIdentity.completed(
-                      account, 1, now));
+              security.setAuthentication(AuthenticationIdentity.completed(account, 1, now));
               session.setAttribute(
                   org.springframework.security.web.context.HttpSessionSecurityContextRepository
                       .SPRING_SECURITY_CONTEXT_KEY,
@@ -283,21 +283,10 @@ class AuthenticationRuntimeIntegrationTest {
                   account,
                   new byte[32],
                   Timestamp.from(now));
-              jdbc.update(
-                  "INSERT INTO authentication_session_authority "
-                      + "(session_reference, session_verifier, "
-                      + "logout_target, state, account_id, authority_epoch, created_at, "
-                      + "expires_at, full_login_at, "
-                      + "both_factors_at) "
-                      + "VALUES (?, ?, ?, 'full', ?, 1, ?, ?, ?, ?)",
-                  reference,
-                  AuthenticationSecrets.digest(session.getId()),
-                  AuthenticationSecrets.randomValue(),
-                  account,
-                  Timestamp.from(now),
-                  Timestamp.from(now.plusSeconds(43_200)),
-                  Timestamp.from(now),
-                  Timestamp.from(now));
+              session.setAttribute(
+                  com.hortinis.sync.authentication.AuthenticationSessionTransport
+                      .LOGOUT_TARGET_ATTRIBUTE,
+                  AuthenticationSecrets.randomValue());
               sessions.save(session);
             });
     Instant previousAccess = now.minusSeconds(1200);
@@ -347,51 +336,6 @@ class AuthenticationRuntimeIntegrationTest {
                   .getResponse()
                   .getStatus())
           .isEqualTo(400);
-      var currentSession = sessions.findById(session.getId());
-      var expiredFactors =
-          org.springframework.security.core.context.SecurityContextHolder.createEmptyContext();
-      expiredFactors.setAuthentication(
-          com.hortinis.sync.authentication.AuthenticationIdentity.completed(
-              account, 1, now.minusSeconds(43200)));
-      currentSession.setAttribute(
-          org.springframework.security.web.context.HttpSessionSecurityContextRepository
-              .SPRING_SECURITY_CONTEXT_KEY,
-          expiredFactors);
-      sessions.save(currentSession);
-      assertThat(
-              http.perform(get(BOOTSTRAP_PATH).cookie(cookie))
-                  .andReturn()
-                  .getResponse()
-                  .getStatus())
-          .isEqualTo(401);
-      var restoredFactors =
-          org.springframework.security.core.context.SecurityContextHolder.createEmptyContext();
-      restoredFactors.setAuthentication(
-          com.hortinis.sync.authentication.AuthenticationIdentity.completed(account, 1, now));
-      currentSession.setAttribute(
-          org.springframework.security.web.context.HttpSessionSecurityContextRepository
-              .SPRING_SECURITY_CONTEXT_KEY,
-          restoredFactors);
-      sessions.save(currentSession);
-      for (String partial : new String[] {"password", "recovery"}) {
-        jdbc.update(
-            "UPDATE authentication_session_authority SET state = ?, expires_at = ? "
-                + "WHERE session_reference = ?",
-            partial,
-            Timestamp.from(now.plusSeconds(300)),
-            reference);
-        assertThat(
-                http.perform(get(BOOTSTRAP_PATH).cookie(cookie))
-                    .andReturn()
-                    .getResponse()
-                    .getStatus())
-            .isEqualTo(401);
-      }
-      jdbc.update(
-          "UPDATE authentication_session_authority SET state = 'full', expires_at = ? "
-              + "WHERE session_reference = ?",
-          Timestamp.from(now.plusSeconds(43_200)),
-          reference);
       assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
       assertThat(http.perform(get(BOOTSTRAP_PATH)).andReturn().getResponse().getStatus())
           .isEqualTo(401);
@@ -401,16 +345,59 @@ class AuthenticationRuntimeIntegrationTest {
                   .getResponse()
                   .getStatus())
           .isEqualTo(200);
-      if (idleExpiry) {
-        assertThat(
-                jdbc.update(
-                    "UPDATE spring_session SET last_access_time = 0, expiry_time = 0 WHERE session_id = ?",
-                    session.getId()))
-            .isEqualTo(1);
-      } else {
-        jdbc.update(
-            "UPDATE authentication_account SET authority_epoch = authority_epoch + 1 WHERE account_id = ?",
-            account);
+      switch (invalidation) {
+        case "idle" ->
+            jdbc.update(
+                "UPDATE spring_session SET last_access_time = 0, expiry_time = 0 WHERE "
+                    + "session_id = ?",
+                session.getId());
+        case "epoch" ->
+            jdbc.update(
+                "UPDATE authentication_account SET authority_epoch = authority_epoch + 1 "
+                    + "WHERE account_id = ?",
+                account);
+        case "factors" -> {
+          var value = sessions.findById(session.getId());
+          var context = SecurityContextHolder.createEmptyContext();
+          context.setAuthentication(
+              AuthenticationIdentity.completed(account, 1, now.minusSeconds(43200)));
+          value.setAttribute(
+              org.springframework.security.web.context.HttpSessionSecurityContextRepository
+                  .SPRING_SECURITY_CONTEXT_KEY,
+              context);
+          sessions.save(value);
+        }
+        case "password" -> {
+          var value = sessions.findById(session.getId());
+          var completed = AuthenticationIdentity.completed(account, 1, now);
+          var authorities =
+              completed.getAuthorities().stream()
+                  .filter(
+                      authority ->
+                          !org.springframework.security.core.authority.FactorGrantedAuthority
+                              .WEBAUTHN_AUTHORITY
+                              .equals(authority.getAuthority()))
+                  .toList();
+          var user = new User(account.toString(), "", authorities);
+          user.eraseCredentials();
+          var context = SecurityContextHolder.createEmptyContext();
+          context.setAuthentication(
+              org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+                  .authenticated(user, null, authorities));
+          value.setAttribute(
+              org.springframework.security.web.context.HttpSessionSecurityContextRepository
+                  .SPRING_SECURITY_CONTEXT_KEY,
+              context);
+          sessions.save(value);
+        }
+        case "recovery" -> {
+          var value = sessions.findById(session.getId());
+          value.removeAttribute(
+              org.springframework.security.web.context.HttpSessionSecurityContextRepository
+                  .SPRING_SECURITY_CONTEXT_KEY);
+          sessions.save(value);
+        }
+        default -> throw new AssertionError("Unknown native session fixture.");
       }
       assertThat(
               http.perform(get(BOOTSTRAP_PATH).cookie(cookie))

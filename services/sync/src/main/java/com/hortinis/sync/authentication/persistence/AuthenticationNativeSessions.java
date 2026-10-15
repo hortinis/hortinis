@@ -4,14 +4,19 @@ import com.hortinis.sync.authentication.AuthenticationIdentity;
 import com.hortinis.sync.authentication.AuthenticationLifetime;
 import com.hortinis.sync.authentication.AuthenticationRequiredException;
 import com.hortinis.sync.authentication.AuthenticationSecrets;
+import com.hortinis.sync.authentication.AuthenticationSession;
 import com.hortinis.sync.authentication.AuthenticationSessionTransport;
+import com.hortinis.sync.authentication.SessionAttributeCodec;
 import com.hortinis.sync.authentication.SessionAuthorityReference;
 import com.hortinis.sync.configuration.SynchronizationPersistenceEnabled;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.authorization.AllRequiredFactorsAuthorizationManager;
 import org.springframework.security.core.authority.FactorGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
@@ -24,13 +29,19 @@ import org.springframework.stereotype.Repository;
 @Repository
 @SynchronizationPersistenceEnabled
 public class AuthenticationNativeSessions {
+  private final JdbcClient jdbc;
+  private final Clock clock;
   private final FindByIndexNameSessionRepository<? extends Session> repository;
   private final AllRequiredFactorsAuthorizationManager<Session> factors;
 
   /** Uses the Boot-owned repository and trusted application clock. */
   public AuthenticationNativeSessions(
-      @Lazy FindByIndexNameSessionRepository<? extends Session> repository, Clock clock) {
+      @Lazy FindByIndexNameSessionRepository<? extends Session> repository,
+      Clock clock,
+      JdbcClient jdbc) {
     this.repository = repository;
+    this.jdbc = jdbc;
+    this.clock = clock;
     factors =
         AllRequiredFactorsAuthorizationManager.<Session>builder()
             .requireFactor(
@@ -51,14 +62,136 @@ public class AuthenticationNativeSessions {
         .values()
         .stream()
         .filter(session -> !session.isExpired())
-        .map(session -> snapshot(session, account, epoch))
+        .map(this::snapshot)
         .filter(java.util.Objects::nonNull)
+        .filter(session -> session.account().equals(account) && session.epoch() == epoch)
         .sorted(
             java.util.Comparator.comparing(Snapshot::createdAt).thenComparing(Snapshot::reference))
         .toList();
   }
 
-  private Snapshot snapshot(Session session, UUID account, long epoch) {
+  /** Row locks follow the caller's account lock; the cookie identifier remains internal. */
+  public Optional<AuthenticationSession> findFull(UUID reference, String verifier, Lock lock) {
+    if (reference == null) {
+      return Optional.empty();
+    }
+    var identifier =
+        jdbc.sql(
+                "SELECT s.session_id FROM spring_session s JOIN spring_session_attributes a "
+                    + "ON a.session_primary_id = s.primary_id WHERE a.attribute_name = "
+                    + "'hortinis.authority' "
+                    + "AND a.attribute_bytes = ? AND s.principal_name IS NOT NULL"
+                    + lock.sql)
+            .param(
+                SessionAttributeCodec.conversionService()
+                    .convert(new SessionAuthorityReference(reference), byte[].class))
+            .query(String.class)
+            .optional();
+    if (identifier.isEmpty()
+        || verifier != null
+            && !com.hortinis.sync.authentication.AuthenticationSecrets.digest(
+                    identifier.orElseThrow())
+                .equals(verifier)) {
+      return Optional.empty();
+    }
+    Session session = repository.findById(identifier.orElseThrow());
+    if (session == null) {
+      return Optional.empty();
+    }
+    var completed = snapshot(session);
+    if (completed == null || !reference.equals(completed.reference())) {
+      return Optional.empty();
+    }
+    Instant verifiedAt = completed.expiresAt().minus(AuthenticationLifetime.FULL_ABSOLUTE);
+    return Optional.of(
+        new AuthenticationSession(
+            reference,
+            completed.account(),
+            completed.epoch(),
+            "full",
+            verifiedAt,
+            completed.expiresAt(),
+            verifiedAt,
+            verifiedAt,
+            null,
+            null,
+            null,
+            completed.target(),
+            null,
+            null));
+  }
+
+  /** Non-authorizing lookup used only to take the owning account lock during physical cleanup. */
+  public Optional<Owner> ownerByVerifier(String verifier) {
+    return jdbc.sql(
+            "SELECT s.principal_name, a.attribute_bytes FROM spring_session s "
+                + "JOIN spring_session_attributes a ON a.session_primary_id = s.primary_id "
+                + "WHERE a.attribute_name = 'hortinis.authority' AND s.principal_name IS NOT NULL "
+                + "AND encode(sha256(convert_to(s.session_id, 'UTF8')), 'hex') = ?")
+        .param(verifier)
+        .query(
+            (row, number) -> {
+              var reference =
+                  (SessionAuthorityReference)
+                      SessionAttributeCodec.conversionService()
+                          .convert(row.getBytes(2), Object.class);
+              return new Owner(UUID.fromString(row.getString(1)), reference.value());
+            })
+        .optional();
+  }
+
+  /** This metadata does not grant authentication or authorize account data. */
+  public record Owner(UUID account, UUID reference) {
+    @Override
+    public String toString() {
+      return "NativeSessionOwner[redacted]";
+    }
+  }
+
+  /** Standard principal indexing also finds expired contexts for physical revocation. */
+  public List<UUID> references(UUID account) {
+    return repository.findByPrincipalName(account.toString()).values().stream()
+        .map(session -> session.getAttribute("hortinis.authority"))
+        .filter(SessionAuthorityReference.class::isInstance)
+        .map(SessionAuthorityReference.class::cast)
+        .map(SessionAuthorityReference::value)
+        .sorted()
+        .toList();
+  }
+
+  /**
+   * Cleanup uses the native expiry/factor policy, while its caller holds the owning account lock.
+   */
+  public void removeInvalid(UUID account, long epoch, boolean active, Consumer<UUID> removal) {
+    for (Session session : repository.findByPrincipalName(account.toString()).values()) {
+      SessionAuthorityReference reference = session.getAttribute("hortinis.authority");
+      if (reference == null) {
+        repository.deleteById(session.getId());
+      } else {
+        var current = findFull(reference.value(), null, Lock.UPDATE);
+        if (!active
+            || current.isEmpty()
+            || !account.equals(current.orElseThrow().account())
+            || current.orElseThrow().epoch() != epoch) {
+          removal.accept(reference.value());
+        }
+      }
+    }
+  }
+
+  /** Supported native-row lock strengths; no request text is used as a SQL clause. */
+  public enum Lock {
+    NONE(""),
+    SHARE(" FOR SHARE OF s"),
+    UPDATE(" FOR UPDATE OF s");
+    private final String sql;
+
+    Lock(String sql) {
+      this.sql = sql;
+    }
+  }
+
+  private Snapshot snapshot(Session session) {
     SecurityContext context =
         session.getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
     if (context == null || !factors.authorize(context::getAuthentication, session).isGranted()) {
@@ -66,9 +199,6 @@ public class AuthenticationNativeSessions {
     }
     try {
       var identity = AuthenticationIdentity.from(context.getAuthentication());
-      if (!identity.account().equals(account) || identity.epoch() != epoch) {
-        return null;
-      }
       SessionAuthorityReference reference = session.getAttribute("hortinis.authority");
       String target = session.getAttribute(AuthenticationSessionTransport.LOGOUT_TARGET_ATTRIBUTE);
       if (reference == null || !AuthenticationSecrets.isRandomValue(target)) {
@@ -81,14 +211,29 @@ public class AuthenticationNativeSessions {
               .map(factor -> factor.getIssuedAt().plus(AuthenticationLifetime.FULL_ABSOLUTE))
               .min(Instant::compareTo)
               .orElseThrow(AuthenticationRequiredException::new);
-      return new Snapshot(reference.value(), target, session.getCreationTime(), expires);
+      if (expires.minus(AuthenticationLifetime.FULL_ABSOLUTE).isAfter(clock.instant())) {
+        return null;
+      }
+      return new Snapshot(
+          identity.account(),
+          identity.epoch(),
+          reference.value(),
+          target,
+          session.getCreationTime(),
+          expires);
     } catch (AuthenticationRequiredException exception) {
       return null;
     }
   }
 
   /** Contains no native cookie identifier or credential material. */
-  public record Snapshot(UUID reference, String target, Instant createdAt, Instant expiresAt) {
+  public record Snapshot(
+      UUID account,
+      long epoch,
+      UUID reference,
+      String target,
+      Instant createdAt,
+      Instant expiresAt) {
     @Override
     public String toString() {
       return "NativeSessionSnapshot[redacted]";

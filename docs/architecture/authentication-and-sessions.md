@@ -133,6 +133,12 @@ provenance. Reauthentication resumes only the original retained origin/instance/
 after S11, authorized device. An unrelated account cannot activate that outbox. Public discovery/status
 cannot reveal account names, factor registration, scope population or credentials.
 
+Completed session identity and normal factors are stored in Spring Security's native session context.
+The application persists only limited ceremony state. Account ownership, epoch and mode are rechecked
+inside protected transactions, holding the account and native session row locks through the work.
+Native principal indexing owns full-session listing and revocation; one-use challenge rows retain
+explicit account ownership independently of limited ceremony rows.
+
 ## Credential change and recovery
 
 Normal password change requires current password, the new password policy and fresh normal factors.

@@ -170,12 +170,12 @@ CREATE TABLE authentication_session_authority (
     session_verifier CHAR(64) NOT NULL UNIQUE CHECK (session_verifier ~ '^[a-f0-9]{64}$'),
     logout_target VARCHAR(43) NOT NULL UNIQUE
         CHECK (logout_target ~ '^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$'),
-    state TEXT NOT NULL CHECK (state IN ('anonymous', 'password', 'setup', 'recovery', 'full')),
+    state TEXT NOT NULL CHECK (state IN ('anonymous', 'password', 'setup', 'recovery')),
     account_id UUID REFERENCES authentication_account (account_id) ON DELETE CASCADE,
     authority_epoch BIGINT CHECK (authority_epoch > 0),
     created_at TIMESTAMPTZ NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
-    full_login_at TIMESTAMPTZ,
+    step_up BOOLEAN NOT NULL DEFAULT FALSE,
     both_factors_at TIMESTAMPTZ,
     staged_login_identifier VARCHAR(64)
         CHECK (staged_login_identifier ~ '^[a-z0-9][a-z0-9._-]{2,63}$'),
@@ -187,16 +187,12 @@ CREATE TABLE authentication_session_authority (
     CHECK (expires_at > created_at),
     CHECK ((account_id IS NULL AND authority_epoch IS NULL)
         OR (account_id IS NOT NULL AND authority_epoch IS NOT NULL)),
-    CHECK (state NOT IN ('password', 'full') OR account_id IS NOT NULL),
+    CHECK (state <> 'password' OR account_id IS NOT NULL),
     CHECK (state <> 'recovery' OR account_id IS NOT NULL OR (
         recovery_kind IS NOT DISTINCT FROM 'password' AND both_factors_at IS NULL
         AND staged_login_identifier IS NOT NULL
     )),
-    CHECK (state <> 'full' OR (
-        full_login_at IS NOT NULL AND both_factors_at IS NOT NULL
-        AND expires_at <= full_login_at + INTERVAL '12 hours'
-    )),
-    CHECK (state = 'full' OR expires_at <= created_at + INTERVAL '5 minutes'),
+    CHECK (expires_at <= created_at + INTERVAL '5 minutes'),
     CHECK (state <> 'setup' OR (
         account_id IS NULL AND staged_login_identifier IS NOT NULL
         AND staged_password_verifier IS NOT NULL AND staged_user_handle IS NOT NULL
@@ -206,8 +202,8 @@ CREATE INDEX authentication_session_expiry ON authentication_session_authority (
 CREATE INDEX authentication_session_account ON authentication_session_authority (account_id);
 
 CREATE TABLE authentication_challenge (
-    session_reference UUID PRIMARY KEY
-        REFERENCES authentication_session_authority (session_reference) ON DELETE CASCADE,
+    session_reference UUID PRIMARY KEY,
+    account_id UUID REFERENCES authentication_account (account_id) ON DELETE CASCADE,
     challenge BYTEA NOT NULL CHECK (octet_length(challenge) = 32),
     purpose TEXT NOT NULL CHECK (purpose IN (
         'setup', 'login', 'step-up', 'credential', 'recover-password', 'recover-passkey', 'operator'
@@ -286,3 +282,6 @@ CREATE TABLE spring_session_attributes (
     attribute_bytes BYTEA NOT NULL,
     PRIMARY KEY (session_primary_id, attribute_name)
 );
+
+CREATE INDEX spring_session_authority_reference ON spring_session_attributes (attribute_bytes)
+    WHERE attribute_name = 'hortinis.authority';

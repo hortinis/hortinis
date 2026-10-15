@@ -56,9 +56,7 @@ public class AuthenticationSessionAdmissionPersistence {
     Instant now = clock.instant();
     purgeExpiredAnonymous(now);
     int limited =
-        jdbc.sql(
-                "SELECT count(*) FROM authentication_session_authority "
-                    + "WHERE state <> 'full' AND expires_at > ?")
+        jdbc.sql("SELECT count(*) FROM authentication_session_authority " + "WHERE expires_at > ?")
             .param(Timestamp.from(now))
             .query(Integer.class)
             .single();

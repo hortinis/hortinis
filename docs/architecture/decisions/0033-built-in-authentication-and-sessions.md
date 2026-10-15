@@ -122,6 +122,13 @@ Spring Session owns request inactivity; the separate explicit-interaction clock 
 column are removed. Background sync refreshes the native 30-minute idle timeout. Normal-factor
 expiry remains independent of request activity. The activity endpoint is a compatible acknowledgement.
 
+Completed identity and factor authority exist only in the native Spring Security context. The
+application table stores limited setup, password and restricted recovery ceremonies, never a full
+session. Current account status, epoch, instance, scope and persisted mode remain transaction-time
+checks. Protected transactions lock the account first and then the native session row. One-use
+challenges store their account owner directly and are removed when their native reference is retired
+or revoked; they do not require a duplicate full authority row.
+
 ### Password authentication
 
 `AuthenticationManager` and `DaoAuthenticationProvider` own password authentication, credential
@@ -195,7 +202,8 @@ are implementation references; explicit JSON/generic-error adapters and tests ar
 The browser guard uses Spring Security header writers for CSP, framing, content-type, referrer,
 permissions and explicitly gated HSTS policy, including rejected requests before the security chain.
 Local invalidation uses `SecurityContextLogoutHandler` within the publication transaction, with a
-null context repository because authority is never persisted as a principal. Target-fenced logout,
+null context repository because native invalidation already removes the saved context and must not
+allocate an empty replacement session. Target-fenced logout,
 after-commit cookie release and suppression of delayed cookie deletion remain application policy.
 Session-ID rotation already delegates to the Servlet `changeSessionId` mechanism for all bounded
 ceremony transitions; Spring's authentication-only strategy is not substituted for those transitions.

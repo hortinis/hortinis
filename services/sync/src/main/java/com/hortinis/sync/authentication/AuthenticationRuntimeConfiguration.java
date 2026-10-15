@@ -8,6 +8,7 @@ import com.hortinis.sync.authentication.http.AuthenticationProofBoundary;
 import com.hortinis.sync.authentication.http.HeaderOnlyCsrfTokenRequestHandler;
 import com.hortinis.sync.authentication.http.RandomSessionCsrfTokenRepository;
 import com.hortinis.sync.authentication.persistence.AuthenticationLifecyclePersistence;
+import com.hortinis.sync.authentication.persistence.AuthenticationNativeSessions;
 import com.hortinis.sync.authentication.persistence.AuthenticationOperatorTicketPersistence;
 import java.net.URI;
 import java.nio.file.Path;
@@ -76,9 +77,12 @@ public class AuthenticationRuntimeConfiguration {
       AuthenticationOperatorTickets tickets,
       AuthenticationAttemptLimiter attempts,
       PlatformTransactionManager transactions,
-      ServerAccessMode mode) {
+      ServerAccessMode mode,
+      AuthenticationNativeSessions nativeSessions) {
     return new AuthenticationLifecycle(
-        new AuthenticationLifecyclePersistence(jdbc, clock, transactions), tickets, attempts);
+        new AuthenticationLifecyclePersistence(jdbc, clock, transactions, nativeSessions),
+        tickets,
+        attempts);
   }
 
   /** Makes next-access physical cleanup available to the servlet boundary. */

@@ -206,7 +206,8 @@ class AuthenticationSchemaIntegrationTest {
     UUID account = account();
     UUID session = anonymous();
     jdbc.update(
-        "INSERT INTO authentication_challenge VALUES (?, "
+        "INSERT INTO authentication_challenge (session_reference, challenge, purpose, "
+            + "created_at, expires_at, recovery_code_verifier) VALUES (?, "
             + "?, 'login', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP "
             + "+ INTERVAL '5 minutes', NULL)",
         session,
@@ -547,34 +548,41 @@ class AuthenticationSchemaIntegrationTest {
     java.time.Instant login = SYNTHETIC_LOGIN;
     UUID session = fullSession(account, login);
     var authority = authorityAt(login);
-    var observed = authority.findFull("b".repeat(64), session).orElseThrow();
+    var observed = authority.findFull(nativeSessions().verifier(session), session).orElseThrow();
     assertThat(observed.account()).isEqualTo(account);
     assertThat(observed.toString()).doesNotContain(account.toString(), session.toString());
     assertThatThrownBy(() -> requireAuthority(authority, observed))
         .isInstanceOf(IllegalStateException.class)
         .hasMessage("Authentication authority requires a protected transaction.");
     transaction().executeWithoutResult(status -> requireAuthority(authority, observed));
-    assertThat(authorityAt(login.plusSeconds(1799)).findFull("b".repeat(64), session)).isPresent();
-    assertThat(authorityAt(login.plusSeconds(1800)).findFull("b".repeat(64), session)).isPresent();
-    assertThat(authorityAt(login.plusSeconds(43199)).findFull("b".repeat(64), session)).isPresent();
-    assertThat(authorityAt(login.plusSeconds(43200)).findFull("b".repeat(64), session)).isEmpty();
+    assertThat(
+            authorityAt(login.plusSeconds(1799))
+                .findFull(nativeSessions().verifier(session), session))
+        .isPresent();
+    assertThat(
+            authorityAt(login.plusSeconds(1800))
+                .findFull(nativeSessions().verifier(session), session))
+        .isPresent();
+    assertThat(
+            authorityAt(login.plusSeconds(43199))
+                .findFull(nativeSessions().verifier(session), session))
+        .isPresent();
+    assertThat(
+            authorityAt(login.plusSeconds(43200))
+                .findFull(nativeSessions().verifier(session), session))
+        .isEmpty();
     assertThat(authority.findFull("invalid", session)).isEmpty();
     assertThat(authority.findFull("b".repeat(64), UUID.randomUUID())).isEmpty();
   }
 
-  @org.junit.jupiter.params.ParameterizedTest
-  @org.junit.jupiter.params.provider.ValueSource(strings = {"created_at", "both_factors_at"})
-  void currentProtectedAuthorityRejectsFutureCreationOrFactorTimes(String column) {
+  @Test
+  void currentProtectedAuthorityRejectsFutureNativeFactorTimes() {
     UUID account = account();
     UUID session = fullSession(account, SYNTHETIC_LOGIN);
     var authority = authorityAt(SYNTHETIC_LOGIN);
-    var retained = authority.findFull("b".repeat(64), session).orElseThrow();
-    String selectedColumn = "created_at".equals(column) ? "created_at" : "both_factors_at";
-    jdbc.update(
-        SESSION_UPDATE_PREFIX + selectedColumn + " = ? WHERE session_reference = ?",
-        java.sql.Timestamp.from(SYNTHETIC_LOGIN.plusSeconds(1)),
-        session);
-    assertThat(authority.findFull("b".repeat(64), session)).isEmpty();
+    var retained = authority.findFull(nativeSessions().verifier(session), session).orElseThrow();
+    nativeSessions().factors(session, SYNTHETIC_LOGIN.plusSeconds(1));
+    assertThat(authority.findFull(nativeSessions().verifier(session), session)).isEmpty();
     assertThatThrownBy(
             () ->
                 transaction().executeWithoutResult(status -> requireAuthority(authority, retained)))
@@ -586,26 +594,17 @@ class AuthenticationSchemaIntegrationTest {
     UUID account = account();
     UUID oldReference = fullSession(account, SYNTHETIC_LOGIN);
     var authority = authorityAt(SYNTHETIC_LOGIN);
-    var oldObservation = authority.findFull("b".repeat(64), oldReference).orElseThrow();
+    var oldObservation =
+        authority.findFull(nativeSessions().verifier(oldReference), oldReference).orElseThrow();
     UUID newReference = UUID.randomUUID();
-    String newVerifier =
-        com.hortinis.sync.authentication.AuthenticationSecrets.digest(
-            com.hortinis.sync.authentication.AuthenticationSecrets.randomValue());
     transaction()
-        .executeWithoutResult(
-            status ->
-                jdbc.update(
-                    SESSION_UPDATE_PREFIX
-                        + "session_reference = ?, session_verifier = ? "
-                        + SESSION_REFERENCE_WHERE,
-                    newReference,
-                    newVerifier,
-                    oldReference));
+        .executeWithoutResult(status -> nativeSessions().rotate(oldReference, newReference));
+    String newVerifier = nativeSessions().verifier(newReference);
     var newObservation = authority.findFull(newVerifier, newReference).orElseThrow();
     assertThat(newObservation.account()).isEqualTo(oldObservation.account());
     assertThat(newObservation.epoch()).isEqualTo(oldObservation.epoch());
     transaction().executeWithoutResult(status -> requireAuthority(authority, newObservation));
-    assertThat(authority.findFull("b".repeat(64), oldReference)).isEmpty();
+    assertThat(authority.findFull(nativeSessions().verifier(oldReference), oldReference)).isEmpty();
     assertThatThrownBy(
             () ->
                 transaction()
@@ -621,7 +620,7 @@ class AuthenticationSchemaIntegrationTest {
     java.time.Instant login = SYNTHETIC_LOGIN;
     UUID session = fullSession(account, login);
     var authority = authorityAt(login);
-    var observed = authority.findFull("b".repeat(64), session).orElseThrow();
+    var observed = authority.findFull(nativeSessions().verifier(session), session).orElseThrow();
     switch (change) {
       case DISABLE_CHANGE ->
           jdbc.update(
@@ -630,19 +629,12 @@ class AuthenticationSchemaIntegrationTest {
       case EPOCH_CHANGE ->
           jdbc.update(
               ACCOUNT_EPOCH_UPDATE_PREFIX + "= authority_epoch + 1 WHERE account_id = ?", account);
-      case SESSION_DELETE_CHANGE ->
-          jdbc.update(
-              "DELETE FROM authentication_session_authority WHERE session_reference = ?", session);
-      case "partial" ->
-          jdbc.update(
-              SESSION_STATE_UPDATE_PREFIX
-                  + "= 'password', expires_at = created_at + INTERVAL "
-                  + "'5 minutes' WHERE session_reference = ?",
-              session);
+      case SESSION_DELETE_CHANGE -> nativeSessions().delete(session);
+      case "partial" -> nativeSessions().clearAuthentication(session);
       case MODE_CHANGE -> jdbc.update(SWITCH_NO_AUTH);
       default -> throw new AssertionError("Unknown synthetic state change.");
     }
-    assertThat(authority.findFull("b".repeat(64), session)).isEmpty();
+    assertThat(authority.findFull(nativeSessions().verifier(session), session)).isEmpty();
     assertThatThrownBy(
             () ->
                 transaction().executeWithoutResult(status -> requireAuthority(authority, observed)))
@@ -657,7 +649,7 @@ class AuthenticationSchemaIntegrationTest {
     java.time.Instant login = SYNTHETIC_LOGIN;
     UUID session = fullSession(account, login);
     var authority = authorityAt(login);
-    var observed = authority.findFull("b".repeat(64), session).orElseThrow();
+    var observed = authority.findFull(nativeSessions().verifier(session), session).orElseThrow();
     var locked = new java.util.concurrent.CountDownLatch(1);
     var release = new java.util.concurrent.CountDownLatch(1);
     var revokePid = new java.util.concurrent.atomic.AtomicInteger();
@@ -752,7 +744,7 @@ class AuthenticationSchemaIntegrationTest {
     java.time.Instant login = SYNTHETIC_LOGIN;
     UUID session = fullSession(account, login);
     var authority = authorityAt(login);
-    var observed = authority.findFull("b".repeat(64), session).orElseThrow();
+    var observed = authority.findFull(nativeSessions().verifier(session), session).orElseThrow();
     var scopes =
         new com.hortinis.sync.persistence.SynchronizationScopePersistence(
             org.springframework.jdbc.core.simple.JdbcClient.create(jdbc), authority);
@@ -1020,7 +1012,7 @@ class AuthenticationSchemaIntegrationTest {
     UUID account = account();
     UUID session = fullSession(account, SYNTHETIC_LOGIN);
     var current = authorityAt(SYNTHETIC_LOGIN);
-    var observed = current.findFull("b".repeat(64), session).orElseThrow();
+    var observed = current.findFull(nativeSessions().verifier(session), session).orElseThrow();
     var recovery = recoveryAt(SYNTHETIC_LOGIN);
     var first = transaction().execute(status -> recovery.regenerate(observed));
     assertThat(first).isNotNull();
@@ -1055,7 +1047,10 @@ class AuthenticationSchemaIntegrationTest {
       throws Exception {
     UUID account = account();
     UUID session = fullSession(account, SYNTHETIC_LOGIN);
-    var observed = authorityAt(SYNTHETIC_LOGIN).findFull("b".repeat(64), session).orElseThrow();
+    var observed =
+        authorityAt(SYNTHETIC_LOGIN)
+            .findFull(nativeSessions().verifier(session), session)
+            .orElseThrow();
     var recovery = recoveryAt(SYNTHETIC_LOGIN);
     var issued = transaction().execute(status -> recovery.regenerate(observed));
     assertThat(issued).isNotNull();
@@ -1100,7 +1095,10 @@ class AuthenticationSchemaIntegrationTest {
   void retainedFullMetadataCannotReplaceCodesAfterAuthorityOrRecentFactorsChange(String change) {
     UUID account = account();
     UUID session = fullSession(account, SYNTHETIC_LOGIN);
-    var observed = authorityAt(SYNTHETIC_LOGIN).findFull("b".repeat(64), session).orElseThrow();
+    var observed =
+        authorityAt(SYNTHETIC_LOGIN)
+            .findFull(nativeSessions().verifier(session), session)
+            .orElseThrow();
     var recovery = recoveryAt(SYNTHETIC_LOGIN);
     var issued = transaction().execute(status -> recovery.regenerate(observed));
     assertThat(issued).isNotNull();
@@ -1108,14 +1106,10 @@ class AuthenticationSchemaIntegrationTest {
       case DISABLE_CHANGE -> jdbc.update("UPDATE authentication_account SET status = 'disabled'");
       case EPOCH_CHANGE -> jdbc.update(ADVANCE_EPOCH);
       case MODE_CHANGE -> jdbc.update(SWITCH_NO_AUTH);
-      case SESSION_DELETE_CHANGE -> jdbc.update("DELETE FROM authentication_session_authority");
+      case SESSION_DELETE_CHANGE -> nativeSessions().delete(session);
       case "expired" ->
-          jdbc.update(SESSION_UPDATE_PREFIX + "expires_at = created_at + INTERVAL '1 second'");
-      case "factor-time" ->
-          jdbc.update(
-              SESSION_UPDATE_PREFIX
-                  + "both_factors_at = both_factors_at - INTERVAL '300 "
-                  + "seconds'");
+          jdbc.update("UPDATE spring_session SET last_access_time = 0, expiry_time = 0");
+      case "factor-time" -> nativeSessions().factors(session, SYNTHETIC_LOGIN.minusSeconds(300));
       default -> throw new IllegalArgumentException("Unknown recovery fixture change.");
     }
     var later = recoveryAt(SYNTHETIC_LOGIN.plusSeconds(1));
@@ -1145,7 +1139,10 @@ class AuthenticationSchemaIntegrationTest {
   void currentEpochExpiryAndExactSecretAreRequiredForRecoveryConsumption(String change) {
     UUID account = account();
     UUID session = fullSession(account, SYNTHETIC_LOGIN);
-    var observed = authorityAt(SYNTHETIC_LOGIN).findFull("b".repeat(64), session).orElseThrow();
+    var observed =
+        authorityAt(SYNTHETIC_LOGIN)
+            .findFull(nativeSessions().verifier(session), session)
+            .orElseThrow();
     var issued = transaction().execute(status -> recoveryAt(SYNTHETIC_LOGIN).regenerate(observed));
     assertThat(issued).isNotNull();
     java.time.Instant now = SYNTHETIC_LOGIN;
@@ -1172,7 +1169,10 @@ class AuthenticationSchemaIntegrationTest {
   void recoveryCodeOperationsRejectMissingOrReadOnlyPublicationTransactions() {
     UUID account = account();
     UUID session = fullSession(account, SYNTHETIC_LOGIN);
-    var observed = authorityAt(SYNTHETIC_LOGIN).findFull("b".repeat(64), session).orElseThrow();
+    var observed =
+        authorityAt(SYNTHETIC_LOGIN)
+            .findFull(nativeSessions().verifier(session), session)
+            .orElseThrow();
     var recovery = recoveryAt(SYNTHETIC_LOGIN);
     assertThatThrownBy(() -> recovery.regenerate(observed))
         .isInstanceOf(IllegalStateException.class);
@@ -1436,7 +1436,8 @@ class AuthenticationSchemaIntegrationTest {
         org.springframework.jdbc.core.simple.JdbcClient.create(jdbc),
         java.time.Clock.fixed(now, java.time.ZoneOffset.UTC),
         new org.springframework.jdbc.datasource.DataSourceTransactionManager(
-            java.util.Objects.requireNonNull(jdbc.getDataSource())));
+            java.util.Objects.requireNonNull(jdbc.getDataSource())),
+        nativeSessions().persistence(java.time.Clock.fixed(now, java.time.ZoneOffset.UTC)));
   }
 
   private void issueChallenge(
@@ -1487,23 +1488,22 @@ class AuthenticationSchemaIntegrationTest {
     }
   }
 
+  private NativeAuthenticationSessions nativeSessionFixture;
+
+  private NativeAuthenticationSessions nativeSessions() {
+    if (nativeSessionFixture == null) {
+      nativeSessionFixture =
+          new NativeAuthenticationSessions(
+              jdbc,
+              new org.springframework.jdbc.datasource.DataSourceTransactionManager(
+                  java.util.Objects.requireNonNull(jdbc.getDataSource())));
+    }
+    return nativeSessionFixture;
+  }
+
   private UUID fullSession(UUID account, java.time.Instant login) {
     jdbc.update(SWITCH_SINGLE_AUTH);
-    return jdbc.queryForObject(
-        SESSION_INSERT_PREFIX
-            + SESSION_COLUMNS_PREFIX
-            + "account_id, authority_epoch, created_at, "
-            + "expires_at, full_login_at, "
-            + "both_factors_at) VALUES (?, ?, 'full', ?, 1, ?, "
-            + "?, ?, ?) RETURNING session_reference",
-        UUID.class,
-        "b".repeat(64),
-        CANONICAL_RANDOM_FIXTURE,
-        account,
-        java.sql.Timestamp.from(login),
-        java.sql.Timestamp.from(login.plusSeconds(43200)),
-        java.sql.Timestamp.from(login),
-        java.sql.Timestamp.from(login));
+    return nativeSessions().full(account, login);
   }
 
   private com.hortinis.sync.authentication.persistence.CurrentAuthenticationAuthorityPersistence
@@ -1511,7 +1511,8 @@ class AuthenticationSchemaIntegrationTest {
     return new com.hortinis.sync.authentication.persistence
         .CurrentAuthenticationAuthorityPersistence(
         org.springframework.jdbc.core.simple.JdbcClient.create(jdbc),
-        java.time.Clock.fixed(now, java.time.ZoneOffset.UTC));
+        java.time.Clock.fixed(now, java.time.ZoneOffset.UTC),
+        nativeSessions().persistence(java.time.Clock.fixed(now, java.time.ZoneOffset.UTC)));
   }
 
   private org.springframework.transaction.support.TransactionTemplate transaction() {
