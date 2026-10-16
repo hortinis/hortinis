@@ -7,7 +7,7 @@ spring:
       initialize-schema: never
       flush-mode: immediate
       save-mode: on-set-attribute
-      cleanup-cron: "-"
+      cleanup-cron: "0 * * * * *"
     servlet:
       filter-order: -2147483618
   main:
@@ -24,6 +24,7 @@ logging:
   level:
     org.springframework.security: OFF
     org.springframework.session: OFF
+    "[org.springframework.scheduling.support.TaskUtils$LoggingErrorHandler]": OFF
   structured:
     format:
       console: logstash

@@ -299,3 +299,40 @@ budget warnings remain at their prior baselines. Disposable topology resources w
 This step deletes the controlled cookie resolver and custom CSRF repository and removes 180 net
 production Java lines. It completes the cookie/CSRF step; MVC request binding, relying-party operations
 and intermediate factor orchestration remain separate candidates for further framework delegation.
+
+
+## Native session cleanup implementation plan
+
+Enable Boot's minute-based JDBC session cleanup and remove the pre-request lifecycle filter,
+transport-digest ownership lookup, native orphan sweep and duplicate native validity sweep. Spring
+rejects idle-expired sessions on load; factor authorization and transaction-time account/epoch checks
+continue to reject expired or revoked authority immediately. Native rows may remain until idle expiry
+and scheduled deletion. Anonymous CSRF transport sessions use that same lifecycle.
+
+Keep startup and thirty-second scheduled cleanup only for application-owned limited ceremonies,
+challenges, recovery codes, operator tickets/files and security-event retention. Keep account lock
+ordering for those records. Bootstrap replaces an expired ceremony on demand without requiring a
+physical sweep first. Explicit revocation still deletes the selected native sessions immediately.
+
+Review native cleanup racing with request activity and protected transactions, expired-factor denial
+before physical deletion, recovery expiry, restart cleanup and bootstrap after ceremony expiry. Update
+obsolete eager-deletion assertions, run backend and documented repository checks, and measure the
+production-code reduction before committing.
+
+Native session cleanup is implemented. This step removes 279 production Java lines (24 added,
+303 deleted), including the request-time lifecycle filter, native owner lookup and duplicate native
+validity/orphan sweeps. Limited ceremony and recovery policy remains application code; this is not
+completion of the broader ceremony-state rewrite.
+
+Review added bootstrap recovery before physical deletion and a closed unavailable response for native
+session storage failures. A runtime regression caught Spring Boot's normalization of the nested
+scheduler logger name; bracketed property syntax now preserves it and prevents raw exception logging.
+Native cleanup concurrency tests cover protected session locks and concurrently renewed activity.
+
+Validation passed 266 unit tests and 289 PostgreSQL integration cases across the full run and corrected
+runtime rerun. Static analysis, compilation and packaging passed after test-only constant extraction.
+The frontend passed 367 tests, 11 standalone browser tests, formatting, lint, architecture, types and
+both builds. Contracts, documentation, seven topology-runner tests and six real topology tests passed;
+disposable topology resources were removed. Existing Checkstyle and web bundle-budget warnings remain.
+A missing formatter transitive BOM checksum was verified against Maven Central and recorded without
+changing dependency versions. A temporary Gradle project cache bypassed a local checksum-cache failure.

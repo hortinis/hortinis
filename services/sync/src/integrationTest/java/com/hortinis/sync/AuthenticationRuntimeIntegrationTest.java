@@ -56,6 +56,7 @@ class AuthenticationRuntimeIntegrationTest {
   static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18.0");
 
   private static final Path OPERATOR_DIRECTORY = createOperatorDirectory();
+  private static final String IDLE_CASE = "idle";
   private static final String BOOTSTRAP_PATH = "/api/v1/sync/bootstrap";
   private static final String FETCH_SITE = "Sec-Fetch-Site";
   private static final String FETCH_MODE = "Sec-Fetch-Mode";
@@ -218,12 +219,23 @@ class AuthenticationRuntimeIntegrationTest {
 
   @org.junit.jupiter.params.ParameterizedTest
   @org.junit.jupiter.params.provider.ValueSource(
-      strings = {"epoch", "idle", "password", "recovery", "factors"})
+      strings = {"epoch", IDLE_CASE, "password", "recovery", "factors"})
   void springAuthorizesCurrentFullSessionsAndRejectsExpiryOrRevocation(String invalidation)
       throws Exception {
     verifySpringSessions(
         context.getBean(org.springframework.session.jdbc.JdbcIndexedSessionRepository.class),
         invalidation);
+  }
+
+  @Test
+  @org.junit.jupiter.api.extension.ExtendWith(
+      org.springframework.boot.test.system.OutputCaptureExtension.class)
+  void nativeSchedulerDoesNotLogDatabaseExceptionDetails(
+      org.springframework.boot.test.system.CapturedOutput output) {
+    org.springframework.scheduling.support.TaskUtils.LOG_AND_SUPPRESS_ERROR_HANDLER.handleError(
+        new org.springframework.dao.DataAccessResourceFailureException(
+            "synthetic-native-cleanup-private-detail"));
+    assertThat(output).doesNotContain("synthetic-native-cleanup-private-detail");
   }
 
   @Test
@@ -347,7 +359,7 @@ class AuthenticationRuntimeIntegrationTest {
                   .getStatus())
           .isEqualTo(200);
       switch (invalidation) {
-        case "idle" ->
+        case IDLE_CASE ->
             jdbc.update(
                 "UPDATE spring_session SET last_access_time = 0, expiry_time = 0 WHERE "
                     + "session_id = ?",
@@ -407,7 +419,11 @@ class AuthenticationRuntimeIntegrationTest {
                   .getStatus())
           .isEqualTo(401);
       assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
-      assertThat(sessions.findById(session.getId())).isNull();
+      if (IDLE_CASE.equals(invalidation)) {
+        assertThat(sessions.findById(session.getId())).isNull();
+      } else {
+        assertThat(sessions.findById(session.getId())).isNotNull();
+      }
       assertThat(
               http.perform(get("/api/v1/server/capabilities"))
                   .andReturn()

@@ -176,7 +176,7 @@ Use PostgreSQL-backed Spring Session as the opaque-cookie transport and establis
 Boot JDBC session auto-configuration owns production repository creation and servlet filter registration.
 Its supported customizer retains the selected identifier, serialization and indexing policy; the named
 transaction-operations bean uses REQUIRED participation so session writes share publication rollback.
-Boot properties select timeout, immediate flush, save mode, disabled independent cleanup and filter
+Boot properties select timeout, immediate flush, save mode, minute-based native cleanup and filter
 ordering. Flyway remains the schema owner. No-auth may load this standard infrastructure, but its
 stateless access chain and routes neither allocate sessions nor use them as account authority.
 Generate cookie secrets through its `SessionIdGenerator` extension with 32 independent CSPRNG bytes;
@@ -254,3 +254,21 @@ required for this session. S10 provisions separate owned scopes; S11 adds device
 S12 implements transitions, offline logout and complete deletion. S15 retains deployment, operational,
 ASVS and privacy evidence. The accepted [numeric policy](../authentication-and-sessions.md#numeric-policy)
 is authoritative for their adapters; a design review is not executable release approval.
+
+### Standard native session cleanup
+
+Spring Session owns idle-expired transport rejection and scheduled physical deletion. Remove the
+custom pre-request lifecycle filter, digest-based owner lookup and native orphan/validity sweeps.
+Current factor and account/epoch checks reject unusable authority before cleanup; expired factor
+contexts may remain stored until native idle expiry. Explicit revocation still deletes native rows
+in its protected transaction. Anonymous CSRF sessions also use native idle retention.
+
+Application-owned ceremonies, challenges, recovery codes, tickets/files and security events retain
+startup and thirty-second scheduled cleanup. CSRF bootstrap replaces an unusable ceremony without
+waiting for that job. These choices supersede immediate next-access physical purge. They remove
+cleanup transactions and ticket filesystem reconciliation from ordinary request handling.
+
+The native JDBC repository creates its own scheduler. Disable logging from its generic TaskUtils
+error handler, which otherwise logs raw exception messages and stack traces. Existing application cleanup
+jobs report fixed diagnostics; native cleanup failure retries at the next scheduled tick without
+logging database details. Authorization never depends on a successful cleanup run.

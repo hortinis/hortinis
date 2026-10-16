@@ -34,7 +34,12 @@ public final class AuthenticationObservationService {
           if (observed.isEmpty()) {
             transport.bootstrap(admission::admitAnonymous);
           } else {
-            sessions.lock(observed.orElseThrow());
+            try {
+              sessions.lock(observed.orElseThrow());
+            } catch (AuthenticationFailedException exception) {
+              transport.invalidate();
+              transport.bootstrap(admission::admitAnonymous);
+            }
           }
           return Map.of(
               "token",

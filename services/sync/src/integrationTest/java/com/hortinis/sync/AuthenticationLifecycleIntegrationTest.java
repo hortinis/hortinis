@@ -67,6 +67,9 @@ class AuthenticationLifecycleIntegrationTest {
   private static final String EVENT_COUNT = "SELECT count(*) FROM authentication_security_event";
   private static final String TICKET_COUNT = "SELECT count(*) FROM authentication_operator_ticket";
 
+  private static final String EXPIRE_NATIVE =
+      "UPDATE spring_session SET last_access_time = 0, expiry_time = 0";
+
   private static final String TRANSPORT_COUNT = "SELECT count(*) FROM spring_session";
 
   @Container
@@ -116,7 +119,8 @@ class AuthenticationLifecycleIntegrationTest {
     assertThat(count(AUTHORITY_COUNT)).isEqualTo(1);
     assertThat(count(TRANSPORT_COUNT)).isEqualTo(1);
     assertThat(count("SELECT count(*) FROM authentication_challenge")).isEqualTo(1);
-    jdbc.update("UPDATE spring_session SET last_access_time = 0, expiry_time = 0");
+    jdbc.update(EXPIRE_NATIVE);
+    nativeCleanup();
     lifecycle(LOGIN.plusSeconds(1800)).purge();
     assertThat(count(AUTHORITY_COUNT)).isZero();
     assertThat(count(TRANSPORT_COUNT)).isZero();
@@ -135,8 +139,12 @@ class AuthenticationLifecycleIntegrationTest {
         Instant.now().plusSeconds(1800).toEpochMilli());
     lifecycle(LOGIN.plusSeconds(43199)).purge();
     assertThat(count(AUTHORITY_COUNT)).isEqualTo(1);
+    var expiredClock = Clock.fixed(LOGIN.plusSeconds(43200), ZoneOffset.UTC);
+    assertThat(nativeFixture().persistence(expiredClock).list(account, 1)).isEmpty();
     lifecycle(LOGIN.plusSeconds(43200)).purge();
-    assertThat(count(AUTHORITY_COUNT)).isZero();
+    assertThat(count(TRANSPORT_COUNT)).isEqualTo(1);
+    jdbc.update(EXPIRE_NATIVE);
+    nativeCleanup();
     assertThat(count(TRANSPORT_COUNT)).isZero();
   }
 
@@ -167,12 +175,17 @@ class AuthenticationLifecycleIntegrationTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"status = 'disabled'", "authority_epoch = 2"})
-  void staleAccountAuthorityIsPhysicallyRemoved(String trustedFixtureChange) {
-    transport(fullParent(), true);
+  void staleAccountAuthorityIsDeniedBeforeNativeCleanup(String trustedFixtureChange) {
+    UUID parent = fullParent();
+    String verifier = verifier(parent);
     jdbc.update("UPDATE authentication_account SET " + trustedFixtureChange);
+    var clock = Clock.fixed(LOGIN, ZoneOffset.UTC);
+    var authority =
+        new com.hortinis.sync.authentication.persistence.CurrentAuthenticationAuthorityPersistence(
+            JdbcClient.create(jdbc), clock, nativeFixture().persistence(clock));
+    assertThat(authority.findFull(verifier, parent)).isEmpty();
     lifecycle(LOGIN).purge();
-    assertThat(count(AUTHORITY_COUNT)).isZero();
-    assertThat(count(TRANSPORT_COUNT)).isZero();
+    assertThat(count(TRANSPORT_COUNT)).isEqualTo(1);
     assertThat(count("SELECT count(*) FROM authentication_account")).isEqualTo(1);
   }
 
@@ -244,13 +257,18 @@ class AuthenticationLifecycleIntegrationTest {
   }
 
   @Test
-  void orphanRemovalRequiresBothCurrentAuthorityReferenceAndMatchingCookieVerifier() {
+  void anonymousTransportUsesNativeExpiryWithoutApplicationOrphanScanning() {
     UUID parent = fullParent();
     transport(parent, true);
     transport(parent, false);
     transport(UUID.randomUUID(), false);
     assertThat(count(TRANSPORT_COUNT)).isEqualTo(3);
     lifecycle(LOGIN).purge();
+    assertThat(count(TRANSPORT_COUNT)).isEqualTo(3);
+    jdbc.update(
+        "UPDATE spring_session SET last_access_time = 0, expiry_time = 0 "
+            + "WHERE principal_name IS NULL");
+    nativeCleanup();
     assertThat(count(TRANSPORT_COUNT)).isEqualTo(1);
     assertThat(count(AUTHORITY_COUNT)).isEqualTo(1);
   }
@@ -311,9 +329,9 @@ class AuthenticationLifecycleIntegrationTest {
   }
 
   @Test
-  void cleanupWaitsForProtectedAccountTransactionBeforeExpiringItsSession() throws Exception {
+  void nativeCleanupWaitsForProtectedSessionTransactionBeforeDeletingItsSession() throws Exception {
     transport(fullParent(), true);
-    jdbc.update("UPDATE spring_session SET last_access_time = 0, expiry_time = 0");
+    jdbc.update(EXPIRE_NATIVE);
     CountDownLatch locked = new CountDownLatch(1);
     CountDownLatch release = new CountDownLatch(1);
     try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -324,16 +342,13 @@ class AuthenticationLifecycleIntegrationTest {
                       .executeWithoutResult(
                           status -> {
                             jdbc.queryForObject(
-                                "SELECT account_id FROM authentication_account "
-                                    + "WHERE account_id = ? FOR SHARE",
-                                UUID.class,
-                                account);
+                                "SELECT primary_id FROM spring_session FOR SHARE", String.class);
                             locked.countDown();
                             await(release);
                           }));
       try {
         assertThat(locked.await(10, TimeUnit.SECONDS)).isTrue();
-        final var cleanup = executor.submit(() -> lifecycle(LOGIN.plusSeconds(1800)).purge());
+        final var cleanup = executor.submit(this::nativeCleanup);
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
         boolean waiting = false;
         while (!waiting && System.nanoTime() < deadline) {
@@ -342,7 +357,7 @@ class AuthenticationLifecycleIntegrationTest {
                   jdbc.queryForObject(
                       "SELECT EXISTS (SELECT 1 FROM pg_stat_activity "
                           + "WHERE wait_event_type = 'Lock' "
-                          + "AND query LIKE 'SELECT a.status,%')",
+                          + "AND query LIKE 'DELETE FROM SPRING_SESSION%')",
                       Boolean.class));
           if (!waiting) {
             Thread.sleep(10);
@@ -364,7 +379,7 @@ class AuthenticationLifecycleIntegrationTest {
   @Test
   void cleanupWaitsForNativeActivityAndPreservesTheRenewedSession() throws Exception {
     transport(fullParent(), true);
-    jdbc.update("UPDATE spring_session SET last_access_time = 0, expiry_time = 0");
+    jdbc.update(EXPIRE_NATIVE);
     CountDownLatch refreshed = new CountDownLatch(1);
     CountDownLatch release = new CountDownLatch(1);
     try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
@@ -383,7 +398,7 @@ class AuthenticationLifecycleIntegrationTest {
                           }));
       try {
         assertThat(refreshed.await(10, TimeUnit.SECONDS)).isTrue();
-        final var cleanup = executor.submit(() -> lifecycle(LOGIN.plusSeconds(1800)).purge());
+        final var cleanup = executor.submit(this::nativeCleanup);
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
         boolean waiting = false;
         while (!waiting && System.nanoTime() < deadline) {
@@ -392,7 +407,7 @@ class AuthenticationLifecycleIntegrationTest {
                   jdbc.queryForObject(
                       "SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE "
                           + "wait_event_type = 'Lock' "
-                          + "AND query LIKE 'SELECT s.session_id%')",
+                          + "AND query LIKE 'DELETE FROM SPRING_SESSION%')",
                       Boolean.class));
           if (!waiting) {
             Thread.sleep(10);
@@ -524,13 +539,10 @@ class AuthenticationLifecycleIntegrationTest {
   }
 
   @Test
-  void initialStorageFailurePreventsTheListeningLifecycleAndNextAccessFailsClosed()
-      throws Exception {
+  void initialStorageFailurePreventsTheListeningLifecycle() throws Exception {
     var clock = new MutableClock();
     var adapter = adapter(clock, protectedTickets(clock));
     var listener = new SyntheticListener();
-    assertThatThrownBy(() -> adapter.onAccess(null))
-        .isInstanceOf(com.hortinis.sync.access.SynchronizationAccessUnavailableException.class);
     jdbc.update("UPDATE technical_server_installation SET access_mode = 'single-user-no-auth'");
     try (var context = new AnnotationConfigApplicationContext()) {
       context.registerBean(AuthenticationLifecycle.class, () -> adapter);
@@ -541,24 +553,23 @@ class AuthenticationLifecycleIntegrationTest {
   }
 
   @Test
-  void nextAccessPurgesOnlyItsExpiredTransportAndReconcilesConsumedFiles() throws Exception {
+  void scheduledSweepPurgesExpiredCeremoniesAndReconcilesConsumedFiles() throws Exception {
     UUID current = fullParent();
     UUID expired = passwordParent(LOGIN);
     transport(current, true);
     transport(expired, true);
-    final String verifier = verifier(expired);
     var clock = new MutableClock();
     var tickets = protectedTickets(clock);
     final var issued = tickets.issueRecovery(account);
     var adapter = adapter(clock, tickets);
     adapter.afterSingletonsInstantiated();
     clock.advance(Duration.ofMinutes(5));
-    adapter.onAccess(verifier);
+    adapter.scheduledSweep();
     assertThat(nativeFixture().persistence(Clock.fixed(LOGIN, ZoneOffset.UTC)).references(account))
         .containsExactly(current);
     assertThat(count(TRANSPORT_COUNT)).isEqualTo(1);
     jdbc.update("DELETE FROM authentication_operator_ticket");
-    adapter.onAccess(null);
+    adapter.scheduledSweep();
     assertThat(Files.exists(issued.file())).isFalse();
   }
 
@@ -616,23 +627,24 @@ class AuthenticationLifecycleIntegrationTest {
   }
 
   @Test
-  void targetedCleanupRejectsFutureFactorsAndOrphanAttributesWithoutTouchingOtherSessions() {
+  void futureFactorsAndMissingReferenceDenyWithoutPhysicalCleanup() {
     UUID invalid = fullParent();
-    transport(invalid, true);
-    String verifier = verifier(invalid);
     nativeFixture().factors(invalid, LOGIN.plusSeconds(1));
-    assertThat(lifecycle(LOGIN).purgeAccess(verifier)).isTrue();
-    assertThat(count(AUTHORITY_COUNT)).isZero();
-    assertThat(count(TRANSPORT_COUNT)).isZero();
-    UUID current = fullParent();
-    transport(current, true);
-    verifier = verifier(current);
+    assertThat(nativeFixture().persistence(Clock.fixed(LOGIN, ZoneOffset.UTC)).list(account, 1))
+        .isEmpty();
+    nativeFixture().factors(invalid, LOGIN);
     jdbc.update(
         "UPDATE spring_session_attributes SET attribute_name = 'synthetic-wrong-name' "
             + "WHERE attribute_name = 'hortinis.authority'");
-    assertThat(lifecycle(LOGIN).purgeAccess(verifier)).isTrue();
-    assertThat(count(AUTHORITY_COUNT)).isZero();
-    assertThat(count(TRANSPORT_COUNT)).isZero();
+    assertThat(nativeFixture().persistence(Clock.fixed(LOGIN, ZoneOffset.UTC)).list(account, 1))
+        .isEmpty();
+    assertThat(count(TRANSPORT_COUNT)).isEqualTo(1);
+  }
+
+  private void nativeCleanup() {
+    com.hortinis.sync.authentication.persistence.AuthenticationJdbcSessions.create(
+            jdbc, transactionManager)
+        .cleanUpExpiredSessions();
   }
 
   private AuthenticationOperatorTickets protectedTickets(Clock clock) throws Exception {

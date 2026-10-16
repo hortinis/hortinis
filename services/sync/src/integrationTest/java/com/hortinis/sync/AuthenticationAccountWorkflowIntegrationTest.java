@@ -35,7 +35,6 @@ import com.hortinis.sync.authentication.PasswordVerifier;
 import com.hortinis.sync.authentication.http.AuthenticationBrowserGuard;
 import com.hortinis.sync.authentication.http.AuthenticationErrorHandler;
 import com.hortinis.sync.authentication.http.AuthenticationHttpErrors;
-import com.hortinis.sync.authentication.http.AuthenticationLifecycleFilter;
 import com.hortinis.sync.authentication.http.AuthenticationMutationController;
 import com.hortinis.sync.authentication.http.AuthenticationProofBoundary;
 import com.hortinis.sync.authentication.http.AuthenticationReadController;
@@ -970,9 +969,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
             jdbc.queryForObject("SELECT max_inactive_interval FROM spring_session", Integer.class))
         .isEqualTo(1800);
     jdbc.update("UPDATE spring_session SET last_access_time = 0, expiry_time = 0");
-    new AuthenticationLifecyclePersistence(
-            JdbcClient.create(jdbc), clock, transactions, this.nativeSessions)
-        .purge();
+    AuthenticationJdbcSessions.create(jdbc, transactions).cleanUpExpiredSessions();
     var denied =
         request(
             "/api/v1/auth/activity",
@@ -1069,9 +1066,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
     switch (failure) {
       case IDLE_CASE -> {
         jdbc.update("UPDATE spring_session SET last_access_time = 0, expiry_time = 0");
-        new AuthenticationLifecyclePersistence(
-                JdbcClient.create(jdbc), clock, transactions, this.nativeSessions)
-            .purge();
+        AuthenticationJdbcSessions.create(jdbc, transactions).cleanUpExpiredSessions();
       }
       case "absolute" -> clock.advance(AuthenticationLifetime.FULL_ABSOLUTE);
       case "revoked-epoch" ->
@@ -2418,7 +2413,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
   }
 
   @Test
-  void httpWorkflowNextAccessPurgesExpiredTransportBeforeStatus() throws Exception {
+  void expiredCeremonyDeniesStatusAndBootstrapRecoversBeforeScheduledPurge() throws Exception {
     setupAccount(false);
     var partial =
         request(
@@ -2429,8 +2424,16 @@ class AuthenticationAccountWorkflowIntegrationTest {
     assertThat(status.getStatus()).isEqualTo(200);
     assertThat(status.getContentAsString()).isEqualTo("{\"state\":\"anonymous\"}");
     assertThat(status.getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
-    assertThat(count(AUTHORITY_COUNT)).isZero();
-    assertThat(count(NATIVE_COUNT)).isZero();
+    assertThat(count(AUTHORITY_COUNT)).isEqualTo(1);
+    assertThat(count(NATIVE_COUNT)).isEqualTo(1);
+    var bootstrap = httpGet(mvc, "/api/v1/auth/csrf", partial.cookie());
+    assertThat(bootstrap.getStatus()).isEqualTo(200);
+    assertThat(bootstrap.getHeader(HttpHeaders.SET_COOKIE)).contains("Secure", "HttpOnly");
+    new AuthenticationLifecyclePersistence(
+            JdbcClient.create(jdbc), clock, transactions, this.nativeSessions)
+        .purge();
+    assertThat(count(AUTHORITY_COUNT)).isEqualTo(1);
+    assertThat(count(NATIVE_COUNT)).isEqualTo(1);
     assertThat(count(CHALLENGE_COUNT)).isZero();
   }
 
@@ -2477,8 +2480,6 @@ class AuthenticationAccountWorkflowIntegrationTest {
         .setControllerAdvice(new AuthenticationErrorHandler())
         .addFilters(
             new AuthenticationBrowserGuard(SyntheticAuthenticationPasskey.ORIGIN, false),
-            new AuthenticationLifecycleFilter(
-                lifecycle, AuthenticationSessionConfiguration.authenticationSessionIdResolver()),
             nativeSessions,
             csrf)
         .build();
@@ -2566,6 +2567,10 @@ class AuthenticationAccountWorkflowIntegrationTest {
     assertThat(empty.getContentAsString())
         .contains("\"remaining\":0", "\"expiresSoon\":false")
         .doesNotContain("expiresAt");
+    assertThat(count(CODE_COUNT)).isEqualTo(9);
+    new AuthenticationLifecyclePersistence(
+            JdbcClient.create(jdbc), clock, transactions, this.nativeSessions)
+        .purge();
     assertThat(count(CODE_COUNT)).isZero();
     assertThat(
             authority

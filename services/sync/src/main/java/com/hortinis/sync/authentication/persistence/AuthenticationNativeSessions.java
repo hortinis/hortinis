@@ -14,7 +14,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.function.Consumer;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.authorization.AllRequiredFactorsAuthorizationManager;
@@ -121,33 +120,6 @@ public class AuthenticationNativeSessions {
             null));
   }
 
-  /** Non-authorizing lookup used only to take the owning account lock during physical cleanup. */
-  public Optional<Owner> ownerByVerifier(String verifier) {
-    return jdbc.sql(
-            "SELECT s.principal_name, a.attribute_bytes FROM spring_session s "
-                + "JOIN spring_session_attributes a ON a.session_primary_id = s.primary_id "
-                + "WHERE a.attribute_name = 'hortinis.authority' AND s.principal_name IS NOT NULL "
-                + "AND encode(sha256(convert_to(s.session_id, 'UTF8')), 'hex') = ?")
-        .param(verifier)
-        .query(
-            (row, number) -> {
-              var reference =
-                  (SessionAuthorityReference)
-                      SessionAttributeCodec.conversionService()
-                          .convert(row.getBytes(2), Object.class);
-              return new Owner(UUID.fromString(row.getString(1)), reference.value());
-            })
-        .optional();
-  }
-
-  /** This metadata does not grant authentication or authorize account data. */
-  public record Owner(UUID account, UUID reference) {
-    @Override
-    public String toString() {
-      return "NativeSessionOwner[redacted]";
-    }
-  }
-
   /** Standard principal indexing also finds expired contexts for physical revocation. */
   public List<UUID> references(UUID account) {
     return repository.findByPrincipalName(account.toString()).values().stream()
@@ -157,26 +129,6 @@ public class AuthenticationNativeSessions {
         .map(SessionAuthorityReference::value)
         .sorted()
         .toList();
-  }
-
-  /**
-   * Cleanup uses the native expiry/factor policy, while its caller holds the owning account lock.
-   */
-  public void removeInvalid(UUID account, long epoch, boolean active, Consumer<UUID> removal) {
-    for (Session session : repository.findByPrincipalName(account.toString()).values()) {
-      SessionAuthorityReference reference = session.getAttribute("hortinis.authority");
-      if (reference == null) {
-        repository.deleteById(session.getId());
-      } else {
-        var current = findFull(reference.value(), null, Lock.UPDATE);
-        if (!active
-            || current.isEmpty()
-            || !account.equals(current.orElseThrow().account())
-            || current.orElseThrow().epoch() != epoch) {
-          removal.accept(reference.value());
-        }
-      }
-    }
   }
 
   /** Supported native-row lock strengths; no request text is used as a SQL clause. */

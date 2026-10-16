@@ -1,5 +1,9 @@
 # S9 implementation plan
 
+Later framework delegation decisions in the [Spring authentication plan](spring-authentication-delegation-plan.md)
+supersede the historical next-access cleanup and controlled-cookie implementation below. Native
+session expiry/deletion uses Spring Session; application records retain scheduled cleanup.
+
 ## Analysis and boundaries
 
 S8 is committed and validated as design in ADR-0033 and the authentication/session specification.

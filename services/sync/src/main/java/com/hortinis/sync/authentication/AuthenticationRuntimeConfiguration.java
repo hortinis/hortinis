@@ -3,7 +3,6 @@ package com.hortinis.sync.authentication;
 import com.hortinis.sync.access.ServerAccessMode;
 import com.hortinis.sync.authentication.http.AuthenticationBrowserGuard;
 import com.hortinis.sync.authentication.http.AuthenticationHttpErrors;
-import com.hortinis.sync.authentication.http.AuthenticationLifecycleFilter;
 import com.hortinis.sync.authentication.http.AuthenticationProofBoundary;
 import com.hortinis.sync.authentication.http.HeaderOnlyCsrfTokenRequestHandler;
 import com.hortinis.sync.authentication.persistence.AuthenticationLifecyclePersistence;
@@ -31,7 +30,6 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
-import org.springframework.session.web.http.HttpSessionIdResolver;
 import org.springframework.transaction.PlatformTransactionManager;
 
 /** Explicit S9-only runtime graph for a freshly provisioned sole authenticated account. */
@@ -86,13 +84,6 @@ public class AuthenticationRuntimeConfiguration {
         attempts);
   }
 
-  /** Makes next-access physical cleanup available to the servlet boundary. */
-  @Bean
-  public AuthenticationLifecycleFilter authenticationLifecycleFilter(
-      AuthenticationLifecycle lifecycle, HttpSessionIdResolver identifiers) {
-    return new AuthenticationLifecycleFilter(lifecycle, identifiers);
-  }
-
   /** Guards same-origin requests and emits fixed browser security headers. */
   @Bean
   public AuthenticationBrowserGuard authenticationBrowserGuard(Environment environment) {
@@ -110,18 +101,11 @@ public class AuthenticationRuntimeConfiguration {
     return repository;
   }
 
-  /** Runs browser-origin validation before lifecycle, session, CSRF and request parsing. */
+  /** Runs browser-origin validation before session, CSRF and request parsing. */
   @Bean
   public FilterRegistrationBean<AuthenticationBrowserGuard> authenticationBrowserGuardRegistration(
       AuthenticationBrowserGuard filter) {
     return registration(filter, Ordered.HIGHEST_PRECEDENCE + 10);
-  }
-
-  /** Performs lifecycle checks after the browser guard but before native session loading. */
-  @Bean
-  public FilterRegistrationBean<AuthenticationLifecycleFilter> authenticationLifecycleRegistration(
-      AuthenticationLifecycleFilter filter) {
-    return registration(filter, Ordered.HIGHEST_PRECEDENCE + 20);
   }
 
   /**

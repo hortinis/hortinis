@@ -137,6 +137,28 @@ class AuthenticationBrowserGuardTest {
     assertThat(response.getHeader("Strict-Transport-Security")).isEqualTo("max-age=31536000");
   }
 
+  @Test
+  void nativeSessionStorageFailureReturnsClosedUnavailableResponse() throws Exception {
+    var response = new MockHttpServletResponse();
+    new AuthenticationBrowserGuard(ORIGIN, false)
+        .doFilter(
+            request(GET, CSRF),
+            response,
+            (req, res) -> {
+              res.setContentLength(1000);
+              res.getWriter().write("synthetic-partial-response");
+              throw new org.springframework.dao.DataAccessResourceFailureException(
+                  "synthetic-private-database-detail");
+            });
+    assertThat(response.getStatus()).isEqualTo(503);
+    assertThat(response.getHeader(HttpHeaders.CACHE_CONTROL)).isEqualTo("no-store");
+    assertThat(response.getHeader(HttpHeaders.CONTENT_LENGTH)).isNull();
+    assertThat(response.getHeader("X-Content-Type-Options")).isEqualTo("nosniff");
+    assertThat(response.getContentAsString())
+        .contains("ACCESS_UNAVAILABLE")
+        .doesNotContain("synthetic-partial-response", "synthetic-private-database-detail");
+  }
+
   private static MockHttpServletRequest request(String method, String path) {
     var request = new UnreadableRequest(method, path);
     request.addHeader(ORIGIN_HEADER, ORIGIN);

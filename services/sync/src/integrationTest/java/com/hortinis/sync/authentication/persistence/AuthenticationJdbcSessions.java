@@ -28,7 +28,7 @@ public final class AuthenticationJdbcSessions {
     repository.setConversionService(SessionAttributeCodec.conversionService());
     repository.setFlushMode(FlushMode.IMMEDIATE);
     repository.setSaveMode(SaveMode.ON_SET_ATTRIBUTE);
-    // Ordered authority cleanup owns physical retention, rather than a second uncoordinated job.
+    // Tests invoke native cleanup explicitly; production uses Boot's configured minute schedule.
     repository.setCleanupCron(Scheduled.CRON_DISABLED);
     return repository;
   }

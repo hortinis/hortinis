@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.InvalidMediaTypeException;
 import org.springframework.http.MediaType;
@@ -21,6 +22,7 @@ import org.springframework.security.web.header.writers.PermissionsPolicyHeaderWr
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.security.web.header.writers.XContentTypeOptionsHeaderWriter;
 import org.springframework.security.web.header.writers.frameoptions.XFrameOptionsHeaderWriter;
+import org.springframework.transaction.TransactionException;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
@@ -85,7 +87,16 @@ public final class AuthenticationBrowserGuard extends OncePerRequestFilter {
       AuthenticationHttpErrors.INVALID.write(response);
       return;
     }
-    chain.doFilter(request, response);
+    try {
+      chain.doFilter(request, response);
+    } catch (DataAccessException | TransactionException exception) {
+      if (response.isCommitted()) {
+        throw new ServletException("The access service is unavailable.");
+      }
+      response.reset();
+      headers.writeHeaders(request, response);
+      AuthenticationHttpErrors.UNAVAILABLE.write(response);
+    }
   }
 
   private boolean sameOriginFetch(HttpServletRequest request, boolean unsafe) {

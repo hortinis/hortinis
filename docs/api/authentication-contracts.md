@@ -101,7 +101,8 @@ Controlled operator recovery also has real signed-proof/current-ticket tests: ex
 installation claim, bounded retry, new compliant password plus user-verified registration, removal
 of obsolete credentials/codes/authority, rollback and normal login afterward. The reviewed host command
 uses an isolated non-web context, controlled protected files and fixed diagnostics. Physical lifecycle
-adapters perform startup, scheduled and targeted next-access cleanup without granting authority.
+adapters purge application records at startup and on a schedule; Spring Session owns native idle
+expiry and scheduled deletion. Requests reject expired authority without waiting for physical cleanup.
 The same claimed setup ceremony can reissue options after interruption without extending its deadline.
 
 Private HTTP tests now use the actual Spring Session JDBC servlet wrappers, established header-only

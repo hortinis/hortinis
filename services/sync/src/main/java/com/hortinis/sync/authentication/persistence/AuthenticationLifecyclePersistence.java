@@ -14,27 +14,13 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-/** Ordered physical cleanup; runtime startup and scheduling are responsible for invoking sweeps. */
+/** Purges application ceremony and recovery records; Spring owns native session expiry cleanup. */
 @Repository
 @SynchronizationPersistenceEnabled
 public class AuthenticationLifecyclePersistence {
   private static final String AUTH_MODE = "single-user-auth";
   private static final Duration EVENT_RETENTION = Duration.ofDays(30);
-  private static final String NATIVE_COMPLETED =
-      "s.principal_name IS NOT NULL "
-          + "AND EXISTS (SELECT 1 FROM authentication_account a WHERE a.account_id::text "
-          + "= s.principal_name) "
-          + "AND EXISTS (SELECT 1 FROM spring_session_attributes a WHERE "
-          + "a.session_primary_id = s.primary_id "
-          + "AND a.attribute_name = 'SPRING_SECURITY_CONTEXT') "
-          + "AND EXISTS (SELECT 1 FROM spring_session_attributes a WHERE "
-          + "a.session_primary_id = s.primary_id "
-          + "AND a.attribute_name = 'hortinis.authority') "
-          + "AND EXISTS (SELECT 1 FROM spring_session_attributes a WHERE "
-          + "a.session_primary_id = s.primary_id "
-          + "AND a.attribute_name = 'hortinis.logout-target')";
   private final JdbcClient jdbc;
-  private final AuthenticationNativeSessions nativeSessions;
   private final Clock clock;
   private final TransactionTemplate transactions;
   private final AuthenticationSessionRemovalPersistence removal;
@@ -47,7 +33,6 @@ public class AuthenticationLifecyclePersistence {
       AuthenticationNativeSessions nativeSessions) {
     this.jdbc = jdbc;
     this.clock = clock;
-    this.nativeSessions = nativeSessions;
     removal = new AuthenticationSessionRemovalPersistence(jdbc, nativeSessions);
     transactions = new TransactionTemplate(transactionManager);
   }
@@ -71,19 +56,6 @@ public class AuthenticationLifecyclePersistence {
     transactions.executeWithoutResult(
         status -> {
           jdbc.sql(
-                  "DELETE FROM spring_session s WHERE NOT EXISTS ("
-                      + "SELECT 1 FROM spring_session_attributes t "
-                      + "JOIN authentication_session_authority a ON t.attribute_bytes = "
-                      + "convert_to('v1:authority:' || a.session_reference::text, 'UTF8') "
-                      + "WHERE t.session_primary_id = s.primary_id AND "
-                      + "t.attribute_name = 'hortinis.authority' "
-                      + "AND a.session_verifier = "
-                      + "encode(sha256(convert_to(s.session_id, 'UTF8')), 'hex')) "
-                      + "AND NOT ("
-                      + NATIVE_COMPLETED
-                      + ")")
-              .update();
-          jdbc.sql(
                   "DELETE FROM authentication_challenge c WHERE "
                       + "NOT EXISTS (SELECT 1 FROM authentication_session_authority a "
                       + "WHERE a.session_reference = c.session_reference) "
@@ -96,109 +68,6 @@ public class AuthenticationLifecyclePersistence {
               .param(Timestamp.from(clock.instant().minus(EVENT_RETENTION)))
               .update();
         });
-    return true;
-  }
-
-  /** Targeted next-access cleanup takes only a trusted transport digest, never a wire verifier. */
-  public boolean purgeAccess(String verifier) {
-    if (TransactionSynchronizationManager.isActualTransactionActive()) {
-      throw new IllegalStateException("Authentication cleanup requires independent transactions.");
-    }
-    if (verifier != null && !verifier.matches("[a-f0-9]{64}")) {
-      throw new IllegalArgumentException("Invalid trusted transport digest.");
-    }
-    return Boolean.TRUE.equals(transactions.execute(status -> purgeAccessLocked(verifier)));
-  }
-
-  private boolean purgeAccessLocked(String verifier) {
-    boolean selected =
-        jdbc.sql(
-                "SELECT access_mode = ? FROM technical_server_installation "
-                    + "WHERE singleton FOR UPDATE")
-            .param(AUTH_MODE)
-            .query(Boolean.class)
-            .optional()
-            .orElse(false);
-    if (!selected || verifier == null) {
-      return selected;
-    }
-    var preliminary =
-        jdbc.sql(
-                "SELECT "
-                    + AuthenticationSessionRows.COLUMNS
-                    + " FROM authentication_session_authority WHERE session_verifier = ?")
-            .param(verifier)
-            .query(AuthenticationSessionRows::read)
-            .optional();
-    var nativeOwner =
-        preliminary.isEmpty()
-            ? nativeSessions.ownerByVerifier(verifier)
-            : java.util.Optional.<AuthenticationNativeSessions.Owner>empty();
-    UUID accountId =
-        preliminary
-            .map(AuthenticationSession::account)
-            .orElseGet(
-                () -> nativeOwner.map(AuthenticationNativeSessions.Owner::account).orElse(null));
-    var account = accountId == null ? java.util.Optional.<Account>empty() : lockAccount(accountId);
-    var current =
-        jdbc.sql(
-                "SELECT "
-                    + AuthenticationSessionRows.COLUMNS
-                    + " FROM authentication_session_authority WHERE session_verifier = ? "
-                    + "FOR UPDATE")
-            .param(verifier)
-            .query(AuthenticationSessionRows::read)
-            .optional();
-    if (current.isEmpty() && nativeOwner.isPresent()) {
-      current =
-          nativeSessions.findFull(
-              nativeOwner.orElseThrow().reference(),
-              verifier,
-              AuthenticationNativeSessions.Lock.UPDATE);
-    }
-    Instant now = clock.instant();
-    if (current.isPresent()) {
-      var parent = current.orElseThrow();
-      boolean owned =
-          parent.account() == null
-              || account.isPresent()
-                  && "active".equals(account.orElseThrow().status())
-                  && AUTH_MODE.equals(account.orElseThrow().mode())
-                  && parent.epoch() == account.orElseThrow().epoch()
-                  && java.util.Objects.equals(parent.account(), accountId);
-      if (!owned || !timeIsCurrent(parent, now)) {
-        removal.remove(parent.reference());
-      } else {
-        jdbc.sql(
-                "DELETE FROM authentication_challenge WHERE session_reference = ? "
-                    + "AND (expires_at <= ? OR created_at > ?)")
-            .params(parent.reference(), Timestamp.from(now), Timestamp.from(now))
-            .update();
-      }
-    } else if (nativeOwner.isPresent()) {
-      removal.remove(nativeOwner.orElseThrow().reference());
-    }
-    if (accountId != null) {
-      jdbc.sql(
-              "DELETE FROM authentication_recovery_code WHERE account_id = ? "
-                  + "AND (expires_at <= ? OR created_at > ?)")
-          .params(accountId, Timestamp.from(now), Timestamp.from(now))
-          .update();
-    }
-    jdbc.sql(
-            "DELETE FROM spring_session s WHERE "
-                + "encode(sha256(convert_to(s.session_id, 'UTF8')), 'hex') = ? "
-                + "AND NOT EXISTS (SELECT 1 FROM "
-                + "spring_session_attributes t JOIN authentication_session_authority a "
-                + "ON t.attribute_bytes = convert_to('v1:authority:' || "
-                + "a.session_reference::text, 'UTF8') "
-                + "WHERE t.session_primary_id = s.primary_id AND "
-                + "t.attribute_name = 'hortinis.authority' "
-                + "AND a.session_verifier = ?) AND NOT ("
-                + NATIVE_COMPLETED
-                + ")")
-        .params(verifier, verifier)
-        .update();
     return true;
   }
 
@@ -216,7 +85,7 @@ public class AuthenticationLifecyclePersistence {
     List<AuthenticationSession> parents = parents(null);
     Instant now = clock.instant();
     for (AuthenticationSession parent : parents) {
-      if (!timeIsCurrent(parent, now)) {
+      if (!parent.isUnexpired(now)) {
         removal.remove(parent.reference());
       }
     }
@@ -250,15 +119,10 @@ public class AuthenticationLifecyclePersistence {
       if (!"active".equals(account.status())
           || !AUTH_MODE.equals(account.mode())
           || parent.epoch() != account.epoch()
-          || !timeIsCurrent(parent, now)) {
+          || !parent.isUnexpired(now)) {
         removal.remove(parent.reference());
       }
     }
-    nativeSessions.removeInvalid(
-        accountId,
-        account.epoch(),
-        "active".equals(account.status()) && AUTH_MODE.equals(account.mode()),
-        removal::remove);
     jdbc.sql(
             "DELETE FROM authentication_challenge c WHERE c.account_id = ? "
                 + "AND (c.expires_at <= ? OR c.created_at > ?)")
@@ -293,11 +157,6 @@ public class AuthenticationLifecyclePersistence {
       query = query.param(account);
     }
     return query.query(AuthenticationSessionRows::read).list();
-  }
-
-  private static boolean timeIsCurrent(AuthenticationSession parent, Instant now) {
-    return parent.isUnexpired(now)
-        && (!"full".equals(parent.state()) || parent.hasCurrentFactors(now));
   }
 
   private java.util.Optional<Account> lockAccount(UUID accountId) {
