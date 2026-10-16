@@ -3,6 +3,7 @@ package com.hortinis.sync.authentication.http;
 import com.hortinis.sync.authentication.AuthenticationIdentity;
 import com.hortinis.sync.authentication.AuthenticationRuntimeConfiguration;
 import com.hortinis.sync.authentication.AuthenticationSecrets;
+import com.hortinis.sync.authentication.AuthenticationSession;
 import com.hortinis.sync.authentication.AuthenticationSessionTransport;
 import com.hortinis.sync.authentication.SessionAuthorityReference;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,10 +19,12 @@ import org.springframework.security.web.authentication.logout.SecurityContextLog
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.NullSecurityContextRepository;
 import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
+import org.springframework.session.FindByIndexNameSessionRepository;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /** Concrete servlet transport; it installs no filter, principal or runtime access mode. */
 public final class RequestAuthenticationSession implements AuthenticationSessionTransport {
+  private static final String PASSWORD_STATE = "password";
   private static final String AUTHORITY_ATTRIBUTE = "hortinis.authority";
   private final HttpServletRequest request;
   private final HttpServletResponse response;
@@ -50,7 +53,7 @@ public final class RequestAuthenticationSession implements AuthenticationSession
   }
 
   @Override
-  public Observation bootstrap(Function<String, SessionAuthorityReference> admission) {
+  public Observation bootstrap(Function<String, AuthenticationSession> admission) {
     requirePublicationTransaction();
     if (!"GET".equals(request.getMethod())
         || !"/api/v1/auth/csrf".equals(request.getRequestURI())
@@ -59,11 +62,15 @@ public final class RequestAuthenticationSession implements AuthenticationSession
     }
     HttpSession session = request.getSession(true);
     requireFrameworkId(session.getId());
-    SessionAuthorityReference reference = Objects.requireNonNull(admission.apply(session.getId()));
+    AuthenticationSession ceremony = Objects.requireNonNull(admission.apply(session.getId()));
+    SessionAuthorityReference reference = new SessionAuthorityReference(ceremony.reference());
     session.setAttribute(AUTHORITY_ATTRIBUTE, reference);
     session.removeAttribute(AuthenticationSessionTransport.LOGOUT_TARGET_ATTRIBUTE);
+    session.removeAttribute(AuthenticationSession.ATTRIBUTE);
+    session.removeAttribute(FindByIndexNameSessionRepository.PRINCIPAL_NAME_INDEX_NAME);
     contexts.saveContext(SecurityContextHolder.createEmptyContext(), request, response);
     SecurityContextHolder.clearContext();
+    stage(ceremony);
     refreshCsrf();
     return new Observation(reference, AuthenticationSecrets.digest(session.getId()));
   }
@@ -81,6 +88,8 @@ public final class RequestAuthenticationSession implements AuthenticationSession
     // With the selected immediate JDBC repository, this attribute flush saves the rotated ID too.
     session.setAttribute(AUTHORITY_ATTRIBUTE, replacement);
     session.removeAttribute(AuthenticationSessionTransport.LOGOUT_TARGET_ATTRIBUTE);
+    session.removeAttribute(AuthenticationSession.ATTRIBUTE);
+    session.removeAttribute(FindByIndexNameSessionRepository.PRINCIPAL_NAME_INDEX_NAME);
     contexts.saveContext(SecurityContextHolder.createEmptyContext(), request, response);
     SecurityContextHolder.clearContext();
     refreshCsrf();
@@ -103,8 +112,34 @@ public final class RequestAuthenticationSession implements AuthenticationSession
   }
 
   @Override
+  public void stage(AuthenticationSession ceremony) {
+    requirePublicationTransaction();
+    HttpSession session = Objects.requireNonNull(request.getSession(false));
+    if (!new SessionAuthorityReference(ceremony.reference())
+        .equals(session.getAttribute(AUTHORITY_ATTRIBUTE))) {
+      throw unavailable();
+    }
+    session.setMaxInactiveInterval(300);
+    session.setAttribute(AuthenticationSession.ATTRIBUTE, ceremony);
+    if (ceremony.account() != null) {
+      session.setAttribute(
+          FindByIndexNameSessionRepository.PRINCIPAL_NAME_INDEX_NAME,
+          ceremony.account().toString());
+    }
+    if (PASSWORD_STATE.equals(ceremony.state())) {
+      var context = SecurityContextHolder.createEmptyContext();
+      context.setAuthentication(
+          AuthenticationIdentity.password(
+              ceremony.account(), ceremony.epoch(), ceremony.createdAt()));
+      contexts.saveContext(context, request, response);
+      SecurityContextHolder.setContext(context);
+    }
+  }
+
+  @Override
   public void authenticate(UUID account, long epoch, Instant verifiedAt, String logoutTarget) {
     requirePublicationTransaction();
+    Objects.requireNonNull(request.getSession(false)).setMaxInactiveInterval(1800);
     var context = SecurityContextHolder.createEmptyContext();
     context.setAuthentication(AuthenticationIdentity.completed(account, epoch, verifiedAt));
     Objects.requireNonNull(request.getSession(false))

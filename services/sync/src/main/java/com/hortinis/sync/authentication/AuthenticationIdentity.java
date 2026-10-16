@@ -1,7 +1,6 @@
 package com.hortinis.sync.authentication;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -15,15 +14,28 @@ public record AuthenticationIdentity(UUID account, long epoch) {
 
   /** Both proofs were completed by the owning workflow before this native context is published. */
   public static Authentication completed(UUID account, long epoch, Instant verifiedAt) {
-    var authorities =
-        List.of(
-            new SimpleGrantedAuthority(EPOCH + epoch),
-            FactorGrantedAuthority.withAuthority(FactorGrantedAuthority.PASSWORD_AUTHORITY)
-                .issuedAt(verifiedAt)
-                .build(),
-            FactorGrantedAuthority.withAuthority(FactorGrantedAuthority.WEBAUTHN_AUTHORITY)
-                .issuedAt(verifiedAt)
-                .build());
+    return factors(account, epoch, verifiedAt, true);
+  }
+
+  /** Password-only authentication cannot satisfy the required WebAuthn factor. */
+  public static Authentication password(UUID account, long epoch, Instant verifiedAt) {
+    return factors(account, epoch, verifiedAt, false);
+  }
+
+  private static Authentication factors(
+      UUID account, long epoch, Instant verifiedAt, boolean full) {
+    var authorities = new java.util.ArrayList<org.springframework.security.core.GrantedAuthority>();
+    authorities.add(new SimpleGrantedAuthority(EPOCH + epoch));
+    authorities.add(
+        FactorGrantedAuthority.withAuthority(FactorGrantedAuthority.PASSWORD_AUTHORITY)
+            .issuedAt(verifiedAt)
+            .build());
+    if (full) {
+      authorities.add(
+          FactorGrantedAuthority.withAuthority(FactorGrantedAuthority.WEBAUTHN_AUTHORITY)
+              .issuedAt(verifiedAt)
+              .build());
+    }
     var user = new User(account.toString(), "", authorities);
     user.eraseCredentials();
     return UsernamePasswordAuthenticationToken.authenticated(user, null, authorities);

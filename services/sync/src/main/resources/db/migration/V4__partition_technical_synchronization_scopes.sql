@@ -162,45 +162,7 @@ CREATE TABLE authentication_credential (
 );
 CREATE INDEX authentication_credential_account ON authentication_credential (account_id);
 
--- Separate current authority survives independently of Spring Session save races. Every protected
--- transaction checks account epoch/status, session lifetime and scope ownership before content.
--- Session verifier is SHA-256 of the independent opaque HTTP session ID; logout target is distinct.
-CREATE TABLE authentication_session_authority (
-    session_reference UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    session_verifier CHAR(64) NOT NULL UNIQUE CHECK (session_verifier ~ '^[a-f0-9]{64}$'),
-    logout_target VARCHAR(43) NOT NULL UNIQUE
-        CHECK (logout_target ~ '^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$'),
-    state TEXT NOT NULL CHECK (state IN ('anonymous', 'password', 'setup', 'recovery')),
-    account_id UUID REFERENCES authentication_account (account_id) ON DELETE CASCADE,
-    authority_epoch BIGINT CHECK (authority_epoch > 0),
-    created_at TIMESTAMPTZ NOT NULL,
-    expires_at TIMESTAMPTZ NOT NULL,
-    step_up BOOLEAN NOT NULL DEFAULT FALSE,
-    both_factors_at TIMESTAMPTZ,
-    staged_login_identifier VARCHAR(64)
-        CHECK (staged_login_identifier ~ '^[a-z0-9][a-z0-9._-]{2,63}$'),
-    staged_password_verifier VARCHAR(256)
-        CHECK (staged_password_verifier LIKE '{argon2id}$argon2id$v=19$m=65536,t=3,p=1$%'),
-    staged_user_handle BYTEA CHECK (octet_length(staged_user_handle) = 32),
-    recovery_kind TEXT CHECK (recovery_kind IN ('password', 'passkey', 'operator')),
-    replacement_credential_id BYTEA CHECK (octet_length(replacement_credential_id) BETWEEN 1 AND 1536),
-    CHECK (expires_at > created_at),
-    CHECK ((account_id IS NULL AND authority_epoch IS NULL)
-        OR (account_id IS NOT NULL AND authority_epoch IS NOT NULL)),
-    CHECK (state <> 'password' OR account_id IS NOT NULL),
-    CHECK (state <> 'recovery' OR account_id IS NOT NULL OR (
-        recovery_kind IS NOT DISTINCT FROM 'password' AND both_factors_at IS NULL
-        AND staged_login_identifier IS NOT NULL
-    )),
-    CHECK (expires_at <= created_at + INTERVAL '5 minutes'),
-    CHECK (state <> 'setup' OR (
-        account_id IS NULL AND staged_login_identifier IS NOT NULL
-        AND staged_password_verifier IS NOT NULL AND staged_user_handle IS NOT NULL
-    ))
-);
-CREATE INDEX authentication_session_expiry ON authentication_session_authority (expires_at);
-CREATE INDEX authentication_session_account ON authentication_session_authority (account_id);
-
+-- Pending ceremonies and password/full authentication are stored only in Spring Session.
 CREATE TABLE authentication_challenge (
     session_reference UUID PRIMARY KEY,
     account_id UUID REFERENCES authentication_account (account_id) ON DELETE CASCADE,
@@ -226,8 +188,7 @@ CREATE TABLE authentication_operator_ticket (
     account_id UUID REFERENCES authentication_account (account_id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
-    claimed_session_reference UUID
-        REFERENCES authentication_session_authority (session_reference) ON DELETE CASCADE,
+    claimed_session_reference UUID,
     UNIQUE (purpose, target_id),
     CHECK ((purpose = 'setup' AND account_id IS NULL)
         OR (purpose = 'operator' AND account_id IS NOT NULL AND target_id = account_id)),

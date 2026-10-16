@@ -162,7 +162,7 @@ class AuthenticationOperatorCommandIntegrationTest {
             jdbc.queryForObject(
                 "SELECT password_verifier FROM authentication_account", String.class))
         .isEqualTo(SYNTHETIC_VERIFIER);
-    assertThat(count("SELECT count(*) FROM authentication_session_authority")).isZero();
+    assertThat(count("SELECT count(*) FROM spring_session")).isZero();
     assertThat(
             command(
                     Map.of(),

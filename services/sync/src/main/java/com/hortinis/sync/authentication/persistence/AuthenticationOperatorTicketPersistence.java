@@ -141,7 +141,7 @@ public class AuthenticationOperatorTicketPersistence {
     boolean empty =
         jdbc.sql(
                 "SELECT NOT (EXISTS (SELECT 1 FROM authentication_account) "
-                    + "OR EXISTS (SELECT 1 FROM authentication_session_authority) "
+                    + "OR EXISTS (SELECT 1 FROM spring_session) "
                     + "OR EXISTS (SELECT 1 FROM authentication_operator_ticket))")
             .query(Boolean.class)
             .single();

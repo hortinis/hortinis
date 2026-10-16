@@ -24,10 +24,11 @@ import org.springframework.session.FindByIndexNameSessionRepository;
 import org.springframework.session.Session;
 import org.springframework.stereotype.Repository;
 
-/** Completed sessions are discovered through Spring's native principal index and factor policy. */
+/** Native session lookup, principal indexing and completed-factor policy. */
 @Repository
 @SynchronizationPersistenceEnabled
 public class AuthenticationNativeSessions {
+  private static final String PASSWORD_STATE = "password";
   private final JdbcClient jdbc;
   private final Clock clock;
   private final FindByIndexNameSessionRepository<? extends Session> repository;
@@ -71,6 +72,11 @@ public class AuthenticationNativeSessions {
 
   /** Row locks follow the caller's account lock; the cookie identifier remains internal. */
   public Optional<AuthenticationSession> findFull(UUID reference, String verifier, Lock lock) {
+    return find(reference, verifier, lock).filter(session -> "full".equals(session.state()));
+  }
+
+  /** One native row owns both restricted workflow data and completed authentication. */
+  public Optional<AuthenticationSession> find(UUID reference, String verifier, Lock lock) {
     if (reference == null) {
       return Optional.empty();
     }
@@ -79,7 +85,7 @@ public class AuthenticationNativeSessions {
                 "SELECT s.session_id FROM spring_session s JOIN spring_session_attributes a "
                     + "ON a.session_primary_id = s.primary_id WHERE a.attribute_name = "
                     + "'hortinis.authority' "
-                    + "AND a.attribute_bytes = ? AND s.principal_name IS NOT NULL"
+                    + "AND a.attribute_bytes = ?"
                     + lock.sql)
             .param(
                 SessionAttributeCodec.conversionService()
@@ -96,6 +102,36 @@ public class AuthenticationNativeSessions {
     Session session = repository.findById(identifier.orElseThrow());
     if (session == null) {
       return Optional.empty();
+    }
+    AuthenticationSession ceremony = session.getAttribute(AuthenticationSession.ATTRIBUTE);
+    if (ceremony != null) {
+      if (!reference.equals(ceremony.reference())) {
+        return Optional.empty();
+      }
+      if (PASSWORD_STATE.equals(ceremony.state())) {
+        SecurityContext context =
+            session.getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
+        if (context == null) {
+          return Optional.empty();
+        }
+        try {
+          var identity = AuthenticationIdentity.from(context.getAuthentication());
+          if (!identity.account().equals(ceremony.account())
+              || identity.epoch() != ceremony.epoch()
+              || context.getAuthentication().getAuthorities().stream()
+                  .noneMatch(
+                      authority ->
+                          authority instanceof FactorGrantedAuthority factor
+                              && FactorGrantedAuthority.PASSWORD_AUTHORITY.equals(
+                                  factor.getAuthority())
+                              && ceremony.createdAt().equals(factor.getIssuedAt()))) {
+            return Optional.empty();
+          }
+        } catch (AuthenticationRequiredException exception) {
+          return Optional.empty();
+        }
+      }
+      return Optional.of(ceremony);
     }
     var completed = snapshot(session);
     if (completed == null || !reference.equals(completed.reference())) {

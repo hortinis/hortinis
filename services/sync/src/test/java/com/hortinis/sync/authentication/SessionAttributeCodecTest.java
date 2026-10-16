@@ -86,4 +86,66 @@ class SessionAttributeCodecTest {
                         .getBytes(StandardCharsets.US_ASCII)))
         .isInstanceOf(IllegalArgumentException.class);
   }
+
+  @Test
+  void pendingCeremonyUsesBoundedTypedJsonAndSeparatePrincipalIndex() {
+    var now = java.time.Instant.now();
+    UUID account = UUID.randomUUID();
+    var ceremony =
+        new AuthenticationSession(
+            UUID.randomUUID(),
+            account,
+            3,
+            "recovery",
+            now,
+            now.plusSeconds(300),
+            null,
+            now,
+            null,
+            null,
+            null,
+            AuthenticationSecrets.randomValue(),
+            "passkey",
+            new byte[1536]);
+    byte[] encoded = SessionAttributeCodec.encode(ceremony);
+    var decoded = (AuthenticationSession) SessionAttributeCodec.decode(encoded);
+    assertThat(decoded.reference()).isEqualTo(ceremony.reference());
+    assertThat(decoded.createdAt()).isEqualTo(now);
+    assertThat(decoded.replacementCredential()).hasSize(1536);
+    assertThat(SessionAttributeCodec.decode(SessionAttributeCodec.encode(account.toString())))
+        .isEqualTo(account.toString());
+    assertThat(new String(encoded, StandardCharsets.UTF_8)).doesNotContain("@class");
+    for (String invalid :
+        new String[] {
+          "v1:ceremony:null",
+          "v1:ceremony:{}",
+          new String(encoded, StandardCharsets.UTF_8).replace("recovery", "full"),
+          "v1:account:1-1-1-1-1",
+          "v1:account:invalid"
+        }) {
+      assertThatThrownBy(
+              () -> SessionAttributeCodec.decode(invalid.getBytes(StandardCharsets.UTF_8)))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessage("Unsupported authentication session attribute.");
+    }
+  }
+
+  @Test
+  void nativePasswordContextContainsOnlyPasswordProofAndNoCredentials() {
+    var context =
+        org.springframework.security.core.context.SecurityContextHolder.createEmptyContext();
+    UUID account = UUID.randomUUID();
+    var now = java.time.Instant.now();
+    context.setAuthentication(AuthenticationIdentity.password(account, 2, now));
+    var decoded =
+        (org.springframework.security.core.context.SecurityContext)
+            SessionAttributeCodec.decode(SessionAttributeCodec.encode(context));
+    assertThat(AuthenticationIdentity.from(decoded.getAuthentication()))
+        .isEqualTo(new AuthenticationIdentity(account, 2));
+    assertThat(decoded.getAuthentication().getAuthorities())
+        .extracting("authority")
+        .contains("FACTOR_PASSWORD")
+        .doesNotContain("FACTOR_WEBAUTHN");
+    assertThat(decoded.getAuthentication().getCredentials()).isNull();
+  }
 }

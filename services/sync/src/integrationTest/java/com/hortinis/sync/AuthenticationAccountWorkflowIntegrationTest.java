@@ -152,10 +152,10 @@ class AuthenticationAccountWorkflowIntegrationTest {
   private static final String CREDENTIAL_COUNT = "SELECT count(*) FROM authentication_credential";
   private static final String CODE_COUNT = "SELECT count(*) FROM authentication_recovery_code";
   private static final String FULL_COUNT =
-      "SELECT count(*) FROM spring_session WHERE principal_name IS NOT NULL";
-  private static final String AUTHORITY_COUNT =
-      "SELECT (SELECT count(*) FROM authentication_session_authority) "
-          + "+ (SELECT count(*) FROM spring_session WHERE principal_name IS NOT NULL)";
+      "SELECT count(*) FROM spring_session s WHERE principal_name IS NOT NULL AND NOT EXISTS "
+          + "(SELECT 1 FROM spring_session_attributes a WHERE a.session_primary_id = s.primary_id "
+          + "AND a.attribute_name = 'hortinis.ceremony')";
+  private static final String AUTHORITY_COUNT = "SELECT count(*) FROM spring_session";
   private static final String CHALLENGE_COUNT = "SELECT count(*) FROM authentication_challenge";
   private static final String COUNTER = "SELECT signature_count FROM authentication_credential";
   private static final Instant NOW = Instant.parse("2026-10-11T12:00:00Z");
@@ -198,6 +198,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
             POSTGRES.getUsername(),
             POSTGRES.getPassword());
     jdbc = new JdbcTemplate(source);
+    NativeAuthenticationSessions.installInspectionView(jdbc);
     transactions = new DataSourceTransactionManager(source);
     clock = new MutableClock();
     jdbc.update("UPDATE technical_server_installation SET access_mode = 'single-user-auth'");
@@ -314,8 +315,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
               .isInstanceOf(AuthenticationFailedException.class);
           return true;
         });
-    assertThat(count("SELECT count(*) FROM authentication_session_authority WHERE state = 'setup'"))
-        .isZero();
+    assertThat(count("SELECT count(*) FROM test_native_ceremony WHERE state = 'setup'")).isZero();
     assertThat(
             count(
                 "SELECT count(*) FROM authentication_operator_ticket WHERE "
@@ -358,8 +358,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
         .isEqualTo(originalDeadline);
     assertThat(
             jdbc.queryForObject(
-                "SELECT count(*) FROM authentication_session_authority WHERE "
-                    + "session_reference = ?",
+                "SELECT count(*) FROM test_native_ceremony WHERE " + "session_reference = ?",
                 Integer.class,
                 predecessor))
         .isZero();
@@ -466,7 +465,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
     assertThat(count(CODE_COUNT)).isZero();
     assertThat(count(CHALLENGE_COUNT)).isZero();
     assertThat(count("SELECT count(*) FROM authentication_security_event")).isZero();
-    assertThat(count("SELECT count(*) FROM authentication_session_authority WHERE state = 'setup'"))
+    assertThat(count("SELECT count(*) FROM test_native_ceremony WHERE state = 'setup'"))
         .isEqualTo(1);
   }
 
@@ -489,9 +488,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
       assertThat(failed.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
     }
     assertThat(count(FULL_COUNT)).isZero();
-    assertThat(
-            count(
-                "SELECT count(*) FROM authentication_session_authority WHERE state = 'anonymous'"))
+    assertThat(count("SELECT count(*) FROM test_native_ceremony WHERE state = 'anonymous'"))
         .isEqualTo(1);
     assertThat(
             count(
@@ -618,34 +615,6 @@ class AuthenticationAccountWorkflowIntegrationTest {
     assertThat(authority.findFull(loggedIn.result().verifier(), original.sessionReference()))
         .isEmpty();
     assertThat(count(FULL_COUNT)).isEqualTo(1);
-  }
-
-  @Test
-  void stepUpCannotAllocateTheThousandAndFirstPartialCeremony() throws Exception {
-    var loggedIn = finish(prepare(setupAccount(false), 1), false);
-    jdbc.update(
-        "INSERT INTO authentication_session_authority "
-            + "(session_verifier, logout_target, state, created_at, expires_at) "
-            + "SELECT encode(sha256(convert_to(n::text, 'UTF8')), 'hex'), "
-            + "rtrim(translate(encode(sha256(convert_to(n::text, 'UTF8')), "
-            + "'base64'), '+/', '-_'), '='), "
-            + "'anonymous', ?, ? FROM generate_series(1, 1000) n",
-        java.sql.Timestamp.from(clock.instant()),
-        java.sql.Timestamp.from(clock.instant().plus(AuthenticationLifetime.LIMITED_ABSOLUTE)));
-    var failed =
-        request(
-            "/api/v1/auth/step-up/password",
-            loggedIn.cookie(),
-            transport -> {
-              assertThatThrownBy(() -> login.stepUpPassword(transport, PASSWORD))
-                  .isInstanceOf(AuthenticationOverloadedException.class);
-              return true;
-            });
-    assertThat(failed.response().getHeaders(HttpHeaders.SET_COOKIE)).isEmpty();
-    assertThat(count(FULL_COUNT)).isEqualTo(1);
-    assertThat(
-            authority.findFull(loggedIn.result().verifier(), loggedIn.result().reference().value()))
-        .isPresent();
   }
 
   @Test
@@ -1431,8 +1400,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
     assertThat(count(FULL_COUNT)).isZero();
     assertThat(
             count(
-                "SELECT count(*) FROM authentication_session_authority WHERE "
-                    + "both_factors_at IS NOT NULL"))
+                "SELECT count(*) FROM test_native_ceremony WHERE " + "both_factors_at IS NOT NULL"))
         .isEqualTo(1);
   }
 
@@ -1760,7 +1728,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
             + "BEGIN RAISE EXCEPTION 'Synthetic reset failure'; END $$");
     jdbc.execute(
         "CREATE CONSTRAINT TRIGGER reject_reset_authority "
-            + "AFTER INSERT ON authentication_session_authority "
+            + "AFTER INSERT OR UPDATE ON spring_session_attributes "
             + "DEFERRABLE INITIALLY DEFERRED FOR EACH ROW "
             + "EXECUTE FUNCTION reject_reset_authority()");
     var failed =
@@ -1784,8 +1752,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
     assertThat(count(FULL_COUNT)).isZero();
     assertThat(
             count(
-                "SELECT count(*) FROM "
-                    + "authentication_session_authority WHERE both_factors_at IS NOT NULL"))
+                "SELECT count(*) FROM " + "test_native_ceremony WHERE both_factors_at IS NOT NULL"))
         .isZero();
   }
 
@@ -2429,9 +2396,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
     var bootstrap = httpGet(mvc, "/api/v1/auth/csrf", partial.cookie());
     assertThat(bootstrap.getStatus()).isEqualTo(200);
     assertThat(bootstrap.getHeader(HttpHeaders.SET_COOKIE)).contains("Secure", "HttpOnly");
-    new AuthenticationLifecyclePersistence(
-            JdbcClient.create(jdbc), clock, transactions, this.nativeSessions)
-        .purge();
+    new AuthenticationLifecyclePersistence(JdbcClient.create(jdbc), clock, transactions).purge();
     assertThat(count(AUTHORITY_COUNT)).isEqualTo(1);
     assertThat(count(NATIVE_COUNT)).isEqualTo(1);
     assertThat(count(CHALLENGE_COUNT)).isZero();
@@ -2460,8 +2425,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
         httpTicketDirectory, java.nio.file.attribute.PosixFilePermissions.fromString("rwx------"));
     var lifecycle =
         new AuthenticationLifecycle(
-            new AuthenticationLifecyclePersistence(
-                JdbcClient.create(jdbc), clock, transactions, this.nativeSessions),
+            new AuthenticationLifecyclePersistence(JdbcClient.create(jdbc), clock, transactions),
             new AuthenticationOperatorTickets(
                 tickets, new OperatorTicketFiles(httpTicketDirectory), transactions),
             limiter);
@@ -2568,9 +2532,7 @@ class AuthenticationAccountWorkflowIntegrationTest {
         .contains("\"remaining\":0", "\"expiresSoon\":false")
         .doesNotContain("expiresAt");
     assertThat(count(CODE_COUNT)).isEqualTo(9);
-    new AuthenticationLifecyclePersistence(
-            JdbcClient.create(jdbc), clock, transactions, this.nativeSessions)
-        .purge();
+    new AuthenticationLifecyclePersistence(JdbcClient.create(jdbc), clock, transactions).purge();
     assertThat(count(CODE_COUNT)).isZero();
     assertThat(
             authority

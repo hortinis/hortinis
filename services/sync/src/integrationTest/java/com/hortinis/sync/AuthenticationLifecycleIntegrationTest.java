@@ -61,9 +61,7 @@ class AuthenticationLifecycleIntegrationTest {
   private static final Instant LOGIN = Instant.parse("2026-10-11T12:00:00Z");
   private static final String SYNTHETIC_VERIFIER =
       "{argon2id}$argon2id$v=19$m=65536,t=3,p=1$synthetic-not-a-credential";
-  private static final String AUTHORITY_COUNT =
-      "SELECT (SELECT count(*) FROM authentication_session_authority) "
-          + "+ (SELECT count(*) FROM spring_session WHERE principal_name IS NOT NULL)";
+  private static final String AUTHORITY_COUNT = "SELECT count(*) FROM spring_session";
   private static final String EVENT_COUNT = "SELECT count(*) FROM authentication_security_event";
   private static final String TICKET_COUNT = "SELECT count(*) FROM authentication_operator_ticket";
 
@@ -95,6 +93,7 @@ class AuthenticationLifecycleIntegrationTest {
             POSTGRES.getUsername(),
             POSTGRES.getPassword());
     jdbc = new JdbcTemplate(source);
+    NativeAuthenticationSessions.installInspectionView(jdbc);
     transactionManager = new DataSourceTransactionManager(source);
     jdbc.update("UPDATE technical_server_installation SET access_mode = 'single-user-auth'");
     account =
@@ -156,6 +155,8 @@ class AuthenticationLifecycleIntegrationTest {
     transport(partial, true);
     lifecycle(LOGIN.plusSeconds(299)).purge();
     assertThat(count(AUTHORITY_COUNT)).isEqualTo(2);
+    expireLimited();
+    nativeCleanup();
     lifecycle(LOGIN.plusSeconds(300)).purge();
     assertThat(nativeFixture().persistence(Clock.fixed(LOGIN, ZoneOffset.UTC)).references(account))
         .containsExactly(full);
@@ -190,10 +191,16 @@ class AuthenticationLifecycleIntegrationTest {
   }
 
   @Test
-  void futureParentCannotSurviveTrustedClockRollback() {
+  void futureParentIsRejectedBeforeNativeCleanup() {
     transport(passwordParent(LOGIN.plusSeconds(1)), true);
-    lifecycle(LOGIN).purge();
-    assertThat(count(AUTHORITY_COUNT)).isZero();
+    var parent =
+        nativeFixture()
+            .ceremony(
+                jdbc.queryForObject(
+                    "SELECT session_reference FROM test_native_ceremony", UUID.class));
+    assertThat(parent.isUnexpired(LOGIN)).isFalse();
+    expireLimited();
+    nativeCleanup();
     assertThat(count(TRANSPORT_COUNT)).isZero();
   }
 
@@ -275,19 +282,12 @@ class AuthenticationLifecycleIntegrationTest {
 
   @Test
   void unownedAnonymousExpiryIsRemovedUnderInstallationLock() {
-    UUID parent =
-        jdbc.queryForObject(
-            "INSERT INTO authentication_session_authority "
-                + "(session_verifier, logout_target, state, created_at, expires_at) "
-                + "VALUES (?, ?, 'anonymous', ?, ?) RETURNING session_reference",
-            UUID.class,
-            AuthenticationSecrets.digest(AuthenticationSecrets.randomValue()),
-            AuthenticationSecrets.randomValue(),
-            timestamp(LOGIN),
-            timestamp(LOGIN.plusSeconds(300)));
+    UUID parent = nativeFixture().limited(null, "anonymous", LOGIN);
     transport(parent, true);
     lifecycle(LOGIN.plusSeconds(299)).purge();
     assertThat(count(TRANSPORT_COUNT)).isEqualTo(1);
+    expireLimited();
+    nativeCleanup();
     lifecycle(LOGIN.plusSeconds(300)).purge();
     assertThat(count(TRANSPORT_COUNT)).isZero();
     assertThat(count(AUTHORITY_COUNT)).isZero();
@@ -306,26 +306,6 @@ class AuthenticationLifecycleIntegrationTest {
     lifecycle(LOGIN.plusSeconds(1800)).purge();
     assertThat(count(TRANSPORT_COUNT)).isEqualTo(1);
     assertThat(count(AUTHORITY_COUNT)).isEqualTo(1);
-  }
-
-  @Test
-  void failedAuthorityDeletionRollsBackMatchingTransportDeletion() {
-    UUID parent = passwordParent(LOGIN);
-    transport(parent, true);
-    jdbc.execute(
-        "CREATE FUNCTION reject_synthetic_cleanup() RETURNS trigger LANGUAGE plpgsql "
-            + "AS $$ BEGIN RAISE EXCEPTION 'Synthetic cleanup failure'; END $$");
-    jdbc.execute(
-        "CREATE TRIGGER reject_synthetic_cleanup BEFORE DELETE "
-            + "ON authentication_session_authority FOR EACH ROW "
-            + "EXECUTE FUNCTION reject_synthetic_cleanup()");
-    assertThatThrownBy(() -> lifecycle(LOGIN.plusSeconds(1800)).purge())
-        .isInstanceOf(org.springframework.dao.DataAccessException.class);
-    assertThat(count(TRANSPORT_COUNT)).isEqualTo(1);
-    assertThat(count(AUTHORITY_COUNT)).isEqualTo(1);
-    jdbc.execute("DROP TRIGGER reject_synthetic_cleanup ON authentication_session_authority");
-    lifecycle(LOGIN.plusSeconds(1800)).purge();
-    assertThat(count(TRANSPORT_COUNT)).isZero();
   }
 
   @Test
@@ -516,7 +496,7 @@ class AuthenticationLifecycleIntegrationTest {
   }
 
   @Test
-  void singletonStartupPurgesBeforeSpringStartsTheListeningLifecycle() throws Exception {
+  void nativeExpiryAndStartupPurgeRemoveClaimedTicketsBeforeListening() throws Exception {
     UUID expired = passwordParent(LOGIN);
     transport(expired, true);
     var clock = new MutableClock();
@@ -524,6 +504,8 @@ class AuthenticationLifecycleIntegrationTest {
     final var issued = tickets.issueRecovery(account);
     jdbc.update("UPDATE authentication_operator_ticket SET claimed_session_reference = ?", expired);
     clock.advance(Duration.ofMinutes(5));
+    expireLimited();
+    nativeCleanup();
     var adapter = adapter(clock, tickets);
     var listener = new SyntheticListener();
     try (var context = new AnnotationConfigApplicationContext()) {
@@ -564,6 +546,8 @@ class AuthenticationLifecycleIntegrationTest {
     var adapter = adapter(clock, tickets);
     adapter.afterSingletonsInstantiated();
     clock.advance(Duration.ofMinutes(5));
+    expireLimited();
+    nativeCleanup();
     adapter.scheduledSweep();
     assertThat(nativeFixture().persistence(Clock.fixed(LOGIN, ZoneOffset.UTC)).references(account))
         .containsExactly(current);
@@ -587,6 +571,8 @@ class AuthenticationLifecycleIntegrationTest {
       context.refresh();
       assertThat(count(AUTHORITY_COUNT)).isEqualTo(1);
       clock.advance(Duration.ofMinutes(11));
+      expireLimited();
+      nativeCleanup();
       long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(40);
       while ((count(AUTHORITY_COUNT) != 0 || Files.exists(issued.file()))
           && System.nanoTime() < deadline) {
@@ -603,27 +589,26 @@ class AuthenticationLifecycleIntegrationTest {
   @ExtendWith(OutputCaptureExtension.class)
   void scheduledFailureHasFixedDiagnosticsAndRetriesWithoutResurrectingExpiredState(
       CapturedOutput output) throws Exception {
-    UUID partial = passwordParent(LOGIN);
-    transport(partial, true);
     var clock = new MutableClock();
-    var adapter = adapter(clock, protectedTickets(clock));
+    var tickets = protectedTickets(clock);
+    tickets.issueRecovery(account);
+    var adapter = adapter(clock, tickets);
     adapter.afterSingletonsInstantiated();
-    clock.advance(Duration.ofMinutes(5));
+    clock.advance(Duration.ofMinutes(11));
     jdbc.execute(
         "CREATE FUNCTION reject_lifecycle_adapter() RETURNS trigger LANGUAGE plpgsql AS $$ "
             + "BEGIN RAISE EXCEPTION 'synthetic-lifecycle-private-canary'; END $$");
     jdbc.execute(
-        "CREATE TRIGGER reject_lifecycle_adapter BEFORE DELETE ON authentication_session_authority "
+        "CREATE TRIGGER reject_lifecycle_adapter BEFORE DELETE ON authentication_operator_ticket "
             + "FOR EACH ROW EXECUTE FUNCTION reject_lifecycle_adapter()");
     adapter.scheduledSweep();
-    assertThat(count(AUTHORITY_COUNT)).isEqualTo(1);
+    assertThat(count(TICKET_COUNT)).isEqualTo(1);
     assertThat(output)
         .contains("Authentication cleanup failed.")
         .doesNotContain("synthetic-lifecycle-private-canary");
-    jdbc.execute("DROP TRIGGER reject_lifecycle_adapter ON authentication_session_authority");
+    jdbc.execute("DROP TRIGGER reject_lifecycle_adapter ON authentication_operator_ticket");
     adapter.scheduledSweep();
-    assertThat(count(AUTHORITY_COUNT)).isZero();
-    assertThat(count(TRANSPORT_COUNT)).isZero();
+    assertThat(count(TICKET_COUNT)).isZero();
   }
 
   @Test
@@ -639,6 +624,13 @@ class AuthenticationLifecycleIntegrationTest {
     assertThat(nativeFixture().persistence(Clock.fixed(LOGIN, ZoneOffset.UTC)).list(account, 1))
         .isEmpty();
     assertThat(count(TRANSPORT_COUNT)).isEqualTo(1);
+  }
+
+  private void expireLimited() {
+    jdbc.update(
+        "UPDATE spring_session SET last_access_time = 0, expiry_time = 0 WHERE primary_id IN "
+            + "(SELECT session_primary_id FROM spring_session_attributes WHERE "
+            + "attribute_name = 'hortinis.ceremony')");
   }
 
   private void nativeCleanup() {
@@ -657,11 +649,7 @@ class AuthenticationLifecycleIntegrationTest {
 
   private AuthenticationLifecycle adapter(Clock clock, AuthenticationOperatorTickets tickets) {
     return new AuthenticationLifecycle(
-        new AuthenticationLifecyclePersistence(
-            JdbcClient.create(jdbc),
-            clock,
-            transactionManager,
-            new NativeAuthenticationSessions(jdbc, transactionManager).persistence(clock)),
+        new AuthenticationLifecyclePersistence(JdbcClient.create(jdbc), clock, transactionManager),
         tickets,
         new AuthenticationAttemptLimiter(clock));
   }
@@ -731,11 +719,7 @@ class AuthenticationLifecycleIntegrationTest {
 
   private AuthenticationLifecyclePersistence lifecycle(Instant now) {
     return new AuthenticationLifecyclePersistence(
-        JdbcClient.create(jdbc),
-        Clock.fixed(now, ZoneOffset.UTC),
-        transactionManager,
-        new NativeAuthenticationSessions(jdbc, transactionManager)
-            .persistence(Clock.fixed(now, ZoneOffset.UTC)));
+        JdbcClient.create(jdbc), Clock.fixed(now, ZoneOffset.UTC), transactionManager);
   }
 
   private NativeAuthenticationSessions nativeSessionFixture;
@@ -754,24 +738,14 @@ class AuthenticationLifecycleIntegrationTest {
   private String verifier(UUID reference) {
     var limited =
         jdbc.queryForList(
-            "SELECT session_verifier FROM authentication_session_authority WHERE "
-                + "session_reference = ?",
+            "SELECT session_verifier FROM test_native_ceremony WHERE " + "session_reference = ?",
             String.class,
             reference);
     return limited.isEmpty() ? nativeFixture().verifier(reference) : limited.getFirst();
   }
 
   private UUID passwordParent(Instant created) {
-    return jdbc.queryForObject(
-        "INSERT INTO authentication_session_authority (session_verifier, logout_target, "
-            + "state, account_id, authority_epoch, created_at, expires_at) "
-            + "VALUES (?, ?, 'password', ?, 1, ?, ?) RETURNING session_reference",
-        UUID.class,
-        AuthenticationSecrets.digest(AuthenticationSecrets.randomValue()),
-        AuthenticationSecrets.randomValue(),
-        account,
-        timestamp(created),
-        timestamp(created.plusSeconds(300)));
+    return nativeFixture().limited(account, "password", created);
   }
 
   private void transport(UUID parent, boolean matchingVerifier) {
@@ -779,8 +753,8 @@ class AuthenticationLifecycleIntegrationTest {
         && Boolean.TRUE.equals(
             jdbc.queryForObject(
                 "SELECT EXISTS (SELECT 1 FROM spring_session s JOIN spring_session_attributes a "
-                    + "ON a.session_primary_id = s.primary_id WHERE s.principal_name IS NOT NULL "
-                    + "AND a.attribute_name = 'hortinis.authority' AND a.attribute_bytes = ?)",
+                    + "ON a.session_primary_id = s.primary_id WHERE a.attribute_name "
+                    + "= 'hortinis.authority' AND a.attribute_bytes = ?)",
                 Boolean.class,
                 SessionAttributeCodec.conversionService()
                     .convert(new SessionAuthorityReference(parent), byte[].class)))) {
@@ -802,13 +776,6 @@ class AuthenticationLifecycleIntegrationTest {
         primary,
         SessionAttributeCodec.conversionService()
             .convert(new SessionAuthorityReference(parent), byte[].class));
-    if (matchingVerifier) {
-      jdbc.update(
-          "UPDATE authentication_session_authority SET session_verifier = ? "
-              + "WHERE session_reference = ?",
-          AuthenticationSecrets.digest(cookie),
-          parent);
-    }
   }
 
   private void challenge(UUID parent, Instant created, Instant expiry) {

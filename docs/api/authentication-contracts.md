@@ -118,3 +118,9 @@ The protected `GET /api/v1/auth/recovery-codes` projects only unused unexpired c
 common expiry and the trusted-server-clock warning during the last thirty days. The zero-code variant
 has no expiry. This supports account warnings after reload without retaining code or CSRF secrets;
 limited recovery states cannot read this full-account metadata and the read never renews inactivity.
+
+Pending setup and recovery state is stored in Spring Session; password-only state also carries the
+native password factor. These internals do not change the HTTP JSON shapes or grant data authority.
+The five-minute absolute ceremony deadline remains independent of request activity. Native storage
+uses five minutes of inactivity for pending sessions and thirty minutes for completed sessions;
+expired ceremony bootstrap replaces its state without waiting for scheduled deletion.

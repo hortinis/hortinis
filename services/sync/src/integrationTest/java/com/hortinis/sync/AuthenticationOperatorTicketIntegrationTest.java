@@ -66,6 +66,7 @@ class AuthenticationOperatorTicketIntegrationTest {
             POSTGRES.getUsername(),
             POSTGRES.getPassword());
     jdbc = new JdbcTemplate(source);
+    NativeAuthenticationSessions.installInspectionView(jdbc);
     transactionManager = new DataSourceTransactionManager(source);
     jdbc.update("UPDATE technical_server_installation SET access_mode = 'single-user-auth'");
     Files.setPosixFilePermissions(directory, PosixFilePermissions.fromString("rwx------"));
@@ -98,9 +99,7 @@ class AuthenticationOperatorTicketIntegrationTest {
         .isTrue();
     assertThat(jdbc.queryForObject("SELECT count(*) FROM authentication_account", Integer.class))
         .isZero();
-    assertThat(
-            jdbc.queryForObject(
-                "SELECT count(*) FROM authentication_session_authority", Integer.class))
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM test_native_ceremony", Integer.class))
         .isZero();
   }
 

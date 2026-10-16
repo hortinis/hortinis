@@ -56,7 +56,7 @@ public class AuthenticationOperatorRecoveryPersistence {
     return accounts.findAccount(target);
   }
 
-  /** Claim transfer precedes predecessor retirement so its cascading FK cannot erase the ticket. */
+  /** Claim transfer precedes predecessor retirement so retirement cannot erase the ticket. */
   public UUID begin(
       AuthenticationSessionTransport transport,
       AuthenticationAccountPersistence.AccountSnapshot observed,

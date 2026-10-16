@@ -2,6 +2,7 @@ package com.hortinis.sync;
 
 import com.hortinis.sync.authentication.AuthenticationIdentity;
 import com.hortinis.sync.authentication.AuthenticationSecrets;
+import com.hortinis.sync.authentication.AuthenticationSession;
 import com.hortinis.sync.authentication.AuthenticationSessionTransport;
 import com.hortinis.sync.authentication.SessionAttributeCodec;
 import com.hortinis.sync.authentication.SessionAuthorityReference;
@@ -22,6 +23,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 
 /** Test-only seeding and mutation of real native sessions; never included in the executable. */
 final class NativeAuthenticationSessions {
+  private static final String PASSWORD_STATE = "password";
   private final java.util.Map<UUID, String> verifiers = new java.util.HashMap<>();
   private final JdbcTemplate jdbc;
   private final org.springframework.session.FindByIndexNameSessionRepository<? extends Session>
@@ -30,6 +32,90 @@ final class NativeAuthenticationSessions {
   NativeAuthenticationSessions(JdbcTemplate jdbc, PlatformTransactionManager transactions) {
     this.jdbc = jdbc;
     repository = AuthenticationJdbcSessions.create(jdbc, transactions);
+  }
+
+  static void installInspectionView(JdbcTemplate jdbc) {
+    jdbc.execute(
+        """
+        CREATE OR REPLACE VIEW test_native_ceremony AS
+        SELECT (c->>'reference')::uuid AS session_reference,
+          encode(sha256(convert_to(s.session_id, 'UTF8')), 'hex') AS session_verifier,
+          c->>'state' AS state, (c->>'account')::uuid AS account_id,
+          nullif((c->>'epoch')::bigint, 0) AS authority_epoch,
+          (c->>'createdAt')::timestamptz AS created_at,
+          (c->>'expiresAt')::timestamptz AS expires_at,
+          c->>'loginAt' IS NOT NULL AS step_up,
+          (c->>'bothFactorsAt')::timestamptz AS both_factors_at,
+          c->>'stagedLogin' AS staged_login_identifier,
+          c->>'stagedPassword' AS staged_password_verifier,
+          decode(c->>'stagedHandle', 'base64') AS staged_user_handle,
+          c->>'logoutTarget' AS logout_target, c->>'recoveryKind' AS recovery_kind,
+          decode(c->>'replacementCredential', 'base64') AS replacement_credential_id
+        FROM spring_session s JOIN spring_session_attributes a ON a.session_primary_id = s.primary_id,
+          LATERAL (SELECT substring(convert_from(a.attribute_bytes, 'UTF8') FROM 13)::jsonb AS c) d
+        WHERE a.attribute_name = 'hortinis.ceremony'
+        """);
+  }
+
+  UUID limited(UUID account, String state, Instant created) {
+    UUID reference = UUID.randomUUID();
+    var ceremony =
+        new AuthenticationSession(
+            reference,
+            account,
+            account == null ? 0 : 1,
+            state,
+            created,
+            created.plusSeconds(300),
+            null,
+            null,
+            null,
+            null,
+            null,
+            AuthenticationSecrets.randomValue(),
+            null,
+            null);
+    seedLimited(repository, ceremony);
+    verifiers.put(reference, AuthenticationSecrets.digest(identifier(reference)));
+    return reference;
+  }
+
+  private static <S extends Session> void seedLimited(
+      SessionRepository<S> repository, AuthenticationSession ceremony) {
+    S session = repository.createSession();
+    session.setMaxInactiveInterval(java.time.Duration.ofMinutes(5));
+    session.setAttribute("hortinis.authority", new SessionAuthorityReference(ceremony.reference()));
+    stage(session, ceremony);
+    repository.save(session);
+  }
+
+  private static void stage(Session session, AuthenticationSession ceremony) {
+    session.setAttribute(AuthenticationSession.ATTRIBUTE, ceremony);
+    if (ceremony.account() != null) {
+      session.setAttribute(
+          org.springframework.session.FindByIndexNameSessionRepository.PRINCIPAL_NAME_INDEX_NAME,
+          ceremony.account().toString());
+    }
+    if (PASSWORD_STATE.equals(ceremony.state())) {
+      var context = SecurityContextHolder.createEmptyContext();
+      context.setAuthentication(
+          AuthenticationIdentity.password(
+              ceremony.account(), ceremony.epoch(), ceremony.createdAt()));
+      session.setAttribute(
+          HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
+    }
+  }
+
+  AuthenticationSession ceremony(UUID reference) {
+    return repository.findById(identifier(reference)).getAttribute(AuthenticationSession.ATTRIBUTE);
+  }
+
+  void change(UUID reference, java.util.Map<String, Object> changes) {
+    var mapper = new tools.jackson.databind.json.JsonMapper();
+    tools.jackson.databind.node.ObjectNode node = mapper.valueToTree(ceremony(reference));
+    changes.forEach((key, value) -> node.set(key, mapper.valueToTree(value)));
+    var changed = mapper.treeToValue(node, AuthenticationSession.class);
+    mutate(repository, identifier(reference), session -> stage(session, changed));
   }
 
   AuthenticationNativeSessions persistence(Clock clock) {

@@ -202,22 +202,10 @@ public class AuthenticationChallengePersistence {
   }
 
   private Optional<AuthenticationSession> findParent(UUID reference, boolean lock) {
-    return jdbc.sql(
-            "SELECT "
-                + AuthenticationSessionRows.COLUMNS
-                + " FROM authentication_session_authority WHERE session_reference = ? "
-                + (lock ? "FOR UPDATE" : ""))
-        .param(reference)
-        .query(AuthenticationSessionRows::read)
-        .optional()
-        .or(
-            () ->
-                nativeSessions.findFull(
-                    reference,
-                    null,
-                    lock
-                        ? AuthenticationNativeSessions.Lock.UPDATE
-                        : AuthenticationNativeSessions.Lock.NONE));
+    return nativeSessions.find(
+        reference,
+        null,
+        lock ? AuthenticationNativeSessions.Lock.UPDATE : AuthenticationNativeSessions.Lock.NONE);
   }
 
   private static boolean permitted(

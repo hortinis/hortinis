@@ -57,7 +57,7 @@ reviewed decision; clock tests cover each equality/expiry boundary. All times us
 | Common/breached-password check | Local versioned corpus with at least 3,000 policy-compatible common candidates plus breached-password coverage, checked at setup/change/reset. Reject login-name and `hortinis` context derivatives. No password or prefix goes to an external service. Corpus provenance/license/hash and coverage are verified in S9; absent/invalid corpus blocks authenticated activation. |
 | Full session | 30 minutes since the last native session request, including synchronization, polling and CSRF/status requests; normal factors remain valid for 12 hours. Completing both normal factors again starts a new 12-hour factor lifetime; cookie rotation alone does not renew it. |
 | Recent authentication | Both required normal factors verified within five minutes for credential changes, recovery-code replacement, enrollment/revocation, deletion, claims and other privileged transitions. A fresh bounded step-up rotates the cookie and CSRF state. |
-| Pre-authentication/partial/recovery-only session | Five minutes absolute; no idle refresh; no binding identity, data, export, sync or ordinary enrollment authority. Maximum 1,000 live pre-authentication sessions per installation; exhausted capacity denies before allocation. |
+| Pre-authentication/partial/recovery-only session | Five minutes absolute authorization; native request activity cannot extend that deadline. No binding identity, data, export, sync or ordinary enrollment authority. Spring Session stores and expires pending sessions with five minutes of inactivity; request throttling and challenge limits bound admission without a separate global session counter. |
 | WebAuthn challenge | Independent 32-byte CSPRNG challenge, valid five minutes or the earlier parent-session/ticket expiry; consumed atomically once even on a failed verification. At most one current challenge per ceremony, eight live ceremonies per account. |
 | Setup/operator recovery ticket | Independent 32-byte CSPRNG secret, valid ten minutes, one successful controlled enrollment only. At most one active ticket per target; replacement invalidates the earlier one. Server persists only its SHA-256 verifier and exact target/purpose/instance/mode. |
 | Additional-device authorization | Five-minute, single-use ticket from recent full account authentication, bound to account, purpose and new browser ceremony. One account transaction creates enrollment and rotates its session; ticket alone does not grant garden access. |
@@ -65,7 +65,7 @@ reviewed decision; clock tests cover each equality/expiry boundary. All times us
 | Concurrent sessions | At most five full sessions per account; a sixth denies generically and offers authenticated session management. S11 allows one full session per enrolled device, rotating/replacing its previous session atomically. No automatic eviction of a different device's session. |
 | Abuse windows | At most five password/recovery attempts per canonical-login key per rolling minute, 20 per trusted-source key per minute and 60 expensive authentication attempts installation-wide per minute. Check all applicable limits before work; no permanent account lockout or account-existence-dependent rate response. |
 | Limiter state | Process-memory HMAC-SHA-256 keys with a random 32-byte per-process secret; no raw identifier/address persistence. Maximum 4,096 keys; expire after 15 minutes idle, clean every 60 seconds. Full capacity fails closed instead of evicting active restrictions. Restart resets transient counters; bound service restarts and test that residual operational assumption in S15. |
-| Physical cleanup | Authorization rejects expired or revoked authority synchronously. Spring Session rejects idle expiry on load and deletes idle-expired native sessions on its minute schedule; factor-expired contexts can remain until native idle expiry. Application ceremonies/challenges/tickets purge at startup and every 30 seconds. Requests do not run physical cleanup. Explicit revocation and consumed recovery verifiers are deleted in their mutation transaction; expired codes use the application job. |
+| Physical cleanup | Authorization rejects expired or revoked authority synchronously. Spring Session rejects idle expiry on load and deletes idle-expired native sessions on its minute schedule; factor-expired contexts can remain until native idle expiry. Application challenges/tickets purge at startup and every 30 seconds. Requests do not run physical cleanup. Explicit revocation and consumed recovery verifiers are deleted in their mutation transaction; expired codes use the application job. |
 | Revoked device metadata | No access after committed revocation. Retain minimal status for authorized listing at most 30 days, then purge (including immediately overdue rows at startup). Account deletion overrides this period. |
 | Security event retention | Rolling 30 days in the separate protected security store, automatic daily purge and overdue startup purge. Fixed event/outcome/reason, UTC and fresh request reference only in the baseline; no stable subject mapping. S15 verifies storage access and effective operator policy. |
 
@@ -124,8 +124,7 @@ ordinary requests, including background synchronization. Spring factor authoriti
 factor lifetime. Cookie rotation, CSRF refresh and the compatibility activity acknowledgement do not
 renew factor proof. There is no separate qualifying-interaction clock or interaction timestamp.
 Limited setup/password/recovery ceremonies retain their five-minute absolute boundary. Application
-account ownership and epoch checks remain inside protected transactions. Cleanup reads native expiry
-metadata rather than recalculating a second inactivity policy. Browser cookie closure is not proof
+account ownership and epoch checks remain inside protected transactions. Spring performs native idle cleanup; application cleanup retains only proofs, tickets and audit data. Browser cookie closure is not proof
 of server expiry; server limits and cleanup remain authoritative across restart.
 
 Expiry/logout pauses synchronization and preserves offline data, outbox, frozen bodies and binding
@@ -134,10 +133,14 @@ after S11, authorized device. An unrelated account cannot activate that outbox. 
 cannot reveal account names, factor registration, scope population or credentials.
 
 Completed session identity and normal factors are stored in Spring Security's native session context.
-The application persists only limited ceremony state. Account ownership, epoch and mode are rechecked
+Password-only contexts carry Spring’s password factor; setup and restricted recovery use bounded, typed
+Spring Session attributes that grant no data authority. There is no separate session-authority table.
+Account ownership, epoch and mode are rechecked
 inside protected transactions, holding the account and native session row locks through the work.
-Native principal indexing owns full-session listing and revocation; one-use challenge rows retain
-explicit account ownership independently of limited ceremony rows.
+Native principal indexing owns completed-session listing and all account-associated session revocation,
+including pending recovery. One-use challenge rows retain explicit account ownership. Pending session
+rows can remain after their absolute authorization deadline until native idle cleanup; bootstrap
+replaces an expired ceremony immediately.
 
 ## Credential change and recovery
 

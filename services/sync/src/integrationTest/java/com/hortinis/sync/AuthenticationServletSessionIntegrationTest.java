@@ -48,8 +48,7 @@ class AuthenticationServletSessionIntegrationTest {
   private static final String COOKIE_NAME = "__Host-hortinis-session";
   private static final String CSRF_PATH = "/api/v1/auth/csrf";
   private static final String LOGIN_PATH = "/api/v1/auth/login/password";
-  private static final String AUTHORITY_COUNT =
-      "SELECT count(*) FROM authentication_session_authority";
+  private static final String AUTHORITY_COUNT = "SELECT count(*) FROM test_native_ceremony";
   private static final String TRANSPORT_COUNT = "SELECT count(*) FROM spring_session";
   private static final Instant NOW = Instant.parse("2026-10-11T12:00:00Z");
 
@@ -74,6 +73,7 @@ class AuthenticationServletSessionIntegrationTest {
             POSTGRES.getUsername(),
             POSTGRES.getPassword());
     jdbc = new JdbcTemplate(source);
+    NativeAuthenticationSessions.installInspectionView(jdbc);
     transactionManager = new DataSourceTransactionManager(source);
     jdbc.update("UPDATE technical_server_installation SET access_mode = 'single-user-auth'");
   }
@@ -102,11 +102,10 @@ class AuthenticationServletSessionIntegrationTest {
         .doesNotContain("Domain=", "Max-Age=", "Expires=");
     Cookie cookie = cookie(response);
     assertThat(
-            jdbc.queryForObject(
-                "SELECT session_verifier FROM authentication_session_authority", String.class))
+            jdbc.queryForObject("SELECT session_verifier FROM test_native_ceremony", String.class))
         .isEqualTo(AuthenticationSecrets.digest(cookie.getValue()));
     assertThat(jdbc.queryForObject("SELECT count(*) FROM spring_session_attributes", Integer.class))
-        .isEqualTo(2);
+        .isEqualTo(3);
   }
 
   @Test
@@ -143,8 +142,7 @@ class AuthenticationServletSessionIntegrationTest {
   private void verifyRotation(boolean rollback) throws Exception {
     Cookie previous = cookie(bootstrapResponse());
     UUID oldReference =
-        jdbc.queryForObject(
-            "SELECT session_reference FROM authentication_session_authority", UUID.class);
+        jdbc.queryForObject("SELECT session_reference FROM test_native_ceremony", UUID.class);
     UUID replacement = UUID.randomUUID();
     String oldCsrf = csrfFrom(previous);
     MockHttpServletResponse response =
@@ -158,12 +156,23 @@ class AuthenticationServletSessionIntegrationTest {
                   .executeWithoutResult(
                       status -> {
                         var changed = transport.rotate(new SessionAuthorityReference(replacement));
-                        jdbc.update(
-                            "UPDATE authentication_session_authority SET session_reference = ?, "
-                                + "session_verifier = ? WHERE session_reference = ?",
-                            replacement,
-                            changed.verifier(),
-                            oldReference);
+                        var now = java.time.Instant.now();
+                        transport.stage(
+                            new com.hortinis.sync.authentication.AuthenticationSession(
+                                replacement,
+                                null,
+                                0,
+                                "anonymous",
+                                now,
+                                now.plusSeconds(300),
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                AuthenticationSecrets.randomValue(),
+                                null,
+                                null));
                         assertThat(count(TRANSPORT_COUNT)).isEqualTo(1);
                         assertThat(transport.csrfValue().orElseThrow()).isNotEqualTo(oldCsrf);
                         if (rollback) {
@@ -188,8 +197,7 @@ class AuthenticationServletSessionIntegrationTest {
                   .isEmpty());
     }
     assertThat(
-            jdbc.queryForObject(
-                "SELECT session_reference FROM authentication_session_authority", UUID.class))
+            jdbc.queryForObject("SELECT session_reference FROM test_native_ceremony", UUID.class))
         .isEqualTo(rollback ? oldReference : replacement);
   }
 
@@ -241,7 +249,6 @@ class AuthenticationServletSessionIntegrationTest {
                                       .getContext()
                                       .getAuthentication())
                               .isNull();
-                          jdbc.update("DELETE FROM authentication_session_authority");
                           assertThat(count(TRANSPORT_COUNT)).isZero();
                         }));
     assertThat(response.getHeader(HttpHeaders.SET_COOKIE))
@@ -255,7 +262,7 @@ class AuthenticationServletSessionIntegrationTest {
     String oldCsrf = csrfFrom(previous);
     var deadline =
         jdbc.queryForObject(
-            "SELECT expires_at FROM authentication_session_authority", java.sql.Timestamp.class);
+            "SELECT expires_at FROM test_native_ceremony", java.sql.Timestamp.class);
     MockHttpServletResponse response =
         request(
             GET_METHOD,
@@ -269,8 +276,7 @@ class AuthenticationServletSessionIntegrationTest {
     assertThat(csrfFrom(previous)).isNotEqualTo(oldCsrf);
     assertThat(
             jdbc.queryForObject(
-                "SELECT expires_at FROM authentication_session_authority",
-                java.sql.Timestamp.class))
+                "SELECT expires_at FROM test_native_ceremony", java.sql.Timestamp.class))
         .isEqualTo(deadline);
   }
 

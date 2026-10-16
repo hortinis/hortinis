@@ -40,23 +40,17 @@ class AuthenticationSchemaIntegrationTest {
       "SELECT count(*) FROM authentication_recovery_code";
   private static final String SWITCH_SINGLE_AUTH =
       "UPDATE technical_server_installation SET access_mode = 'single-user-auth'";
-  private static final String SESSION_AUTHORITY_COUNT =
-      "SELECT count(*) FROM authentication_session_authority";
-  private static final String SESSION_STATE_UPDATE_PREFIX =
-      "UPDATE authentication_session_authority SET state ";
-  private static final String SESSION_UPDATE_PREFIX =
-      "UPDATE authentication_session_authority SET ";
+  private static final String SESSION_AUTHORITY_COUNT = "SELECT count(*) FROM test_native_ceremony";
+
   private static final String ACCOUNT_EPOCH_UPDATE_PREFIX =
       "UPDATE authentication_account SET authority_epoch ";
   private static final String SCOPE_WHERE = "technical_synchronization_scope WHERE ";
-  private static final String SESSION_INSERT_PREFIX =
-      "INSERT INTO authentication_session_authority ";
-  private static final String SESSION_COLUMNS_PREFIX = "(session_verifier, logout_target, state, ";
+
   private static final String SESSION_ATTRIBUTE_COUNT =
       "SELECT count(*) FROM spring_session_attributes";
   private static final String AUTHORITY_ATTRIBUTE = "hortinis.authority";
   private static final String CSRF_ATTRIBUTE = "csrf";
-  private static final String SESSION_REFERENCE_WHERE = "WHERE session_reference = ?";
+
   private static final String CANONICAL_RANDOM_FIXTURE = "A".repeat(43);
 
   @Container
@@ -79,6 +73,44 @@ class AuthenticationSchemaIntegrationTest {
             POSTGRES.getUsername(),
             POSTGRES.getPassword());
     jdbc = new JdbcTemplate(source);
+    NativeAuthenticationSessions.installInspectionView(jdbc);
+  }
+
+  @Test
+  void pendingAuthenticationHasNoParallelAuthorityTableAndCannotAuthorizeData() {
+    UUID account = account();
+    UUID pending = passwordSession(account);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM information_schema.tables WHERE "
+                    + "table_schema = current_schema() AND table_name = "
+                    + "'authentication_session_authority'",
+                Integer.class))
+        .isZero();
+    assertThat(authorityAt(SYNTHETIC_LOGIN).findFull(nativeSessions().verifier(pending), pending))
+        .isEmpty();
+  }
+
+  @Test
+  void nativeIndexRevokesPendingRecoveryAndPasswordSessionsWithoutGrantingFullAuthority() {
+    UUID account = account();
+    var fixture = nativeSessions();
+    var clock = java.time.Clock.fixed(SYNTHETIC_LOGIN, java.time.ZoneOffset.UTC);
+    var persistence = fixture.persistence(clock);
+    UUID password = passwordSession(account);
+    UUID recovery = fixture.limited(account, "recovery", SYNTHETIC_LOGIN);
+    assertThat(persistence.references(account)).containsExactlyInAnyOrder(password, recovery);
+    assertThat(persistence.list(account, 1)).isEmpty();
+    var lock = com.hortinis.sync.authentication.persistence.AuthenticationNativeSessions.Lock.NONE;
+    assertThat(persistence.find(password, fixture.verifier(password), lock)).isPresent();
+    fixture.clearAuthentication(password);
+    assertThat(persistence.find(password, fixture.verifier(password), lock)).isEmpty();
+    assertThat(persistence.find(recovery, fixture.verifier(recovery), lock)).isPresent();
+    var removal =
+        new com.hortinis.sync.authentication.persistence.AuthenticationSessionRemovalPersistence(
+            org.springframework.jdbc.core.simple.JdbcClient.create(jdbc), persistence);
+    transaction().executeWithoutResult(status -> removal.removeAll(account));
+    assertThat(transportCount()).isZero();
   }
 
   @Test
@@ -171,36 +203,6 @@ class AuthenticationSchemaIntegrationTest {
   }
 
   @Test
-  void limitedAuthorityCannotBecomeFullWithoutCompleteTimesAndAccount() {
-    UUID session = anonymous();
-    assertThatThrownBy(
-            () ->
-                jdbc.update(
-                    SESSION_STATE_UPDATE_PREFIX + "= 'full' WHERE session_reference = ?", session))
-        .isInstanceOf(RuntimeException.class);
-    assertThatThrownBy(
-            () ->
-                jdbc.update(
-                    SESSION_UPDATE_PREFIX
-                        + "expires_at = created_at + INTERVAL '301 seconds' "
-                        + SESSION_REFERENCE_WHERE,
-                    session))
-        .isInstanceOf(RuntimeException.class);
-    assertThatThrownBy(
-            () ->
-                jdbc.update(
-                    SESSION_STATE_UPDATE_PREFIX + "= 'setup' WHERE session_reference = ?", session))
-        .isInstanceOf(RuntimeException.class);
-    assertThatThrownBy(
-            () ->
-                jdbc.update(
-                    SESSION_UPDATE_PREFIX + "logout_target = ? WHERE session_reference = ?",
-                    "A".repeat(42) + "B",
-                    session))
-        .isInstanceOf(RuntimeException.class);
-  }
-
-  @Test
   void challengeAndRecoveryVerifiersHaveOneConcurrentConsumerAndCascadeOnDeletion()
       throws Exception {
     UUID account = account();
@@ -254,8 +256,14 @@ class AuthenticationSchemaIntegrationTest {
             + "technical_default",
         "a".repeat(64),
         session);
-    jdbc.update(
-        "DELETE FROM authentication_session_authority WHERE session_reference = ?", session);
+    transaction()
+        .executeWithoutResult(
+            status ->
+                new com.hortinis.sync.authentication.persistence
+                        .AuthenticationSessionRemovalPersistence(
+                        org.springframework.jdbc.core.simple.JdbcClient.create(jdbc),
+                        nativeSessions().persistence(java.time.Clock.systemUTC()))
+                    .remove(session));
     assertThat(
             jdbc.queryForObject(
                 "SELECT count(*) FROM authentication_operator_ticket", Integer.class))
@@ -350,13 +358,18 @@ class AuthenticationSchemaIntegrationTest {
                   S session = repository.createSession();
                   var reference = admissionAt(SYNTHETIC_LOGIN).admitAnonymous(session.getId());
                   session.setMaxInactiveInterval(java.time.Duration.ofMinutes(5));
-                  session.setAttribute(AUTHORITY_ATTRIBUTE, reference);
+                  session.setAttribute(
+                      AUTHORITY_ATTRIBUTE,
+                      new com.hortinis.sync.authentication.SessionAuthorityReference(
+                          reference.reference()));
+                  session.setAttribute(
+                      com.hortinis.sync.authentication.AuthenticationSession.ATTRIBUTE, reference);
                   session.setAttribute(CSRF_ATTRIBUTE, syntheticCsrf());
                   assertThat(transportCount()).isEqualTo(1);
                   assertThat(jdbc.queryForObject(SESSION_AUTHORITY_COUNT, Integer.class))
                       .isEqualTo(1);
                   assertThat(jdbc.queryForObject(SESSION_ATTRIBUTE_COUNT, Integer.class))
-                      .isEqualTo(2);
+                      .isEqualTo(3);
                   if (rollBack) {
                     status.setRollbackOnly();
                   }
@@ -378,129 +391,6 @@ class AuthenticationSchemaIntegrationTest {
   }
 
   @Test
-  void jdbcRotationAndAuthorityVerifierCommitTogether() {
-    verifyAtomicSessionRotation(sessionRepository(), false);
-  }
-
-  @Test
-  void jdbcRotationAndAuthorityVerifierRollBackTogether() {
-    verifyAtomicSessionRotation(sessionRepository(), true);
-  }
-
-  private <S extends org.springframework.session.Session> void verifyAtomicSessionRotation(
-      org.springframework.session.SessionRepository<S> repository, boolean rollBack) {
-    jdbc.update(SWITCH_SINGLE_AUTH);
-    S session =
-        transaction()
-            .execute(
-                status -> {
-                  S created = repository.createSession();
-                  var reference = admissionAt(SYNTHETIC_LOGIN).admitAnonymous(created.getId());
-                  created.setAttribute(AUTHORITY_ATTRIBUTE, reference);
-                  created.setAttribute(CSRF_ATTRIBUTE, syntheticCsrf());
-                  return created;
-                });
-    java.util.Objects.requireNonNull(session);
-    String oldId = session.getId();
-    com.hortinis.sync.authentication.SessionAuthorityReference oldReference =
-        session.getAttribute(AUTHORITY_ATTRIBUTE);
-    var newReference =
-        new com.hortinis.sync.authentication.SessionAuthorityReference(UUID.randomUUID());
-    org.springframework.security.web.csrf.CsrfToken oldCsrf = session.getAttribute(CSRF_ATTRIBUTE);
-    transaction()
-        .executeWithoutResult(
-            status -> {
-              final String newId = session.changeSessionId();
-              session.setAttribute(AUTHORITY_ATTRIBUTE, newReference);
-              session.setAttribute(CSRF_ATTRIBUTE, syntheticCsrf());
-              repository.save(session);
-              jdbc.update(
-                  SESSION_UPDATE_PREFIX
-                      + "session_reference = ?, session_verifier = ? "
-                      + SESSION_REFERENCE_WHERE,
-                  newReference.value(),
-                  com.hortinis.sync.authentication.AuthenticationSecrets.digest(newId),
-                  oldReference.value());
-              assertThat(repository.findById(oldId)).isNull();
-              assertThat(repository.findById(newId)).isNotNull();
-              if (rollBack) {
-                status.setRollbackOnly();
-              }
-            });
-    String newId = session.getId();
-    assertThat(newId).isNotEqualTo(oldId);
-    S persisted = java.util.Objects.requireNonNull(repository.findById(rollBack ? oldId : newId));
-    org.springframework.security.web.csrf.CsrfToken persistedCsrf =
-        persisted.getAttribute(CSRF_ATTRIBUTE);
-    assertThat(persistedCsrf.getToken().equals(oldCsrf.getToken())).isEqualTo(rollBack);
-    assertThat((Object) persisted.getAttribute(AUTHORITY_ATTRIBUTE))
-        .isEqualTo(rollBack ? oldReference : newReference);
-    assertThat(
-            jdbc.queryForObject(
-                "SELECT session_reference FROM authentication_session_authority", UUID.class))
-        .isEqualTo(rollBack ? oldReference.value() : newReference.value());
-    assertThat(repository.findById(rollBack ? newId : oldId)).isNull();
-    assertThat(
-            jdbc.queryForObject(
-                "SELECT session_verifier FROM authentication_session_authority", String.class))
-        .isEqualTo(
-            com.hortinis.sync.authentication.AuthenticationSecrets.digest(
-                rollBack ? oldId : newId));
-  }
-
-  @Test
-  void jdbcDeletionRollsBackAndLaterSaveCannotResurrectRevokedAuthority() {
-    verifyAtomicSessionDeletion(sessionRepository());
-  }
-
-  private <S extends org.springframework.session.Session> void verifyAtomicSessionDeletion(
-      org.springframework.session.SessionRepository<S> repository) {
-    jdbc.update(SWITCH_SINGLE_AUTH);
-    S session =
-        transaction()
-            .execute(
-                status -> {
-                  S created = repository.createSession();
-                  created.setAttribute(
-                      AUTHORITY_ATTRIBUTE,
-                      admissionAt(SYNTHETIC_LOGIN).admitAnonymous(created.getId()));
-                  created.setAttribute(CSRF_ATTRIBUTE, syntheticCsrf());
-                  return created;
-                });
-    java.util.Objects.requireNonNull(session);
-    transaction()
-        .executeWithoutResult(
-            status -> {
-              repository.deleteById(session.getId());
-              jdbc.update("DELETE FROM authentication_session_authority");
-              assertThat(transportCount()).isZero();
-              assertThat(jdbc.queryForObject(SESSION_AUTHORITY_COUNT, Integer.class)).isZero();
-              status.setRollbackOnly();
-            });
-    assertThat(repository.findById(session.getId())).isNotNull();
-    assertThat(jdbc.queryForObject(SESSION_AUTHORITY_COUNT, Integer.class)).isEqualTo(1);
-    transaction()
-        .executeWithoutResult(
-            status -> {
-              repository.deleteById(session.getId());
-              jdbc.update("DELETE FROM authentication_session_authority");
-            });
-    session.changeSessionId();
-    session.setLastAccessedTime(java.time.Instant.now());
-    repository.save(session);
-    assertThat(transportCount()).isZero();
-    assertThat(jdbc.queryForObject(SESSION_AUTHORITY_COUNT, Integer.class)).isZero();
-    assertThat(repository.findById(session.getId())).isNull();
-    // Spring ignores missing-parent attribute inserts after a concurrent transport deletion.
-    session.setAttribute(
-        "new-authority",
-        new com.hortinis.sync.authentication.SessionAuthorityReference(UUID.randomUUID()));
-    assertThat(transportCount()).isZero();
-    assertThat(jdbc.queryForObject(SESSION_ATTRIBUTE_COUNT, Integer.class)).isZero();
-    assertThat(jdbc.queryForObject(SESSION_AUTHORITY_COUNT, Integer.class)).isZero();
-  }
-
-  @Test
   void jdbcUnsupportedPrincipalAttributeRollsBackAdmission() {
     verifyRejectedSessionAttribute(sessionRepository());
   }
@@ -516,7 +406,10 @@ class AuthenticationSchemaIntegrationTest {
                           S session = repository.createSession();
                           session.setAttribute(
                               AUTHORITY_ATTRIBUTE,
-                              admissionAt(SYNTHETIC_LOGIN).admitAnonymous(session.getId()));
+                              new com.hortinis.sync.authentication.SessionAuthorityReference(
+                                  admissionAt(SYNTHETIC_LOGIN)
+                                      .admitAnonymous(session.getId())
+                                      .reference()));
                           session.setAttribute(
                               "synthetic-principal",
                               org.springframework.security.core.userdetails.User.withUsername(
@@ -696,10 +589,7 @@ class AuthenticationSchemaIntegrationTest {
                                   ACCOUNT_EPOCH_UPDATE_PREFIX
                                       + "= authority_epoch + 1 WHERE account_id = ?",
                                   account);
-                              jdbc.update(
-                                  "DELETE FROM authentication_session_authority "
-                                      + SESSION_REFERENCE_WHERE,
-                                  session);
+                              nativeSessions().delete(session);
                             }));
         long limit = System.nanoTime() + TimeUnit.SECONDS.toNanos(10);
         boolean waiting = false;
@@ -871,8 +761,7 @@ class AuthenticationSchemaIntegrationTest {
       case DISABLE_CHANGE -> jdbc.update("UPDATE authentication_account SET status = 'disabled'");
       case EPOCH_CHANGE -> jdbc.update(ADVANCE_EPOCH);
       case MODE_CHANGE -> jdbc.update(SWITCH_NO_AUTH);
-      case "state" ->
-          jdbc.update("UPDATE authentication_session_authority SET state = 'anonymous'");
+      case "state" -> nativeSessions().change(parent, java.util.Map.of("state", "anonymous"));
       default -> throw new IllegalArgumentException("Unknown fixture change.");
     }
     var finalPurpose = purpose;
@@ -1197,158 +1086,6 @@ class AuthenticationSchemaIntegrationTest {
   }
 
   @Test
-  void anonymousAdmissionIsNonAuthorizingAndRollsBackWithTheCookieWorkflow() {
-    jdbc.update(SWITCH_SINGLE_AUTH);
-    var admission = admissionAt(SYNTHETIC_LOGIN);
-    String sessionId = com.hortinis.sync.authentication.AuthenticationSecrets.randomValue();
-    var reference = transaction().execute(status -> admission.admitAnonymous(sessionId));
-    assertThat(reference).isNotNull();
-    assertThat(
-            jdbc.queryForObject(
-                "SELECT session_verifier FROM authentication_session_authority", String.class))
-        .isEqualTo(com.hortinis.sync.authentication.AuthenticationSecrets.digest(sessionId))
-        .isNotEqualTo(sessionId);
-    assertThat(
-            jdbc.queryForObject("SELECT state FROM authentication_session_authority", String.class))
-        .isEqualTo("anonymous");
-    assertThat(
-            jdbc.queryForObject(
-                "SELECT account_id FROM authentication_session_authority", UUID.class))
-        .isNull();
-    assertThat(
-            jdbc.queryForObject(
-                    "SELECT expires_at FROM authentication_session_authority",
-                    java.time.OffsetDateTime.class)
-                .toInstant())
-        .isEqualTo(SYNTHETIC_LOGIN.plusSeconds(300));
-    assertThat(
-            authorityAt(SYNTHETIC_LOGIN)
-                .findFull(
-                    com.hortinis.sync.authentication.AuthenticationSecrets.digest(sessionId),
-                    reference.value()))
-        .isEmpty();
-    assertThatThrownBy(() -> transaction().execute(status -> admission.admitAnonymous(sessionId)))
-        .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
-    assertThat(jdbc.queryForObject(SESSION_AUTHORITY_COUNT, Integer.class)).isEqualTo(1);
-    assertThatThrownBy(
-            () ->
-                transaction()
-                    .executeWithoutResult(
-                        status -> {
-                          admission.admitAnonymous(
-                              com.hortinis.sync.authentication.AuthenticationSecrets.randomValue());
-                          throw new com.hortinis.sync.authentication
-                              .AuthenticationFailedException();
-                        }))
-        .isInstanceOf(com.hortinis.sync.authentication.AuthenticationFailedException.class);
-    assertThat(jdbc.queryForObject(SESSION_AUTHORITY_COUNT, Integer.class)).isEqualTo(1);
-  }
-
-  @Test
-  void actualProductionAdmissionLimitCountsEveryPartialStateWithoutEvictingThem() {
-    UUID account = account();
-    seedAnonymousCapacity(1000);
-    jdbc.update(
-        SESSION_STATE_UPDATE_PREFIX
-            + "= 'password', account_id = ?, authority_epoch = 1 "
-            + "WHERE session_reference = (SELECT "
-            + "session_reference FROM "
-            + "authentication_session_authority ORDER BY "
-            + "logout_target LIMIT 1)",
-        account);
-    jdbc.update(
-        SESSION_STATE_UPDATE_PREFIX
-            + "= 'recovery', recovery_kind = 'passkey', "
-            + "account_id = ?, authority_epoch = 1 WHERE "
-            + "session_reference = (SELECT session_reference "
-            + "FROM authentication_session_authority ORDER BY "
-            + "logout_target LIMIT 1 OFFSET 1)",
-        account);
-    jdbc.update(
-        SESSION_STATE_UPDATE_PREFIX
-            + "= 'setup', staged_login_identifier = "
-            + "'synthetic-setup', staged_password_verifier = ?, "
-            + "staged_user_handle = ? WHERE session_reference = "
-            + "(SELECT session_reference FROM "
-            + "authentication_session_authority ORDER BY "
-            + "logout_target LIMIT 1 OFFSET 2)",
-        SYNTHETIC_VERIFIER,
-        new byte[32]);
-    var admission = admissionAt(SYNTHETIC_LOGIN);
-    assertThatThrownBy(
-            () ->
-                transaction()
-                    .execute(
-                        status ->
-                            admission.admitAnonymous(
-                                com.hortinis.sync.authentication.AuthenticationSecrets
-                                    .randomValue())))
-        .isInstanceOf(com.hortinis.sync.authentication.AuthenticationOverloadedException.class);
-    assertThat(jdbc.queryForObject(SESSION_AUTHORITY_COUNT, Integer.class)).isEqualTo(1000);
-    assertThat(
-            jdbc.queryForList("SELECT state FROM authentication_session_authority", String.class))
-        .contains("password", "recovery", "setup", "anonymous");
-  }
-
-  @Test
-  void concurrentLastSlotAdmissionHasExactlyOneWinnerAtTheRealThousandSessionLimit()
-      throws Exception {
-    seedAnonymousCapacity(999);
-    var admission = admissionAt(SYNTHETIC_LOGIN);
-    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
-      var first = executor.submit(() -> tryAdmit(admission));
-      var second = executor.submit(() -> tryAdmit(admission));
-      assertThat(first.get(10, TimeUnit.SECONDS) + second.get(10, TimeUnit.SECONDS)).isEqualTo(1);
-    }
-    assertThat(jdbc.queryForObject(SESSION_AUTHORITY_COUNT, Integer.class)).isEqualTo(1000);
-  }
-
-  @Test
-  void admissionPurgesExpiredUnownedAuthorityAndItsExactTransportWhilePreservingCurrentRows() {
-    jdbc.update(SWITCH_SINGLE_AUTH);
-    var admission = admissionAt(SYNTHETIC_LOGIN);
-    String oldId = com.hortinis.sync.authentication.AuthenticationSecrets.randomValue();
-    var expired = transaction().execute(status -> admission.admitAnonymous(oldId));
-    assertThat(expired).isNotNull();
-    String transport = UUID.randomUUID().toString();
-    jdbc.update(
-        "INSERT INTO spring_session (primary_id, "
-            + "session_id, creation_time, last_access_time, "
-            + "max_inactive_interval, expiry_time) VALUES (?, ?, "
-            + "0, 0, 300, 300000)",
-        transport,
-        oldId);
-    byte[] encoded =
-        com.hortinis.sync.authentication.SessionAttributeCodec.conversionService()
-            .convert(expired, byte[].class);
-    jdbc.update(
-        "INSERT INTO spring_session_attributes VALUES (?, 'hortinis.authority', ?)",
-        transport,
-        encoded);
-    var stillCurrent =
-        transaction()
-            .execute(
-                status ->
-                    admissionAt(SYNTHETIC_LOGIN.plusSeconds(1))
-                        .admitAnonymous(
-                            com.hortinis.sync.authentication.AuthenticationSecrets.randomValue()));
-    assertThat(stillCurrent).isNotNull();
-    transaction()
-        .executeWithoutResult(
-            status ->
-                admissionAt(SYNTHETIC_LOGIN.plusSeconds(300))
-                    .admitAnonymous(
-                        com.hortinis.sync.authentication.AuthenticationSecrets.randomValue()));
-    assertThat(
-            jdbc.queryForList(
-                "SELECT session_reference FROM authentication_session_authority", UUID.class))
-        .doesNotContain(expired.value())
-        .contains(stillCurrent.value());
-    assertThat(jdbc.queryForObject("SELECT count(*) FROM spring_session", Integer.class)).isZero();
-    assertThat(jdbc.queryForObject(SESSION_ATTRIBUTE_COUNT, Integer.class)).isZero();
-  }
-
-  @Test
   void admissionRejectsUnsupportedModeInvalidIdsAndMissingOrReadOnlyTransactions() {
     var admission = admissionAt(SYNTHETIC_LOGIN);
     String id = com.hortinis.sync.authentication.AuthenticationSecrets.randomValue();
@@ -1380,54 +1117,13 @@ class AuthenticationSchemaIntegrationTest {
         java.time.Clock.fixed(now, java.time.ZoneOffset.UTC));
   }
 
-  private void seedAnonymousCapacity(int count) {
-    jdbc.update(SWITCH_SINGLE_AUTH);
-    jdbc.update(
-        SESSION_INSERT_PREFIX
-            + SESSION_COLUMNS_PREFIX
-            + "created_at, expires_at) SELECT md5(n::text) || "
-            + "md5('synthetic-verifier-' || n::text), "
-            + "lpad(n::text, 42, '0') || 'A', 'anonymous', ?, ? "
-            + "FROM generate_series(1, ?) n",
-        java.sql.Timestamp.from(SYNTHETIC_LOGIN),
-        java.sql.Timestamp.from(SYNTHETIC_LOGIN.plusSeconds(300)),
-        count);
-  }
-
-  private int tryAdmit(
-      com.hortinis.sync.authentication.persistence.AuthenticationSessionAdmissionPersistence
-          admission) {
-    try {
-      transaction()
-          .execute(
-              status ->
-                  admission.admitAnonymous(
-                      com.hortinis.sync.authentication.AuthenticationSecrets.randomValue()));
-      return 1;
-    } catch (com.hortinis.sync.authentication.AuthenticationOverloadedException exception) {
-      return 0;
-    }
-  }
-
   private UUID passwordSession(UUID account) {
     return passwordSession(account, SYNTHETIC_LOGIN);
   }
 
   private UUID passwordSession(UUID account, java.time.Instant created) {
     jdbc.update(SWITCH_SINGLE_AUTH);
-    return jdbc.queryForObject(
-        SESSION_INSERT_PREFIX
-            + SESSION_COLUMNS_PREFIX
-            + "account_id, authority_epoch, created_at, "
-            + "expires_at) VALUES (?, ?, 'password', ?, 1, ?, ?) "
-            + "RETURNING session_reference",
-        UUID.class,
-        com.hortinis.sync.authentication.AuthenticationSecrets.digest(
-            com.hortinis.sync.authentication.AuthenticationSecrets.randomValue()),
-        com.hortinis.sync.authentication.AuthenticationSecrets.randomValue(),
-        account,
-        java.sql.Timestamp.from(created),
-        java.sql.Timestamp.from(created.plusSeconds(300)));
+    return nativeSessions().limited(account, "password", created);
   }
 
   private com.hortinis.sync.authentication.persistence.AuthenticationChallengePersistence
@@ -1564,16 +1260,7 @@ class AuthenticationSchemaIntegrationTest {
   }
 
   private UUID anonymous() {
-    return jdbc.queryForObject(
-        SESSION_INSERT_PREFIX
-            + SESSION_COLUMNS_PREFIX
-            + "created_at, expires_at) VALUES (?, ?, "
-            + "'anonymous', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP "
-            + "+ INTERVAL '5 minutes') RETURNING "
-            + "session_reference",
-        UUID.class,
-        "b".repeat(64),
-        CANONICAL_RANDOM_FIXTURE);
+    return nativeSessions().limited(null, "anonymous", java.time.Instant.now());
   }
 
   private void assertSingleConsumer(String sql, UUID reference) throws Exception {

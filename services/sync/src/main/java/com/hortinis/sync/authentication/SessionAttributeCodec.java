@@ -18,6 +18,8 @@ public final class SessionAttributeCodec {
   private static final String CSRF_PREFIX = "v1:csrf:";
   private static final String REFERENCE_PREFIX = "v1:authority:";
   private static final String TARGET_PREFIX = "v1:target:";
+  private static final String CEREMONY_PREFIX = "v1:ceremony:";
+  private static final String ACCOUNT_PREFIX = "v1:account:";
   private static final String CONTEXT_PREFIX = "v1:security:";
   private static final int MAX_BYTES = 8192;
   private static final JsonMapper CONTEXTS =
@@ -28,12 +30,15 @@ public final class SessionAttributeCodec {
                           .maxDocumentLength(MAX_BYTES)
                           .maxNestingDepth(16)
                           .maxTokenCount(256)
-                          .maxStringLength(1024)
+                          .maxStringLength(4096)
                           .build())
                   .build())
           .addModules(
               SecurityJacksonModules.getModules(Thread.currentThread().getContextClassLoader()))
           .build();
+
+  private static final JsonMapper CEREMONIES =
+      JsonMapper.builder(CONTEXTS.tokenStreamFactory()).build();
 
   private SessionAttributeCodec() {}
 
@@ -53,6 +58,11 @@ public final class SessionAttributeCodec {
       if (encoded.length() > MAX_BYTES) {
         throw invalid();
       }
+    } else if (attribute instanceof AuthenticationSession ceremony) {
+      requireCeremony(ceremony);
+      encoded = CEREMONY_PREFIX + CEREMONIES.writeValueAsString(ceremony);
+    } else if (attribute instanceof String account && account.matches("[a-f0-9-]{36}")) {
+      encoded = ACCOUNT_PREFIX + UUID.fromString(account);
     } else if (attribute instanceof String target && AuthenticationSecrets.isRandomValue(target)) {
       encoded = TARGET_PREFIX + target;
     } else if (attribute instanceof SessionAuthorityReference reference) {
@@ -65,15 +75,42 @@ public final class SessionAttributeCodec {
     } else {
       throw invalid();
     }
-    return encoded.getBytes(StandardCharsets.US_ASCII);
+    if (encoded.length() > MAX_BYTES) {
+      throw invalid();
+    }
+    byte[] bytes = encoded.getBytes(StandardCharsets.UTF_8);
+    if (bytes.length > MAX_BYTES) {
+      throw invalid();
+    }
+    return bytes;
   }
 
   static Object decode(byte[] bytes) {
     if (bytes == null || bytes.length > MAX_BYTES) {
       throw invalid();
     }
-    String encoded = new String(bytes, StandardCharsets.US_ASCII);
-    if (encoded.startsWith(CONTEXT_PREFIX)) {
+    String encoded = new String(bytes, StandardCharsets.UTF_8);
+    if (encoded.startsWith(CEREMONY_PREFIX)) {
+      try {
+        var ceremony =
+            CEREMONIES.readValue(
+                encoded.substring(CEREMONY_PREFIX.length()), AuthenticationSession.class);
+        requireCeremony(ceremony);
+        return ceremony;
+      } catch (JacksonException exception) {
+        throw invalid();
+      }
+    } else if (encoded.startsWith(ACCOUNT_PREFIX)) {
+      String account = encoded.substring(ACCOUNT_PREFIX.length());
+      try {
+        if (UUID.fromString(account).toString().equals(account)) {
+          return account;
+        }
+      } catch (IllegalArgumentException exception) {
+        throw invalid();
+      }
+      throw invalid();
+    } else if (encoded.startsWith(CONTEXT_PREFIX)) {
       try {
         var context =
             CONTEXTS.readValue(encoded.substring(CONTEXT_PREFIX.length()), SecurityContext.class);
@@ -104,6 +141,25 @@ public final class SessionAttributeCodec {
       }
     }
     throw invalid();
+  }
+
+  private static void requireCeremony(AuthenticationSession ceremony) {
+    if (ceremony == null
+        || ceremony.state() == null
+        || ceremony.reference() == null
+        || ceremony.createdAt() == null
+        || ceremony.expiresAt() == null
+        || !java.util.Set.of("anonymous", "password", "setup", "recovery")
+            .contains(ceremony.state())
+        || !ceremony.expiresAt().isAfter(ceremony.createdAt())
+        || ceremony
+            .expiresAt()
+            .isAfter(ceremony.createdAt().plus(AuthenticationLifetime.LIMITED_ABSOLUTE))
+        || (ceremony.account() == null ? ceremony.epoch() != 0 : ceremony.epoch() <= 0)
+        || "password".equals(ceremony.state()) && ceremony.account() == null
+        || !AuthenticationSecrets.isRandomValue(ceremony.logoutTarget())) {
+      throw invalid();
+    }
   }
 
   private static boolean validToken(String token) {

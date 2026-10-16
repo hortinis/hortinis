@@ -16,7 +16,7 @@ public interface AuthenticationSessionTransport {
   Optional<Observation> observe();
 
   /** Trusted allocator receives the generated ID only inside the admission transaction. */
-  Observation bootstrap(Function<String, SessionAuthorityReference> admission);
+  Observation bootstrap(Function<String, AuthenticationSession> admission);
 
   /** Rotates native session identity, CSRF and ceremony reference within publication. */
   Observation rotate(SessionAuthorityReference replacement);
@@ -26,6 +26,9 @@ public interface AuthenticationSessionTransport {
 
   /** Explicit transactional replacement; no cookie change or normal-factor renewal. */
   void refreshCsrf();
+
+  /** Stores restricted workflow data in the native session without granting data access. */
+  void stage(AuthenticationSession ceremony);
 
   /** Publishes completed two-factor authentication through the framework's native context. */
   void authenticate(UUID account, long epoch, Instant verifiedAt, String logoutTarget);

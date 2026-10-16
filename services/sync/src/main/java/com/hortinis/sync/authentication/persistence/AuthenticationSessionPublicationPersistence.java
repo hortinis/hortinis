@@ -9,7 +9,6 @@ import com.hortinis.sync.authentication.AuthenticationSession;
 import com.hortinis.sync.authentication.AuthenticationSessionTransport;
 import com.hortinis.sync.authentication.SessionAuthorityReference;
 import com.hortinis.sync.configuration.SynchronizationPersistenceEnabled;
-import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Objects;
@@ -23,16 +22,11 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 @Repository
 @SynchronizationPersistenceEnabled
 public class AuthenticationSessionPublicationPersistence {
-  private static final String OWNED_AUTHORITY_COLUMNS =
-      "logout_target, state, account_id, authority_epoch, created_at, expires_at, ";
-  private static final String INSERT_AUTHORITY =
-      "INSERT INTO authentication_session_authority (session_reference, session_verifier, ";
+  private static final String RECOVERY_STATE = "recovery";
   private static final String PASSWORD_STATE = "password";
   private static final String FULL_STATE = "full";
   private static final String ANONYMOUS = "anonymous";
-  private static final int MAX_LIMITED = 1000;
   private static final int MAX_FULL = 5;
-  private static final int ONE_ROW = 1;
   private final JdbcClient jdbc;
   private final Clock clock;
   private final AuthenticationNativeSessions nativeSessions;
@@ -125,21 +119,22 @@ public class AuthenticationSessionPublicationPersistence {
       throw new AuthenticationFailedException();
     }
     Replacement replacement = rotate(transport);
-    jdbc.sql(
-            INSERT_AUTHORITY
-                + "logout_target, state, created_at, expires_at, staged_login_identifier, "
-                + "staged_password_verifier, staged_user_handle) VALUES (?, ?, ?, "
-                + "'setup', ?, ?, ?, ?, ?)")
-        .params(
+    transport.stage(
+        new AuthenticationSession(
             replacement.reference(),
-            replacement.verifier(),
-            replacement.logoutTarget(),
-            Timestamp.from(retry ? parent.createdAt() : now),
-            Timestamp.from(expires),
+            null,
+            0,
+            "setup",
+            retry ? parent.createdAt() : now,
+            expires,
+            null,
+            null,
             staged.login(),
             staged.passwordVerifier(),
-            staged.userHandle())
-        .update();
+            staged.userHandle(),
+            replacement.logoutTarget(),
+            null,
+            null));
     return replacement.reference();
   }
 
@@ -156,26 +151,24 @@ public class AuthenticationSessionPublicationPersistence {
     }
     Instant now = clock.instant();
     requireCurrent(parent, now);
-    if (stepUp) {
-      requireLimitedSlot(now);
-    }
     Instant expires = now.plus(AuthenticationLifetime.LIMITED_ABSOLUTE);
     Replacement replacement = rotate(transport);
-    jdbc.sql(
-            INSERT_AUTHORITY
-                + OWNED_AUTHORITY_COLUMNS
-                + "step_up) VALUES (?, ?, ?, 'password', "
-                + "?, ?, ?, ?, ?)")
-        .params(
+    transport.stage(
+        new AuthenticationSession(
             replacement.reference(),
-            replacement.verifier(),
-            replacement.logoutTarget(),
             account.account(),
             account.epoch(),
-            Timestamp.from(now),
-            Timestamp.from(expires),
-            stepUp)
-        .update();
+            PASSWORD_STATE,
+            now,
+            expires,
+            stepUp ? now : null,
+            null,
+            null,
+            null,
+            null,
+            replacement.logoutTarget(),
+            null,
+            null));
     retire(parent);
     return replacement.reference();
   }
@@ -202,7 +195,8 @@ public class AuthenticationSessionPublicationPersistence {
       Instant ticketExpiry,
       AuthenticationSessionTransport transport) {
     requireTransaction();
-    boolean retry = "recovery".equals(parent.state()) && "operator".equals(parent.recoveryKind());
+    boolean retry =
+        RECOVERY_STATE.equals(parent.state()) && "operator".equals(parent.recoveryKind());
     if (!ANONYMOUS.equals(parent.state()) && !retry
         || retry
             && (!account.account().equals(parent.account()) || parent.bothFactorsAt() != null)) {
@@ -214,22 +208,22 @@ public class AuthenticationSessionPublicationPersistence {
       throw new AuthenticationFailedException();
     }
     Replacement replacement = rotate(transport);
-    jdbc.sql(
-            INSERT_AUTHORITY
-                + OWNED_AUTHORITY_COLUMNS
-                + "recovery_kind, staged_password_verifier, staged_user_handle) "
-                + "VALUES (?, ?, ?, 'recovery', ?, ?, ?, ?, 'operator', ?, ?)")
-        .params(
+    transport.stage(
+        new AuthenticationSession(
             replacement.reference(),
-            replacement.verifier(),
-            replacement.logoutTarget(),
             account.account(),
             account.epoch(),
-            Timestamp.from(parent.createdAt()),
-            Timestamp.from(expires),
+            RECOVERY_STATE,
+            parent.createdAt(),
+            expires,
+            null,
+            null,
+            null,
             hash,
-            account.userHandle())
-        .update();
+            account.userHandle(),
+            replacement.logoutTarget(),
+            "operator",
+            null));
     return replacement.reference();
   }
 
@@ -247,7 +241,7 @@ public class AuthenticationSessionPublicationPersistence {
       String kind,
       AuthenticationSessionTransport transport) {
     boolean passwordProof =
-        "recovery".equals(parent.state())
+        RECOVERY_STATE.equals(parent.state())
             && PASSWORD_STATE.equals(parent.recoveryKind())
             && parent.bothFactorsAt() == null
             && parent.account() == null;
@@ -269,30 +263,29 @@ public class AuthenticationSessionPublicationPersistence {
     Instant now = clock.instant();
     requireCurrent(parent, now);
     Replacement replacement = rotate(transport);
-    jdbc.sql(
-            INSERT_AUTHORITY
-                + OWNED_AUTHORITY_COLUMNS
-                + "recovery_kind, staged_login_identifier, both_factors_at) "
-                + "VALUES (?, ?, ?, 'recovery', ?, ?, ?, ?, ?, ?, ?)")
-        .params(
+    transport.stage(
+        new AuthenticationSession(
             replacement.reference(),
-            replacement.verifier(),
-            replacement.logoutTarget(),
             account == null ? null : account.account(),
-            account == null ? null : account.epoch(),
-            Timestamp.from(parent.createdAt()),
-            Timestamp.from(parent.expiresAt()),
-            kind,
+            account == null ? 0 : account.epoch(),
+            RECOVERY_STATE,
+            parent.createdAt(),
+            parent.expiresAt(),
+            null,
+            proved ? now : null,
             requestedLogin,
-            timestamp(proved ? now : null))
-        .update();
+            null,
+            null,
+            replacement.logoutTarget(),
+            kind,
+            null));
     retire(parent);
     return replacement.reference();
   }
 
   /** Recovery proof never substitutes for recent full normal authentication. */
   public void requireRecovery(AuthenticationSession parent, String kind) {
-    requireState(parent, "recovery");
+    requireState(parent, RECOVERY_STATE);
     requireCurrent(parent, clock.instant());
     if (!kind.equals(parent.recoveryKind())
         || parent.account() == null
@@ -317,22 +310,22 @@ public class AuthenticationSessionPublicationPersistence {
       throw new AuthenticationFailedException();
     }
     Replacement replacement = rotate(transport);
-    jdbc.sql(
-            INSERT_AUTHORITY
-                + OWNED_AUTHORITY_COLUMNS
-                + "recovery_kind, both_factors_at, replacement_credential_id) "
-                + "VALUES (?, ?, ?, 'recovery', ?, ?, ?, ?, 'passkey', ?, ?)")
-        .params(
+    transport.stage(
+        new AuthenticationSession(
             replacement.reference(),
-            replacement.verifier(),
-            replacement.logoutTarget(),
             parent.account(),
             parent.epoch(),
-            Timestamp.from(parent.createdAt()),
-            Timestamp.from(parent.expiresAt()),
-            Timestamp.from(parent.bothFactorsAt()),
-            credentialId.clone())
-        .update();
+            RECOVERY_STATE,
+            parent.createdAt(),
+            parent.expiresAt(),
+            null,
+            parent.bothFactorsAt(),
+            null,
+            null,
+            null,
+            replacement.logoutTarget(),
+            "passkey",
+            credentialId));
     retire(parent);
     return replacement.reference();
   }
@@ -343,13 +336,9 @@ public class AuthenticationSessionPublicationPersistence {
     jdbc.sql("DELETE FROM authentication_challenge WHERE session_reference = ?")
         .param(parent.reference())
         .update();
-    int retired =
-        jdbc.sql("DELETE FROM authentication_session_authority WHERE session_reference = ?")
-            .param(parent.reference())
-            .update();
-    if (!FULL_STATE.equals(parent.state()) && retired != ONE_ROW) {
-      throw new AuthenticationFailedException();
-    }
+    jdbc.sql("DELETE FROM authentication_operator_ticket WHERE claimed_session_reference = ?")
+        .param(parent.reference())
+        .update();
   }
 
   /** Checks a trusted locked parent state within the current writable transaction. */
@@ -431,23 +420,10 @@ public class AuthenticationSessionPublicationPersistence {
     if (observation == null || observation.reference() == null) {
       throw new AuthenticationFailedException();
     }
-    return jdbc.sql(
-            "SELECT "
-                + AuthenticationSessionRows.COLUMNS
-                + " FROM authentication_session_authority WHERE session_reference = ? "
-                + "AND session_verifier = ? "
-                + (lock ? "FOR UPDATE" : ""))
-        .params(observation.reference().value(), observation.verifier())
-        .query(AuthenticationSessionRows::read)
-        .optional()
-        .or(
-            () ->
-                nativeSessions.findFull(
-                    observation.reference().value(),
-                    observation.verifier(),
-                    lock
-                        ? AuthenticationNativeSessions.Lock.UPDATE
-                        : AuthenticationNativeSessions.Lock.NONE));
+    return nativeSessions.find(
+        observation.reference().value(),
+        observation.verifier(),
+        lock ? AuthenticationNativeSessions.Lock.UPDATE : AuthenticationNativeSessions.Lock.NONE);
   }
 
   private static void requireCurrent(AuthenticationSession parent, Instant now) {
@@ -459,17 +435,6 @@ public class AuthenticationSessionPublicationPersistence {
   private static boolean current(AuthenticationSession parent, Instant now) {
     return parent.isUnexpired(now)
         && (!FULL_STATE.equals(parent.state()) || parent.hasCurrentFactors(now));
-  }
-
-  private void requireLimitedSlot(Instant now) {
-    int count =
-        jdbc.sql("SELECT count(*) FROM authentication_session_authority " + "WHERE expires_at > ?")
-            .param(Timestamp.from(now))
-            .query(Integer.class)
-            .single();
-    if (count >= MAX_LIMITED) {
-      throw new AuthenticationOverloadedException();
-    }
   }
 
   private static Replacement rotate(AuthenticationSessionTransport transport) {
@@ -484,10 +449,6 @@ public class AuthenticationSessionPublicationPersistence {
 
   private static Instant earlier(Instant left, Instant right) {
     return left.isBefore(right) ? left : right;
-  }
-
-  private static Timestamp timestamp(Instant value) {
-    return value == null ? null : Timestamp.from(value);
   }
 
   private static void requireTransaction() {

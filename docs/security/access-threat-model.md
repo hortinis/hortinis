@@ -185,7 +185,11 @@ identified delayed cookie deletion as an availability risk to newer browser sess
 Spring standard-flow alignment delegates cookie publication and expiration to Spring Session:
 a delayed deletion can require reauthentication, but cannot restore server authority or erase offline
 intent. Target references still prevent stale requests from invalidating a different active session.
-Native anonymous CSRF sessions grant no account or ceremony authority. S9-S12 must prove these
+Native anonymous CSRF sessions grant no account or ceremony authority. Pending password contexts carry
+only the password factor; indexed recovery attributes carry no authenticated context. Native principal
+indexing revokes both pending and completed account sessions. Absolute ceremony deadlines remain
+independent of native idle retention. The bespoke global pending-session counter is removed; admission
+relies on the existing request, challenge and cryptographic concurrency bounds. S9-S12 must prove these
 controls at their actual transaction/filter/browser boundaries; no design claim substitutes for evidence.
 
 T05/T09/T12/T14 remain deployment/offline risks. Shared profiles and same-origin compromise can read

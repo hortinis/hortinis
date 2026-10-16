@@ -122,9 +122,9 @@ Spring Session owns request inactivity; the separate explicit-interaction clock 
 column are removed. Background sync refreshes the native 30-minute idle timeout. Normal-factor
 expiry remains independent of request activity. The activity endpoint is a compatible acknowledgement.
 
-Completed identity and factor authority exist only in the native Spring Security context. The
-application table stores limited setup, password and restricted recovery ceremonies, never a full
-session. Current account status, epoch, instance, scope and persisted mode remain transaction-time
+Completed identity and factor authority exist only in the native Spring Security context. Pending password authentication uses a native password-only context.
+Limited setup and recovery state use bounded, typed Spring Session JSON attributes. There is no
+parallel authority table or foreign-key lifecycle for sessions. Current account status, epoch, instance, scope and persisted mode remain transaction-time
 checks. Protected transactions lock the account first and then the native session row. One-use
 challenges store their account owner directly and are removed when their native reference is retired
 or revoked; they do not require a duplicate full authority row.
@@ -272,3 +272,21 @@ The native JDBC repository creates its own scheduler. Disable logging from its g
 error handler, which otherwise logs raw exception messages and stack traces. Existing application cleanup
 jobs report fixed diagnostics; native cleanup failure retries at the next scheduled tick without
 logging database details. Authorization never depends on a successful cleanup run.
+
+### Native pending authentication state
+
+Spring Session owns storage, rotation, principal indexing, invalidation and idle cleanup for every
+session. Pending ceremonies use five minutes of native inactivity and an independent five-minute
+absolute authorization deadline. Completed sessions use thirty minutes of native inactivity and
+Spring factor validity. Account-associated recovery is indexed for revocation without authenticating
+its principal or granting normal factors. The closed attribute codec bounds JSON and never enables
+polymorphic deserialization for application ceremony data.
+
+This replaces the bespoke installation-wide 1,000-pending-session admission counter. Existing request
+throttles, cryptographic concurrency limits, challenge caps and five-completed-session admission remain.
+The tradeoff is standard native idle retention: active requests can keep an expired ceremony's storage
+alive, but cannot renew its authorization deadline. Bootstrap replaces expired state. Explicit
+revocation deletes the indexed sessions and their proofs transactionally; scheduled application cleanup
+removes orphaned or expired challenges/tickets, recovery codes and retained security events. Operator
+ticket claims no longer rely on a session-authority foreign key. The fresh-database schema removes the
+old table directly, with no migration compatibility layer.

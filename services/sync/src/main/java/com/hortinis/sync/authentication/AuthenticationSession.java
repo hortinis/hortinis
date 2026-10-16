@@ -3,7 +3,7 @@ package com.hortinis.sync.authentication;
 import java.time.Instant;
 import java.util.UUID;
 
-/** Internal ceremony snapshot shared by publication, proof admission and physical cleanup. */
+/** Immutable workflow snapshot; only limited ceremonies are stored as native session attributes. */
 public record AuthenticationSession(
     UUID reference,
     UUID account,
@@ -19,6 +19,8 @@ public record AuthenticationSession(
     String logoutTarget,
     String recoveryKind,
     byte[] replacementCredential) {
+  public static final String ATTRIBUTE = "hortinis.ceremony";
+
   /** Retains immutable snapshots of staged public handles and credential selectors. */
   public AuthenticationSession {
     if (replacementCredential != null) {

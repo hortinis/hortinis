@@ -336,3 +336,38 @@ both builds. Contracts, documentation, seven topology-runner tests and six real 
 disposable topology resources were removed. Existing Checkstyle and web bundle-budget warnings remain.
 A missing formatter transitive BOM checksum was verified against Maven Central and recorded without
 changing dependency versions. A temporary Gradle project cache bypassed a local checksum-cache failure.
+
+## Complete native ceremony storage
+
+Replace the remaining parallel authority table with bounded typed Spring Session attributes. Use
+native password-only contexts after password verification and native completed contexts after both
+normal factors. Index account-associated pending recovery for revocation without granting data access.
+Remove the SQL row mapper, duplicated admission counter and session cleanup, and the operator-ticket
+foreign key. Keep single-use challenge/recovery/operator proof policy and fixed ceremony deadlines.
+Review atomic rotation/rollback, pending-context denial, account revocation, recovery and native expiry;
+run the documented checks and commit the completed replacement.
+
+The earlier limited-table and global pending-cap descriptions above record intermediate steps; the
+native ceremony implementation supersedes them. Tests inspect pending attributes through a test-only
+read-only SQL view; production installs no replacement authority table or view.
+
+The native ceremony replacement is complete. Spring Session now stores every session, including
+pending setup/password/recovery state; the parallel authority table, row mapper, global pending
+counter and application session sweeps are removed. Native password contexts carry only the password
+factor. Recovery indexing enables account-wide revocation without granting normal authentication.
+Application code retains the two-proof recovery policy, single-use proofs, account/scope checks and
+fixed authorization deadlines that Spring does not define for Hortinis.
+
+Review verified atomic cookie/reference rotation and rollback, pending-context denial, native password
+proof matching, pending recovery revocation, ticket transfer/retirement and expiry before physical
+cleanup. Attribute regression tests cover bounded typed JSON, malformed data and credential erasure.
+The final change removes 108 net production Java lines and 39 net schema lines. This completes the
+native session-storage replacement, rather than claiming that application recovery policy disappears.
+
+Validation passed 268 unit tests and 281 integration cases across the full suite and the added targeted
+regression. The final build, formatting, PMD and packaging passed; Checkstyle remains at the prior
+57 production and two unit-test warnings, with none in integration tests. Frontend validation passed
+367 unit tests, 11 standalone browser tests, static checks and both builds. All six real Docker topology
+scenarios and seven runner tests passed. Contracts, documentation and repository checks passed.
+The existing 502.50 kB frontend bundle exceeds its 500 kB warning budget. Validation uses an isolated
+Gradle project cache because the checkout's local cache was already damaged in the preceding step.

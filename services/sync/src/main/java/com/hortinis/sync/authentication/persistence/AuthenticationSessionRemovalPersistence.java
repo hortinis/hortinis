@@ -9,7 +9,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-/** Physical native/authority removal inside the caller's ordered account/session transaction. */
+/** Native session and proof removal inside the caller's ordered account/session transaction. */
 @Repository
 @SynchronizationPersistenceEnabled
 public class AuthenticationSessionRemovalPersistence {
@@ -27,19 +27,7 @@ public class AuthenticationSessionRemovalPersistence {
   /** Caller holds the current account lock before removing its ordered parent rows. */
   public void removeAll(UUID account) {
     requireTransaction();
-    var references =
-        jdbc.sql(
-                "SELECT session_reference FROM authentication_session_authority "
-                    + "WHERE account_id = ? ORDER BY session_reference FOR UPDATE")
-            .param(account)
-            .query(UUID.class)
-            .list();
-    for (UUID reference :
-        java.util.stream.Stream.concat(
-                references.stream(), nativeSessions.references(account).stream())
-            .distinct()
-            .sorted()
-            .toList()) {
+    for (UUID reference : nativeSessions.references(account)) {
       remove(reference);
     }
   }
@@ -57,7 +45,7 @@ public class AuthenticationSessionRemovalPersistence {
                 + "WHERE attribute_name = 'hortinis.authority' AND attribute_bytes = ?)")
         .param(encoded)
         .update();
-    jdbc.sql("DELETE FROM authentication_session_authority WHERE session_reference = ?")
+    jdbc.sql("DELETE FROM authentication_operator_ticket WHERE claimed_session_reference = ?")
         .param(reference)
         .update();
   }
