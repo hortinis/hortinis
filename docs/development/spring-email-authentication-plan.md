@@ -296,6 +296,21 @@ mode. Preserve no-auth isolation and synthetic test fixtures.
 - Handoff: R3-R6, Q1/Q2 and S10-S15 remain open. No email sent, mail dependency, reset/invitation/password
   mutation implementation, full UI replacement, deployment, push or production-readiness claim.
 
+#### R2 review follow-up — 2026-10-17
+
+- Fixed the form content-type parameter allowlist to compare names case-insensitively. Valid UTF-8
+  forms with `Charset`, `CHARSET` or mixed-case names now reach native login; unknown parameters and
+  non-UTF-8 charsets remain rejected before password verification.
+- Added four real-provider login regression cases covering parameter-name casing and extended the
+  negative media checks with uppercase unknown parameters and mixed-case non-UTF-8 charset names.
+  Before the fix, lowercase passed and the other three cases failed with 400 as expected.
+- Validation: focused strict-verification checks passed all 44 native cases plus Spotless, Checkstyle
+  and PMD. Final `pnpm validate` passed, including 231 Java unit tests, 134 PostgreSQL integration
+  tests, frontend unit/browser tests, contract/documentation checks, builds and all six topology
+  browser tests. Existing Checkstyle and Angular bundle-budget warnings remain; changed Java files
+  have no Checkstyle warnings and PMD reports no violations. Final documentation checks also passed.
+- The public contract and production admission gate are unchanged; R3-R6, Q1/Q2 and S10 remain open.
+
 ### R3 — Shared action tokens and Boot email
 
 - [ ] Add the Boot mail starter, explicit SMTP timeouts and narrow delivery adapter; update dependency

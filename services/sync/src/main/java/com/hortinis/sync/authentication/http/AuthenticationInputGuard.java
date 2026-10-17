@@ -78,7 +78,8 @@ public final class AuthenticationInputGuard extends OncePerRequestFilter {
     var type = MediaType.parseMediaType(types.getFirst());
     if (!"application".equals(type.getType())
         || !"x-www-form-urlencoded".equals(type.getSubtype())
-        || !Set.of("charset").containsAll(type.getParameters().keySet())
+        || type.getParameters().keySet().stream()
+            .anyMatch(parameter -> !"charset".equalsIgnoreCase(parameter))
         || type.getCharset() != null && !StandardCharsets.UTF_8.equals(type.getCharset())) {
       throw new IllegalArgumentException();
     }

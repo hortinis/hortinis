@@ -553,6 +553,12 @@ preserves local data and pending intent.
   Removed dependent legacy setup/recovery code has no replacement yet; tests of deleted workflows
   were removed separately and are not counted as production reduction. Existing quality warnings,
   R3-R6/Q1/Q2, mailbox/strength, browser native-logout and production-readiness gates remain open.
+- R2 review follow-up (2026-10-17): form charset parameter names now compare case-insensitively,
+  with four new native-provider login cases and retained unknown-parameter/non-UTF-8 rejection.
+  The [follow-up record](spring-email-authentication-plan.md#r2-review-follow-up--2026-10-17)
+  tracks the regression and validation. Full `pnpm validate` passed with 44 native authentication
+  cases and 134 PostgreSQL integration tests overall; authenticated production admission and Q1/Q2
+  remain unchanged.
 - Handoff: S10 consumes S9-R after validation. No production-readiness or ASVS-level claim follows
   from adopting password-only login. SMTP/privacy and recovery-strength review remain S15 gates.
 

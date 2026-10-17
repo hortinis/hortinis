@@ -298,6 +298,22 @@ class NativeEmailAuthenticationIntegrationTest {
     org.mockito.Mockito.verifyNoInteractions(encoder);
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"charset", "Charset", "CHARSET", "cHaRsEt"})
+  void acceptsUtf8FormCharsetRegardlessOfParameterNameCase(String parameter) throws Exception {
+    Browser browser = bootstrap();
+    var response =
+        mutate(
+            LOGIN_PATH,
+            browser.cookie(),
+            browser.token(),
+            form(EMAIL, PASSWORD),
+            FORM_MEDIA + "; " + parameter + "=UTF-8");
+    assertThat(response.getStatus()).isEqualTo(200);
+    assertThat(body(response).get("accountId").asText()).isEqualTo(account.toString());
+    verify(encoder).matches(PASSWORD, VERIFIER);
+  }
+
   @Test
   void rejectsQueryMediaAndScalarBoundsWithoutHashing() throws Exception {
     Browser browser = bootstrap();
@@ -314,7 +330,9 @@ class NativeEmailAuthenticationIntegrationTest {
             "text/plain",
             "application/*",
             FORM_MEDIA + ";charset=ISO-8859-1",
-            FORM_MEDIA + ";extra=value")) {
+            FORM_MEDIA + ";Charset=ISO-8859-1",
+            FORM_MEDIA + ";extra=value",
+            FORM_MEDIA + ";EXTRA=value")) {
       assertError(
           mutate(LOGIN_PATH, browser.cookie(), browser.token(), valid, type), 400, INVALID_CODE);
     }
