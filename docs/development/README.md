@@ -1,5 +1,9 @@
 # Development
 
+The approved next authentication increment is the [Spring email/password replacement plan](spring-email-authentication-plan.md)
+(S9-R). Earlier S8/S9 descriptions below are historical where they require passkeys/MFA, recovery codes
+or operator-ticket browser recovery; the replacement is planned, not implemented.
+
 The proposed [G2e review hardening plan](g2e-review-hardening-plan.md) records findings from an external
 review, implementation dependencies, and decisions to resolve before the affected work begins.
 

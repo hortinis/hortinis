@@ -24,6 +24,15 @@ S7 validates synthetic isolation across the real topology. S8 selects the built-
 session design. S9 implements single-user authentication; multi-user authorization and personal-data
 release remain closed until their respective implementation and applicable acceptance gates are complete.
 
+## Authentication baseline revision — 2026-10-17
+
+The [Spring email/password replacement plan](spring-email-authentication-plan.md) and
+[ADR-0034](../architecture/decisions/0034-spring-email-password-authentication.md) define the approved
+next authentication baseline. S8 and S9 evidence below is historical, not evidence for this rewrite.
+Mandatory passkeys/MFA, saved recovery codes, operator-ticket browser recovery, no-email requirements
+and preservation of their contracts are obsolete implementation targets. Current runtime behavior is
+unchanged until S9-R is implemented. Scope isolation, stable identity and offline preservation remain.
+
 ## Required outcome
 
 Hortinis must support four states without changing the synchronization invariants:
@@ -431,7 +440,8 @@ preserves local data and pending intent.
 
 ### S8 — Select the built-in authentication and session design
 
-- Status: `validated` (2026-10-11), design only.
+- Status: `validated` (2026-10-11), historical design; authentication mechanism/recovery policy
+  partially superseded by ADR-0034 on 2026-10-17.
 - Implementation plan: [S8 implementation plan](s8-implementation-plan.md).
 - Depends on: S1 and S4.
 - Scope: record the authentication-library decision required by ADR-0013 and specify account bootstrap,
@@ -475,7 +485,7 @@ preserves local data and pending intent.
 
 ### S9 — Implement authenticated single-user access
 
-- Status: `implemented`.
+- Status: `implemented` for the historical MFA baseline; S9-R replacement is `planned`.
 - Implementation plan: [S9 implementation plan](s9-implementation-plan.md).
 - Depends on: S6 and S8.
 - Scope: implement controlled first-account setup, authentication, server-side sessions, logout, expiry,
@@ -494,10 +504,24 @@ preserves local data and pending intent.
   tests, and certificate-verified loopback HTTPS runtime tests. The default Compose example remains
   no-auth; TLS edge setup and applicable S15/foundation release gates remain deployment work.
 
+### S9-R — Replace authentication with Spring email and password flows
+
+- Status: `planned`; design and implementation plan recorded, no replacement runtime evidence yet.
+- Implementation plan: [Spring email/password replacement](spring-email-authentication-plan.md).
+- Depends on: the S9 scope/account boundary and ADR-0034; supersedes the old mechanism handoff.
+- Scope: native Spring password authentication, sessions/CSRF/logout, Boot SMTP delivery, controlled
+  email invitations, single-use password-reset tokens and deletion of obsolete MFA/recovery machinery.
+- Acceptance: all R1-R6 checks in the replacement plan pass; account/scope and offline invariants hold;
+  old implementation/dependencies/contracts are removed; production-code reduction is measured.
+- Handoff: S10 consumes S9-R after validation. No production-readiness or ASVS-level claim follows
+  from adopting password-only login. SMTP/privacy and recovery-strength review remain S15 gates.
+
 ### S10 — Implement multi-user accounts and scope authorization
 
 - Status: `planned`.
-- Depends on: S7 through S9.
+- Depends on: S7 through S9 and validated S9-R.
+- Revised handoff: use controlled verified-email invitations; do not reintroduce old passkey or
+  operator-ticket enrollment requirements.
 - Scope: implement account provisioning, one owned scope per account, server-side account-to-scope
   authorization, and authenticated access-context resolution. Keep account creation and scope creation in
   one controlled transaction; normal synchronization requests never create or select arbitrary scopes.
@@ -513,7 +537,9 @@ preserves local data and pending intent.
 ### S11 — Implement device enrollment and revocation
 
 - Status: `planned`.
-- Depends on: S8 through S10.
+- Depends on: revised S8 policy, S9-R and S10.
+- Revised handoff: device management remains planned; passkeys/MFA and recovery codes are not
+  prerequisites. Specify device authorization against the email/password baseline before implementation.
 - Scope: implement device enrollment, device-bound sessions, additional-device bootstrap, device listing,
   optional user-supplied labels, last-activity behavior where justified, and revocation. Keep `deviceId`
   off business ownership and synchronization partition keys. Previously accepted data remains owned by
@@ -528,7 +554,9 @@ preserves local data and pending intent.
 ### S12 — Implement mode and binding transitions
 
 - Status: `planned`.
-- Depends on: S6 and S9 through S11.
+- Depends on: S6, S9-R and S10 through S11.
+- Revised handoff: specify password reauthentication for sensitive transitions; historical two-factor
+  freshness and operator-ticket ceremonies are not implementation requirements.
 - Scope: implement explicit transitions from `single-user-no-auth` to `single-user-auth`, from
   `single-user-auth` to `multi-user-auth`, sign-out, account change, server change, server replacement, and
   local-data-set cloning or disconnection under ADR-0029. Reject authenticated-to-no-auth and
@@ -584,6 +612,8 @@ preserves local data and pending intent.
   access-control and session tests, configuration review, penetration-test scope, retention/purge checks,
   backup/restore review, operator hardening guidance, privacy information, rights procedures, incident and
   breach runbooks, processing-record template, and DPIA screening result.
+- Revised authentication evidence: reassess password-only strength, mailbox recovery, verified email,
+  SMTP delivery failures and privacy/retention. Do not inherit historical MFA compliance conclusions.
 - Design baseline: consume the complete S1 applicability register and B01-B05 blockers rather than
   starting a new checklist. Verify complete deletion and restoration suppression, review D01-D03
   deviations explicitly, and distinguish verification target from requirements actually satisfied.
@@ -598,8 +628,10 @@ preserves local data and pending intent.
 ## Dependency sequence
 
 - Scope foundation: S1, S2, S3, S4, and S5 converge in S6, followed by S7.
-- Authentication: S1 and S4 permit S8; S6 and S8 permit S9; S7 through S9 permit S10; S8 through S10
-  permit S11; S6 and S9 through S11 permit S12.
+- Authentication: S1 and S4 permitted historical S8; S6 and S8 permitted historical S9. S9-R now
+  replaces that authentication baseline. S7 and validated S9-R permit S10; revised S8 policy, S9-R
+  and S10 permit S11; S6, S9-R and S10-S11 permit S12. Historical mechanism requirements do not
+  carry forward.
 - Recovery: S7 permits scope-aware G3 work in S13; foundation G4 and S13 permit S14.
 - Release evidence: S1 through S14 and the applicable foundation gate permit S15.
 

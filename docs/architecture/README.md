@@ -80,6 +80,7 @@ Separate packages or modules require demonstrated reuse or a need for independen
 - [ADR-0031: Technical record input bounds](decisions/0031-technical-record-input-bounds.md)
 - [ADR-0032: Outbox chains, coalescing, and quarantine](decisions/0032-outbox-chains-coalescing-and-quarantine.md)
 - [ADR-0033: Built-in authentication and sessions](decisions/0033-built-in-authentication-and-sessions.md)
+- [ADR-0034: Spring email and password authentication](decisions/0034-spring-email-password-authentication.md)
 
 ## Access design and implementation handoff
 

@@ -1,8 +1,11 @@
 # ADR-0033: Built-in authentication and sessions
 
-- Status: Accepted
+- Status: Partially superseded for the target design by ADR-0034; existing runtime unchanged.
 - Date: 2026-10-11
 - Implementation owner: S8 design; S9-S12 adapters and S15 release verification.
+
+See [ADR-0034](0034-spring-email-password-authentication.md) for the approved email/password replacement.
+The decisions below remain historical evidence and apply only where the replacement retains them.
 
 ## Context
 

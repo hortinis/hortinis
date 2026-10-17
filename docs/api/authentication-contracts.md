@@ -1,5 +1,8 @@
 # Authentication HTTP contract handoff
 
+> 2026-10-17 status: This handoff describes existing/historical S9 contracts. They will be replaced contract-first; no generated contract or runtime endpoint is changed by this notice. See the
+> [Spring email/password replacement plan](../development/spring-email-authentication-plan.md).
+
 - Owner: S9, implementing [ADR-0033](../architecture/decisions/0033-built-in-authentication-and-sessions.md)
   and the [S8 authentication/session specification](../architecture/authentication-and-sessions.md).
 - Status: Contract-first definitions and schema/security checks added; runtime adapters pending.

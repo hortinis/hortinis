@@ -1,5 +1,8 @@
 # S9 implementation plan
 
+> 2026-10-17 status: Historical S9 implementation and evidence. The runtime described here still exists; its authentication flows and contracts are scheduled for replacement. See the
+> [Spring email/password replacement plan](spring-email-authentication-plan.md).
+
 Later framework delegation decisions in the [Spring authentication plan](spring-authentication-delegation-plan.md)
 supersede the historical next-access cleanup and controlled-cookie implementation below. Native
 session expiry/deletion uses Spring Session; application records retain scheduled cleanup.

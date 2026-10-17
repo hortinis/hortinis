@@ -1,5 +1,8 @@
 # S8 implementation plan
 
+> 2026-10-17 status: Historical S8 design. Its mandatory passkey/MFA, recovery-code and no-email requirements are superseded as future implementation targets. See the
+> [Spring email/password replacement plan](spring-email-authentication-plan.md).
+
 ## Analysis and scope
 
 ADR-0013 chooses autonomous built-in accounts and opaque protected cookies, but leaves the library

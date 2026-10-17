@@ -1,5 +1,8 @@
 # Access data inventory and lifecycle
 
+> 2026-10-17 status: Authentication inventory revision pending: verified email, SMTP delivery and invitation/reset tokens replace the no-email/passkey/recovery-code baseline. Other inventory categories remain applicable. See the
+> [Spring email/password replacement plan](../development/spring-email-authentication-plan.md).
+
 - Status: Accepted S1 inventory and lifecycle design, 2026-10-02.
 - Authority: [ADR-0029](../architecture/decisions/0029-access-and-synchronization-scope.md) and
   [ADR-0015](../architecture/decisions/0015-privacy-and-observability.md).

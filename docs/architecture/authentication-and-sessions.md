@@ -1,5 +1,8 @@
 # Built-in authentication and sessions
 
+> 2026-10-17 status: This specification describes the historical/current S9 MFA implementation. Its passkey, recovery-code, factor-age and no-email requirements are obsolete for the approved replacement target. See the
+> [Spring email/password replacement plan](../development/spring-email-authentication-plan.md).
+
 - Status: Accepted S8 design, 2026-10-11; runtime implementation and verification pending.
 - Decision: [ADR-0033](decisions/0033-built-in-authentication-and-sessions.md).
 - Related boundaries: [access and scope](access-and-synchronization-scope.md),

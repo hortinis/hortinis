@@ -1,5 +1,8 @@
 # Access and synchronization threat model
 
+> 2026-10-17 status: Authentication threat-model revision pending: the approved target uses password login and mailbox-authorized reset. Historical MFA/no-email conclusions must not be treated as evidence for that target. See the
+> [Spring email/password replacement plan](../development/spring-email-authentication-plan.md).
+
 - Status: Accepted S1 design baseline, 2026-10-02; S3-S7 synthetic scope foundation implemented
   and S8 authentication design resolved, 2026-10-11. Authenticated and operational verification remain pending.
 - Policy: [ADR-0029](../architecture/decisions/0029-access-and-synchronization-scope.md).

@@ -1,5 +1,8 @@
 # ASVS 5.0.0 applicability register
 
+> 2026-10-17 status: Authentication applicability reassessment pending: the password/email recovery target supersedes the S8 MFA baseline. Existing counts and mappings are historical until reconciled; no new compliance pass is asserted. See the
+> [Spring email/password replacement plan](../development/spring-email-authentication-plan.md).
+
 - Status: Accepted S1 applicability baseline, 2026-10-02; no implementation pass is asserted.
 - Target: every applicable Level 1 and Level 2 requirement, plus seven selected Level 3 controls.
 - Authority: [ADR-0029](../architecture/decisions/0029-access-and-synchronization-scope.md).

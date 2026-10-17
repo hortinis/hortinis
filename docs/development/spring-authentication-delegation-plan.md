@@ -1,5 +1,8 @@
 # Spring authentication delegation
 
+> 2026-10-17 status: Historical delegation log. Requirements below to preserve all S9 flows/contracts no longer constrain the replacement. See the
+> [Spring email/password replacement plan](spring-email-authentication-plan.md).
+
 ## Scope
 
 This document records successive implementation steps. Later standard-flow decisions supersede
