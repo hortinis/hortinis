@@ -13,6 +13,11 @@ authorized bootstrap, empty-destination confirmation, versioned local metadata, 
 and a non-authorizing exchange expectation. Their TypeSpec and parsing boundaries are implemented;
 their server/browser workflow adapters remain assigned to S4/S6 and authenticated tasks.
 
+The [authentication handoff](authentication-contracts.md) specifies the S9-R R1 email/password
+replacement API before runtime adapters. Generated authentication artifacts now target native Spring
+form/session/CSRF/logout and invitation/reset actions; current historical S9 MFA runtime does not yet
+conform. S8/S9 tests do not validate the replacement. S9-R R2-R6 and S10-S15 gates remain open.
+
 ## Implemented V0 technical synchronization API
 
 The V0 walking-skeleton adapters implement these operations:

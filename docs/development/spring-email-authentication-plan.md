@@ -1,6 +1,6 @@
 # Spring email and password authentication replacement plan
 
-- Status: Approved product direction; implementation planned, not started.
+- Status: R1 decision/contracts/inventories complete (2026-10-17); R2-R6 planned, runtime unchanged.
 - Date: 2026-10-17.
 - Track: S9-R, replacement of the implemented S9 authentication subsystem before S10.
 - Decision: [ADR-0034](../architecture/decisions/0034-spring-email-password-authentication.md).
@@ -18,8 +18,9 @@ recovery codes, operator-ticket browser recovery and preservation of old authent
 the [S8 plan](s8-implementation-plan.md), [S9 history](s9-implementation-plan.md) and
 [previous delegation history](spring-authentication-delegation-plan.md). Those documents describe
 historical decisions and the existing runtime; their validation evidence does not validate this rewrite.
-No application code, dependency, schema, generated contract or deployment configuration changes are
-part of recording this plan. Implement against fresh databases; no compatibility migrations or old-API
+The original plan-only commit `ce5c59b` changed no runtime or generated contracts. R1 now updates
+TypeSpec/generated contracts and design records ahead of unchanged runtime; it changes no application
+code, runtime dependency, schema or deployment configuration. Implement against fresh databases; no compatibility migrations or old-API
 wrappers. Do not advance S10 or claim production readiness as part of S9-R.
 
 ## Initial product boundary
@@ -30,8 +31,8 @@ wrappers. Do not advance S10 or claim production readiness as part of S9-R.
 - Enrollment is controlled by an operator invitation. No public registration or first-visitor claim.
 - Forgotten-password recovery uses a short-lived single-use email token and grants only password reset.
 - Password reset and authenticated password change revoke existing sessions and require normal login.
-- Email addresses cannot be changed through the initial UI/API. Define operator handling of erroneous
-  pending invitations without silently transferring an active account to another mailbox.
+- Email addresses cannot be changed through the initial UI/API. Correct erroneous pending invitations
+  by cancellation and explicit new invitation; never transfer an active account to another mailbox.
 - Defer passkeys, mandatory MFA, recovery-code packs, device enrollment implementation, email-change
   workflows, external identity providers, delivery queues and provider-specific mail APIs.
 - Local-only and explicitly selected no-auth use remain available without SMTP. Authenticated
@@ -73,7 +74,8 @@ host-only cookies, CSRF, same-origin routing and minimized security headers/logg
 ## Permission and contract matrix
 
 Define TypeSpec/OpenAPI before adapters, including Spring's form-encoded login request and fixed API
-responses. The endpoint names below are responsibilities; settle paths in phase R1.
+responses. R1 settles exact paths, encodings and errors in the [API handoff](../api/authentication-contracts.md)
+and TypeSpec; the table below summarizes their responsibilities.
 
 | Operation | Authorization and result |
 | --- | --- |
@@ -95,14 +97,17 @@ Document token-free error responses, no-store behavior and how the PWA handles e
 ## Email and token lifecycle
 
 Use one shared token component with explicit invitation/reset purposes, account binding, hashed random
-secret, expiry and atomic consumption. Select and document numeric token lifetimes, request bounds,
-resend throttles and email canonicalization/uniqueness rules in R1; these are not implicit framework
-settings. Do not silently apply provider-specific alias or address rewriting.
+secret, expiry and atomic consumption. R1 fixes the [numeric policy](../architecture/authentication-and-sessions.md#numeric-policy):
+24-hour invitations, ten-minute resets, 60-second email cooldown and three/hour plus ten/day email
+mail-attempt quotas, with independent request/source/global limits. These are application choices, not
+implicit framework settings. Validate bounded ASCII email, preserve delivery case and uniquely
+canonicalize the entire address to lowercase; no provider-specific alias rewriting. Pending account
+reservations expire seven days after original creation, irrespective of resend.
 
 Opening a link must not consume the token or mutate account state. Completion requires an explicit
 POST, protecting against mail scanners and previews. Build links from a trusted configured origin,
 never request Host headers. Prevent token leakage through request logs, referrers, analytics or browser
-persistence. Prefer a URL fragment read into transient page memory and cleared before submission.
+persistence. Use fixed trusted-origin fragment links read into transient memory and cleared before other page work.
 
 For invitation acceptance/reset, validate the password before the transaction; then recheck the
 account and token, consume it, update credentials/status and invalidate other applicable tokens in one
@@ -128,12 +133,56 @@ mode. Preserve no-auth isolation and synthetic test fixtures.
 
 ### R1 — Decision, contracts and inventories
 
-- [ ] Finalize lifecycle bounds, endpoint contracts, email policy and the simplified session policy.
-- [ ] Reconcile ADR-0033, the authentication specification, API handoff, deployment instructions,
+- [x] Finalize lifecycle bounds, endpoint contracts, email policy and the simplified session policy.
+- [x] Reconcile ADR-0033, the authentication specification, API handoff, deployment instructions,
   threat model, ASVS mapping and privacy inventory with ADR-0034. Mark obsolete assertions explicitly.
-- [ ] Inventory deletions and establish production Java/TypeScript/schema line-count baselines.
-- [ ] Review mailbox recovery, pending-account authorization and SMTP failure behavior.
-- [ ] Validate documentation and contracts; do not claim the target runtime exists yet.
+- [x] Inventory deletions and establish production Java/TypeScript/schema line-count baselines.
+- [x] Review mailbox recovery, pending-account authorization and SMTP failure behavior.
+- [x] Validate documentation and contracts; do not claim the target runtime exists yet.
+
+#### R1 implementation, review and evidence — 2026-10-17
+
+- Analysis: inspected clean working tree at `ce5c59b`, root guidance, ADR-0034 and the S-track; proposed
+  policy/contract/inventory-only changes before implementation. No unrelated starting changes existed.
+- Decisions: native form login (`email`, `password`), native thirty-minute request inactivity without
+  absolute deadline/cap, bodyless native logout, session-backed CSRF and explicit browser refresh.
+  Fixed email syntax/canonical uniqueness, pending correction/purge, token bounds, rate/send/cleanup
+  limits, SMTP I/O bounds and post-commit failure behavior are now in the authentication specification.
+  Invitation/reset completion never logs in; reset/change revoke all account sessions transactionally.
+- Contracts: eight replacement auth paths, form-encoded login, minimal status, JSON action/password
+  requests, fixed errors and no-store/joint CSRF-cookie declarations. Regenerated OpenAPI/schemas from
+  TypeSpec; removed obsolete MFA/ticket/recovery-code/session-target schemas from the target API.
+  Runtime still implements historical S9 and does not conform to this replacement contract yet.
+- Inventory: [deletion/retention map and reproducible baselines](spring-email-authentication-r1-inventory.md):
+  10,839 production Java lines (127 files), 6,173 production TypeScript lines (71 files), 319 schema SQL
+  lines (four files). Production additions/deletions are zero in R1; generated contract removal does
+  not count as runtime reduction. Preliminary TypeScript total was corrected to exclude test support.
+- Review/fixes: tightened the initial reset proposal from 30 to ten minutes; retained explicit 24-hour
+  activation classification review. Added pre-native-filter syntax validation because Spring trims
+  usernames, equivalent-cost ineligible-account provider failure, form duplicate/query/encoding bounds,
+  BREACH-masked CSRF wire characters, strict end-of-input token/email/CSRF patterns and fixed
+  auth-specific 400 schema. Native logout supersession is
+  reconciled across offline/access handoffs. Mail-attempt quotas charge unknown/ineligible/failure
+  branches before lookup; no timing claim follows. Pending-account lifetime cannot be extended by resend.
+- Security/privacy review: mailbox loss/takeover/reassignment, pending authorization, token consumption/
+  replacement/rollback/lost response, SMTP failure/uncertain delivery and stale-session writes reviewed.
+  Threats T16-T21 and SMTP/mailbox inventory added. ASVS retains all 345 unique rows: 171 Applicable,
+  seven Selected L3, 37 Conditional, zero Pending decision, three Deviations, 42 N/A, 85 Outside L2.
+  B01 strength is reopened; native idle-only sessions and invitation lifetime interpretation require
+  S15 review. Historical MFA evidence cannot satisfy the replacement.
+- Validation: `pnpm docs:validate` passed (eight tests plus links/anchors/ADR/index checks);
+  `pnpm contracts:validate` passed (TypeSpec format, exact regeneration, local/schema/Redocly lint,
+  contract tests and invalid-OpenAPI rejection). `pnpm contracts:test` with normal Node subprocesses
+  confirmed all 21 tests, including six replacement authentication checks. Documentation Git subprocess
+  access initially hit sandbox EPERM; the normal-permission rerun passed. Final repository whitespace,
+  tracked-ignore and text/EOL checks passed. Baseline reproduction matched the recorded totals.
+- Scope review: English repository content, synthetic `.test` mailboxes/structural tokens, no secrets,
+  application code, SQL, dependency/lock, Compose or deployment configuration edits. No email sent,
+  push/deployment, R2, S10 or new runtime validation. Full application/browser/topology suite was not
+  run for this contract/documentation-only increment and is not claimed as new design evidence.
+- Handoff: R1 complete only. R2-R6 remain planned; S9-R is not implemented/validated and S10 remains
+  blocked. SMTP timing equalization/delivery, native runtime/races/browser tests, B01/S15 risk review
+  and the independent device/transition/deletion/privacy/deployment gates remain outstanding.
 
 ### R2 — Native password login and session lifecycle
 
@@ -167,7 +216,7 @@ mode. Preserve no-auth isolation and synthetic test fixtures.
 - [ ] Remove WebAuthn/MFA dependencies, credential/challenge tables, saved recovery codes, ceremony
   models, operator-ticket files/cleanup, obsolete API models and frontend flows. Retain the host CLI
   entry point, password policy, scope authorization, abuse limits and minimized audit capability.
-- [ ] Edit the fresh schema directly; regenerate contracts from TypeSpec, never manually.
+- [ ] Edit the fresh schema directly; keep the R1 target contracts aligned through TypeSpec regeneration, never manual generated edits.
 - [ ] Verify built artifacts contain no retired authentication implementation or runtime dependency.
 
 ### R6 — Complete review, validation and S-track handoff

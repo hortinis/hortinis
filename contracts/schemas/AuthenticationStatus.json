@@ -6,9 +6,6 @@
             "$ref": "AnonymousAuthenticationStatus.json"
         },
         {
-            "$ref": "LimitedAuthenticationStatus.json"
-        },
-        {
             "$ref": "FullAuthenticationStatus.json"
         }
     ]

@@ -1,8 +1,9 @@
 # Development
 
 The approved next authentication increment is the [Spring email/password replacement plan](spring-email-authentication-plan.md)
-(S9-R). Earlier S8/S9 descriptions below are historical where they require passkeys/MFA, recovery codes
-or operator-ticket browser recovery; the replacement is planned, not implemented.
+(S9-R). R1 finalizes policy/contracts and inventories; replacement runtime remains unimplemented.
+Earlier S8/S9 descriptions below are historical where they require passkeys/MFA, recovery codes or
+operator-ticket browser recovery. Generated authentication contracts now target S9-R ahead of runtime.
 
 The proposed [G2e review hardening plan](g2e-review-hardening-plan.md) records findings from an external
 review, implementation dependencies, and decisions to resolve before the affected work begins.
@@ -24,16 +25,17 @@ pnpm validate
 
 The root command stops at the first failure and runs the existing checks without hiding their independent entry points. Browser validation requires the Playwright Chromium binary to be installed once as described below.
 
-### S8 authentication design handoff
+### S9-R authentication contract handoff
 
-[ADR-0033](../architecture/decisions/0033-built-in-authentication-and-sessions.md) and the
-[authentication/session specification](../architecture/authentication-and-sessions.md) define the
-selected framework, two-proof login/recovery, numeric bounds, privacy lifecycle and adapter tests.
-S8 is documentation/design only. Both authenticated modes still fail startup; no login endpoint,
-password corpus, security dependency, session schema or cookie is installed by this step. S9 defines
-TypeSpec/OpenAPI first, then implements the selected single-user authenticated runtime and browser
-account workflows against a fresh database. Multi-user mode and production security/privacy release
-evidence remain S10 and S15 respectively, with the applicable foundation gates still required.
+[ADR-0034](../architecture/decisions/0034-spring-email-password-authentication.md) and the
+[authentication/session specification](../architecture/authentication-and-sessions.md) replace the S8
+MFA design. R1 defines native form login, sessions/CSRF/logout and email action-token contracts before
+adapters, plus SMTP/privacy/threat/ASVS reconciliation and the
+[production-code baseline](spring-email-authentication-r1-inventory.md). TypeSpec/OpenAPI describes the
+future authentication surface; current runtime still implements historical S9 and does not conform to
+it. R1 contract tests check shape only, not runtime authentication/mail/security behavior. No runtime
+code, dependency, schema or deployment configuration changes here. R2-R6 must replace/validate the
+runtime; S10 and production gates remain blocked. Historical S8/S9 tests cannot validate this design.
 
 ### Container topology
 

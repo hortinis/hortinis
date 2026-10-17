@@ -1,7 +1,0 @@
-{
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "EncodedRandomValue.json",
-    "type": "string",
-    "pattern": "^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$",
-    "description": "Canonical unpadded base64url encoding of 32 bytes; semantics depend on the containing field."
-}

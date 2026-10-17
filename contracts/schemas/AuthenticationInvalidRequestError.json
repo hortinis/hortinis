@@ -1,19 +1,20 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "WebAuthnCredentialDescriptor.json",
+    "$id": "AuthenticationInvalidRequestError.json",
     "type": "object",
     "properties": {
-        "type": {
+        "code": {
             "type": "string",
-            "const": "public-key"
+            "const": "INVALID_REQUEST"
         },
-        "id": {
-            "$ref": "WebAuthnCredentialId.json"
+        "message": {
+            "type": "string",
+            "const": "The request is invalid."
         }
     },
     "required": [
-        "type",
-        "id"
+        "code",
+        "message"
     ],
     "unevaluatedProperties": {
         "not": {}

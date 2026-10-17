@@ -16,6 +16,8 @@ remain contract-first inputs to G3 and G4. Keep authentication, authorization, g
 domain-specific conflict resolution within their approved implementation increments.
 
 
-S9 adds closed authentication/session contracts before runtime adapters. See the
-[authentication contract handoff](../../docs/api/authentication-contracts.md) for cookie/CSRF schemes,
-limited two-proof ceremonies, canonical bounded WebAuthn envelopes and implementation gates.
+S9-R R1 replaces historical S9 authentication/session contracts before runtime adapters. See the
+[authentication contract handoff](../../docs/api/authentication-contracts.md) for native form login,
+cookie/CSRF schemes, bodyless logout, bounded email/action tokens and R2-R6 implementation gates.
+The current runtime still implements historical MFA/ticket behavior and does not conform to this
+replacement target; no compatibility API is required.

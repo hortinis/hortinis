@@ -93,9 +93,10 @@ revocation, configuration transitions, and complete deletion. Its
 The [implementation plan](../development/access-and-synchronization-scope-implementation-plan.md)
 tracks the remaining contracts, scope isolation, authentication, recovery, and release evidence.
 
-The [built-in authentication and session specification](authentication-and-sessions.md) and ADR-0033
-settle S8 library, strength, recovery and numeric policy. S9-S12 adapters and S15 verification remain
-incomplete; S8 does not activate authenticated modes.
+The [built-in authentication and session specification](authentication-and-sessions.md) and ADR-0034
+define the S9-R email/password target. R1 finalizes policy/contracts; the current runtime remains the
+historical S9 MFA implementation until R2-R6 replace and validate it. S10-S15 gates and B01 strength
+review remain open; old S8/S9 evidence does not validate the replacement.
 
 ## Open decisions
 

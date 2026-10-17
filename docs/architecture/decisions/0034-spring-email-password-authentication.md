@@ -1,6 +1,6 @@
 # ADR-0034: Spring email and password authentication
 
-- Status: Accepted direction; implementation pending.
+- Status: Accepted; R1 policy/contracts finalized, replacement runtime pending.
 - Date: 2026-10-17
 - Implementation owner: S9-R; S10-S15 consume the revised baseline.
 - Partially supersedes: [ADR-0033](0033-built-in-authentication-and-sessions.md).
@@ -32,6 +32,33 @@ email enrollment is verified by invitation acceptance; public registration and e
 outside this increment. Keep password policy, blocklist, abuse limits and minimized audit records.
 Defer passkeys, mandatory MFA, saved recovery codes and operator-ticket browser recovery. No fallback
 silently lowers the configured access mode.
+
+## R1 policy refinement (2026-10-17)
+
+The [authentication specification](../authentication-and-sessions.md) is the numeric and transaction
+policy: 24-hour invitations, ten-minute reset tokens, one current token per account/purpose, atomic
+completion without login and account-wide revocation on reset/change. SMTP follows issuance commit;
+failed/uncertain delivery never restores the old token or changes credentials. Resends share a
+60-second email cooldown, three/hour and ten/day email quotas, with independent global/source limits.
+
+Accept bounded ASCII email addresses; validate without trimming and lowercase the entire address for
+a unique canonical key across pending/active/disabled accounts. Preserve validated delivery case; do
+not rewrite provider aliases. This intentionally excludes case-distinct accounts and internationalized
+mailboxes. Pending typo correction is cancel/new invitation, never active account/scope transfer.
+Pending reservations purge seven days after original creation; resend cannot extend this deadline.
+
+Use native thirty-minute request inactivity with no separate absolute lifetime or concurrency cap.
+Background traffic can keep sessions alive indefinitely; remove historical twelve-hour factor ages,
+five-session counting and session-management APIs. Native bodyless logout replaces target-based
+logout; offline sign-out pauses sync and never automatically replays logout against a newer cookie.
+Current-password proof protects password change. S11/S12 must specify other sensitive-action proof
+before implementation. These simplifications retain explicit residual risks and S15 session review.
+
+Password-only login leaves ASVS `v5.0.0-6.3.3` unresolved; verified email/reset is not a second login
+factor. Do not inherit S8's strength resolution. Reset lifetime is tightened from the preliminary
+30-minute R1 proposal to ten minutes for conservative token-lifetime coverage. Invitation's 24-hour
+activation window is distinct and its lifetime interpretation remains explicit in the ASVS register.
+R1 [contracts](../../api/authentication-contracts.md) are the future API, ahead of unchanged runtime.
 
 ## Consequences and supersession
 

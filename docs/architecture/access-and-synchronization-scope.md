@@ -27,8 +27,8 @@ credential-bearing object. Background jobs use an explicitly authorized internal
 Device enrollment requires explicit authorization for the owning account, a bounded one-time
 replay-resistant handshake, and a fresh device identity/session. A supplied device ID does not prove
 enrollment. Recovery cannot grant weaker access than the accepted account-authentication policy.
-The [S8 authentication specification](authentication-and-sessions.md) selects concrete mechanisms and
-limits; S11 implements them. Until implemented, deny enrollment rather than
+The [ADR-0034 authentication specification](authentication-and-sessions.md) defines email/password
+and action-token policy; device proof remains a separate S11 design/implementation gate. Until implemented, deny enrollment rather than
 accepting a browser-declared device. Enrolled devices access the account's existing scope, not a copy
 or a newly inferred scope.
 
@@ -142,13 +142,14 @@ outcome, but no new work may be accepted after revocation commits. Reads validat
 when acquiring protected data. Data already released before revocation cannot be recalled from the
 network or browser. S9/S11 tests must demonstrate this boundary, including responses delayed in flight.
 
-Offline sign-out cannot reliably delete an HttpOnly cookie without server contact. Do not copy it into
-script storage or claim immediate remote invalidation. Suppress authenticated background traffic while
-logout is pending, retry only logout, and complete it before allowing renewed synchronization.
-Complete pending logout before initiating a new sign-in on that server, coordinate it across tabs,
-and never replay a stale logout against a newly created session. The [S8 protected logout design](authentication-and-sessions.md#protected-online-and-offline-logout)
-defines target fencing and forbids logout cookie mutation; S12 verifies interruption and session-change
-races without script-readable credentials.
+Offline sign-out cannot reliably delete an HttpOnly cookie without server contact. Pause authenticated
+traffic and retain local reads/writes/outbox; do not copy credentials into browser storage. Under
+ADR-0034, native logout targets the cookie's current session, so never automatically replay a stored
+logout against a newer login or bootstrap fresh CSRF for an old sign-out. On reconnect require explicit
+resolution of current status and a new sign-out or sign-in action before sync resumes. Coordinate tabs
+and fence in-flight cookie workflows. The [native logout policy](authentication-and-sessions.md#protected-online-and-offline-logout)
+supersedes historical target-fenced logout and cookie-mutation prohibitions; R5/R6/S12 verify delayed
+responses, interruption and session-change races.
 
 ## Mode changes and server restoration
 
@@ -221,10 +222,10 @@ These are required future executable scenarios, not claims of tests added by S1.
 ## Deferred decisions and release blockers
 
 S2 defines [wire contracts and binding versioning](../api/access-and-binding-contracts.md) before
-adapters, with strict shared parsing fixtures. [ADR-0033](decisions/0033-built-in-authentication-and-sessions.md)
-and the [authentication specification](authentication-and-sessions.md) settle S8 library, factor,
-recovery, CSRF and numeric policies. S9-S12 must implement and verify them before authenticated paths
-ship. Device enrollment follows
+adapters, with strict shared parsing fixtures. [ADR-0034](decisions/0034-spring-email-password-authentication.md)
+and the [authentication specification](authentication-and-sessions.md) replace historical S8 MFA policy
+with email/password and mailbox reset. R1 finalizes contracts/design; R2-R6 must replace and validate
+the unchanged historical S9 runtime before S10. B01 strength and S15 evidence remain open. Device enrollment follows
 S11; additional-account/server imports and anchored recovery follow S12/S14 and P0.6.
 
 S15 closes the ASVS implementation/evidence register, assesses offline-storage deviations, and verifies

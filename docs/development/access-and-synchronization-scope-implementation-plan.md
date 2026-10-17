@@ -31,7 +31,9 @@ The [Spring email/password replacement plan](spring-email-authentication-plan.md
 next authentication baseline. S8 and S9 evidence below is historical, not evidence for this rewrite.
 Mandatory passkeys/MFA, saved recovery codes, operator-ticket browser recovery, no-email requirements
 and preservation of their contracts are obsolete implementation targets. Current runtime behavior is
-unchanged until S9-R is implemented. Scope isolation, stable identity and offline preservation remain.
+unchanged until S9-R is implemented. R1 now finalizes replacement policy/contracts/inventories; the
+generated authentication API is ahead of that runtime. R2-R6 remain planned. Scope isolation, stable
+identity and offline preservation remain.
 
 ## Required outcome
 
@@ -485,7 +487,7 @@ preserves local data and pending intent.
 
 ### S9 — Implement authenticated single-user access
 
-- Status: `implemented` for the historical MFA baseline; S9-R replacement is `planned`.
+- Status: `implemented` for the historical MFA baseline; S9-R R1 is complete, R2-R6 are `planned`.
 - Implementation plan: [S9 implementation plan](s9-implementation-plan.md).
 - Depends on: S6 and S8.
 - Scope: implement controlled first-account setup, authentication, server-side sessions, logout, expiry,
@@ -506,13 +508,24 @@ preserves local data and pending intent.
 
 ### S9-R — Replace authentication with Spring email and password flows
 
-- Status: `planned`; design and implementation plan recorded, no replacement runtime evidence yet.
+- Status: R1 `complete` (2026-10-17); R2-R6 `planned`, no replacement runtime evidence yet.
 - Implementation plan: [Spring email/password replacement](spring-email-authentication-plan.md).
 - Depends on: the S9 scope/account boundary and ADR-0034; supersedes the old mechanism handoff.
 - Scope: native Spring password authentication, sessions/CSRF/logout, Boot SMTP delivery, controlled
   email invitations, single-use password-reset tokens and deletion of obsolete MFA/recovery machinery.
 - Acceptance: all R1-R6 checks in the replacement plan pass; account/scope and offline invariants hold;
   old implementation/dependencies/contracts are removed; production-code reduction is measured.
+- R1 evidence (2026-10-17): [R1 completion/review record](spring-email-authentication-plan.md#r1-implementation-review-and-evidence--2026-10-17)
+  and [inventory](spring-email-authentication-r1-inventory.md). Native form/session/CSRF/logout target
+  contracts, token/email/resend/session policies, deployment/SMTP/privacy/threat/ASVS reconciliation
+  complete. `pnpm docs:validate` passed eight tests and documentation checks; `pnpm contracts:validate`
+  passed, with all 21 contract tests confirmed. Repository whitespace/tracked-ignore/text/EOL checks
+  passed. Baselines: production Java 10,839 lines / 127 files, TypeScript 6,173 / 71, schema SQL 319 / 4;
+  runtime additions/deletions zero. No application, dependency, SQL or deployment configuration changes,
+  emails, push or deployment. Historical S8/S9 evidence is not validation of this target.
+- R1 review: password-only strength reopens B01; synchronous SMTP timing, native lifetime/cap policy,
+  invitation lifetime interpretation and runtime/token/revocation/browser evidence remain open R2-R6/S15
+  gates. All 345 ASVS rows retained with counts reconciled; no new compliance/production claim.
 - Handoff: S10 consumes S9-R after validation. No production-readiness or ASVS-level claim follows
   from adopting password-only login. SMTP/privacy and recovery-strength review remain S15 gates.
 
@@ -592,7 +605,7 @@ preserves local data and pending intent.
 ### S14 — Reconcile a standalone data set with populated server state
 
 - Status: `planned`.
-- Depends on: S6, S13, and foundation G4. Authenticated uses additionally depend on S9 or S10 as
+- Depends on: S6, S13, and foundation G4. Authenticated uses additionally depend on validated S9-R or S10 as
   applicable to their configured mode.
 - Scope: use anchored snapshots and the retained local base/outbox to implement the empty-local/populated-
   server and populated-local/populated-server rows of the first-connection matrix. Keep binding, snapshot,

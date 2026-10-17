@@ -1,0 +1,10 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "EmailAddress.json",
+    "type": "string",
+    "minLength": 3,
+    "maxLength": 254,
+    "pattern": "^(?=.{1,64}@)[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+(?![\\s\\S])",
+    "format": "email",
+    "description": "ASCII dot-atom mailbox and DNS domain, at most 64 local-part bytes and 254 total bytes. Canonical identity is the entire address lowercased with Locale.ROOT; preserve submitted case for delivery. No whitespace, quoted local parts, IP literals, Unicode or provider alias rewriting."
+}

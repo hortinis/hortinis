@@ -1,7 +1,8 @@
 # Access data inventory and lifecycle
 
-> 2026-10-17 status: Authentication inventory revision pending: verified email, SMTP delivery and invitation/reset tokens replace the no-email/passkey/recovery-code baseline. Other inventory categories remain applicable. See the
-> [Spring email/password replacement plan](../development/spring-email-authentication-plan.md).
+> 2026-10-17 R1: The target inventory now includes verified email, SMTP and invitation/reset
+> action tokens under ADR-0034. Runtime processing is unchanged until R2-R6. The S8 inventory at the
+> end is explicitly historical for fields retired by the replacement.
 
 - Status: Accepted S1 inventory and lifecycle design, 2026-10-02.
 - Authority: [ADR-0029](../architecture/decisions/0029-access-and-synchronization-scope.md) and
@@ -35,6 +36,8 @@ flowchart LR
     A -->|Authorized scope context| S
     S --> D[Scoped data and identity persistence]
     A -->|Restricted identity and session state| D
+    A -->|Stored recipient and fixed action link| M[Operator selected SMTP]
+    M -->|Invitation or reset email| I[Account mailbox]
     D -->|Controlled backup| B[Restricted operator backup]
     B -->|Restricted restore and validation| D
     L -->|Explicit export| E[User controlled export file]
@@ -50,13 +53,15 @@ account's enrolled devices and the configured operator's server/storage infrastr
 administration has potential host/database access; application gardener roles do not automatically
 grant cross-account access. Backup/support access is exceptional, documented, and restricted. The
 project adds no Hortinis-operated account service, telemetry recipient, third-party runtime asset, or
-mandatory email/identity provider. A provider's activation requires its own purpose, minimized payload,
+mandatory external identity service. Authenticated invitation/reset requires one operator-configured
+SMTP service (self-hosted or selected external service); local-only/no-auth remains mail-independent.
+SMTP and mailbox operators receive the delivery address and action link. Provider activation requires its purpose, minimized payload,
 recipients, location/transfers, terms, and lawful-basis review.
 
 ## Inventory and proposed lifecycle
 
-ADR-0023's synchronization periods and the [S8 authentication numeric policy](../architecture/authentication-and-sessions.md#numeric-policy)
-are accepted design. S8 values remain inactive until their adapters pass; other operational/backup
+ADR-0023's synchronization periods and the [R1 authentication numeric policy](../architecture/authentication-and-sessions.md#numeric-policy)
+are accepted design. Replacement authentication values remain inactive until R2-R6 pass; other operational/backup
 periods below remain proposals for S15/operator assessment. A deployment must record its effective
 values and justification, implement automatic purge, and close the blockers below before
 real-data use. Account inactivity alone does not discard garden history or unresolved local intent.
@@ -70,8 +75,8 @@ real-data use. Account inactivity alone does not discard garden history or unres
 | Submission markers and legacy uncertainty | Freeze operation bodies before dispatch and preserve replay after migration; browser only, with the outbox or retained rejection. | Retain with the operation and recovery evidence; no historical timestamp is invented for legacy rows. Never expose content in diagnostics. |
 | Retry state and tab leases: work IDs, attempts, phase, ephemeral owner, fence, expiry | Bounded retry and coordination; browser only. | Retain active/exhausted work until outcome/manual recovery; Expire released leases while retaining one bounded scope row for fencing continuity. Delete with the data set; no copied request bodies or content in retry diagnostics. |
 | Server instance/scope/account IDs, ownership relationship, scope publication counter, and sole technical role | Installation mismatch detection, partitioning, authorization; server, with minimum authorized identity exposed to binding. | Instance ID follows installation lifecycle; account/scope IDs and ownership last until deletion. Never reuse; public discovery omits account/scope identity. |
-| Account login identifier and credential verifier; recovery attributes only if justified by S8 | Autonomous authentication/recovery; restricted identity storage. Do not require an email address or external provider by assumption. | Account lifetime, then purge during deletion. Superseded verifiers/secrets follow bounded S8 cleanup; do not archive obsolete credentials in ordinary account tables. |
-| Session records/cookies, CSRF and bootstrap/recovery/enrollment secrets | Authentication and request/replay protection; restricted server records and protected necessary cookie/in-memory token handling. | Enforce S8's finite idle/absolute/one-time limits; invalidate at logout, revocation, disablement, or deletion. S8 specifies bounded physical cleanup; termination immediately removes authorization. Never store session secrets in IndexedDB/localStorage/sessionStorage. |
+| Delivery/canonical email, account status/verification time, credential verifier and security version | Verified-email password login and mailbox recovery; restricted identity store. Email is personal data; verifier is secret. Never use email as scope ownership. | Active/disabled account lifetime, then complete account purge. Pending reservations expire seven days after initial creation; no verifier history. See R1 inventory below. |
+| Native session/cookie, account principal/security version, CSRF and action-token verifiers | Authentication, request/replay protection; restricted native/JDBC storage, HttpOnly cookie and transient CSRF/action-token memory. | Native thirty-minute request inactivity, no separate absolute lifetime/cap. Invitation 24 hours; reset ten minutes; immediate logical expiry and transactional consumption/revocation. Scheduled token/pending cleanup every 60 seconds in bounded batches. No browser credential persistence. |
 | Device ID, enrollment status, optional user label, justified activity timestamps | User-visible device management/revocation; account identity store and authorized account UI. No fingerprinting or precise location. | Active enrollment lifetime; revoke immediately and purge obsolete metadata under a bounded S11/S15 rule. Purge on account deletion; labels are never logged. |
 | Active-generation changes/tombstones and retired-generation receipts | Ordered synchronization and acceptance proof; authorized scope. Payloads may contain former garden values. | ADR-0023: default 90 days active history, 30 days retired receipts; supported minimum 7 days each. Rollover precedes compaction; scope deletion overrides retention and purges them. |
 | Snapshot/reconciliation sessions | Anchored, resumable reconciliation; authorized temporary server/browser state. | ADR-0023: default 24 hours, minimum 1 hour. Purge automatically after expiry/completion under accepted cleanup rules; scope deletion purges immediately through its workflow. |
@@ -158,8 +163,9 @@ address residual high risk before processing; seek qualified review where necess
 
 ## Blocking work and authoritative sources
 
-S8 settles factor/recovery/session/enrollment policy and data minimization; S9-S12 must implement and
-verify the selected controls and cleanup. P0.6/S12/S15 must
+ADR-0034 and S9-R R1 settle email/password, mailbox recovery, native session and action-token policy
+and data minimization. R2-R6 must implement/verify them; device enrollment and sensitive transitions
+remain separate S11/S12 gates. P0.6/S12/S15 must
 settle numeric log/backup/cleanup periods, implement deletion and restore suppression, verify logs at
 every layer, and document operator safeguards. The operator must complete the legal-purpose/rights,
 processor/transfer, incident, and DPIA records. Unresolved entries block real personal-data deployment;
@@ -261,7 +267,46 @@ no authenticated isolation, production log/backup retention, secure-erasure, law
 readiness evidence; the S8-S15/P0.6 and deployment gates remain applicable.
 
 
-## S8 selected authentication inventory and purposes
+## R1 email/password inventory and purposes (2026-10-17)
+
+[ADR-0034](../architecture/decisions/0034-spring-email-password-authentication.md) adds the following
+target processing. R1 documents it without adding runtime data, SMTP configuration or real recipients.
+
+| Fields | Purpose, classification and recipients | Accepted target lifecycle |
+| --- | --- | --- |
+| Validated delivery email, lowercase canonical email, verification time; account UUID/status/security version, owned-scope relationship and password verifier | Login, controlled enrollment, uniqueness and current authorization. Email/identity are personal; verifier secret. Restricted server; status exposes only current account UUID, not email. SMTP receives stored delivery address. | Pending account seven days from creation, unaffected by resend; cancel/expiry removes unactivated reservation, not garden data. Active/disabled account lifetime until explicit purge. Replace verifier immediately; no password history. |
+| Purpose/account/installation binding, SHA-256 action-token verifier and creation/expiry | Single-use invitation activation/reset; secret verifier in restricted JDBC store. Raw 256-bit secret only transient sender/browser memory and delivered email. | Invitation 24 hours or earlier pending purge; reset ten minutes. Transactionally remove consumed/replaced/inapplicable verifiers. Reject expiry immediately; bounded startup/60-second cleanup batches of 500 may take multiple ticks. |
+| Fixed plain-text subject/body containing action, expiry and fragment link; SMTP recipient/envelope | Deliver controlled invitation or requested reset. Recipient, mailbox/SMTP operators and potentially their relays/scanners see personal address and secret link. No garden/account/scope ID, tracker, remote asset or attachments. | No application mail archive/queue. Discard raw message/secret after synchronous attempt. Infrastructure/mailbox copies follow separately documented operator/provider retention and backups; expiry limits authority but does not erase email. Disable link tracking and secret-bearing logs. |
+| SMTP credentials, fixed sender/host and timeout/TLS configuration | Authenticate the selected transport; secrets in protected deployment configuration. No browser/business export/log recipient. | Rotate/revoke under deployment policy; no committed values. S15 reviews TLS, credentials and provider processing/transfer terms. |
+| Native session principal/version, request activity/expiry and CSRF | Stateful account authorization and request defense; minimal restricted native JSON, cookie secret HttpOnly, CSRF transient memory. No email/password/token in principal. | Thirty-minute request inactivity, no absolute deadline/cap. Background sync can extend storage/authority. Native minute cleanup and immediate account-wide revocation on reset/change/disable; stale contexts fail current-version checks. |
+| HMAC email/source/token-digest keys, counters/windows, process random secret | Bound attempts/sends without raw identifier tracking; pseudonymous memory only, no persisted subject trail. Unknown addresses receive the same keys/gates and charge mail-attempt quotas without refund. | At most 4,096 keys; mail-window keys 24 hours idle, other keys 15 minutes; 60-second cleanup. Restart resets counters and is an S15 abuse assumption. |
+| Local sign-out pause/fence, without remote target/CSRF/token | Preserve user intent and outbox offline; browser workflow metadata only. | Remains paused until explicit user resolution of current session; never automatically replays logout against a later cookie. R5 defines/reviews minimal replacement of old target markers. |
+| Fixed security/delivery outcome, UTC, fresh request reference | Bounded diagnosis, no recipient/token/content/exception or stable subject mapping. Separate restricted store. | Security records rolling 30 days with daily/overdue-startup purge. Operational delivery events inherit the separately reviewed operational retention policy. |
+
+Mailbox possession is sufficient to reset the password. Before invitation acceptance disclose mailbox
+compromise/reassignment risk, no recovery without password and mailbox, mandatory verified email,
+selected SMTP/mailbox recipients, action-link exposure and expiry, no automatic login after reset,
+necessary cookies/CSRF, offline/shared-profile retention and export/backup deletion limits. There is no
+operator password/email-transfer bypass. MFA/passkeys/recovery codes and email-change UI are deferred.
+
+The controller/operator must record necessity and lawful-basis inputs for verified identity and
+recovery mail separately from garden synchronization, necessary cookies, abuse prevention and logs.
+Document actual SMTP/mailbox processors, locations/transfers, access, retention, delivery failure and
+rights/erasure procedures; self-hosting does not remove that assessment. Never substitute blanket
+consent or an architectural choice for the deployment's legal determination. Account purge must cover
+both emails, tokens, native sessions and SMTP/provider copies where controlled; email recipients and
+user exports cannot be remotely erased by Hortinis. Deletion/restore suppression remains S12/P0.6/S15.
+
+No real mailbox, email send, legal-compliance result or target-runtime evidence is introduced by R1.
+Synchronous SMTP timing, session lifetime, mailbox trust and provider retention stay explicit R3/R6/S15
+gates. The historical inventory below cannot be used to omit new email processing or retain old MFA
+fields in the replacement.
+
+## Historical S8 authentication inventory and purposes (superseded target)
+
+This section describes the retired design/current runtime only. R1 target fields and lifetimes above
+override its login-name, passkey, recovery-code, operator-ticket and target-logout requirements. Do not
+collect these retired categories in the replacement or treat S8 evidence as new processing approval.
 
 [ADR-0033](../architecture/decisions/0033-built-in-authentication-and-sessions.md) and the
 [authentication specification](../architecture/authentication-and-sessions.md) refine the existing

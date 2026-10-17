@@ -1,300 +1,237 @@
 # Built-in authentication and sessions
 
-> 2026-10-17 status: This specification describes the historical/current S9 MFA implementation. Its passkey, recovery-code, factor-age and no-email requirements are obsolete for the approved replacement target. See the
-> [Spring email/password replacement plan](../development/spring-email-authentication-plan.md).
-
-- Status: Accepted S8 design, 2026-10-11; runtime implementation and verification pending.
-- Decision: [ADR-0033](decisions/0033-built-in-authentication-and-sessions.md).
+- Status: R1 target design finalized, 2026-10-17; replacement runtime unimplemented.
+- Decision: [ADR-0034](decisions/0034-spring-email-password-authentication.md).
+- Owner: [S9-R](../development/spring-email-authentication-plan.md), before S10.
 - Related boundaries: [access and scope](access-and-synchronization-scope.md),
-  [threat model](../security/access-threat-model.md),
+  [API handoff](../api/authentication-contracts.md), [threat model](../security/access-threat-model.md),
   [ASVS register](../security/asvs-5.0.0-applicability.md),
   [data lifecycle](../privacy/access-data-lifecycle.md).
 
+This document specifies the replacement target. The repository runtime still implements historical
+S9 password/passkey and ticket recovery. Its tests do not validate this target. ADR-0033 and the S8/S9
+implementation logs preserve that history. Their required passkeys, factor ages, partial/recovery
+sessions, recovery codes, ticket files and five-completed-session accounting are superseded.
+R1 changes contracts and documentation only; R2-R6 must replace and validate the runtime before use.
+
 ## Authority and minimized account model
 
-The authentication adapter owns credentials, ceremonies, sessions and framework integration. A trusted
-entry point returns only immutable account/device authority and factor freshness to the access
-resolver. Synchronization workflows retain their existing explicit context and scope partitioning.
-A session principal is not an ownership relationship; each protected request checks current committed
-account status, authority epoch, device status where implemented, access mode and account-to-scope
-ownership. Positive authorization is not cached across requests or revocation.
+Login requires a verified email, a valid password and an active account. States are `pending`, `active`
+and `disabled`. Store stable distinct account/scope UUIDs, installation identity, delivery email,
+canonical email, status, security version, password verifier when active, creation/verification times
+and invitation expiry metadata. Pending accounts have no password verifier, authenticated principal,
+binding identity or data authority. Invitation acceptance sets the password and verification time and
+activates the preassigned account. Email is never an ownership key or synchronization partition.
 
-Store a generated account ID, canonical local login identifier, account status, owned-scope relationship,
-authority epoch, selected verifier and necessary lifecycle times. Accept ASCII login names of 3-64
-characters after lower-case canonicalization: a letter/digit first, then letters, digits, periods,
-underscores or hyphens. Do not collect a real
-name, email, telephone, birth date, precise location or fingerprint. Login names are private account
-attributes, never authority or ordinary diagnostic fields. Account and scope IDs are distinct and
-never reused. Operator powers remain separate from gardener access; there is no default admin account.
+Each protected transaction checks current committed status, security version, installation/mode and
+account-to-scope ownership before content lookup. Retain account-before-session lock ordering and
+revocation fencing; positive authorization is never cached across requests. Disablement, reset, password
+change and deletion invalidate access even if a concurrent servlet later saves a stale native context.
+Operator capability is host-only provisioning, never an administrative browser login or reset bypass.
 
-WebAuthn uses a random opaque user handle distinct from the login name, and protected credential ID,
-public key, verified algorithm, sign counter/backup flags and optional user label of at most 64 Unicode
-scalar values excluding NUL. Register at most eight credentials per account. Use `attestation=none`; discard unnecessary
-attestation certificates, authenticator model/AAGUID and transport metadata after validation unless
-an independently reviewed purpose requires them. Never collect biometric samples, PINs or private
-keys. Use the established verifier for signatures, RP hash, exact origin, challenge, presence and
-verification. Require verification in options and validate its flag in the response. A synced credential
-with a zero/non-increasing counter needs the library's supported backup-aware policy; do not invent
-universal counter rules or accept an invalid signature as recovery. Algorithm acceptance is a closed
-set supported by the pinned verifier, tested before activation; unsupported algorithms deny.
+### Email syntax, canonicalization and uniqueness
 
-The S9 adapter profile selects ES256 with P-256, RS256 with RSA keys of 2,048–4,096 bits, and
-EdDSA with Ed25519. Rebuild the verified public COSE key without optional key ID, operations or IV
-metadata; reject private material. Use the pinned library's counter-handler extension only for an
-already verified backup-eligible credential: preserve the highest observed counter while accepting
-verified resets/non-increasing counters from synced authenticators. Keep the library's strict counter
-rule for non-backup-eligible credentials (including its zero/zero allowance). The library must first
-verify signature, UP/UV and unchanged backup eligibility. One-use server challenges remain mandatory
-for every proof, irrespective of counter behavior; adapter-only tests do not establish that lifecycle.
+Accept ASCII dot-atom local parts of 1-64 bytes and DNS domains with at least two labels, each 1-63
+characters, containing letters/digits and interior hyphens. Total length is at most 254 bytes. Reject
+whitespace (including surrounding whitespace), controls, consecutive/leading/trailing local dots,
+quoted local parts, comments, IP literals, trailing domain dots and Unicode addresses/domains.
+ASCII IDNA A-label domains are accepted as ASCII DNS labels; do not perform implicit IDNA conversion.
+Internationalized address support needs a separate reviewed contract change.
+
+Validate first, then lowercase the entire address using locale-independent ASCII rules (`Locale.ROOT`
+in Java). The resulting canonical value has a database unique constraint across pending, active and
+disabled accounts in the installation. Concurrent case variants have one winner. Preserve validated
+submitted case separately for SMTP delivery; use canonical form for login, lookup and abuse keys.
+This deliberately treats local parts as case-insensitive: a mail system distinguishing case cannot
+create two Hortinis accounts. Do not strip `+tags`, dots or otherwise merge provider aliases. Those
+aliases may identify separate accounts; email uniqueness is not proof of one human per account.
+
+Email changes are absent from the API/UI. An operator may cancel an erroneous pending invitation,
+invalidate its token and remove that unactivated reservation, then explicitly invite the intended
+mailbox. Never retarget a pending account in place or transfer an active/disabled account's scope to
+another address. S9-R permits one sole-scope pending reservation; S10 owns additional accounts/scopes.
+Cancel/expiry never deletes or assigns garden data. Automatically purge an unaccepted pending account
+seven days after initial creation, regardless of resend, releasing its email reservation and unowned
+sole-scope reservation. Operator cancellation and reissue are explicit new provisioning decisions.
 
 ## Numeric policy
 
-These are accepted application policy, not activated defaults or universal regulatory requirements.
-Adapters must implement them before their mode/feature is available. A weaker change requires a new
-reviewed decision; clock tests cover each equality/expiry boundary. All times use trusted UTC instants.
+These are application choices, not framework defaults or evidence of implementation. Trusted UTC
+controls expiry: a token is valid only while `now < expiresAt`; equality is expired. Test all boundaries.
 
 | Item | Accepted bound and behavior |
 | --- | --- |
-| Password | 15-128 Unicode scalar values, at most 1,024 UTF-8 bytes. Verify exact received text; no trim, normalization, case change or truncation. Permit spaces/paste/password managers; no composition or periodic-change rule. |
-| Password verifier | Argon2id: 65,536 KiB, three iterations, parallelism one, independent random salt of at least 16 bytes, 32-byte result. At most two costly verification/hash jobs concurrently per service; overload fails generically without a hashing downgrade. |
-| Common/breached-password check | Local versioned corpus with at least 3,000 policy-compatible common candidates plus breached-password coverage, checked at setup/change/reset. Reject login-name and `hortinis` context derivatives. No password or prefix goes to an external service. Corpus provenance/license/hash and coverage are verified in S9; absent/invalid corpus blocks authenticated activation. |
-| Full session | 30 minutes since the last native session request, including synchronization, polling and CSRF/status requests; normal factors remain valid for 12 hours. Completing both normal factors again starts a new 12-hour factor lifetime; cookie rotation alone does not renew it. |
-| Recent authentication | Both required normal factors verified within five minutes for credential changes, recovery-code replacement, enrollment/revocation, deletion, claims and other privileged transitions. A fresh bounded step-up rotates the cookie and CSRF state. |
-| Pre-authentication/partial/recovery-only session | Five minutes absolute authorization; native request activity cannot extend that deadline. No binding identity, data, export, sync or ordinary enrollment authority. Spring Session stores and expires pending sessions with five minutes of inactivity; request throttling and challenge limits bound admission without a separate global session counter. |
-| WebAuthn challenge | Independent 32-byte CSPRNG challenge, valid five minutes or the earlier parent-session/ticket expiry; consumed atomically once even on a failed verification. At most one current challenge per ceremony, eight live ceremonies per account. |
-| Setup/operator recovery ticket | Independent 32-byte CSPRNG secret, valid ten minutes, one successful controlled enrollment only. At most one active ticket per target; replacement invalidates the earlier one. Server persists only its SHA-256 verifier and exact target/purpose/instance/mode. |
-| Additional-device authorization | Five-minute, single-use ticket from recent full account authentication, bound to account, purpose and new browser ceremony. One account transaction creates enrollment and rotates its session; ticket alone does not grant garden access. |
-| Recovery codes | Ten independent 32-byte CSPRNG codes, shown once, stored as SHA-256 verifiers with account/purpose and expiry. Each is usable once and expires after 365 days. Regeneration atomically invalidates the old set. Warn in the account UI within the last 30 days; expiration never deletes garden history. |
-| Concurrent sessions | At most five full sessions per account; a sixth denies generically and offers authenticated session management. S11 allows one full session per enrolled device, rotating/replacing its previous session atomically. No automatic eviction of a different device's session. |
-| Abuse windows | At most five password/recovery attempts per canonical-login key per rolling minute, 20 per trusted-source key per minute and 60 expensive authentication attempts installation-wide per minute. Check all applicable limits before work; no permanent account lockout or account-existence-dependent rate response. |
-| Limiter state | Process-memory HMAC-SHA-256 keys with a random 32-byte per-process secret; no raw identifier/address persistence. Maximum 4,096 keys; expire after 15 minutes idle, clean every 60 seconds. Full capacity fails closed instead of evicting active restrictions. Restart resets transient counters; bound service restarts and test that residual operational assumption in S15. |
-| Physical cleanup | Authorization rejects expired or revoked authority synchronously. Spring Session rejects idle expiry on load and deletes idle-expired native sessions on its minute schedule; factor-expired contexts can remain until native idle expiry. Application challenges/tickets purge at startup and every 30 seconds. Requests do not run physical cleanup. Explicit revocation and consumed recovery verifiers are deleted in their mutation transaction; expired codes use the application job. |
-| Revoked device metadata | No access after committed revocation. Retain minimal status for authorized listing at most 30 days, then purge (including immediately overdue rows at startup). Account deletion overrides this period. |
-| Security event retention | Rolling 30 days in the separate protected security store, automatic daily purge and overdue startup purge. Fixed event/outcome/reason, UTC and fresh request reference only in the baseline; no stable subject mapping. S15 verifies storage access and effective operator policy. |
+| Password | 15-128 Unicode scalar values, at most 1,024 UTF-8 bytes. Exact text, no trim/normalization/case change/truncation; allow paste/managers/spaces. No composition or periodic-change rule. Login accepts 1-128 scalars to fail generically for old/invalid candidates. |
+| Password verifier | Retain Argon2id through `DelegatingPasswordEncoder` and the accepted Password4j encoder: 65,536 KiB, three iterations, parallelism one, independent salt at least 16 bytes and 32-byte output. At most two costly jobs concurrently; overload never lowers cost. |
+| Password blocklist | Retain the pinned licensed local corpus, at least 3,000 policy-compatible common candidates plus breached-password coverage. Reject `hortinis` and email local-part context derivatives. No external password/prefix query. Validate at invitation acceptance, reset and change. |
+| Invitation token | 32 independent CSPRNG bytes, canonical unpadded base64url (43 characters), SHA-256 verifier only. Valid 24 hours or earlier pending-account purge. One current invitation per pending account. |
+| Reset token | Same secret profile, reset purpose only; valid ten minutes. One current reset per verified active account. This tightens the preliminary 30-minute proposal to ten minutes for conservative ASVS lifetime coverage. |
+| Native session | Thirty minutes since the last native request, including sync, polling, status and CSRF. Anonymous CSRF sessions use the same timeout. No separate absolute expiry, factor-age rule, remember-me or concurrent-session cap. Active background requests can keep a session alive indefinitely; see the explicit session risk below. |
+| Authentication attempts | Five per canonical-email key per rolling minute, 20 per trusted-source key per minute, 60 installation-wide per minute. Token completion uses a token-digest key plus source/global limits; password change uses the current account key. Unknown/disabled/pending cases count equally. No permanent account lockout. |
+| CSRF/status reads | 20 per trusted-source key per rolling minute and 60 installation-wide per minute. No account-existence branch. Status never allocates a session. |
+| Mail issuance/resend | At least 60 seconds between issuance attempts for a canonical email, at most three per rolling hour and ten per rolling 24 hours, shared across invitation/reset purposes. Includes failed delivery. Installation ceiling: 30 per rolling hour and 100 per rolling 24 hours, checked before account lookup. Host invitation issuance obeys the same quotas. |
+| Limiter storage | Bounded in-process HMAC-SHA-256 keys using a random 32-byte process secret; no raw email/IP/token in keys or diagnostics. Maximum 4,096 keys; retain mail-window keys for 24 hours idle, other keys 15 minutes; clean every 60 seconds. Full capacity denies without evicting active restrictions. Restart resets counters; S15 must assess restart abuse and single-instance operation. |
+| Request bounds | 16,384 raw bytes for every authentication POST; login includes percent-encoded bytes. Closed JSON or exactly two form fields; reject duplicates, extra fields, query parameters, malformed UTF-8/escapes, lone surrogates and unsupported media types with fixed 400. JSON depth at most two. Bodyless logout has no query/body. No password hashing before syntax/size/abuse gates. |
+| SMTP | Synchronous send, two concurrent sends, no queue or automatic retries. Connection/read/write timeout each 5,000 ms; no infinite defaults. Gate capacity before account lookup; generic global overload is 429 for every requester. These are per-I/O bounds, not a promised whole-request deadline. |
+| Cleanup | Immediate authorization expiry; consumed/replaced tokens removed in their mutation transaction. Bounded JDBC cleanup at startup/every 60 seconds, batches of at most 500, removes expired tokens and overdue pending accounts. Backlog may take several ticks; never authorizes expired state. Native Spring Session idle deletion runs every minute. |
+| Security events | Retain minimized fixed event/outcome/reason, UTC and fresh request reference for 30 days; daily and overdue-startup purge. No subject/recipient/session mapping. |
 
-Corpus checking is a narrow local reference-data capability, not telemetry or an implicit network
-provider. S9 must obtain a reviewed licensed artifact and provide deterministic corpus fixtures; a tiny
-demo list cannot satisfy the accepted policy. Secret generation, SHA-256/HMAC and constant-time secret
-comparison use established JDK/framework primitives; they are never home-built cryptographic algorithms.
+A public reset request denied by its per-email mail quota still receives the same 202 as every other
+syntactically valid address. Source/request/global capacity violations return fixed 429 and
+`Retry-After: 60`; the header is minimum retry guidance, not a promise that an hourly quota has reset.
+Charge email/global mail-attempt windows and reserve send capacity before eligibility lookup for
+every syntactically valid reset request, including unknown/pending/disabled addresses; no refund for
+no-send or failed delivery. Release concurrency permits after processing every branch. Host commands
+report fixed throttling/failure without email or token output. Quotas bound sending and hashing independently; no address-existence-dependent error or quota response is allowed.
 
-## Setup and account activation
+## Spring ownership and session policy
 
-Fresh `single-user-auth` starts with one explicitly designated empty technical scope and no account.
-Only public capabilities, minimized health and the protected setup/CSRF ceremony are available until
-controlled setup commits. An ordinary first request cannot claim the scope. The operator uses an
-explicit local setup command, requiring host authorization, to create a target-bound ticket and write
-its secret once to a new protected 0600 file in the application-owned 0700 secret directory. No secret appears in logs, command arguments, URLs or
-default credentials. Reject a symlink, existing file, inconsistent mode/instance or competing setup.
-The service removes its ticket file on consumption/expiry within 60 seconds and cleans overdue files
-at startup; the directory is protected and excluded from business exports/ordinary backups. The operator
-conveys the ticket to the intended owner through a protected channel, not a mandatory
-application email provider.
+Use Boot-managed versions and the component mapping in the replacement plan. `HttpSecurity.formLogin`
+with `usernameParameter("email")` and the native `UsernamePasswordAuthenticationFilter` handles login;
+`DaoAuthenticationProvider` and a small `UserDetailsService` supply current account credentials/status.
+No password login controller, custom authentication filter, factor accumulator or publication engine.
+Use native success/failure handlers, entry point and access-denied handler for fixed JSON responses;
+disable HTML login redirects, saved-request replay, request caching and remember-me for the API.
+Treat unknown, pending and disabled accounts through equivalent-cost provider failure, using the
+provider unknown-user/dummy-verifier path rather than a fast disabled-account precheck. A small
+non-authenticating syntax/size/parameter guard must validate the decoded email before the native
+filter trims its username; reject surrounding whitespace and duplicate/query parameters there.
+It delegates authentication unchanged to the native filter, never publishing its own context. The
+[7.1.1 filter source](https://github.com/spring-projects/spring-security/blob/7.1.1/web/src/main/java/org/springframework/security/web/authentication/UsernamePasswordAuthenticationFilter.java)
+was checked for this trimming behavior; R2 must test the real servlet pipeline.
 
-A same-origin browser exchanges the ticket in a bounded POST body under CSRF/Origin protection for
-setup-only authority, selects a policy-compliant password and registers a user-verified passkey. The
-ticket cannot be an ordinary session or bypass password/passkey validation. Commit account activation,
-credential records, explicit ownership, ticket consumption and committed mode consistently; concurrent
-or interrupted attempts leave either no activated owner or the complete activated owner. Incomplete
-setup expires without leaving an active password-only account. Complete normal two-factor login before
-any personal-data endpoint becomes accessible.
+`HttpSessionSecurityContextRepository`, the native session authentication strategy and Boot-configured
+`JdbcIndexedSessionRepository` own context persistence, fixation defense, cookie transport, indexing
+by stable account UUID and idle expiry. Retain credential-free allowlisted JSON session serialization;
+never persist email, credentials or tokens in principals or enable Java object deserialization.
+The security version accompanies native account authority; it is checked against current storage.
+A concurrent reset may make a newly saved login context stale; protected operations still deny it.
+Credential mutation must participate in the same database transaction as indexed session deletion;
+retain the supported REQUIRED transaction customization rather than a second session table.
+R2/R4 must demonstrate rollback and stale-save fencing through the real repository.
 
-S10 multi-user provisioning uses a controlled operator invitation for one intended account and creates
-its new scope and relationship in the same transaction. No self-registration, request-selected scope,
-email matching or automatic account linking is assumed. S12 alone implements claiming an existing
-no-auth scope with backup/quiescence and explicit confirmation; S9 fresh setup never performs that claim.
+Use `__Host-hortinis-session`: Secure, HttpOnly, SameSite=Strict, Path=/, no Domain or persistent
+Max-Age, independent 32-byte random secret. Disable URL rewriting. Only HTTPS at one configured origin
+is supported for authenticated use. Do not trust arbitrary Host/forwarded headers or proxy identity.
+No-auth uses its explicit isolated stateless chain; missing SMTP or credentials never changes mode.
+Authentication routes are unavailable with fixed 503 in no-auth mode and allocate no auth session;
+public capabilities remain available. Local-only startup contacts neither auth nor mail endpoints.
 
-## Login, rotation and expiry
+The simpler session policy intentionally removes the twelve-hour factor deadline and five-session
+counter. A stolen live session can persist while requests continue, and many sessions can consume
+storage. Password change/reset/disablement revoke all sessions; normal logout revokes the current one.
+Rate limits, cookie/browser protection and current-authority checks mitigate but do not remove this
+risk. ASVS session lifetime review (`7.1.1`, `7.3.1`, `7.3.2`) and production sizing remain open S15
+evidence. Do not call this an ASVS/AAL compliance pass. S11/S12 must separately specify device and
+sensitive-transition reauthentication before implementing those features; old MFA freshness is obsolete.
 
-Obtain session-backed CSRF state, then submit the canonical login name and exact password through a
-closed no-store POST. Unknown/disabled/wrong-password cases perform the same dummy-verifier work under
-identical limits and return the same failure shape/status. Do not serialize verifiers or arbitrary
-framework principal objects into session storage. Persist only an allowlisted principal containing
-opaque account/device references, authority epoch and factor times; erase transient credential material
-when authentication completes. No saved-request body or redirect target captures login/content.
+## CSRF and browser lifecycle
 
-Partial password proof is not full authorization. WebAuthn options use discoverable credentials and
-omit account-specific `allowCredentials` data from public/failed-login responses. A valid assertion must
-resolve to the same active account as the password proof in the current ceremony. Reject factor mixing
-across sessions, accounts or expired ceremonies. Replay fails after atomic challenge consumption.
-Rotate the opaque session secret after password proof and again after full authentication; invalidate
-its predecessor in the same ordered session workflow. Rotate CSRF state as well. Old, fixed or
-uncommitted cookies cannot authorize access. Never upgrade partial authority solely because an account
-has a registered credential.
+Use Spring's session-backed CSRF repository and BREACH-aware request handling. Expose the framework
+request token through a minimal no-store GET `/api/v1/auth/csrf`, sending it only in `X-CSRF-TOKEN`.
+Retain the small header-only handler as needed to reject duplicates/parameter fallback while delegating
+masking/validation to Spring. Angular uses the explicit same-origin header adapter; do not assume its
+cookie interceptor reads an HttpOnly session cookie. No second script-readable credential cookie is
+needed. Login, invitation/reset completion, reset request, password change and logout all require CSRF,
+including anonymous requests. Native CSRF rejection may allocate an anonymous session, never authority.
 
-Spring Session owns the 30-minute request inactivity limit and updates its last-access time for
-ordinary requests, including background synchronization. Spring factor authorities retain their
-12-hour lifetime; completing password plus user-verified passkey reauthentication starts a new
-factor lifetime. Cookie rotation, CSRF refresh and the compatibility activity acknowledgement do not
-renew factor proof. There is no separate qualifying-interaction clock or interaction timestamp.
-Limited setup/password/recovery ceremonies retain their five-minute absolute boundary. Application
-account ownership and epoch checks remain inside protected transactions. Spring performs native idle cleanup; application cleanup retains only proofs, tickets and audit data. Browser cookie closure is not proof
-of server expiry; server limits and cleanup remain authoritative across restart.
+Fetch CSRF on page load before unsafe requests and again after login/logout, credential changes,
+session loss or a 403. Do not blindly repeat a mutation after refresh. Status distinguishes only
+anonymous/current authenticated account, never pending setup, email, scope, credential registration,
+logout target or absolute expiry. A stale/disabled/unverified context is anonymous; storage outage
+returns 503 instead of claiming absence. Existing session reads refresh native inactivity.
+All API responses are no-store and excluded from service-worker caches; no credentials, action tokens
+or CSRF in IndexedDB/localStorage/sessionStorage, URLs sent to the server or diagnostics.
 
-Expiry/logout pauses synchronization and preserves offline data, outbox, frozen bodies and binding
-provenance. Reauthentication resumes only the original retained origin/instance/account/scope and,
-after S11, authorized device. An unrelated account cannot activate that outbox. Public discovery/status
-cannot reveal account names, factor registration, scope population or credentials.
+## Invitation, reset and password change
 
-Completed session identity and normal factors are stored in Spring Security's native session context.
-Password-only contexts carry Spring’s password factor; setup and restricted recovery use bounded, typed
-Spring Session attributes that grant no data authority. There is no separate session-authority table.
-Account ownership, epoch and mode are rechecked
-inside protected transactions, holding the account and native session row locks through the work.
-Native principal indexing owns completed-session listing and all account-associated session revocation,
-including pending recovery. One-use challenge rows retain explicit account ownership. Pending session
-rows can remain after their absolute authorization deadline until native idle cleanup; bootstrap
-replaces an expired ceremony immediately.
+Host-only invitation provisioning records the intended mailbox and exact preassigned empty sole scope
+in a transaction; concurrent sole-owner invitations cannot create two owners. Fresh setup commits the
+selected authenticated mode explicitly; a committed no-auth mode cannot be claimed or converted here.
+No browser registration/issue/resend endpoint exists. A pending account remains inaccessible even if
+its mailbox/password appears elsewhere. Resend never creates another account or changes its scope.
 
-## Credential change and recovery
+Use one JDBC action-token component with explicit invitation/reset purposes, account/installation
+binding, verifier and trusted creation/expiry times. The route fixes purpose; request bodies cannot
+supply account, scope, email override or purpose. Tokens are independent of the browser session and may
+be completed on another browser after CSRF bootstrap. They are never passed to `oneTimeTokenLogin()`.
+Reset issuance is allowed only for a verified active account, never a pending or disabled account.
 
-Normal password change requires current password, the new password policy and fresh normal factors.
-Adding/removing a passkey or replacing recovery codes similarly requires recent full authentication.
-Do not remove the last valid passkey without verified replacement. Change/reset increments the authority
-epoch and invalidates all old sessions, partial ceremonies and incompatible tickets atomically. Return
-to normal login rather than automatically making a recovery session fully authenticated.
+Generate/replace and commit the token before calling SMTP; send only to the stored delivery address.
+No database transaction spans network delivery. A synchronous send may fail or succeed with a lost
+acknowledgement: retain the committed current token until expiry/replacement; do not restore an older
+token. A resend invalidates the previous link even if the new email fails. Explain this operational
+tradeoff; neither resend nor failed send changes credentials or activates an account.
 
-| Path | Required proof | Permitted result |
-| --- | --- | --- |
-| Forgotten password | Current user-verified registered passkey plus one unused recovery code | Five-minute password-reset-only ceremony; choose new password, invalidate sessions and finish normal login. |
-| Lost passkey | Current password plus one unused recovery code | Five-minute replacement-only ceremony; verify the new passkey, revoke the explicitly lost credential, invalidate sessions and finish normal login. |
-| Lost both or no remaining recovery proof | Controlled host-operator ownership verification and target-bound recovery ticket | Restricted replacement of both factors, matching bootstrap assurance; no garden access, direct operator-chosen password or public bypass. |
+Build fixed `/accept-invitation#token=...` and `/reset-password#token=...` links from the trusted
+configured HTTPS application origin. No Host-derived URL, redirect/return URL, tracker, remote image
+or third-party script. The page reads the fragment into transient memory and clears it with
+`history.replaceState` before other work; clear secret memory on completion/navigation. Refresh then
+requires reopening the email. GET and mail previews never consume tokens. Referrer-Policy is
+`no-referrer`; disable link tracking and remove URL/body logging at every relevant layer. A mailbox,
+mail provider, compromised browser/extension or link-rewriting mail scanner can still see the secret;
+fragment handling reduces accidental HTTP leakage, not mailbox compromise.
 
-Consume the code and restrict account recovery state in one transaction before issuing replacement
-options. Failed/interrupted recovery can require another code or controlled recovery; never resurrect
-a consumed code on reload. Proofs must target the same active account and cannot be mixed between
-ceremonies. Generic external failure/status and bounded equivalent work cover nonexistent, expired,
-used, disabled and wrong-target cases. No hints/security questions, automatic email link, recovery-code
-alone login or unverified operator message authorizes replacement. Operator recovery initiation is a
-host capability; document proportionate ownership verification and exceptional access in the operator
-runbook before release. Remote support or the browser cannot call the host command.
+Validate password syntax/blocklist and perform bounded hashing before the completion transaction.
+Inside the transaction lock the account, recheck current status/security version, lock the matching
+current purpose/token, enforce expiry, consume, activate or replace the verifier, invalidate other
+applicable tokens and (reset/change) increment security version and delete all native account sessions.
+Disablement invalidates both purposes. One concurrent completion wins; rollback restores the prior
+verifier/status and usable token. A successful completion followed by a lost response is still consumed;
+retries return generic 409 and the user tries normal login or requests a new reset. Validation failure
+does not consume the token. Invalid/wrong-purpose/replaced/used/expired/ineligible cases share 409.
 
-Recovery codes should be kept in a separate protected place. Storing passwords, passkeys and recovery
-codes in one compromised authenticator/profile reduces their independence; disclose that residual risk
-and the lower phishing resistance of recovery codes. The service sends no credential material to an
-email/identity provider. Optional user-controlled passkey synchronization may involve the user's vendor;
-Hortinis neither selects nor contacts that vendor.
+Authenticated password change requires both current account authority and current password; recheck
+the snapshot after hashing before publication. A new password cannot select another account. Reset
+and change revoke the caller too; neither completion returns an authenticated garden session. Other
+browser sessions may stay anonymous until idle cleanup, but no account authority survives revocation.
 
-## Devices and committed revocation ordering
-
-S9 resolves the sole authenticated account without pretending that a browser cookie is an enrolled
-device. S11 adds explicit authorized enrollment; normal authentication on a new browser has enrollment-
-only authority until the required enrollment transaction commits. Device IDs are generated server-side
-and never inferred from a fingerprint, local data-set ID or passkey credential ID. A passkey may be used
-on several enrolled devices; revoking one device does not delete account ownership or accepted history.
-Labels are optional, bounded and excluded from diagnostics; activity uses day-level UTC display and
-at most one daily update per device, separate from exact session security times.
-
-For protected transactions acquire current account authority with a shared lock, then the applicable
-device authority, then the existing scope lock where needed. Disablement, credential epoch changes,
-revocation, claims and deletion use corresponding exclusive locks in the same account/device/scope
-order. Resolve current ownership without trusting a saved session relationship. A permission check
-outside the acceptance transaction is insufficient. Once invalidation commits, subsequent transactions
-cannot accept or read protected data with the old authority. Work committed before invalidation keeps
-its replay outcome; already released network data cannot be recalled. Test these races with real JDBC
-transactions and delayed responses, not only mocked session status. Session persistence must not
-resurrect an invalidated epoch/device when a stale request saves after logout or revocation.
+Mailbox possession is the recovery authority and is weaker than the retired two-proof recovery.
+Mailbox takeover/reassignment can permit account takeover; password-only login remains phishable.
+Loss of password and mailbox has no self-service recovery, and an operator cannot retarget the active
+email or choose a replacement password. Explain these limits before invitation acceptance. Additional
+notifications, email change, MFA/passkeys, recovery codes and host-ticket recovery are deferred.
 
 ## Protected online and offline logout
 
-Online logout is POST-only, same-origin, CSRF-protected and no-store. Atomically invalidate the target
-session, then advance the local exchange fence and clear transient authentication state. Spring Session
-publishes and expires its cookie normally, including on logout and stale-cookie requests. A delayed
-cookie-deletion response can clear a newer browser cookie and require reauthentication; it cannot
-grant authority or undo server revocation. Transaction rollback retains server-side predecessor
-state, but standard cookie publication may leave the browser referring to a rolled-back identifier.
-The browser recovers through CSRF bootstrap and login. No `Clear-Site-Data` erases offline intent as a
-side effect. Failed remote logout is explicitly pending; script cannot read the HttpOnly cookie.
+Use Spring's bodyless CSRF-protected POST logout filter, context/session invalidation, CSRF cleanup
+and a fixed JSON success handler. Native logout acts on the cookie's current session; no custom target
+registry or target-fenced logout protocol remains. Anonymous logout with valid CSRF is successful;
+missing/stale CSRF returns 403. Bootstrap/status then requires a deliberate new action.
 
-Expose a fresh non-secret random logout target reference in authorized session status, distinct from
-the cookie secret, account and device IDs. It grants no authority. Persist only that target reference,
-origin and pending/logout fence in a dedicated local logout marker before stopping traffic; never
-persist the session or CSRF token. Coordinate the marker across all tabs/data sets sharing this server
-cookie, beyond the current per-data-set lease. While pending, suppress sync, activity and new login;
-only public discovery and protected CSRF/logout completion may contact that origin. Server absolute
-expiry continues even while offline.
+Locally pause synchronization immediately and clear transient auth state on sign-out; preserve local
+reads/writes and outbox. Offline sign-out cannot invalidate a remote session while disconnected. Do
+not persist/replay a remote logout request against a later cookie or automatically fetch fresh CSRF
+for an old logout. On reconnect, keep sync paused until the user explicitly resolves current status
+and signs out again or signs in. Coordinate tabs and fence in-flight login/logout operations; native
+delayed cookie responses can require login again. Browser testing belongs to R5/R6. Authentication
+expiry never discards or transfers pending work; only the original account binding may resume it.
 
-On reconnection obtain fresh CSRF state and complete logout for the retained target before starting
-another login. Under the server session lock compare the cookie's current non-secret target with the
-submitted original target. If they match, invalidate the session; if no full target is active, return
-an idempotent completed result; if a different target is active, return a generic precondition failure
-without invalidating it. Recovery then requires explicit local acknowledgement, never an automatic
-logout of the newer session. Spring Session owns cookie publication and expiration. Coordinate
-login workflows across tabs to limit stale-response disruption; a delayed deletion may still require
-reauthentication after interruption/reload. Server expiry/revocation and local response fencing remain
-independent; a stale target reference alone can never revoke any
-session. For logout of an expired/unknown full session, CSRF bootstrap supplies a bounded anonymous
-ceremony through the explicit coordinated workflow. Native CSRF rejection may allocate an anonymous
-transport session; that session alone grants no ceremony or data authority.
-S12 implements interruption, multi-tab/session-change and delayed-response tests.
+## Delivery, privacy and evidence handoff
 
-## HTTP, browser and deployment rules
+Use Boot Mail auto-configuration, `JavaMailSender` and `SimpleMailMessage` behind a narrow replaceable
+adapter with two fixed plain-text templates. SMTP configuration/credentials are operator secrets.
+Fail authenticated startup for absent/invalid required configuration, not for a transient delivery
+outage; configured SMTP outage makes invitation/reset unavailable without disabling normal valid login.
+Never downgrade access mode. Public reset always acknowledges eligible/unknown/pending/disabled and
+recipient-specific SMTP failure identically; only account-independent infrastructure failure may be
+503. Report fixed operational delivery outcome, without recipient, body, secret or provider exception.
+Synchronous sending creates a timing distinction between send/no-send: generic JSON alone does not
+solve enumeration. R3/R6 must measure success/failure/unknown/quota timing and apply bounded equalized
+response handling before release. No timing resistance is claimed by R1.
 
-Use explicit same-origin TypeSpec/OpenAPI 3.1 contracts before adapters. Authentication, session,
-bootstrap, recovery and protected data responses and errors use `Cache-Control: no-store` and are
-excluded from service-worker caches. Generic fixed JSON errors contain no login name, credential,
-account/scope/device ID, existence hint or user input. Authentication failure is 401, authorized
-precondition failure 409, invalid input 400, throttling 429 with a fixed 60-second Retry-After and
-bounded overload 503; unknown/existing accounts share each applicable status and timing distribution.
-No redirect/HTML error from a default filter bypasses the public JSON contract. Bound account/password
-requests to 16 KiB; WebAuthn envelopes to 64 KiB, bounded nesting/token counts and decoded binary lengths
-before cryptographic work. Narrow WebAuthn parsing does not relax synchronization's existing bounds.
+Required runtime evidence includes native filter login/CSRF/logout and fixation, status/authorization
+for pending/disabled/stale versions, account/scope isolation, races/rollback, SMTP failure and timeouts,
+fixed origin, no secret leakage, form parsing and browser offline/multi-tab behavior. Contract schemas
+check shapes, not those behaviors. Full S9-R validation, S10-S15 and applicable foundation gates remain
+open. See the [R1 inventory](../development/spring-email-authentication-r1-inventory.md) for removal and
+line-count baselines and the [operator handoff](../deployment/authentication-operator.md) for deployment.
 
-Use the ADR's host-only Secure/HttpOnly/Strict cookie. No credentials in URLs, Authorization bearer
-storage, localStorage, sessionStorage, IndexedDB, business exports, ordinary/security logs or analytics.
-A CSRF bootstrap returns only necessary token/header metadata to transient script memory. Require the
-session token header for all unsafe methods, even pre-auth setup/login/challenge/recovery/logout, plus
-exact configured Origin/Fetch Metadata checks. Do not rely on preflight alone, allow wildcard credentialed
-CORS or treat a LAN caller as trusted. Reject unsafe simple requests and repeated/opaque origins.
-
-Authenticated public origins require HTTPS, valid configured RP ID/origin compatibility and a dedicated
-first-party host. Development/tests may use explicitly test-only loopback HTTPS with disposable
-certificates; production has no insecure-cookie switch. Disable raw forwarded-header interpretation by
-default. A reverse proxy must isolate the backend, strip/overwrite forwarding fields and use an explicit
-trusted peer configuration before those fields affect source limiting/transport. Host/forwarded input
-never selects the RP, account, origin or scope. S15 verifies TLS termination, internal/database TLS,
-certificate renewal, least privilege and secret lifecycle; ordinary Compose is development evidence.
-
-Public shell headers: CSP with `default-src 'self'`, `script-src 'self'`, `connect-src 'self'`,
-`img-src 'self' data:`, `font-src 'self'`, `style-src 'self' 'unsafe-inline'`, `object-src 'none'`,
-`base-uri 'none'`, `frame-ancestors 'none'`, `form-action 'self'`, `worker-src 'self'`; no eval or
-third-party runtime assets. Inline styles accommodate Angular's current runtime styles; this does not
-permit inline scripts. Test static/production/offline shell compatibility and review style injection
-risk at S15. Set X-Content-Type-Options nosniff, Referrer-Policy no-referrer, X-Frame-Options DENY and
-restrict unused Permissions-Policy capabilities while allowing first-party WebAuthn. Enable HSTS
-max-age 31,536,000 only on the verified production HTTPS host; includeSubDomains/preload are separate
-operator decisions, not development defaults. The public offline shell never contains account data.
-
-## Abuse, logs and privacy
-
-Transient limiter keys cover canonical login and trusted source without logging or retaining their
-values. Unknown/invalid login input follows the same bounded key/response rules. Do not evict active
-limits to admit new attacker keys; capacity denial and global crypto concurrency bound memory/CPU.
-Do not implement permanent attacker-triggered account lockout. The initial deployment has one active
-backend limiter; scaling needs a reviewed shared limiter before activation. Proxy, restart/flood and
-resource exhaustion assumptions remain explicit operational evidence, not account-existence leaks.
-
-Separate protected security events from operational logging. Allow fixed login/recovery/setup/session/
-revocation event, result/reason enum, UTC time and fresh request reference. Baseline has no subject
-pseudonym, address, login string, credential ID or account/scope/device identifier. Raw failures from
-cryptographic/framework adapters are translated to generic application diagnostics; do not enable
-security DEBUG/TRACE, request/body capture, cookie logging or database bind-parameter logging. Counts
-are not analytics. Privacy purpose/lawful basis, operator access, retention/purge and rights information
-are recorded in the lifecycle; no S8 selection supplies a universal lawful basis or production approval.
-
-## Implementation and evidence handoff
-
-| Owner | Required implementation/evidence |
-| --- | --- |
-| S9 | Contract-first fresh sole-account setup, password/passkey and restricted recovery, JDBC sessions, CSRF/cookies/headers, expiry/rotation/concurrency, generic errors/limiter/cleanup, context mapping and server/browser offline pause/relogin tests. Authenticated mode remains unavailable until these checks pass. |
-| S10 | Controlled provisioning plus explicit account/scope ownership; colliding identifiers, disabled-account and horizontal/vertical access tests, no cross-account existence or response leakage. |
-| S11 | Authorized single-use enrollment, per-device session constraints/listing/activity cleanup, revocation races/restart and accepted-history preservation. |
-| S12 | Claim/mode transitions, all-tab offline/logout target fencing, account/server changes, explicit local retention/deletion and resumable complete scope/account purge. |
-| S15 and foundation gates | Full applicable ASVS evidence; independent security review/penetration scope; TLS/proxy/internal transport; corpus/hash/dependency updates; secret/log/backup/purge/restore controls; privacy information/rights/incident/DPIA/operator evidence. |
-
-Design review covers every normal/partial/setup/recovery/enrollment/operator pathway for equal strength,
-state/expiry/replay bounds, no authority inference, CSRF, enumeration and credential persistence.
-Executable tests must include failure at each transaction boundary, concurrent ticket/code consumption,
-wrong RP/origin/account/target, missing verification, replayed challenge, stale cookie writes, expiry at
-exact boundaries, database/service restart, capacity/limiter saturation and diagnostic canaries.
-S8 introduces none of those runtime controls and marks no ASVS requirement verified. D01-D03 offline/
-logging deviations and host/shared-profile/same-origin residual risks remain separately disclosed.
+Framework references checked on 2026-10-17 against the Boot 4.1 / Security 7.1 / Session 4.1 family:
+[form login](https://docs.spring.io/spring-security/reference/servlet/authentication/passwords/form.html),
+[session management](https://docs.spring.io/spring-security/reference/servlet/authentication/session-management.html),
+[CSRF](https://docs.spring.io/spring-security/reference/servlet/exploits/csrf.html),
+[logout](https://docs.spring.io/spring-security/reference/servlet/authentication/logout.html),
+[JDBC sessions](https://docs.spring.io/spring-session/reference/configuration/jdbc.html),
+[Boot Mail](https://docs.spring.io/spring-boot/reference/io/email.html).
+Numeric bounds, atomic action-token semantics and residual-risk choices above are Hortinis policy.

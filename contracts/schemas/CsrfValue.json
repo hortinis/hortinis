@@ -2,6 +2,8 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "$id": "CsrfValue.json",
     "type": "string",
-    "pattern": "^[A-Za-z0-9_-]{1,256}$",
-    "description": "Transient session-backed CSRF value; never persist in browser data or carry in URLs."
+    "minLength": 1,
+    "maxLength": 256,
+    "pattern": "^[A-Za-z0-9_+/=-]+(?![\\s\\S])",
+    "description": "Framework CSRF value, including BREACH-masked base64 text; transient memory only."
 }

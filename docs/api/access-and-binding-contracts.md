@@ -111,9 +111,10 @@ it is not HTTP caching. The service worker must keep API responses outside its a
 S2 tests declarations; later adapters and topology tests prove actual headers and cache behavior.
 
 Session cookies and authentication/CSRF policy are selected by
-[ADR-0033](../architecture/decisions/0033-built-in-authentication-and-sessions.md) and the
-[S8 authentication specification](../architecture/authentication-and-sessions.md); their contract-first
-adapters remain S9-S12 work. The S2 contract adds no login,
+[ADR-0034](../architecture/decisions/0034-spring-email-password-authentication.md) and the
+[authentication specification](../architecture/authentication-and-sessions.md); replacement contracts
+are defined in S9-R R1 ahead of unchanged historical runtime.
+R2-R6 must validate the new adapters before S10; S11/S12 retain their own gates. The S2 contract adds no login,
 Bearer authentication, credentials in URLs, or script-storage credentials. Existing opaque cursor and
 snapshot query values remain non-secret protocol state. Identifiers, expectations, bindings, and
 bodies must not enter operational or security logs. All fixtures use synthetic data.

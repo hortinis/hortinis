@@ -1,10 +1,11 @@
 # Access and synchronization threat model
 
-> 2026-10-17 status: Authentication threat-model revision pending: the approved target uses password login and mailbox-authorized reset. Historical MFA/no-email conclusions must not be treated as evidence for that target. See the
-> [Spring email/password replacement plan](../development/spring-email-authentication-plan.md).
+> 2026-10-17 R1 target: ADR-0034 verified email/password, controlled invitation and mailbox reset.
+> Controls below are design requirements; historical S8/S9 evidence does not validate the replacement.
 
 - Status: Accepted S1 design baseline, 2026-10-02; S3-S7 synthetic scope foundation implemented
-  and S8 authentication design resolved, 2026-10-11. Authenticated and operational verification remain pending.
+  and historical S8 authentication design recorded, 2026-10-11. R1 replacement policy/contracts refined
+  2026-10-17; replacement authentication and operational verification remain pending.
 - Policy: [ADR-0029](../architecture/decisions/0029-access-and-synchronization-scope.md).
 - Functional rules and scenarios: [access specification](../architecture/access-and-synchronization-scope.md).
 - Data classification and retention: [privacy lifecycle](../privacy/access-data-lifecycle.md).
@@ -31,6 +32,7 @@ operator powers from ordinary account authorization and constrain support access
 | Workflow to persistence | Explicit scope in all operations, constraints, locks, receipts, sequences, cursors, generations, and snapshots. |
 | Application to operator setup | Separate privileged authorization, recent authentication or controlled offline bootstrap, atomic mode/ownership transitions. |
 | Live storage to backups/logs | Minimized fields, restricted identities/permissions, protected transfer/storage, bounded retention, deletion-aware restoration. |
+| Application to SMTP/mailbox | Explicit authenticated-mode SMTP selection, validated stored recipient, trusted-origin fragment links, purpose-bound action secrets and bounded delivery. Mailbox/provider sees recipient and link; no garden data or authority from SMTP acknowledgement. |
 | Installation to optional provider | Disabled unless the adapter is explicitly selected and its data flow/privacy review accepted; never inherit account authority. |
 
 No-auth removes application login, not the browser/network trust boundary. It offers no per-person
@@ -51,7 +53,7 @@ stronger controls, not a claim of Level 3 verification. Scenario IDs refer to th
 | T04: CSRF, login/logout forgery, or drive-by mutation of a no-auth server | Explicit origin/CSRF defense for sensitive actions, safe HTTP methods, no wildcard credentialed CORS, no permissive private-network assumption. | `v5.0.0-3.5.1`, `v5.0.0-3.5.2`, `v5.0.0-3.5.3`, `v5.0.0-3.4.2` | S4/S8/S9/S12/S15; malicious-origin, simple-request, preflight-bypass, and setup/logout cases. |
 | T05: XSS-assisted requests or local data exfiltration | Render untrusted content as text; contextual encoding; restrictive CSP; no third-party runtime assets; no script-readable credentials. Treat same-origin compromise as able to read offline data and issue authorized requests. | `v5.0.0-1.2.1`, `v5.0.0-3.2.2`, `v5.0.0-3.4.3`, `v5.0.0-14.2.3` | S8/S15 plus each content adapter; malicious-content/header review; offline-storage deviations remain visible. |
 | T06: Replay after lost acknowledgement or across bindings | Stable operation identity/request fields; per-scope receipts; fenced response application; expired generations become explicit reconciliation/indeterminate work. | `v5.0.0-2.3.1`, `v5.0.0-2.3.3`, `v5.0.0-15.4.2` | S6/S7/S12/S13/S14; AC-AS-04/05/07; ADR-0010/0023/0026 replay corpus. |
-| T07: Brute force, account enumeration, or abusive recovery | Bounded attempts and resource limits without permanent attacker-induced lockout; generic account-related errors; consistent strength on every recovery/bootstrap path. | `v5.0.0-6.1.1`, `v5.0.0-6.3.1`, `v5.0.0-6.3.3`, `v5.0.0-6.4.3`, `v5.0.0-6.3.8` | S8-S11/S15; throttling, timing, expiry, single-use, and recovery-bypass evidence. S8 factor/recovery design is accepted; executable bypass/timing proof remains pending. |
+| T07: Brute force, account enumeration, or abusive recovery | Bounded attempts and resource limits without permanent attacker-induced lockout; generic account-related errors; verified-email eligibility and atomic purpose-bound action tokens. Password-only and mailbox-recovery strength limits stay explicit. | `v5.0.0-6.1.1`, `v5.0.0-6.3.1`, `v5.0.0-6.3.3`, `v5.0.0-6.4.3`, `v5.0.0-6.3.8` | S8-S11/S15; throttling, timing, expiry, single-use, and recovery-bypass evidence. S9-R mailbox/SMTP/pending/token design supersedes S8 factors; timing/bypass/runtime proof remains pending, including synchronous SMTP timing. |
 | T08: Revocation/deletion races and delayed responses | Commit access invalidation with ordered acceptance; revalidate on every request; serialize local binding changes; discard responses captured under stale binding fences. | `v5.0.0-7.4.1`, `v5.0.0-7.4.2`, `v5.0.0-8.3.2`, `v5.0.0-15.4.1`, `v5.0.0-15.4.2`, `v5.0.0-15.4.3` | S9/S11/S12; AC-AS-07/08/11 under controlled concurrency and restart. |
 | T09: Malicious replacement server or restored older state | Validate origin/TLS and retained installation/account binding; new instance identity on rollback; explicit recovery; restore deletion instructions and prevent auth downgrade. Instance ID detects mismatch, not a hostile server that clones it. | `v5.0.0-12.2.1`, `v5.0.0-12.3.2`, `v5.0.0-2.3.1`, `v5.0.0-16.5.3` | S6/S12/S14/S15/P0.6; AC-AS-07/10/12; a cloned identity remains a server-compromise residual risk. |
 | T10: Database compromise, injection, or overprivileged service account | Parameterized queries; least privilege; encrypted protected transport/storage per deployment risk; established password hashing; scoped constraints; protect and rotate backend secrets. | `v5.0.0-1.2.4`, `v5.0.0-11.4.2`, `v5.0.0-12.3.1`, `v5.0.0-13.2.1`, `v5.0.0-13.2.2`, `v5.0.0-13.3.1`, `v5.0.0-14.2.4` | S3/S8/S15/deployment gate; privilege, secret, TLS, and restore review. Current development DB credentials/transport are not production evidence. |
@@ -78,8 +80,8 @@ their controls. No Level 2 certification/completion claim follows from this desi
 | D01: `v5.0.0-14.3.1` expects authenticated client data to clear at session end | Accepted product deviation: logout preserves the intentional offline data set. | Clear transient credential/account UI state and pause sync; do not send `Clear-Site-Data` that destroys pending intent. Device/profile protection, explicit local deletion, disclosure, and S15 review remain required. |
 | D02: `v5.0.0-14.3.3` excludes sensitive browser persistence | Accepted product deviation: local garden data and necessary synchronization metadata persist in IndexedDB. | Minimize local data; prevent XSS; no credentials in browser script storage; isolate data sets and bindings. No encryption-at-rest or local secrecy claim; S15 must review residual risk before real-user use. |
 | D03: `v5.0.0-15.3.4` includes source addresses in logging/security decisions | Privacy restriction: do not persist raw source addresses in application or proxy logs. | Validate proxy authority and use addresses transiently for necessary rate limiting; document any short-lived abuse keys and purge bound. Security logs use approved event/subject references. Record the logging limitation during S15 verification. |
-| B01: `v5.0.0-6.3.3` requires multiple authentication factors or combined mechanisms | S8 design resolved by ADR-0033: password plus user-verified WebAuthn; restricted two-proof recovery. | Applicable, never N/A or an implementation pass. S9/S11/S15 must prove factor consistency, no partial/setup/recovery data authority and no weaker login path before release. |
-| B02: session/recovery/enrollment/CSRF policy details | S8 design resolved in the authentication specification's numeric policy and state/transaction rules. | S9-S12 must implement and test finite limits, single-use proof, CSRF, concurrency, cleanup and stale-cookie/logout ordering; design selection does not close executable release evidence. |
+| B01: `v5.0.0-6.3.3` authentication strength | Reopened: ADR-0034 deliberately selects password-only login and mailbox-authorized reset. Verified email is not a second login factor; S8 resolution is superseded. | Applicable and unmet by this target. Password policy, abuse limits, TLS/cookies, single-use recovery and no pending-account data authority mitigate but do not supply MFA/phishing resistance. S15 must document the gap and residual-risk disposition; no inherited Level 2 pass. |
+| B02: session/recovery/enrollment/CSRF policy details | R1 specifies native inactivity, no absolute lifetime/cap, action-token bounds, email uniqueness, resend, SMTP and native logout. Historical factor/target policies are obsolete. | R2-R6 must prove token races/rollback, pending denial, transaction-time version checks and native revocation, SMTP failures/timing and browser fencing. S11/S12 still own device/sensitive-transition proof. S15 reviews indefinite active sessions and 24-hour invitation lifetime interpretation. |
 | B03: production transport, service identity, secrets, and security-log collection | Applicable deployment/evidence work in S15 and foundation deployment gates. | Verify TLS including database/internal traffic, service credential lifecycle (including `v5.0.0-13.2.1`), protected secret handling, and logically separate security collection. Development Compose is not proof of these controls. |
 | B04: operational/security/backup retention periods and deletion execution | Explicit privacy/release work in S12/S15/P0.6. | Accept deployment-specific periods, implement purge/restore suppression, and test every category before real-data use. |
 | B05: legal basis, information, rights, processors, breach readiness, DPIA screening | Operator/controller decisions plus S15 evidence. | Use the privacy lifecycle template; unresolved entries block real personal-data deployment rather than weakening controls. |
@@ -171,7 +173,7 @@ revocation, transitions, scope-aware generations/reconciliation, production TLS/
 and the ASVS/privacy release audit remain S8-S15 work. This evidence creates no Level 2 compliance claim.
 
 
-## S8 authentication design boundary
+## Historical S8 authentication design boundary (superseded target)
 
 [ADR-0033](../architecture/decisions/0033-built-in-authentication-and-sessions.md) and the
 [authentication specification](../architecture/authentication-and-sessions.md) resolve B01/B02 design.
@@ -202,3 +204,22 @@ limiting resets on service restart and initially supports one active backend; S1
 proxy/flood and deployment assumptions before scaling or release. The 30-day minimized security store,
 local corpus provenance and complete purge/restore/TLS/operator controls remain executable gates.
 S8 introduces no active cookie, account, endpoint or dependency and marks no ASVS requirement passed.
+
+## R1 mailbox and native-session review (2026-10-17)
+
+[ADR-0034](../architecture/decisions/0034-spring-email-password-authentication.md) and the revised
+[authentication specification](../architecture/authentication-and-sessions.md) govern this target.
+The S8 discussion above is historical where it asserts MFA/ticket/factor/target-session policy.
+
+| Threat or failure | Target control and residual risk | Required evidence |
+| --- | --- | --- |
+| T16: Mailbox takeover, reassignment or lost mailbox | Mailbox possession permits password reset. No operator-set password, active-email retarget or ticket bypass. Loss of password and mailbox is unrecoverable here. Explain this before enrollment; MFA is deferred. | R4/R6 eligibility/no-bypass tests; B01/S15 strength and mailbox-risk review. |
+| T17: Pending invitation grants account/scope access or redirects ownership | Pending accounts have no verifier/login/data authority; unique canonical email and explicit scope reservation. Only the current invitation activates its fixed account, without login. Cancel/new invitation corrects pending typos; never transfer active ownership. | R2/R4 pending/disabled denial, case-variant uniqueness, concurrent sole-owner invitation and wrong-purpose tests. |
+| T18: Scanner, replay, token race, lost response or rollback | GET is inert; explicit CSRF POST, 256-bit hashed purpose-bound secret, current-token/account/expiry lock and atomic consumption/update. Rollback preserves old state; committed success retry fails generically. | R3/R4/R6 single winner, expiry equality, replacement, malformed/weak password, rollback and lost-success tests. |
+| T19: SMTP outage, partial send or malicious recipient/header/origin | Commit token before SMTP, stored recipient only, fixed plain text/origin, I/O timeouts/quotas; no automatic retry or downgrade. Failed resend invalidates old link; uncertain send may still deliver current link. | R3/R4 SMTP refusal/timeout/ack-loss and transaction-boundary tests; S15 transport/delivery review. |
+| T20: Link/recipient leakage and timing enumeration | Fragment cleared into transient memory, no-referrer, no tracking/logging, token-free errors; generic reset acknowledgements and uniform prelookup gates. Mailbox/scanner can still read links; synchronous sends need measured timing equalization. | R3/R6 canary captures across app/edge/mail/browser and known/unknown/failed/quota timing; S15 recipient/processor inventory. |
+| T21: Long-lived or numerous native sessions; stale offline logout | Thirty-minute request inactivity, account-version checks and transactional reset/change/disable revocation; no separate absolute deadline or cap. Offline sign-out pauses locally and never replays old logout against a new cookie. Background traffic can prolong stolen authority and sessions consume storage. | R2/R4 native stale-save/rollback/fixation tests; R5/R6 tab/delayed-cookie/paused-outbox tests; S15 lifetime/sizing risk review. |
+
+This review finalizes the design boundaries, not their executable controls. Current historical runtime
+still has different recovery/login/logout behavior. S9-R R2-R6 and S15 remain mandatory; no production
+or ASVS-level claim is created by choosing native components or passing contract checks.

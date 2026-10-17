@@ -9,21 +9,11 @@
         },
         "accountId": {
             "$ref": "AccountId.json"
-        },
-        "logoutTarget": {
-            "$ref": "EncodedRandomValue.json",
-            "description": "Non-secret logout target, distinct from the session cookie; never authorization."
-        },
-        "absoluteExpiresAt": {
-            "type": "string",
-            "format": "date-time"
         }
     },
     "required": [
         "state",
-        "accountId",
-        "logoutTarget",
-        "absoluteExpiresAt"
+        "accountId"
     ],
     "unevaluatedProperties": {
         "not": {}

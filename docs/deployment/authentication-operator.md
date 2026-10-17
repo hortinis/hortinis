@@ -1,111 +1,107 @@
 # Authentication operator workflow
 
-S9 implements the selected single-user authenticated runtime, browser account workflows and host
-ticket command. Use synthetic data until the applicable foundation/S15 release gates pass. This
-document does not authorize a personal-data trial or certify deployment security.
+- Status: S9-R R1 deployment contract, 2026-10-17; email runtime and commands unimplemented.
+- Authority: [ADR-0034](../architecture/decisions/0034-spring-email-password-authentication.md)
+  and the [authentication specification](../architecture/authentication-and-sessions.md).
 
-## Host capability and prerequisites
+The current executable still implements historical S9 MFA and protected host tickets. The old
+`setup-ticket`, `recovery-ticket` and ticket-file `reconcile` workflows are obsolete replacement
+targets; they do not issue email invitations or reset links. This document describes the future
+operator interface and prerequisites, not commands to run against the current binary. R1 changes no
+runtime or deployment configuration. Keep all development data synthetic until S9-R, applicable
+foundation gates and S15 pass; neither historical HTTPS tests nor this handoff authorize deployment.
 
-The backend executable accepts a closed `operator` command. It starts an isolated non-web Spring
-context using the same Boot datasource/Flyway configuration as the application. It installs no HTTP
-listener, default user, garden resolver or ordinary operator session. Ticket issuance grants only a
-bounded enrollment/recovery opportunity; the owner must choose a compliant password and verify a
-user-verified passkey before completing setup or both-factor recovery. Normal login follows.
+## Configuration and trust boundary
 
-Run as the authorized application host identity. Create an existing application-owned secret directory
-with POSIX mode `0700`; the command requires secure relative traversal and refuses symlinks in every
-path component. Ticket files are exclusively created as `0600`, with random non-secret filenames and
-one canonical 43-character ticket value followed by a newline. No unsafe filesystem fallback exists.
-The issuer refuses foreign-owned files, unexpected entries and unsafe permissions. Keep this dedicated
-directory outside repository content, ordinary logs, business exports and ordinary backup collections.
+Keep one Spring Boot executable/project and an isolated non-web `operator` entry point using Boot
+JDBC/Flyway. No listener, default user, browser administrator or operator garden session. Fresh
+single-user authenticated provisioning can reserve only the exact empty unowned sole scope; it cannot
+claim/convert a committed no-auth installation. S10 owns additional accounts/scopes; S12 owns mode
+transitions. Restart never changes committed mode or ownership by configuration alone.
 
-Supply datasource credentials through the deployment's protected environment/secret mechanism, using
-`SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME` and `SPRING_DATASOURCE_PASSWORD`. Standard Boot
-Flyway settings apply, including separately managed migration credentials where configured. Set
-`HORTINIS_ACCESS_MODE=single-user-auth` explicitly. Never put database credentials, passwords, recovery
-codes or tickets in command arguments. The only arguments are action, absolute directory and, for
-recovery, a canonical non-secret target UUID. Process output contains only fixed success/failure text.
+Authenticated use requires an explicit HTTPS `HORTINIS_ACCESS_PUBLIC_ORIGIN`, validated TLS boundary,
+secure host-only cookies and exact same-origin `/api/v1/` routing. Retain explicit access mode and
+`HORTINIS_ACCESS_TLS_VALIDATED` validation. Ignore request Host/forwarded identity when creating links
+or resolving authority. No arbitrary return URL or request-origin redirect is accepted.
 
-The executable archive is built with `./gradlew :services:sync:bootJar`. Replace `backend.jar` below
-with that archive's actual path. The directory path is an example; select the operator-managed location
-for this installation rather than committing it as environment-specific configuration.
+R3 must add Boot's mail starter and wire a single operator-selected SMTP service through Boot Mail;
+no provider-specific API or delivery queue. Self-hosted SMTP is supported; no Hortinis-operated or
+particular external provider is required. Standard Boot property contract:
 
-## Controlled first ownership
+| Property | Deployment requirement |
+| --- | --- |
+| `spring.mail.host`, `spring.mail.port` | Explicit SMTP destination/port, allowlisted operator egress. |
+| `spring.mail.username`, `spring.mail.password` | Protected deployment secrets where SMTP authentication is required; never committed or passed as CLI arguments. |
+| `spring.mail.properties[mail.smtp.auth]` | Explicit authentication policy for the selected service. |
+| `spring.mail.properties[mail.smtp.starttls.enable]`, `[mail.smtp.starttls.required]`, `[mail.smtp.ssl.checkserveridentity]` | Require certificate-validated STARTTLS for network SMTP; never silently fall back to cleartext. Any local trusted relay exception needs documented S15 transport review. |
+| `spring.mail.properties[mail.smtp.connectiontimeout]`, `[mail.smtp.timeout]`, `[mail.smtp.writetimeout]` | Each 5,000 ms; no infinite default. |
+| `hortinis.authentication.mail-from` | Proposed R3 application property: one validated fixed sender mailbox, never caller input. No display-name/header interpolation. |
 
-Before issuing a setup ticket, establish the intended sole owner and secure delivery channel. Setup
-accepts only an empty, unowned sole scope. From a fresh unconfigured installation it atomically selects
-`single-user-auth` with ticket/file publication; a failed publication restores the previous state.
-An already matching authenticated installation may replace its pending setup ticket. A committed
-no-auth or other mode cannot be converted by this command; S12 owns explicit mode transitions.
+These properties are a target configuration contract, not changes to application YAML, Compose or
+secret files. Keep the application origin as the sole URL configuration; do not add a second mail-link
+origin. Missing/invalid required authenticated-mode mail configuration must fail startup with a fixed
+message; transient SMTP unavailability must not trigger a mode downgrade or prevent valid password
+login. Local-only/no-auth use requires no SMTP and sends no mail. No startup test email is permitted.
 
-```shell
-java -jar backend.jar operator setup-ticket --directory=/srv/hortinis/auth-tickets
-```
+## Controlled invitation command contract
 
-A successful command reports `Operator ticket written to protected storage.` It prints no secret,
-account identifier or supplied path. Reissuing replaces the earlier ticket and removes its old file.
-At most one setup ticket is active for the installation. The ticket expires after ten minutes; the
-browser ceremony expires after five minutes or earlier ticket expiry. The same current claimed
-ceremony may retry without extending that original deadline. Another ceremony cannot take the claim.
+The following command shapes are specified for R4, not implemented in R1:
 
-Read and deliver the one current ticket through the deployment's approved private secret-handling
-workflow. Do not paste it into ordinary support messages, recorded terminals, logs, URLs or shell
-arguments. The intended owner supplies the value in the same-origin protected setup form, chooses a
-password and registers a resident user-verified passkey. Setup creates the sole account/ownership,
-first credential and ten recovery codes atomically, then requires normal password-plus-passkey login.
-The owner stores the show-once recovery codes separately in a protected offline location.
+| Host command | Input and result |
+| --- | --- |
+| `operator invite` | Read exactly one bounded email line from protected standard input, never a password/token argument. Atomically reserve pending account/email and intended fresh sole scope, issue invitation and commit, then attempt SMTP. No active account or login is created. |
+| `operator resend-invitation --account=<uuid>` | Explicit pending account target only, same stored mailbox/scope. Replace the token under quotas, commit and attempt SMTP. |
+| `operator cancel-invitation --account=<uuid>` | Pending account only; invalidate token and remove unactivated reservation. Never delete an active/disabled account or transfer its scope. |
 
-## Exceptional recovery of both factors
+Use authorized host identity and protected datasource/migration credentials through the existing Boot
+configuration mechanism. Do not print or log mailbox, account ID, token, link, configuration, SQL error
+or provider exception. Fixed process outcomes: exit 0 for committed action and SMTP acceptance (or
+successful cancellation), exit 2 for invalid command/input, exit 1 for throttling, configuration,
+persistence or delivery failure. Delivery failure after commit must report fixed text explaining that
+the pending invitation was committed and may be resent after the cooldown; it must not imply rollback.
+Exit 0 SMTP acceptance is not proof of inbox delivery. A lost process result is resolved by an explicit
+same-account resend/cancel, never automatic scope provisioning.
 
-Use normal two-proof recovery when possible: registered user-verified passkey plus unused code for a
-forgotten password, or current password plus unused code for a lost passkey. A code alone never logs
-in. Completing recovery invalidates old authority and requires normal login.
+Invite syntax/canonicalization and the database unique constraint are defined in the specification.
+Duplicate/case-variant active or disabled emails never become new accounts. To correct a pending typo,
+cancel that reservation and explicitly issue a new invitation to the intended mailbox; never retarget
+an existing active account. Raw ticket directories/files are not part of the replacement deployment.
+Remove their old configuration and cleanup only when the runtime replacement removes the dependency.
 
-Host recovery is exceptional. Before issuance, the authorized operator must establish the intended
-sole account owner's identity and entitlement using the deployment's previously accepted ownership
-records and incident process. An unverified support message, account identifier or knowledge of garden
-content does not establish ownership. If sufficient evidence is unavailable, do not issue a ticket.
-The effective evidence, exceptional-access authorization and minimized record/retention policy remain
-operator deployment responsibilities under the S15 privacy/security gate; do not collect credentials,
-garden content or additional identity material into application logs.
+## Mailbox recovery and delivery failures
 
-Use the exact current account UUID from the operator's authorized installation inventory. The command
-accepts only the current sole active account with its existing scope; it creates no account or scope.
+Invitation links expire after 24 hours; password-reset links after ten minutes. Resend replaces the
+previous token, including when the new SMTP attempt fails. The old email then cannot be used. No
+transaction is held across SMTP. A committed current token remains valid until expiry/replacement even
+if the sender receives a timeout; do not retry automatically after uncertain delivery. Use synchronous
+bounded sends with two concurrent calls and the documented quotas; there is no hidden delivery spool.
 
-```shell
-java -jar backend.jar operator recovery-ticket --account=019a0b2d-9440-7ce7-b1e4-bfc0112c9f52 --directory=/srv/hortinis/auth-tickets
-```
+The two fixed plain-text templates contain the application name, action, expiry and trusted-origin
+fragment link. They include no garden content, account/scope ID, password or tracking assets. Only the
+stored validated delivery address selects the recipient. Disable SMTP client protocol debug, provider
+exception logging, edge/body/query logging, and tracking/link-rewrite services where operator-controlled.
+Mail infrastructure/mailboxes may retain messages and action secrets; document their recipients,
+security, retention and backup policies. A scanner must not activate/reset through GET.
 
-The UUID above is synthetic. Successful issuance does not change credentials or grant data authority.
-The ticket is bound to the exact account, installation, mode and operator-recovery purpose. It expires
-after ten minutes; replacement invalidates its predecessor. Deliver it only through the approved
-protected channel to the verified owner, who chooses a new compliant password and verifies a new
-passkey. The operator does not choose the owner's password or obtain an ordinary garden session.
+Public reset requests always return the same acknowledgement for unknown/pending/disabled accounts,
+mail quotas and recipient-specific SMTP failure. Operational diagnostics use only fixed delivery
+outcome codes and fresh references. Synchronous sending still needs timing equalization and evidence
+in R3/R6. Operators investigate SMTP availability through protected infrastructure procedures, without
+turning on body/recipient/credential logging. Authentication never downgrades during outage.
 
-Final recovery checks the current claimed ticket and consumed challenge again before atomically
-replacing both factors, deleting obsolete credential/recovery verifiers and invalidating all old
-sessions/ceremonies/tickets. Account, scope, stable user handle and synchronization history remain.
-After normal login with the replacement factors, the owner generates a new recovery-code set under
-recent normal authentication. No old code is resurrected after interruption, reset or rollback of a
-later replacement step. An expired/consumed claim may require a new controlled ticket.
+Mailbox control can replace the password. Mailbox compromise or reassignment therefore threatens the
+account. Loss of password plus mailbox has no supported recovery: host-ticket browser recovery,
+operator-chosen password, email retargeting and implicit impersonation are absent. Explain this before
+enrollment. Optional MFA/passkeys, saved recovery codes, email changes and extra notifications are deferred.
 
-## Reconciliation and process outcomes
+## Readiness and restore gates
 
-```shell
-java -jar backend.jar operator reconcile --directory=/srv/hortinis/auth-tickets
-```
+R2-R6 must prove native login/session/CSRF/logout, pending denial, token races/rollback, SMTP timeout
+and failure, no leaks, timing and offline browser behavior. S15 must review SMTP transport, sender
+configuration/deliverability, abuse/restart limits, mailbox recovery strength, indefinite active-session
+risk and processor/retention policies. Backups can contain token verifiers and email; expiry remains
+absolute after restore, sessions/old credentials must not be resurrected, and complete deletion/restore
+suppression remain S12/P0.6/S15 gates. Fresh schemas need no compatibility migrations.
 
-Reconciliation uses the same installation/account locks as issuance, deletes expired or invalid ticket
-rows and removes only recognized protected ticket files whose references are no longer current. It
-never reads file secrets. An unconfigured empty installation can remove a file orphaned by a rolled
-back publication without selecting a mode. Unsafe or unexpected directory entries cause fixed failure.
-
-Exit code `0` means the requested host action completed. Exit code `2` means invalid arguments and no
-context/database startup. Exit code `1` means missing/mismatched authentication configuration or an
-operation failure; no supplied input, configuration value, exception message or cause is printed.
-Investigate using authorized host/database health procedures; do not enable credential/body logging.
-
-The runtime lifecycle adapter reconciles overdue database/file cleanup before accepting traffic and
-maintains the selected physical-removal bound of 60 seconds, including next-access cleanup. Scheduled
-and next-access cleanup are implementation behaviors; production operator, retention and restore
-evidence remain S15 deployment gates.
+The default Compose topology remains synthetic no-auth development. No SMTP host, credential, real
+recipient, new container or authenticated deployment recipe is added by R1.

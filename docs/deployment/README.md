@@ -1,5 +1,9 @@
 # Deployment
 
+S9-R R1 specifies the [email/password deployment target](authentication-operator.md), including
+operator-selected SMTP. The current runtime still requires historical S9 MFA/tickets. Those existing
+requirements below are not the replacement recipe. R1 adds no mail configuration or runtime support.
+
 Hortinis is intended to support an autonomous self-hosted installation.
 
 Docker multi-stage images and Docker Compose are the baseline deployment mechanisms. An optional Dev Container reuses the development Compose topology. No Kubernetes deployment is planned without a demonstrated requirement.
@@ -46,7 +50,7 @@ session controls are implemented for the single-user mode; backup rollback prote
 verification and privacy readiness remain S15/deployment work. Keep development topology data synthetic.
 
 
-The S9 [authentication operator workflow](authentication-operator.md) documents the isolated host
-ticket command, protected storage/delivery, exceptional ownership verification and remaining release
-gates. The default Compose file still demonstrates no-auth development only; it is not a TLS edge or
+The [authentication operator handoff](authentication-operator.md) now documents the S9-R target:
+controlled email invitations, mailbox reset, Boot SMTP timeouts/TLS/privacy and host command contracts.
+Its commands are unimplemented; old ticket commands are obsolete replacement targets. The default Compose file still demonstrates no-auth development only; it is not a TLS edge or
 an authenticated deployment recipe.

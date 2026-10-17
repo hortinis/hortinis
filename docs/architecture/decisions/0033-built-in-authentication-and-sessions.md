@@ -7,6 +7,23 @@
 See [ADR-0034](0034-spring-email-password-authentication.md) for the approved email/password replacement.
 The decisions below remain historical evidence and apply only where the replacement retains them.
 
+## Supersession boundary (R1, 2026-10-17)
+
+The sections below document historical S8/S9 decisions and the current runtime, not the replacement
+contract. ADR-0034 and the revised [specification](../authentication-and-sessions.md) override local
+login names with unique canonical verified email, mandatory MFA/two-proof recovery with password login
+and mailbox reset, and ticket setup with controlled email invitations. Factor age, step-up, partial
+sessions, recovery codes, passkey adapters, five-session admission, ticket-file lifecycle and targeted
+logout/activity/session-list contracts are obsolete implementation targets. Do not preserve their API
+compatibility or validate the new design using their tests.
+
+Retain stable account/scope ownership, password policy/Argon2id/blocklist/bounded work, native Spring
+context/session/cookie/CSRF infrastructure, current security-version checks, transactional revocation,
+no-auth isolation and minimized diagnostics. Simplify their application glue when replacing runtime.
+Spring Security must own normal form login and logout; Boot Mail owns SMTP infrastructure. Only the
+small purpose-bound invitation/reset service implements action-token semantics. No runtime, schema,
+mail dependency or host command is changed in R1. ASVS B01 is reopened; no new strength pass follows.
+
 ## Context
 
 ADR-0013 requires autonomous built-in accounts and protected cookie sessions, with optional OIDC.
