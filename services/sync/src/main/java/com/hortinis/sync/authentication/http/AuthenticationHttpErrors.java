@@ -43,7 +43,10 @@ public enum AuthenticationHttpErrors {
 
   /** Equivalent closed MVC response for feature-controller failures. */
   public ResponseEntity<Map<String, String>> response() {
-    var builder = ResponseEntity.status(status).header(HttpHeaders.CACHE_CONTROL, "no-store");
+    var builder =
+        ResponseEntity.status(status)
+            .contentType(MediaType.APPLICATION_JSON)
+            .header(HttpHeaders.CACHE_CONTROL, "no-store");
     if (this == THROTTLED) {
       builder.header(HttpHeaders.RETRY_AFTER, "60");
     }

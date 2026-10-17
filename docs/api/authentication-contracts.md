@@ -19,6 +19,8 @@ Auth routes in no-auth mode return fixed 503 without allocating an auth session.
 Every response, including errors, has `Cache-Control: no-store`. JSON bodies are closed. Every POST
 requires the native session cookie (an anonymous CSRF session suffices on public operations) plus
 `X-CSRF-TOKEN`. CSRF proof grants no account authority. There are no unsafe GETs.
+Authentication success and error responses explicitly use `application/json`, including when `Accept`
+is incompatible or malformed; response negotiation must not fail after a committed action.
 
 | Method and path under `/api/v1/auth` | Input | Eligibility and successful response |
 | --- | --- | --- |

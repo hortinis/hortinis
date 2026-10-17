@@ -4,6 +4,7 @@ import com.hortinis.sync.authentication.AuthenticationObservationService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,6 +26,7 @@ public final class AuthenticationReadController {
   @GetMapping("/csrf")
   public ResponseEntity<?> csrf(HttpServletRequest request) {
     return ResponseEntity.ok()
+        .contentType(MediaType.APPLICATION_JSON)
         .header(HttpHeaders.CACHE_CONTROL, "no-store")
         .body(observation.csrf(request));
   }
@@ -33,6 +35,7 @@ public final class AuthenticationReadController {
   @GetMapping("/session")
   public ResponseEntity<?> status(HttpServletRequest request) {
     return ResponseEntity.ok()
+        .contentType(MediaType.APPLICATION_JSON)
         .header(HttpHeaders.CACHE_CONTROL, "no-store")
         .body(observation.status(request));
   }

@@ -527,6 +527,27 @@ mode. Preserve no-auth isolation and synthetic test fixtures.
   acknowledgements nor fixture measurements establish timing resistance; final response handling and
   evidence remain R6 work. No S9-R completion or S10 handoff is authorized.
 
+#### R4 response negotiation review fix — 2026-10-17
+
+- Review of `bc097aa` reproduced a late MVC negotiation failure: an incompatible or malformed
+  `Accept` could turn a completed action into an empty 500 through the generic exception advice.
+  The fixed authentication error advice could also fail to serialize its response.
+- Authentication MVC action acknowledgements, CSRF/session reads and shared fixed errors now set
+  `Content-Type: application/json` explicitly, matching the existing native filter handlers. No
+  account/action transaction, native login/session/CSRF behavior or production admission gate changes.
+- Four fresh parameterized PostgreSQL/servlet cases cover HTML-only and malformed `Accept` headers:
+  the complete invitation/reset/password-change sequence, single-use replay conflicts, CSRF/session
+  reads, invalid input and throttling. Existing rollback cases now exercise storage failures with
+  HTML-only `Accept`; all R4 success/error helpers also require the JSON content type.
+- Validation: the focused R4 suite passed all 63 cases. Final `pnpm validate` passed with 276 Java
+  unit tests, 241 PostgreSQL integration tests, 369 web unit tests, 11 standard and six topology
+  Chromium cases, plus all documented contract/documentation/architecture/static/build/repository
+  checks. A first full run passed the tests but stopped on four PMD duplicate-literal findings in
+  the extended fixture; constants corrected those findings before the successful final run.
+  Existing Checkstyle and bundle warnings remain; changed production files have no new warnings.
+- Fixtures remain synthetic and local. Q1/Q2, timing resistance, R5/R6 and S10 remain unresolved;
+  this fix does not expand R4 scope.
+
 ### R5 — Angular replacement and deletion
 
 - [ ] Keep login, invitation acceptance, forgot-password, reset and password-change screens only.

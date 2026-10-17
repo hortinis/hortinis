@@ -599,6 +599,14 @@ preserves local data and pending intent.
   (+732/-562 versus `d260d06`); SQL four / 319 (+0/-19), TypeScript 71 / 6,173 unchanged. Tests are
   separate (+1,596/-604). Both JARs exclude deleted classes and synthetic fixtures. Q1/Q2, normal
   authenticated startup, R5/R6 and S10 readiness remain open; existing quality/bundle warnings remain.
+- R4 response negotiation review fix (2026-10-17): authentication MVC successes and fixed errors
+  explicitly select JSON, preventing incompatible/malformed `Accept` from failing after a committed
+  action. The focused R4 suite passes all 63 cases, including four new header-regression cases and
+  existing rollback cases extended with HTML-only `Accept`. Final `pnpm validate` passes, including
+  276 Java unit tests, 241 PostgreSQL integration tests and all six topology browser cases. A first
+  run's test-only PMD duplicate-literal findings were corrected before the final pass. Native
+  authentication, transactional revocation and closed production admission remain intact;
+  Q1/Q2 and timing resistance stay open.
 - Handoff: S10 consumes S9-R after validation. No production-readiness or ASVS-level claim follows
   from adopting password-only login. SMTP/privacy and recovery-strength review remain S15 gates.
 

@@ -68,6 +68,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -121,6 +122,8 @@ class R4AccountActionsIntegrationTest {
   private static final String REQUEST = "/api/v1/auth/password-reset/request";
   private static final String RESET = "/api/v1/auth/password-reset/complete";
   private static final String CHANGE = "/api/v1/auth/password";
+  private static final String CSRF = "/api/v1/auth/csrf";
+  private static final String NO_STORE = "no-store";
   private static final String STATUS = "/api/v1/auth/session";
   private static final String COOKIE_NAME = "__Host-hortinis-session";
   private static final String TLS_PASSWORD = "r4-synthetic-tls-password";
@@ -229,6 +232,72 @@ class R4AccountActionsIntegrationTest {
     error(postJson(ACCEPT, browser, completion(issued.secret(), NEW_PASSWORD)), 409, PRECONDITION);
     assertThat(output.getAll())
         .doesNotContain(EMAIL, issued.secret(), NEW_PASSWORD, account.toString());
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {MediaType.TEXT_HTML_VALUE, "application/json;q=garbage"})
+  void acceptHeadersCannotChangeCommittedActionAcknowledgementsOrReplayErrors(String accept)
+      throws Exception {
+    makePending();
+    var invitation = issue(ActionTokenPurpose.INVITATION);
+    Browser browser = bootstrap();
+    success(
+        postJson(ACCEPT, browser, completion(invitation.secret(), NEW_PASSWORD), accept),
+        200,
+        COMPLETED);
+    error(
+        postJson(ACCEPT, browser, completion(invitation.secret(), NEW_PASSWORD), accept),
+        409,
+        PRECONDITION);
+    assertThat(indexed()).isZero();
+    success(
+        postJson(REQUEST, browser, JSON.writeValueAsString(Map.of(EMAIL_FIELD, EMAIL)), accept),
+        202,
+        ACCEPTED);
+    var reset = lastMail.get();
+    assertThat(reset).isNotNull();
+    success(postJson(RESET, browser, completion(reset.secret(), PASSWORD), accept), 200, COMPLETED);
+    assertThat(version()).isEqualTo(2);
+    assertThat(tokenCount()).isZero();
+    error(
+        postJson(RESET, browser, completion(reset.secret(), PASSWORD), accept), 409, PRECONDITION);
+    Browser current = refresh(login(browser));
+    success(
+        postJson(
+            CHANGE,
+            current,
+            JSON.writeValueAsString(
+                Map.of(CURRENT_PASSWORD_FIELD, PASSWORD, PASSWORD_FIELD, NEW_PASSWORD)),
+            accept),
+        200,
+        COMPLETED);
+    assertThat(version()).isEqualTo(3);
+    assertThat(indexed()).isZero();
+    assertThat(passwords.matches(NEW_PASSWORD, storedVerifier())).isTrue();
+    anonymous(current);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {MediaType.TEXT_HTML_VALUE, "application/json;q=garbage"})
+  void acceptHeadersCannotChangeReadOrValidationResponses(String accept) throws Exception {
+    Browser browser = bootstrap();
+    for (String path : List.of(CSRF, STATUS)) {
+      var response =
+          http.perform(browserGet(path).cookie(browser.cookie()).header("Accept", accept))
+              .andReturn()
+              .getResponse();
+      assertThat(response.getStatus()).isEqualTo(200);
+      assertThat(response.getContentType()).isEqualTo(JSON_MEDIA);
+      assertThat(response.getHeader(HttpHeaders.CACHE_CONTROL)).isEqualTo(NO_STORE);
+      assertThat(JSON.readTree(response.getContentAsString()).isObject()).isTrue();
+    }
+    error(postJson(REQUEST, browser, "{}", accept), 400, INVALID);
+    when(attempts.admit(anyString(), anyString())).thenReturn(false);
+    var throttled =
+        postJson(REQUEST, browser, JSON.writeValueAsString(Map.of(EMAIL_FIELD, EMAIL)), accept);
+    error(throttled, 429, "AUTHENTICATION_THROTTLED");
+    assertThat(throttled.getHeader("Retry-After")).isEqualTo("60");
+    assertThat(tokenCount()).isZero();
   }
 
   @Test
@@ -393,12 +462,17 @@ class R4AccountActionsIntegrationTest {
             + "synthetic_revoke_failure()");
     var response =
         operation.equals("reset")
-            ? postJson(RESET, bootstrap(), completion(issued.secret(), NEW_PASSWORD))
+            ? postJson(
+                RESET,
+                bootstrap(),
+                completion(issued.secret(), NEW_PASSWORD),
+                MediaType.TEXT_HTML_VALUE)
             : postJson(
                 CHANGE,
                 browser,
                 JSON.writeValueAsString(
-                    Map.of(CURRENT_PASSWORD_FIELD, PASSWORD, PASSWORD_FIELD, NEW_PASSWORD)));
+                    Map.of(CURRENT_PASSWORD_FIELD, PASSWORD, PASSWORD_FIELD, NEW_PASSWORD)),
+                MediaType.TEXT_HTML_VALUE);
     error(response, 503, "ACCESS_UNAVAILABLE");
     assertThat(version()).isEqualTo(1);
     assertThat(storedVerifier()).isEqualTo(VERIFIER);
@@ -684,9 +758,7 @@ class R4AccountActionsIntegrationTest {
   @Test
   void completePublicHttpsResponseSamplesRemainGenericWithoutTimingClaim() throws Exception {
     try (var client = trustedTestClient()) {
-      var csrf =
-          client.send(
-              realRequest("/api/v1/auth/csrf").GET().build(), HttpResponse.BodyHandlers.ofString());
+      var csrf = client.send(realRequest(CSRF).GET().build(), HttpResponse.BodyHandlers.ofString());
       String cookie = csrf.headers().firstValue("Set-Cookie").orElseThrow().split(";", 2)[0];
       String token = JSON.readTree(csrf.body()).get(TOKEN_FIELD).asString();
       for (String branch : List.of(ACCEPTED, "refused", UNKNOWN, QUOTA)) {
@@ -718,7 +790,7 @@ class R4AccountActionsIntegrationTest {
           final long micros = (System.nanoTime() - started) / 1000;
           assertThat(response.statusCode()).isEqualTo(202);
           assertThat(response.body()).isEqualTo("{\"accepted\":true}");
-          assertThat(response.headers().firstValue("Cache-Control")).contains("no-store");
+          assertThat(response.headers().firstValue(HttpHeaders.CACHE_CONTROL)).contains(NO_STORE);
           System.out.println("R4 synthetic public reset " + branch + " microseconds=" + micros);
         }
       }
@@ -864,16 +936,14 @@ class R4AccountActionsIntegrationTest {
   }
 
   private Browser bootstrap() throws Exception {
-    var response = http.perform(browserGet("/api/v1/auth/csrf")).andReturn().getResponse();
+    var response = http.perform(browserGet(CSRF)).andReturn().getResponse();
     return new Browser(
         cookie(response), JSON.readTree(response.getContentAsString()).get(TOKEN_FIELD).asString());
   }
 
   private Browser refresh(Browser browser) throws Exception {
     var response =
-        http.perform(browserGet("/api/v1/auth/csrf").cookie(browser.cookie()))
-            .andReturn()
-            .getResponse();
+        http.perform(browserGet(CSRF).cookie(browser.cookie())).andReturn().getResponse();
     return new Browser(
         browser.cookie(), JSON.readTree(response.getContentAsString()).get(TOKEN_FIELD).asString());
   }
@@ -915,6 +985,19 @@ class R4AccountActionsIntegrationTest {
         .getResponse();
   }
 
+  private MockHttpServletResponse postJson(String path, Browser browser, String json, String accept)
+      throws Exception {
+    return http.perform(
+            postRequest(path)
+                .cookie(browser.cookie())
+                .header(CSRF_HEADER, browser.token())
+                .header("Accept", accept)
+                .contentType(JSON_MEDIA)
+                .content(json))
+        .andReturn()
+        .getResponse();
+  }
+
   private static MockHttpServletRequestBuilder browserGet(String path) {
     return get(path)
         .secure(true)
@@ -940,14 +1023,16 @@ class R4AccountActionsIntegrationTest {
   private static void success(MockHttpServletResponse response, int status, String key)
       throws Exception {
     assertThat(response.getStatus()).isEqualTo(status);
-    assertThat(response.getHeader("Cache-Control")).isEqualTo("no-store");
+    assertThat(response.getContentType()).isEqualTo(JSON_MEDIA);
+    assertThat(response.getHeader(HttpHeaders.CACHE_CONTROL)).isEqualTo(NO_STORE);
     assertThat(response.getContentAsString()).isEqualTo("{\"" + key + "\":true}");
   }
 
   private static void error(MockHttpServletResponse response, int status, String code)
       throws Exception {
     assertThat(response.getStatus()).isEqualTo(status);
-    assertThat(response.getHeader("Cache-Control")).isEqualTo("no-store");
+    assertThat(response.getContentType()).isEqualTo(JSON_MEDIA);
+    assertThat(response.getHeader(HttpHeaders.CACHE_CONTROL)).isEqualTo(NO_STORE);
     assertThat(JSON.readTree(response.getContentAsString()).get("code").asString()).isEqualTo(code);
   }
 

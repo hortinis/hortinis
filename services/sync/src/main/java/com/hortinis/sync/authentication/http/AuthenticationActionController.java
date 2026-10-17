@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -56,6 +57,7 @@ public final class AuthenticationActionController {
     admit(canonical, request);
     actions.requestReset(canonical);
     return ResponseEntity.accepted()
+        .contentType(MediaType.APPLICATION_JSON)
         .header("Cache-Control", "no-store")
         .body(Map.of("accepted", true));
   }
@@ -120,6 +122,9 @@ public final class AuthenticationActionController {
   }
 
   private static ResponseEntity<?> completed() {
-    return ResponseEntity.ok().header("Cache-Control", "no-store").body(Map.of("completed", true));
+    return ResponseEntity.ok()
+        .contentType(MediaType.APPLICATION_JSON)
+        .header("Cache-Control", "no-store")
+        .body(Map.of("completed", true));
   }
 }
