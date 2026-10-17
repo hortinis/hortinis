@@ -1,7 +1,7 @@
 # Authentication operator workflow
 
-- Status: S9-R R1 deployment contract; R2 closes authenticated admission, 2026-10-17.
-  Email runtime and replacement commands remain unimplemented.
+- Status: S9-R R1 deployment contract; R3 internal mail/token foundation, 2026-10-17.
+  Authenticated admission remains closed; replacement commands remain unimplemented.
 - Authority: [ADR-0034](../architecture/decisions/0034-spring-email-password-authentication.md)
   and the [authentication specification](../architecture/authentication-and-sessions.md).
 
@@ -25,7 +25,7 @@ secure host-only cookies and exact same-origin `/api/v1/` routing. Retain explic
 `HORTINIS_ACCESS_TLS_VALIDATED` validation. Ignore request Host/forwarded identity when creating links
 or resolving authority. No arbitrary return URL or request-origin redirect is accepted.
 
-R3 must add Boot's mail starter and wire a single operator-selected SMTP service through Boot Mail;
+R3 adds Boot's mail starter and wires a single operator-selected SMTP service through Boot Mail;
 no provider-specific API or delivery queue. Self-hosted SMTP is supported; no Hortinis-operated or
 particular external provider is required. Standard Boot property contract:
 
@@ -36,13 +36,20 @@ particular external provider is required. Standard Boot property contract:
 | `spring.mail.properties[mail.smtp.auth]` | Explicit authentication policy for the selected service. |
 | `spring.mail.properties[mail.smtp.starttls.enable]`, `[mail.smtp.starttls.required]`, `[mail.smtp.ssl.checkserveridentity]` | Require certificate-validated STARTTLS for network SMTP; never silently fall back to cleartext. Any local trusted relay exception needs documented S15 transport review. |
 | `spring.mail.properties[mail.smtp.connectiontimeout]`, `[mail.smtp.timeout]`, `[mail.smtp.writetimeout]` | Each 5,000 ms; no infinite default. |
-| `hortinis.authentication.mail-from` | Proposed R3 application property: one validated fixed sender mailbox, never caller input. No display-name/header interpolation. |
+| `hortinis.authentication.mail-from` | R3 application property: one validated fixed sender mailbox, never caller input. No display-name/header interpolation. |
 
-These properties are a target configuration contract, not changes to application YAML, Compose or
-secret files. Keep the application origin as the sole URL configuration; do not add a second mail-link
+R3 application YAML supplies all three 5,000 ms timeouts, disables mail protocol debug and disables
+startup connection tests and mail-health probes. No SMTP destination, sender, credential or Compose
+mail service is committed. The authenticated graph validates the remaining required settings,
+including explicit SMTP authentication policy and credentials when authentication is enabled.
+JNDI, custom socket factories and certificate-trust overrides are rejected. Network SMTP requires
+STARTTLS and certificate identity checks; no production cleartext relay exception is implemented.
+Keep the application origin as the sole URL configuration; do not add a second mail-link
 origin. Missing/invalid required authenticated-mode mail configuration must fail startup with a fixed
 message; transient SMTP unavailability must not trigger a mode downgrade or prevent valid password
 login. Local-only/no-auth use requires no SMTP and sends no mail. No startup test email is permitted.
+Internal fixture-tested delivery is not an available invitation
+or recovery command/API; R4 owns those workflows.
 
 ## Controlled invitation command contract
 
@@ -80,7 +87,8 @@ does not settle either quota question.
 Invite syntax/canonicalization and the database unique constraint are defined in the specification.
 Duplicate/case-variant active or disabled emails never become new accounts. To correct a pending typo,
 cancel that reservation and explicitly issue a new invitation to the intended mailbox; never retarget
-an existing active account. Raw ticket directories/files are not part of the replacement deployment.
+an existing active account. Raw ticket directories/files are not part of the replacement deployment;
+their dormant artifacts remain for coherent R4/R5 removal.
 Remove their old configuration and cleanup only when the runtime replacement removes the dependency.
 
 ## Mailbox recovery and delivery failures

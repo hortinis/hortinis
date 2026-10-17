@@ -237,3 +237,16 @@ Q2 covers shared quota enforcement across the HTTP service and separate host pro
 in-memory counters are independent. Current quota/accounting text is provisional for these defects;
 passing structural checks does not mitigate them. R6 must attach flood/concurrent-process evidence
 and close both questions before S9-R completion or S10 handoff; do not defer them to S15.
+
+## R3 primitive evidence boundary — 2026-10-17
+
+The [R3 record](../development/spring-email-authentication-plan.md#r3-implementation-and-review--2026-10-17)
+adds fresh synthetic evidence for T18/T19 and the application/transport portion of T20: hashed
+purpose/account/installation-bound action storage, atomic consumption/replacement and rollback, inert
+GET, post-commit delivery, fixed-origin fragments, finite SMTP I/O/concurrency and redacted failures.
+This does not validate absent R4 credential mutations/revocation or generic public action responses,
+R5 fragment clearing/browser storage/offline behavior, or deployment edge/provider logging. The timing
+fixture records unequal local internal send/rejection/unknown/quota branches; complete public response
+equalization remains R4/R6 work. Q1 shared-budget exhaustion is deliberately reproduced; Q2
+cross-process enforcement remains unimplemented. Neither is closed by primitive tests, and both must
+be resolved by R6 before S9-R completion or S10. No historical S8/S9 proof or compliance claim transfers.

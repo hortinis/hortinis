@@ -583,3 +583,13 @@ R1 validates register coverage/count consistency and contract shapes only. New n
 CSRF/logout, pending denial, atomic consumption, revocation, SMTP, timing and browser evidence remain
 R2-R6; deployment, lawful basis, deletion/restore, D01-D03 and B01-B05 remain open S15 gates. Historical
 S8/S9 evidence exercises the retired design and cannot satisfy these new requirements.
+
+### R3 internal action-token and mail evidence — 2026-10-17
+
+The [R3 implementation/review record](../development/spring-email-authentication-plan.md#r3-implementation-and-review--2026-10-17)
+provides fresh bounded evidence for the ACTION_TOKENS/MAIL assumptions: verifier-only purpose-bound
+JDBC storage, expiry/replacement/replay/concurrency/rollback, post-commit SMTP, fixed-origin plain-text
+links, I/O/concurrency bounds and redacted diagnostics. No action endpoint, account mutation, host
+workflow or browser replacement is enabled. Q1/Q2 and full response timing remain unresolved R6
+closure requirements; local transport timing is not enumeration resistance. No register disposition,
+requirement-level pass, ASVS-level result or S15 production finding changes through this increment.

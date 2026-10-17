@@ -33,7 +33,7 @@ Mandatory passkeys/MFA, saved recovery codes, operator-ticket browser recovery, 
 and preservation of their contracts are obsolete implementation targets. R2 replaces the backend
 login/session boundary with normal authenticated startup closed during the incomplete replacement.
 R1 finalized replacement policy/contracts/inventories; the generated API still describes the complete
-future surface. R1-R2 are complete; R3-R6 remain planned. Scope isolation, stable identity and offline
+future surface. R1-R3 are complete; R4-R6 remain planned. Scope isolation, stable identity and offline
 preservation remain.
 
 ## Required outcome
@@ -488,8 +488,8 @@ preserves local data and pending intent.
 
 ### S9 — Implement authenticated single-user access
 
-- Status: `implemented` for the historical MFA baseline; S9-R R1-R2 are complete,
-  R3-R6 are `planned`.
+- Status: `implemented` for the historical MFA baseline; S9-R R1-R3 are complete,
+  R4-R6 are `planned`.
 - Implementation plan: [S9 implementation plan](s9-implementation-plan.md).
 - Depends on: S6 and S8.
 - Scope: implement controlled first-account setup, authentication, server-side sessions, logout, expiry,
@@ -510,7 +510,7 @@ preserves local data and pending intent.
 
 ### S9-R — Replace authentication with Spring email and password flows
 
-- Status: R1-R2 `complete` (2026-10-17); R3-R6 `planned`.
+- Status: R1-R3 `complete` (2026-10-17); R4-R6 `planned`.
   Normal authenticated startup remains closed.
 - Implementation plan: [Spring email/password replacement](spring-email-authentication-plan.md).
 - Depends on: the S9 scope/account boundary and ADR-0034; supersedes the old mechanism handoff.
@@ -559,6 +559,22 @@ preserves local data and pending intent.
   tracks the regression and validation. Full `pnpm validate` passed with 44 native authentication
   cases and 134 PostgreSQL integration tests overall; authenticated production admission and Q1/Q2
   remain unchanged.
+- R3 implementation: [R3 record](spring-email-authentication-plan.md#r3-implementation-and-review--2026-10-17)
+  tracks shared hashed purpose/account/installation-bound JDBC action tokens, caller-transaction atomic
+  consumption/replacement, bounded token/pending cleanup and post-commit Boot SMTP. Fixed fragment
+  links, stored recipients, finite I/O and concurrent-send limits use synthetic local fixtures only.
+  Validation evidence is recorded there; historical S8/S9 tests do not validate this design.
+  Authenticated startup, retired commands and incomplete action routes remain closed. Q1's no-send
+  budget exhaustion is reproduced, not resolved; Q2 remains open across isolated processes. R4-R6,
+  full response timing, browser replacement and S10-S15 readiness remain incomplete.
+- R3 validation (2026-10-17): final `pnpm validate` passed with 273 Java unit tests, 184 integration
+  tests, 369 web unit tests, 11 standard and six topology Chromium tests, all contract/documentation/
+  architecture/quality/build/repository gates. Fresh evidence is 42 mail unit cases, 46 R3 integration
+  cases and four inert-link GET cases added to R2's native assembly; retained historical tests are
+  regressions only. Focused strict dependency-verification checks passed. Production Java is 116
+  files / 7,322 lines (+764/-14 versus R2); SQL four / 338 (+19/-0); TypeScript 71 / 6,173 unchanged.
+  No legacy artifact is deleted without its future R4/R5 workflow replacement. Both JARs exclude
+  synthetic fixtures; existing quality/bundle warnings and Q1/Q2 remain open.
 - Handoff: S10 consumes S9-R after validation. No production-readiness or ASVS-level claim follows
   from adopting password-only login. SMTP/privacy and recovery-strength review remain S15 gates.
 

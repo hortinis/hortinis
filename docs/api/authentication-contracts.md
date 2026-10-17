@@ -8,7 +8,7 @@
 
 The generated artifacts describe the complete target. R2 implements CSRF/status, native login and
 logout with authenticated production admission closed; invitation/reset/password mutation and the
-replacement browser remain R3-R5 work. Retired login/session mutation routes are disconnected and
+replacement browser remain R4/R5 work. R3 adds internal token/mail primitives without exposing action routes. Retired login/session mutation routes are disconnected and
 cannot authenticate. Historical S8/S9 tests are not evidence for these adapters. No compatibility
 aliases are introduced. Synchronization/access contracts and mode boundaries remain unchanged.
 Auth routes in no-auth mode return fixed 503 without allocating an auth session.

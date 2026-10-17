@@ -2,9 +2,10 @@
 
 > 2026-10-17 R1: The target inventory now includes verified email, SMTP and invitation/reset
 > action tokens under ADR-0034. R2 introduces email identity and minimized native UUID/version
-> sessions under closed authenticated production admission; token/mail/account/UI workflows remain
-> unimplemented. R2 removes partial-session/factor/target processing; dormant legacy storage remains
-> for R4/R5 deletion. No email is sent. The S8 inventory at the
+> sessions under closed authenticated production admission. R3 adds internal hashed action tokens,
+> bounded pending/token cleanup and post-commit SMTP; account/UI workflows remain unimplemented.
+> R2 removes partial-session/factor/target processing; dormant legacy storage remains
+> for R4/R5 deletion. Only synthetic loopback SMTP fixtures send test messages. The S8 inventory at the
 > end is explicitly historical for fields retired by the replacement.
 
 - Status: Accepted S1 inventory and lifecycle design, 2026-10-02.
@@ -282,7 +283,7 @@ target processing. R1 documents it without adding runtime data, SMTP configurati
 | Fixed plain-text subject/body containing action, expiry and fragment link; SMTP recipient/envelope | Deliver controlled invitation or requested reset. Recipient, mailbox/SMTP operators and potentially their relays/scanners see personal address and secret link. No garden/account/scope ID, tracker, remote asset or attachments. | No application mail archive/queue. Discard raw message/secret after synchronous attempt. Infrastructure/mailbox copies follow separately documented operator/provider retention and backups; expiry limits authority but does not erase email. Disable link tracking and secret-bearing logs. |
 | SMTP credentials, fixed sender/host and timeout/TLS configuration | Authenticate the selected transport; secrets in protected deployment configuration. No browser/business export/log recipient. | Rotate/revoke under deployment policy; no committed values. S15 reviews TLS, credentials and provider processing/transfer terms. |
 | Native session principal/version, request activity/expiry and CSRF | Stateful account authorization and request defense; minimal restricted native JSON, cookie secret HttpOnly, CSRF transient memory. No email/password/token in principal. | Thirty-minute request inactivity, no absolute deadline/cap. Background sync can extend storage/authority. Native minute cleanup and immediate account-wide revocation on reset/change/disable; stale contexts fail current-version checks. |
-| HMAC email/source/token-digest keys, counters/windows, process random secret | Bound attempts/sends without raw identifier tracking; pseudonymous memory only, no persisted subject trail. Unknown addresses receive the same keys/gates and charge mail-attempt quotas without refund. | At most 4,096 keys; mail-window keys 24 hours idle, other keys 15 minutes; 60-second cleanup. Restart resets counters and is an S15 abuse assumption. |
+| HMAC email/source/token-digest keys, counters/windows, process random secret | Bound attempts/sends without raw identifier tracking; pseudonymous memory only, no persisted subject trail. Unknown addresses receive the same keys/gates and charge mail-attempt quotas without refund. | At most 4,096 keys combined across request and mail limiters; mail-window keys 24 hours idle, other keys 15 minutes; 60-second cleanup. Restart resets counters and is an S15 abuse assumption. |
 | Local sign-out pause/fence, without remote target/CSRF/token | Preserve user intent and outbox offline; browser workflow metadata only. | Remains paused until explicit user resolution of current session; never automatically replays logout against a later cookie. R5 defines/reviews minimal replacement of old target markers. |
 | Fixed security/delivery outcome, UTC, fresh request reference | Bounded diagnosis, no recipient/token/content/exception or stable subject mapping. Separate restricted store. | Security records rolling 30 days with daily/overdue-startup purge. Operational delivery events inherit the separately reviewed operational retention policy. |
 
@@ -310,6 +311,17 @@ No real mailbox, email send, legal-compliance result or target-runtime evidence 
 Synchronous SMTP timing, session lifetime, mailbox trust and provider retention stay explicit R3/R6/S15
 gates. The historical inventory below cannot be used to omit new email processing or retain old MFA
 fields in the replacement.
+
+R3 implements the action-token/verifier and transient SMTP categories above through a caller-owned
+JDBC transaction and post-commit delivery. There is no application message archive, delivery queue or
+retry. Cleanup processes up to 500 expired tokens and 500 overdue pending accounts per startup/minute
+tick; dependent authentication rows cascade on pending removal, while scope/garden data and committed
+mode remain. Immediate expiry does not depend on cleanup progress. Mail and request HMAC limiters
+share one 4,096-key process-memory ceiling; there is no new durable quota subject trail. SMTP debug,
+startup connection checks and mail-health probes are disabled. The [R3 record](../development/spring-email-authentication-plan.md#r3-implementation-and-review--2026-10-17)
+records synthetic local evidence and unresolved quota/timing/workflow boundaries, not real-data or
+provider activation. Q1/Q2, full R4 mutation/revocation, R5 browser persistence/fragment handling and
+S12/P0.6/S15 deletion/restore/provider obligations remain open.
 
 ## Historical S8 authentication inventory and purposes (superseded target)
 

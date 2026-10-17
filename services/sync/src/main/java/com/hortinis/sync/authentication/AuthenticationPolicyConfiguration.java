@@ -43,12 +43,20 @@ public class AuthenticationPolicyConfiguration {
     return new CryptoWorkLimiter();
   }
 
+  /** One aggregate bound for mail and request admission memory. */
+  @Bean
+  @ConditionalOnProperty(prefix = ACCESS_PREFIX, name = MODE_PROPERTY, havingValue = AUTH_MODE)
+  public AuthenticationAdmissionCapacity authenticationAdmissionCapacity() {
+    return new AuthenticationAdmissionCapacity();
+  }
+
   /**
    * Transient restrictions use one independent process key and fixed production windows/capacity.
    */
   @Bean
   @ConditionalOnProperty(prefix = ACCESS_PREFIX, name = MODE_PROPERTY, havingValue = AUTH_MODE)
-  public AuthenticationAttemptLimiter authenticationAttemptLimiter(Clock clock) {
-    return new AuthenticationAttemptLimiter(clock);
+  public AuthenticationAttemptLimiter authenticationAttemptLimiter(
+      Clock clock, AuthenticationAdmissionCapacity capacity) {
+    return new AuthenticationAttemptLimiter(clock, capacity);
   }
 }

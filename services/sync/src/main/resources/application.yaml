@@ -15,6 +15,14 @@ spring:
       cleanup-cron: "0 * * * * *"
     servlet:
       filter-order: -2147483618
+  mail:
+    test-connection: false
+    properties:
+      "[mail.smtp.connectiontimeout]": 5000
+      "[mail.smtp.timeout]": 5000
+      "[mail.smtp.writetimeout]": 5000
+      "[mail.debug]": false
+      "[mail.debug.auth]": false
   main:
     log-startup-info: false
   jackson:
@@ -29,12 +37,17 @@ logging:
   level:
     org.springframework.security: OFF
     org.springframework.session: OFF
+    org.springframework.mail: OFF
+    org.eclipse.angus.mail: OFF
     "[org.springframework.scheduling.support.TaskUtils$LoggingErrorHandler]": OFF
   structured:
     format:
       console: logstash
 
 management:
+  health:
+    mail:
+      enabled: false
   endpoints:
     web:
       exposure:

@@ -1,6 +1,6 @@
 # Built-in authentication and sessions
 
-- Status: R1 target design finalized; R2 backend boundary validated, 2026-10-17.
+- Status: R1 target design finalized; R2 backend boundary and R3 internal token/mail primitives validated, 2026-10-17.
   Normal authenticated startup remains closed until the replacement is complete.
 - Decision: [ADR-0034](decisions/0034-spring-email-password-authentication.md).
 - Owner: [S9-R](../development/spring-email-authentication-plan.md), before S10.
@@ -10,8 +10,9 @@
   [data lifecycle](../privacy/access-data-lifecycle.md).
 
 This document specifies the complete replacement target. R2 implements the native backend login,
-CSRF and session/logout boundary under a closed production admission gate; R3-R5 email, account
-mutation and browser flows are absent. ADR-0033 and historical S8/S9 implementation logs preserve the
+CSRF and session/logout boundary under a closed production admission gate. R3 supplies internal
+JDBC action tokens, bounded cleanup and post-commit Boot SMTP; R4 account workflows and R5 browser
+flows are absent, with no action endpoint exposed. ADR-0033 and historical S8/S9 implementation logs preserve the
 old behavior, not validation of the replacement. Required passkeys, factor ages, partial/recovery
 sessions, recovery codes, ticket files and completed-session counting are superseded. R2 removes
 session-dependent legacy workflows; remaining dormant artifacts are deleted by their owning increment.
@@ -232,6 +233,9 @@ recipient-specific SMTP failure identically; only account-independent infrastruc
 Synchronous sending creates a timing distinction between send/no-send: generic JSON alone does not
 solve enumeration. R3/R6 must measure success/failure/unknown/quota timing and apply bounded equalized
 response handling before release. No timing resistance is claimed by R1.
+
+The [R3 evidence record](../development/spring-email-authentication-plan.md#r3-implementation-and-review--2026-10-17)
+distinguishes internal primitive/transport checks from absent R4 workflows and unresolved Q1/Q2.
 
 Required runtime evidence includes native filter login/CSRF/logout and fixation, status/authorization
 for pending/disabled/stale versions, account/scope isolation, races/rollback, SMTP failure and timeouts,

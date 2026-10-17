@@ -20,7 +20,7 @@ public final class AuthenticationAttemptLimiter {
   private static final Duration CLEANUP_INTERVAL = Duration.ofSeconds(60);
   private static final int MAX_KEYS = 4096;
   private final Clock clock;
-  private final int maximumKeys;
+  private final AuthenticationAdmissionCapacity capacity;
   private final Mac mac;
   private final Map<String, Attempts> subjects = new HashMap<>();
   private final Attempts installation = new Attempts();
@@ -33,11 +33,12 @@ public final class AuthenticationAttemptLimiter {
   }
 
   AuthenticationAttemptLimiter(Clock clock, int maximumKeys) {
-    if (maximumKeys < 1 || maximumKeys > MAX_KEYS) {
-      throw new IllegalArgumentException("Invalid authentication admission capacity.");
-    }
+    this(clock, new AuthenticationAdmissionCapacity(maximumKeys));
+  }
+
+  AuthenticationAttemptLimiter(Clock clock, AuthenticationAdmissionCapacity capacity) {
     this.clock = java.util.Objects.requireNonNull(clock);
-    this.maximumKeys = maximumKeys;
+    this.capacity = java.util.Objects.requireNonNull(capacity);
     byte[] key = new byte[32];
     new SecureRandom().nextBytes(key);
     try {
@@ -87,12 +88,10 @@ public final class AuthenticationAttemptLimiter {
       source.lastAttempt = now;
     }
     int additional = (loginKey != null && login == null ? 1 : 0) + (source == null ? 1 : 0);
-    if (subjects.size() + additional > maximumKeys) {
-      return false;
-    }
     if (!installation.available(now, 60)
         || (login != null && !login.available(now, 5))
-        || (source != null && !source.available(now, 20))) {
+        || (source != null && !source.available(now, 20))
+        || !capacity.acquire(additional)) {
       return false;
     }
     if (loginKey != null) {
@@ -122,7 +121,14 @@ public final class AuthenticationAttemptLimiter {
     if (lastCleanup == null || !now.isBefore(lastCleanup.plus(CLEANUP_INTERVAL))) {
       subjects
           .entrySet()
-          .removeIf(entry -> !now.isBefore(entry.getValue().lastAttempt.plus(KEY_IDLE)));
+          .removeIf(
+              entry -> {
+                if (!now.isBefore(entry.getValue().lastAttempt.plus(KEY_IDLE))) {
+                  capacity.release();
+                  return true;
+                }
+                return false;
+              });
       installation.expireWindow(now);
       lastCleanup = now;
     }

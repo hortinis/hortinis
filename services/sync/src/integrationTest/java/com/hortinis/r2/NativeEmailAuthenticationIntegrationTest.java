@@ -145,15 +145,57 @@ class NativeEmailAuthenticationIntegrationTest {
   @LocalServerPort private int port;
   private UUID account;
 
+  @Autowired
+  private com.hortinis.sync.authentication.persistence.ActionTokenPersistence actionTokens;
+
+  @ParameterizedTest
+  @org.junit.jupiter.params.provider.ValueSource(
+      strings = {
+        "/accept-invitation",
+        "/reset-password",
+        "/api/v1/auth/invitations/accept",
+        "/api/v1/auth/password-reset/complete"
+      })
+  void openingActionLinkNeverConsumesTokenOrChangesAccount(String path) throws Exception {
+    var issued =
+        new TransactionTemplate(transactions)
+            .execute(
+                status ->
+                    actionTokens.issue(
+                        account, com.hortinis.sync.authentication.ActionTokenPurpose.RESET));
+    http.perform(
+        org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(
+            java.net.URI.create(ORIGIN + path + "#token=" + issued.secret()).getPath()));
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT secret_verifier FROM authentication_action_token", String.class))
+        .isEqualTo(com.hortinis.sync.authentication.AuthenticationSecrets.digest(issued.secret()));
+    assertThat(
+            jdbc.queryForObject("SELECT security_version FROM authentication_account", Long.class))
+        .isEqualTo(1);
+    assertThat(jdbc.queryForObject("SELECT status FROM authentication_account", String.class))
+        .isEqualTo("active");
+  }
+
   @DynamicPropertySource
   static void properties(DynamicPropertyRegistry registry) {
     registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
     registry.add("spring.datasource.username", POSTGRES::getUsername);
     registry.add("spring.datasource.password", POSTGRES::getPassword);
+    registry.add("spring.mail.host", () -> "127.0.0.1");
+    registry.add("spring.mail.port", () -> "9");
+    registry.add("spring.mail.properties[mail.smtp.auth]", () -> "false");
+    registry.add(
+        "spring.mail.properties[mail.smtp.starttls.enable]", () -> Boolean.TRUE.toString());
+    registry.add(
+        "spring.mail.properties[mail.smtp.starttls.required]", () -> Boolean.TRUE.toString());
+    registry.add(
+        "spring.mail.properties[mail.smtp.ssl.checkserveridentity]", () -> Boolean.TRUE.toString());
+    registry.add("hortinis.authentication.mail-from", () -> "Hortinis@Example.test");
     registry.add("hortinis.access.mode", () -> "single-user-auth");
     registry.add("hortinis.access.public-origin", () -> ORIGIN);
-    registry.add("hortinis.access.tls-validated", () -> "true");
-    registry.add("server.ssl.enabled", () -> "true");
+    registry.add("hortinis.access.tls-validated", () -> Boolean.TRUE.toString());
+    registry.add("server.ssl.enabled", () -> Boolean.TRUE.toString());
     registry.add("server.ssl.key-store", () -> TLS_DIRECTORY.resolve(KEYSTORE_FILE).toString());
     registry.add("server.ssl.key-store-password", () -> TLS_PASSWORD);
     registry.add("server.ssl.key-store-type", () -> "PKCS12");

@@ -13,23 +13,41 @@ public final class AuthenticationLifecycle implements SmartInitializingSingleton
   private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticationLifecycle.class);
   private final AuthenticationLifecyclePersistence persistence;
   private final AuthenticationAttemptLimiter attempts;
+  private final ActionMailAdmission mail;
 
   /** No partial-session, proof or ticket cleanup runs in the replacement graph. */
   public AuthenticationLifecycle(
-      AuthenticationLifecyclePersistence persistence, AuthenticationAttemptLimiter attempts) {
+      AuthenticationLifecyclePersistence persistence,
+      AuthenticationAttemptLimiter attempts,
+      ActionMailAdmission mail) {
     this.persistence = persistence;
     this.attempts = attempts;
+    this.mail = mail;
   }
 
   @Override
   public void afterSingletonsInstantiated() {
-    persistence.purge();
+    try {
+      persistence.purge();
+      persistence.purgeActions();
+    } catch (DataAccessException | TransactionException exception) {
+      throw new IllegalStateException("Authentication cleanup failed.");
+    }
   }
 
   /** Transient admission memory is swept every minute, independently of audit retention. */
   @Scheduled(fixedDelay = 60000, initialDelay = 60000)
   public void cleanupAttempts() {
     attempts.cleanup();
+    mail.cleanup();
+    try {
+      persistence.purgeActions();
+    } catch (DataAccessException | TransactionException exception) {
+      LOGGER
+          .atWarn()
+          .addKeyValue("event", "authentication_cleanup_failed")
+          .log("Authentication cleanup failed.");
+    }
   }
 
   /**

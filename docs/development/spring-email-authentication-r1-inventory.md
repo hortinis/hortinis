@@ -137,3 +137,13 @@ production TypeScript 71 / 6,173 (+1/-1), and schema SQL four / 319 (+12/-12). T
 (+1,184/-7,232); removing obsolete workflow tests does not count as production reduction. These are
 R2 intermediate totals, not the final R6 comparison. Remaining WebAuthn/dependency/ticket/table and
 browser deletions still belong to R4/R5. Q1/Q2 remain open with unchanged R6 closure requirements.
+
+## R3 intermediate boundary — 2026-10-17
+
+The [R3 record](spring-email-authentication-plan.md#r3-implementation-and-review--2026-10-17)
+adds internal JDBC action tokens, token/pending cleanup, Boot SMTP and provisional bounded mail
+admission. It exposes no account workflow or action endpoint. No legacy artifact is deleted in R3:
+controlled provisioning still needs R4, and dormant ticket/file/WebAuthn/table/browser removal stays
+with its coherent R4/R5 replacement. Q1/Q2 and full response timing remain open; new R3 fixtures do
+not inherit validation from historical S8/S9 tests. Final additions/deletions and counts belong to the
+R3 evidence record and retain this document's baseline/exclusion rules.

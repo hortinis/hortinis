@@ -1,6 +1,6 @@
 # Spring email and password authentication replacement plan
 
-- Status: R1-R2 complete (2026-10-17); R3-R6 planned.
+- Status: R1-R3 complete (2026-10-17); R4-R6 planned.
   Normal authenticated startup is closed during replacement.
 - Date: 2026-10-17.
 - Track: S9-R, replacement of the implemented S9 authentication subsystem before S10.
@@ -313,12 +313,97 @@ mode. Preserve no-auth isolation and synthetic test fixtures.
 
 ### R3 — Shared action tokens and Boot email
 
-- [ ] Add the Boot mail starter, explicit SMTP timeouts and narrow delivery adapter; update dependency
+- [x] Add the Boot mail starter, explicit SMTP timeouts and narrow delivery adapter; update dependency
   locks and verification metadata. Use a local synthetic mail test double, never real recipients.
-- [ ] Implement minimal invitation/reset persistence with hashed secrets, purpose, expiry and atomic
+- [x] Implement minimal invitation/reset persistence with hashed secrets, purpose, expiry and atomic
   consumption; use Spring JDBC/transactions rather than an authentication/session engine.
-- [ ] Test expiry boundaries, wrong purpose, replacement, concurrent consumption, failed delivery and
+- [x] Test expiry boundaries, wrong purpose, replacement, concurrent consumption, failed delivery and
   rollback. Verify fixed origin, no secret logging and that GET never consumes tokens.
+
+#### R3 implementation and review — 2026-10-17
+
+- Scope: approved analysis against clean `c3723ba`; shared internal action primitives only. No action
+  controller, account activation/reset/change workflow, host command or browser replacement is exposed.
+  Normal authenticated startup and retired commands remain closed. Native R2 filter/provider/session,
+  CSRF/logout, transaction-time scope authorization and security-version fencing remain authoritative.
+- Storage: fresh V4 action table binds account/installation and a closed invitation/reset purpose,
+  SHA-256 verifier, creation/expiry and one current token per account/purpose. Raw canonical 32-byte
+  CSPRNG secrets are transient delivery material only; no token archive or consumption history.
+  `JdbcClient` primitives require writable caller transactions, lock account before token, recheck
+  current eligibility and enforce `now < expiresAt`. Invitations last at most 24 hours and never
+  beyond seven days from original pending creation; resets last ten minutes. Replacement/consumption/
+  invalidation delete or replace verifiers transactionally; caller rollback restores prior state.
+- Mail: Boot-managed mail starter, JavaMailSender and SimpleMailMessage behind one replaceable
+  synchronous delivery interface. Explicit 5,000 ms connect/read/write limits, two concurrent attempts per process,
+  no waiting queue/retry. Issuance commits before delivery, with enclosing/after-commit transaction
+  synchronization rejected. Stored validated recipient, fixed sender and two plain-text templates use
+  only the trusted HTTPS origin and prescribed action fragments. Failed/uncertain send keeps the
+  committed replacement, never restores its predecessor or changes credentials. Only fixed delivery
+  outcomes and fresh references enter diagnostics. Required STARTTLS/certificate checks and disabled
+  protocol debug/startup/mail-health probes are validated without sending a startup message.
+- Admission: provisional 60-second, three/hour and ten/day canonical-email windows and 30/hour plus
+  100/day installation windows precede account lookup and share invitation/reset attempts without
+  refund. Email HMAC keys retain 24-hour idle state; request keys retain 15 minutes. Both limiters share
+  one 4,096-key ceiling and deny without evicting restrictions. Request/source admission for future
+  action endpoints remains R4; the unchanged R2 login/read limiter still owns existing HTTP gates.
+- Cleanup: startup and each 60-second tick process one batch of at most 500 expired tokens and one
+  batch of at most 500 overdue pending accounts. Account locks precede token deletion; locked rows
+  may wait for a later tick. Pending removal cascades its dependent authentication rows, releases the
+  reservation and preserves scopes, garden data and committed mode. There is no unbounded drain loop.
+  Spring still owns session expiry; daily/startup thirty-day security-event retention is retained.
+- Review/fixes: added a shared aggregate admission-key ceiling, exact pending-deadline recheck before
+  issuance, floor-to-microsecond JDBC cutoffs to prevent early cleanup through timestamp rounding,
+  fixed configuration failures and validation of bound mail-property maps. The internal selector/reservation hook runs only after admission inside issuance, allowing R4
+  to compose provisioning atomically without a separate prelookup transaction. No raw token,
+  recipient, message, provider exception or stable account/scope value is logged. Action tokens never
+  pass through login, publish a SecurityContext or acquire data authority. Custom code implements R1
+  action semantics, transport isolation and numeric bounds; it does not replace a Spring engine.
+- New tests: 41 R3 PostgreSQL primitive/cleanup/transaction cases and five local SMTP cases,
+  including deferred commit rejection, rollback of token plus account fields, wrong purpose/binding,
+  replacement/replay, two concurrent consumers, concurrent post-commit deliveries, exact/submicrosecond
+  expiry, seven-day pending purge, batch/locked-row bounds and sanitized startup/scheduled failures.
+  Four additional R2 native GET cases prove action-link opening preserves token/account state. New
+  database-independent mail configuration/template/admission checks also cover the shared key bound.
+  Existing native R2 tests remain regression evidence for R2, not R4 workflows.
+- Timing: one focused synthetic internal sample measured accepted SMTP at 98,802 microseconds,
+  refusal at 23,210, unknown at 11,436 and quota denial at 113. These are local fixture samples,
+  include JDBC/assertion overhead and are not stable performance bounds or public HTTP measurements.
+  Real local read/write stalls each exercise the 5,000 ms I/O limit; the synthetic connect socket
+  verifies the actual transport receives 5,000 ms without external network access. A real SMTP
+  acceptance is still not proof of inbox delivery. No timing equalization claim follows.
+- Size against R2 `c3723ba`: production Java +764/-14 lines (116 files / 7,322 total), SQL +19/-0
+  (four / 338), TypeScript +0/-0 (71 / 6,173). Tests are separate (+1,499/-2), with no moved tests or
+  historical-test deletion counted as production reduction. Against R1's `ce5c59b` baseline, Java
+  is +1,469/-4,986 (net -3,517), TypeScript +1/-1 and SQL +31/-12. HTML/SCSS and generated contracts
+  are unchanged; build/dependency/lock/verification/YAML and documentation changes are separate.
+- Deletions: no legacy workflow is coherently replaced by R3's internal primitives alone. Dormant
+  ticket/file, WebAuthn and obsolete table/browser removal remains R4/R5. No tests of deleted historical
+  workflows count as replacement evidence, and no compatibility wrapper is introduced.
+- Validation: final `pnpm validate` passed: eight documentation tests plus link/ADR/index checks,
+  21 contract tests and exact generated/format/schema/OpenAPI checks, ten web architecture tests,
+  frontend format/lint/type checks, 369 web unit tests, 11 standard Chromium tests, development and
+  production builds, wrapper/toolchain checks, backend build/Spotless/Checkstyle/PMD, 273 Java unit
+  tests, 184 integration tests, seven topology-runner tests, six real-topology Chromium tests and
+  whitespace/tracked-ignore/text/EOL checks. The 42 new mail unit cases and 46 R3 integration cases
+  are fresh evidence; full-suite totals also include retained historical regressions that do not
+  validate the replacement design. R2's 48 native cases include four new inert-link GET regressions.
+  Focused `--dependency-verification=strict` R3/native/limiter and quality checks passed. Boot-managed
+  Mail/Angus/Jakarta artifacts were reviewed with locks/verification metadata; no unrelated version
+  upgrade. Both application JARs include the new store and exclude R3/topology fixtures. Changed Java
+  sources have no Checkstyle warnings; PMD reports zero violations. Existing Checkstyle debt and
+  Angular's 2.51 kB initial-bundle warning remain. Fixtures use disposable PostgreSQL, synthetic
+  `.test` addresses and loopback SMTP only; no real email, SMTP credential, push or deployment.
+- Validation repairs: early static checks found naming/duplicate-literal/format issues; all were fixed.
+  An initial full run stopped at Spotless after the final composition hook was added during that run;
+  formatting and focused checks passed, then the complete suite passed on the final frozen code.
+  Failed or superseded runs are not reported as passes. Final evidence/documentation checks also pass.
+- Constraints: Q1/Q2 remain open for R6, before S9-R completion/S10. The new unknown-attempt fixture
+  intentionally reproduces Q1's exhausted shared budget after 30 no-send attempts; this is evidence of
+  the unresolved defect, not availability or complete quota enforcement. Process-local counters still
+  cannot enforce quotas across separate HTTP/host processes. R4 must compose provisioning and token
+  issuance atomically and supply generic public responses; R4/R6 must measure/equalize complete
+  known/unknown/failure/quota response timing. Local transport timeout tests do not prove enumeration
+  resistance. R5 fragment clearing/browser/offline flows, R6 completion and all S10-S15 gates remain open.
 
 ### R4 — Invitation, reset and password change
 
@@ -371,7 +456,7 @@ or allowing S10 to consume it.
 | --- | --- |
 | S1-S7 scope/offline foundation | Retain implementation and evidence; update only authentication-specific handoffs |
 | S8 policy | Historical validated design; mandatory password+passkey, no-email recovery and factor freshness are superseded for the new baseline |
-| S9 runtime | R2 replaces the backend login/session boundary and closes authenticated admission; R3-R5 remain incomplete, and historical tests are not replacement evidence |
+| S9 runtime | R2 replaces the backend login/session boundary and closes authenticated admission; R3 supplies internal token/mail primitives; R4-R5 remain incomplete, and historical tests are not replacement evidence |
 | Prior delegation plan | Historical implementation log; preserving all old flows/contracts is no longer a requirement |
 | S10 provisioning | Consume controlled email invitations after S9-R; preserve distinct accounts/scopes and transactional ownership |
 | S11 devices | Remains future work; do not require passkeys or old operator/recovery ceremonies as prerequisites |

@@ -134,6 +134,7 @@ CREATE INDEX technical_exchange_expectation_expiry ON technical_exchange_expecta
 -- S9-R fresh-install email identity. Production admission remains closed during replacement.
 CREATE TABLE authentication_account (
     account_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    UNIQUE (account_id, server_instance_id),
     server_instance_id UUID NOT NULL
         REFERENCES technical_server_installation (server_instance_id),
     synchronization_scope_id UUID NOT NULL UNIQUE
@@ -151,6 +152,24 @@ CREATE TABLE authentication_account (
     verified_at TIMESTAMPTZ,
     CHECK (status <> 'pending' OR (password_verifier IS NULL AND verified_at IS NULL))
 );
+
+-- Action secrets never enter JDBC: only their SHA-256 verifier is retained.
+CREATE TABLE authentication_action_token (
+    account_id UUID NOT NULL,
+    server_instance_id UUID NOT NULL,
+    purpose TEXT NOT NULL CHECK (purpose IN ('invitation', 'reset')),
+    secret_verifier CHAR(64) NOT NULL UNIQUE CHECK (secret_verifier ~ '^[a-f0-9]{64}$'),
+    created_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    PRIMARY KEY (account_id, purpose),
+    FOREIGN KEY (account_id, server_instance_id)
+        REFERENCES authentication_account (account_id, server_instance_id) ON DELETE CASCADE,
+    CHECK (expires_at > created_at AND expires_at <= created_at +
+        CASE purpose WHEN 'invitation' THEN INTERVAL '24 hours' ELSE INTERVAL '10 minutes' END)
+);
+CREATE INDEX authentication_action_token_expiry ON authentication_action_token (expires_at);
+CREATE INDEX authentication_pending_account_expiry ON authentication_account (created_at)
+    WHERE status = 'pending';
 
 CREATE TABLE authentication_credential (
     credential_id BYTEA PRIMARY KEY CHECK (octet_length(credential_id) BETWEEN 1 AND 1536),

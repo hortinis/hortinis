@@ -2,7 +2,8 @@
 
 The approved next authentication increment is the [Spring email/password replacement plan](spring-email-authentication-plan.md)
 (S9-R). R1 finalized policy/contracts and inventories. R2 replaces the native backend boundary with
-normal authenticated startup and old host workflows closed; email/account/UI replacement remains incomplete.
+normal authenticated startup and old host workflows closed. R3 supplies internal JDBC action-token
+and bounded Boot SMTP primitives; account/UI workflows remain incomplete.
 Earlier S8/S9 descriptions below are historical where they require passkeys/MFA, recovery codes or
 operator-ticket browser recovery. Generated authentication contracts now target S9-R ahead of runtime.
 
@@ -35,7 +36,8 @@ adapters, plus SMTP/privacy/threat/ASVS reconciliation and the
 [production-code baseline](spring-email-authentication-r1-inventory.md). TypeSpec/OpenAPI describes the
 complete authentication surface. R2 implements only native form login, sessions, CSRF/logout and
 verified-email/current-version authority, exercised through test-source assembly while production
-admission is closed. Invitation/reset/password mutation and the replacement browser remain R3-R5 work.
+admission is closed. R3 supplies internal token/mail primitives and bounded cleanup; invitation/reset/
+password workflows and the replacement browser remain R4/R5 work.
 The R1 contract tests check shape, not runtime security; use the R2 evidence record for actual native
 boundary checks. S10 and production gates remain blocked; historical S8/S9 evidence does not validate
 this design.

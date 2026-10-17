@@ -1,7 +1,7 @@
 # ADR-0034: Spring email and password authentication
 
 - Status: Accepted; R1 complete, R2 native backend validated with authenticated admission
-  closed; remaining replacement runtime pending.
+  closed; R3 internal JDBC action-token/Boot SMTP foundation implemented, remaining workflows pending.
 - Date: 2026-10-17
 - Implementation owner: S9-R; S10-S15 consume the revised baseline.
 - Partially supersedes: [ADR-0033](0033-built-in-authentication-and-sessions.md).
