@@ -1,8 +1,6 @@
 package com.hortinis.sync.authentication;
 
 import com.hortinis.sync.authentication.persistence.ActionTokenPersistence.IssuedToken;
-import java.net.URI;
-import java.net.URISyntaxException;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -19,7 +17,7 @@ public final class SmtpActionMailDelivery implements ActionMailDelivery {
     EmailAddress.canonical(from);
     this.sender = java.util.Objects.requireNonNull(sender);
     this.from = from;
-    this.origin = trustedOrigin(origin);
+    this.origin = TrustedApplicationOrigin.parse(origin).toASCIIString();
   }
 
   @Override
@@ -54,26 +52,6 @@ public final class SmtpActionMailDelivery implements ActionMailDelivery {
     } catch (MailException exception) {
       // SMTP may have accepted the message: retain the committed token and never retry here.
       return false;
-    }
-  }
-
-  private static String trustedOrigin(String value) {
-    try {
-      URI uri = new URI(value == null ? "" : value);
-      if (!"https".equals(uri.getScheme())
-          || uri.getHost() == null
-          || uri.getUserInfo() != null
-          || !uri.getRawPath().isEmpty()
-          || uri.getRawQuery() != null
-          || uri.getRawFragment() != null
-          || uri.getPort() == 0
-          || uri.getPort() > 65535
-          || value.endsWith(":")) {
-        throw new IllegalArgumentException("A trusted HTTPS application origin is required.");
-      }
-      return uri.toASCIIString();
-    } catch (URISyntaxException exception) {
-      throw new IllegalArgumentException("A trusted HTTPS application origin is required.");
     }
   }
 }

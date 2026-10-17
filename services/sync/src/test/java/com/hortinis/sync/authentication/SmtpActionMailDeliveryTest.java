@@ -51,6 +51,20 @@ class SmtpActionMailDeliveryTest {
                 : "Hortinis password reset");
   }
 
+  @ParameterizedTest
+  @ValueSource(strings = {"https", "HTTPS", "hTtPs"})
+  void canonicalizesTheSameTrustedOriginAsTheBrowserGuard(String scheme) {
+    var token = token(ActionTokenPurpose.RESET);
+    assertThat(
+            new SmtpActionMailDelivery(sender, FROM, scheme + "://GARDEN.example.test:443")
+                .deliver(token))
+        .isTrue();
+    var message = ArgumentCaptor.forClass(SimpleMailMessage.class);
+    verify(sender).send(message.capture());
+    assertThat(message.getValue().getText())
+        .contains("https://garden.example.test/reset-password#token=" + token.secret());
+  }
+
   @Test
   void providerFailureIsReducedToFixedOutcomeWithNoRetry() {
     doThrow(new MailSendException("synthetic recipient body token canary"))
@@ -87,6 +101,9 @@ class SmtpActionMailDeliveryTest {
   @ValueSource(
       strings = {
         "http://garden.example.test",
+        "https://127.0.0.1",
+        "https://[::1]",
+        "https://garden.example.test.",
         "https://user@garden.example.test",
         "https://garden.example.test/",
         "https://garden.example.test?return=bad",

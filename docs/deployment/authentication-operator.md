@@ -23,7 +23,9 @@ transitions. Restart never changes committed mode or ownership by configuration 
 Authenticated use requires an explicit HTTPS `HORTINIS_ACCESS_PUBLIC_ORIGIN`, validated TLS boundary,
 secure host-only cookies and exact same-origin `/api/v1/` routing. Retain explicit access mode and
 `HORTINIS_ACCESS_TLS_VALIDATED` validation. Ignore request Host/forwarded identity when creating links
-or resolving authority. No arbitrary return URL or request-origin redirect is accepted.
+or resolving authority. Browser checks and action links share the same canonical configured origin:
+HTTPS scheme comparison is case-insensitive, DNS hosts are lowercased and explicit port 443 is omitted.
+No arbitrary return URL or request-origin redirect is accepted.
 
 R3 adds Boot's mail starter and wires a single operator-selected SMTP service through Boot Mail;
 no provider-specific API or delivery queue. Self-hosted SMTP is supported; no Hortinis-operated or

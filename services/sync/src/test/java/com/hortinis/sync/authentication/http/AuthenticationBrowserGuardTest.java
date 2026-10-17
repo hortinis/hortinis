@@ -39,6 +39,20 @@ class AuthenticationBrowserGuardTest {
   }
 
   @ParameterizedTest
+  @ValueSource(strings = {"https", "HTTPS", "hTtPs"})
+  void canonicalizesTrustedSchemeHostAndDefaultPort(String scheme) throws Exception {
+    var request = request(POST, LOGIN);
+    request.removeHeader(ORIGIN_HEADER);
+    request.addHeader(ORIGIN_HEADER, "https://localhost");
+    var response = new MockHttpServletResponse();
+    var passed = new AtomicBoolean();
+    new AuthenticationBrowserGuard(scheme + "://LOCALHOST:443", false)
+        .doFilter(request, response, (req, res) -> passed.set(true));
+    assertThat(passed.get()).isTrue();
+    assertThat(response.getStatus()).isEqualTo(200);
+  }
+
+  @ParameterizedTest
   @MethodSource("invalidHeaders")
   void deniesMissingOpaqueCrossSiteRepeatedAndNavigationHeadersBeforeReadingTheBody(
       String header, String value, boolean duplicate) throws Exception {

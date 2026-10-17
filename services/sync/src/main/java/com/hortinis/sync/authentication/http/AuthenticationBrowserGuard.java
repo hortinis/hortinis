@@ -1,7 +1,7 @@
 package com.hortinis.sync.authentication.http;
 
 import com.hortinis.sync.authentication.AuthenticationOverloadedException;
-import com.hortinis.sync.authentication.BoundWebAuthnOperations;
+import com.hortinis.sync.authentication.TrustedApplicationOrigin;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -44,7 +44,7 @@ public final class AuthenticationBrowserGuard extends OncePerRequestFilter {
 
   /** TLS validation is an explicit operator gate; request/forwarded headers cannot enable HSTS. */
   public AuthenticationBrowserGuard(String configuredOrigin, boolean validatedTls) {
-    origin = BoundWebAuthnOperations.canonicalPublicOrigin(configuredOrigin);
+    origin = TrustedApplicationOrigin.parse(configuredOrigin).toASCIIString();
     headers =
         new CompositeHeaderWriter(
             List.of(

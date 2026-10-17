@@ -575,6 +575,11 @@ preserves local data and pending intent.
   files / 7,322 lines (+764/-14 versus R2); SQL four / 338 (+19/-0); TypeScript 71 / 6,173 unchanged.
   No legacy artifact is deleted without its future R4/R5 workflow replacement. Both JARs exclude
   synthetic fixtures; existing quality/bundle warnings and Q1/Q2 remain open.
+- R3 origin review follow-up: [record](spring-email-authentication-plan.md#r3-origin-review-follow-up--2026-10-17)
+  unifies browser and mail origin validation/canonicalization under the existing R2 policy. Mixed-case
+  HTTPS and default-port/host canonicalization are covered by nine new regressions. Focused strict
+  checks and full `pnpm validate` passed, including 282 Java unit and 184 integration tests and all six
+  topology browser cases. Existing warnings remain. Authenticated startup and retired workflows remain closed; Q1/Q2 remain open. No R4 workflow is added.
 - Handoff: S10 consumes S9-R after validation. No production-readiness or ASVS-level claim follows
   from adopting password-only login. SMTP/privacy and recovery-strength review remain S15 gates.
 

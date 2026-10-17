@@ -27,14 +27,12 @@ import com.webauthn4j.data.extension.authenticator.AuthenticationExtensionAuthen
 import com.webauthn4j.data.extension.authenticator.RegistrationExtensionAuthenticatorOutput;
 import com.webauthn4j.server.ServerProperty;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.security.MessageDigest;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.EdECPublicKey;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Duration;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 import org.springframework.security.web.webauthn.api.AttestationConveyancePreference;
@@ -87,7 +85,7 @@ public final class BoundWebAuthnOperations {
       PublicKeyCredentialUserEntity expectedUser,
       List<AuthenticationCredential> currentCredentials,
       CryptoWorkLimiter work) {
-    URI configured = requireOrigin(publicOrigin);
+    URI configured = TrustedApplicationOrigin.parse(publicOrigin);
     origin = configured.toASCIIString();
     rp = PublicKeyCredentialRpEntity.builder().id(configured.getHost()).name("Hortinis").build();
     requireBytes(expectedUser.getId(), RANDOM_BYTES, RANDOM_BYTES);
@@ -486,45 +484,6 @@ public final class BoundWebAuthnOperations {
     @Override
     public String toString() {
       return "VerifiedCredential[redacted]";
-    }
-  }
-
-  /** Canonical trusted configuration shared by verification and publication; never request text. */
-  public static String canonicalPublicOrigin(String value) {
-    return requireOrigin(value).toASCIIString();
-  }
-
-  private static URI requireOrigin(String value) {
-    if (value == null) {
-      throw new IllegalArgumentException("A trusted HTTPS WebAuthn origin is required.");
-    }
-    try {
-      URI uri = new URI(value);
-      String host = uri.getHost();
-      if (!"https".equalsIgnoreCase(uri.getScheme())
-          || host == null
-          || host.contains(":")
-          || host.endsWith(".")
-          || host.matches("[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+")
-          || uri.getUserInfo() != null
-          || !uri.getRawPath().isEmpty()
-          || uri.getRawQuery() != null
-          || uri.getRawFragment() != null
-          || uri.getPort() == 0
-          || uri.getPort() > 65535
-          || uri.getRawAuthority().endsWith(":")) {
-        throw new IllegalArgumentException("A trusted HTTPS WebAuthn origin is required.");
-      }
-      return new URI(
-          "https",
-          null,
-          host.toLowerCase(Locale.ROOT),
-          uri.getPort() == 443 ? -1 : uri.getPort(),
-          "",
-          null,
-          null);
-    } catch (URISyntaxException exception) {
-      throw new IllegalArgumentException("A trusted HTTPS WebAuthn origin is required.");
     }
   }
 }

@@ -405,6 +405,27 @@ mode. Preserve no-auth isolation and synthetic test fixtures.
   known/unknown/failure/quota response timing. Local transport timeout tests do not prove enumeration
   resistance. R5 fragment clearing/browser/offline flows, R6 completion and all S10-S15 gates remain open.
 
+#### R3 origin review follow-up — 2026-10-17
+
+- Fixed the mail adapter's case-sensitive HTTPS scheme check and raw-origin rendering. Browser checks,
+  action links and the remaining dormant WebAuthn adapter now use one framework-independent trusted
+  application-origin parser, extracted from R2's existing policy. It accepts mixed-case HTTPS,
+  lowercases DNS hosts and removes explicit port 443 while preserving non-default ports and existing
+  R2 trust restrictions. Removed the two duplicate validators and the old WebAuthn-owned public helper
+  after updating every caller; no compatibility wrapper or retired workflow is introduced.
+- Regression: before the fix, uppercase/mixed-case HTTPS failed and lowercase HTTPS retained host
+  case/default port in the new mail test. Nine new cases cover mixed-case schemes/canonical links,
+  canonical browser-origin matching and SMTP rejection of IP/trailing-dot origins already denied by
+  R2. Mail tests use a synthetic sender; no real email or SMTP credentials.
+- Validation: focused strict dependency-verification mail/browser/configuration tests, all 48 native
+  R2 and 46 R3 integration cases, Spotless, Checkstyle and PMD passed. Final `pnpm validate` passed
+  with 282 Java unit tests, 184 integration tests, 369 web unit tests, 11 standard and six topology
+  Chromium tests, contract/documentation/architecture checks, builds and repository gates. The three
+  before-fix regression failures are not counted as passes. Existing Checkstyle and Angular bundle
+  warnings remain; changed sources add no Checkstyle warnings and PMD reports zero violations.
+  No dependency, schema or HTTP contract changed. Final documentation checks passed. Authenticated
+  production admission, retired commands, Q1/Q2, response timing and R4-R6/S10 readiness are unchanged.
+
 ### R4 — Invitation, reset and password change
 
 - [ ] Adapt the controlled host command to create/resend email invitations for the intended scope.
