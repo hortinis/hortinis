@@ -3,7 +3,6 @@ package com.hortinis.sync.access;
 import com.hortinis.sync.authentication.AuthenticationIdentity;
 import com.hortinis.sync.authentication.AuthenticationRequiredException;
 import com.hortinis.sync.authentication.AuthenticationSecrets;
-import com.hortinis.sync.authentication.SessionAuthorityReference;
 import com.hortinis.sync.authentication.persistence.CurrentAuthenticationAuthorityPersistence;
 import org.springframework.dao.DataAccessException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -31,21 +30,18 @@ public final class AuthenticatedSynchronizationAccessResolver
       throw new AuthenticationRequiredException();
     }
     var session = attributes.getRequest().getSession(false);
-    if (session == null
-        || !AuthenticationSecrets.isRandomValue(session.getId())
-        || !(session.getAttribute("hortinis.authority")
-            instanceof SessionAuthorityReference reference)) {
+    if (session == null || !AuthenticationSecrets.isRandomValue(session.getId())) {
       throw new AuthenticationRequiredException();
     }
-    CurrentAuthenticationAuthorityPersistence.FullAuthority current;
+    CurrentAuthenticationAuthorityPersistence.CurrentAuthority current;
     try {
       current =
           authority
-              .findFull(AuthenticationSecrets.digest(session.getId()), reference.value())
+              .find(session.getId(), identity)
               .filter(
                   value ->
                       value.account().equals(identity.account())
-                          && value.epoch() == identity.epoch())
+                          && value.version() == identity.version())
               .filter(value -> ServerAccessMode.SINGLE_USER_AUTH.wireValue().equals(value.mode()))
               .orElseThrow(AuthenticationRequiredException::new);
     } catch (DataAccessException | TransactionException exception) {
@@ -58,6 +54,6 @@ public final class AuthenticatedSynchronizationAccessResolver
         ServerAccessMode.SINGLE_USER_AUTH,
         new AccountId(current.account().toString()),
         current.sessionReference(),
-        current.epoch());
+        current.version());
   }
 }

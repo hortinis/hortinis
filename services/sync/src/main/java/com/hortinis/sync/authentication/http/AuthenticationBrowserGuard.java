@@ -1,5 +1,6 @@
 package com.hortinis.sync.authentication.http;
 
+import com.hortinis.sync.authentication.AuthenticationOverloadedException;
 import com.hortinis.sync.authentication.BoundWebAuthnOperations;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -30,11 +31,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
  */
 public final class AuthenticationBrowserGuard extends OncePerRequestFilter {
   private static final Set<String> SAFE = Set.of("GET", "HEAD", "OPTIONS");
-  private static final Set<String> BODYLESS_POSTS =
-      Set.of(
-          "/api/v1/auth/credentials/options",
-          "/api/v1/auth/recovery-codes",
-          "/api/v1/auth/activity");
   private static final String SITE = "Sec-Fetch-Site";
   private static final String MODE = "Sec-Fetch-Mode";
   private static final String DEST = "Sec-Fetch-Dest";
@@ -56,9 +52,7 @@ public final class AuthenticationBrowserGuard extends OncePerRequestFilter {
                 new XContentTypeOptionsHeaderWriter(),
                 new ReferrerPolicyHeaderWriter(),
                 new XFrameOptionsHeaderWriter(),
-                new PermissionsPolicyHeaderWriter(
-                    "camera=(), microphone=(), geolocation=(), publickey-credentials-get=(self), "
-                        + "publickey-credentials-create=(self)"),
+                new PermissionsPolicyHeaderWriter("camera=(), microphone=(), geolocation=()"),
                 new HstsHeaderWriter(request -> validatedTls, 31_536_000, false, false)));
   }
 
@@ -67,28 +61,28 @@ public final class AuthenticationBrowserGuard extends OncePerRequestFilter {
       HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {
     headers.writeHeaders(request, response);
-    boolean authentication = request.getRequestURI().startsWith("/api/v1/auth/");
+    boolean authentication = AuthenticationRoutes.ALL.matches(request);
     boolean sensitiveGet = authentication && !"OPTIONS".equals(request.getMethod());
     boolean unsafe = !SAFE.contains(request.getMethod());
     if ((unsafe || sensitiveGet) && !sameOriginFetch(request, unsafe)) {
       AuthenticationHttpErrors.DENIED.write(response);
       return;
     }
-    if (authentication && request.getQueryString() != null) {
+    if (authentication
+        && (request.getQueryString() != null || request.getRequestURI().contains("%"))) {
       AuthenticationHttpErrors.INVALID.write(response);
       return;
     }
-    boolean emptyContract =
-        "POST".equals(request.getMethod())
-            && BODYLESS_POSTS.contains(request.getRequestURI())
-            && request.getContentLengthLong() <= 0
-            && Collections.list(request.getHeaders(HttpHeaders.CONTENT_TYPE)).isEmpty();
-    if (unsafe && !emptyContract && !jsonContent(request)) {
+    boolean nativeInput =
+        AuthenticationRoutes.LOGIN.matches(request) || AuthenticationRoutes.LOGOUT.matches(request);
+    if (unsafe && !nativeInput && !jsonContent(request)) {
       AuthenticationHttpErrors.INVALID.write(response);
       return;
     }
     try {
       chain.doFilter(request, response);
+    } catch (AuthenticationOverloadedException exception) {
+      AuthenticationHttpErrors.THROTTLED.write(response);
     } catch (DataAccessException | TransactionException exception) {
       if (response.isCommitted()) {
         throw new ServletException("The access service is unavailable.");

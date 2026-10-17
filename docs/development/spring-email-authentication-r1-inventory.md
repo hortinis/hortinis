@@ -5,8 +5,8 @@
 - Owner: [S9-R replacement plan](spring-email-authentication-plan.md).
 - Authority: [ADR-0034](../architecture/decisions/0034-spring-email-password-authentication.md).
 
-R1 changes design, TypeSpec/generated artifacts and contract/documentation checks only. Every runtime
-component below still exists until its replacement increment. Removing generated WebAuthn schemas is
+R1 changes design, TypeSpec/generated artifacts and contract/documentation checks only. The map below records the R1 starting runtime; the R2 implementation record tracks components
+removed with native login/session replacement and dependencies retired for coherence. Removing generated WebAuthn schemas is
 contract cleanup, not a production Java/TypeScript/SQL reduction. Do not use historical tests as
 validation of new login, token, SMTP or browser behavior.
 
@@ -127,3 +127,13 @@ and executable evidence by R6/end of S9-R, before completion or S10 handoff. The
 operational assumptions, and R1's static checks do not resolve them.
 
 See the R1 completion record in the replacement plan for commands actually run and review fixes.
+
+## R2 boundary and size evidence — 2026-10-17
+
+The [R2 record](spring-email-authentication-plan.md#r2-implementation-and-review--2026-10-17)
+records the native login/session replacement, dependent legacy deletions and validation. Relative to
+this document's `ce5c59b` baseline, production Java is 108 files / 6,571 lines (+710/-4,978),
+production TypeScript 71 / 6,173 (+1/-1), and schema SQL four / 319 (+12/-12). Tests are separate
+(+1,184/-7,232); removing obsolete workflow tests does not count as production reduction. These are
+R2 intermediate totals, not the final R6 comparison. Remaining WebAuthn/dependency/ticket/table and
+browser deletions still belong to R4/R5. Q1/Q2 remain open with unchanged R6 closure requirements.

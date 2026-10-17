@@ -38,7 +38,7 @@ export class AuthenticationHttpClient implements AuthenticationHttpPort {
       !value ||
       value.headerName !== 'X-CSRF-TOKEN' ||
       typeof value.token !== 'string' ||
-      !/^[A-Za-z0-9_-]{1,256}$/.test(value.token)
+      !/^[A-Za-z0-9_+/=-]{1,256}(?![\s\S])/.test(value.token)
     ) {
       throw new Error('The account service returned an invalid security token.');
     }

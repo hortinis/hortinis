@@ -1,7 +1,10 @@
 # Access data inventory and lifecycle
 
 > 2026-10-17 R1: The target inventory now includes verified email, SMTP and invitation/reset
-> action tokens under ADR-0034. Runtime processing is unchanged until R2-R6. The S8 inventory at the
+> action tokens under ADR-0034. R2 introduces email identity and minimized native UUID/version
+> sessions under closed authenticated production admission; token/mail/account/UI workflows remain
+> unimplemented. R2 removes partial-session/factor/target processing; dormant legacy storage remains
+> for R4/R5 deletion. No email is sent. The S8 inventory at the
 > end is explicitly historical for fields retired by the replacement.
 
 - Status: Accepted S1 inventory and lifecycle design, 2026-10-02.

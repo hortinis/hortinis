@@ -1,6 +1,7 @@
 # Spring email and password authentication replacement plan
 
-- Status: R1 decision/contracts/inventories complete (2026-10-17); R2-R6 planned, runtime unchanged.
+- Status: R1-R2 complete (2026-10-17); R3-R6 planned.
+  Normal authenticated startup is closed during replacement.
 - Date: 2026-10-17.
 - Track: S9-R, replacement of the implemented S9 authentication subsystem before S10.
 - Decision: [ADR-0034](../architecture/decisions/0034-spring-email-password-authentication.md).
@@ -18,10 +19,11 @@ recovery codes, operator-ticket browser recovery and preservation of old authent
 the [S8 plan](s8-implementation-plan.md), [S9 history](s9-implementation-plan.md) and
 [previous delegation history](spring-authentication-delegation-plan.md). Those documents describe
 historical decisions and the existing runtime; their validation evidence does not validate this rewrite.
-The original plan-only commit `ce5c59b` changed no runtime or generated contracts. R1 now updates
-TypeSpec/generated contracts and design records ahead of unchanged runtime; it changes no application
-code, runtime dependency, schema or deployment configuration. Implement against fresh databases; no compatibility migrations or old-API
-wrappers. Do not advance S10 or claim production readiness as part of S9-R.
+The original plan-only commit `ce5c59b` changed no runtime or generated contracts. R1 updated
+TypeSpec/generated contracts and design records ahead of runtime; R1 changed no application
+code, runtime dependency, schema or deployment configuration. R2 replaces the backend login/session
+boundary with production admission closed; it does not implement the remaining email or UI flows.
+Implement against fresh databases; no compatibility migrations or old-API wrappers. Do not advance S10 or claim production readiness as part of S9-R.
 
 ## Initial product boundary
 
@@ -204,11 +206,95 @@ mode. Preserve no-auth isolation and synthetic test fixtures.
 
 ### R2 — Native password login and session lifecycle
 
-- [ ] Configure Spring form login, provider, context persistence, CSRF, logout and API handlers.
-- [ ] Adapt account identity and current-authority checks to verified email/password authentication.
-- [ ] Remove factor/partial-session publication and custom normal-login orchestration as replaced.
-- [ ] Test unknown/disabled/pending accounts, wrong passwords, fixation, CSRF, expiry and account
+- [x] Configure Spring form login, provider, context persistence, CSRF, logout and API handlers.
+- [x] Adapt account identity and current-authority checks to verified email/password authentication.
+- [x] Remove factor/partial-session publication and custom normal-login orchestration as replaced.
+- [x] Test unknown/disabled/pending accounts, wrong passwords, fixation, CSRF, expiry and account
   isolation. Check stale security versions cannot authorize protected transactions.
+
+#### R2 implementation and review — 2026-10-17
+
+- Starting state: clean at `c1f85ad` after R1 `f56bee1`; read repository guidance, ADR-0034,
+  authentication/session/API policy, R1 inventory and S-track before proposing the implementation plan.
+- Admission: normal `single-user-auth` startup now rejects before installation mode initialization;
+  there is no production bypass property/profile. Existing host-ticket commands fail before database,
+  file or listener activity. No-auth keeps its stateless chain; auth routes return fixed no-store 503
+  without allocating a session. The replacement graph is exercised only by test-source assembly.
+- Native boundary: form login at `/api/v1/auth/login`, one `DaoAuthenticationProvider`, erased native
+  UUID/version principal, native context persistence/fixation, session-backed BREACH CSRF and native
+  bodyless logout. Success/failure/entry-point/denial handlers emit closed JSON with no redirects.
+  Input validation precedes native trimming/parsing and crypto, including encoded-body bounds,
+  duplicate decoded fields, query rejection, exact email/password policy and malformed UTF-8/escapes.
+- Storage/authority: fresh V4 email/canonical uniqueness, pending/active/disabled status, nullable pending
+  password, verification timestamp and security version. Current authority uses native primary rows,
+  principal indexing, verified active account/version and committed installation/scope/mode.
+  Protected transactions retain account-before-session-before-scope ordering; native repository
+  deletion participates in the account transaction. No action-token schema or mail dependency added.
+- Deletions: removed custom normal login/publication, factor/freshness/partial-session state,
+  admission/counting, authority-reference attributes/index, target logout/session APIs and retired
+  mutation controller. The old setup/recovery/credential services depended on that state and were
+  removed for compilation/coherence; their R3/R4 replacements remain unimplemented. Legacy WebAuthn
+  adapter/dependency, ticket-file primitives and obsolete tables remain dormant for R4/R5 deletion.
+  Removed historical workflow tests exercised those deleted behaviors; they do not validate the
+  replacement. No tests were moved into production or counted as production reduction.
+- Minimal frontend adjustment: accept the R1 BREACH-masked CSRF alphabet in transient memory, with a
+  focused test. Old screens/transport workflows remain R5 work and are not exposed by an enabled mode.
+- Review/fixes: eliminated duplicate local/global provider registration (failed-password work
+  ran twice); excluded other tests' configuration from the isolated native assembly. Verification
+  counters assert one expensive comparison for unknown/pending/disabled/unverified/wrong-password
+  paths. Native provider events record only minimized verification outcomes; they do not claim an
+  atomic transaction publishing a login. Native session expiry has no factor deadline or count cap.
+  Tightened percent escapes to ASCII hex, frontend CSRF end-of-input validation and cookie-only URL
+  transport. The syntax/origin guards now use Spring's own decoded servlet-path matchers and reject
+  encoded auth paths; real HTTPS tests prevent encoded-path query/form bypass before native trimming.
+- New evidence: 40 cases in `NativeEmailAuthenticationIntegrationTest` use the real provider, hashing,
+  filter chain, native JDBC sessions and PostgreSQL. Request admission is replaced by a controlled
+  test double there; the real bounded limiter/crypto gates have separate unit coverage. Cases cover
+  unknown/pending/disabled/unverified/wrong-password equivalent-cost failure, exact form encoding,
+  invalid/oversize/chunked/duplicate/query/media/Unicode inputs, native fixation/CSRF/logout/cookies,
+  expiry/inactivity renewal, minimal status, storage failure, identity/scope substitution, version
+  invalidation, rollback and account/session transaction locks. A delayed real login after committed
+  version change saves a stale context that cannot authorize status or protected synchronization.
+  No-auth HTTP and isolated host-process checks exercise closed admission without session/file writes.
+- Manual security/privacy review: current authority is checked inside content transactions; native
+  primary rows replace application authority references; version fencing prevents stale saves restoring
+  access. Reviewed T01-T04/T07-T08/T11/T13/T15 and native portions of ASVS
+  `v5.0.0-7.2.3`/`v5.0.0-7.2.4`, `v5.0.0-3.5.1`, `v5.0.0-8.2.2`/`v5.0.0-8.4.1` and
+  `v5.0.0-15.4.3`; this is bounded evidence, not a
+  requirement-level compliance finding. Native-event audit stores fixed verification/logout outcomes,
+  with daily/startup thirty-day retention; no subject, email, source, token, password or session mapping.
+  Synthetic `.test` mailboxes, runtime-generated test TLS material and canary diagnostics only.
+  Repository content/path language reviewed under ADR-0018. Password-only strength, native lifetime,
+  deployment/privacy controls and R5/R6 browser logout/tab behavior remain independent open gates.
+- Custom-code review: the input guard and email validator implement R1 wire policy that the native
+  filter does not enforce; they never authenticate. User lookup maps email to UUID/version; current
+  account/native-row queries retain transactional scope authorization. The existing allowlisted JSON
+  converter, fixed response handlers, observation and minimized event/retention adapters remain small
+  application boundaries. None recreates native context publication, fixation, CSRF or logout.
+- Validation: final `pnpm validate` passed: documentation/link/ADR checks (eight tests), 21 contract
+  tests plus exact generation/format/lint checks, frontend format/lint/type/architecture checks (ten
+  architecture tests), 369 browser unit tests, 11 standard Chromium tests, frontend development and
+  production builds, wrapper/toolchain checks, backend build/Spotless/Checkstyle/PMD, 231 Java unit
+  tests, 130 PostgreSQL integration tests, seven topology-runner tests and six real-topology Chromium
+  tests, plus whitespace/tracked-ignore/text/EOL checks. Focused strict-verification native/quality
+  checks also passed. Existing Checkstyle debt and Angular bundle-budget warnings remain; changed
+  R2 production and integration sources introduce no Checkstyle warnings and PMD reports zero
+  violations. Removed workflow tests and retained historical adapter/UI tests are not new-design
+  evidence. Both application JARs exclude all 23 deleted production classes and synthetic authority
+  fixtures, and contain the native input guard.
+- Validation repairs: documentation Git subprocess initially needed normal sandbox permissions;
+  rerun passed. Overlapping an early formatter with Gradle disturbed its generated cache; stopped the
+  daemon, retained the old cache separately and reran serially. The first full run stopped on the new
+  hardening's formatting/duplicate-literal checks; fixes, focused checks and the final complete suite
+  passed. No failure is represented as a validation pass.
+- Size evidence against R1's `ce5c59b` baseline (same physical-line/exclusion rules): production Java
+  108 files / 6,571 lines, +710/-4,978 (net -4,268); production TypeScript 71 / 6,173, +1/-1;
+  fresh-schema SQL four / 319, +12/-12. Tests are separate: +1,184/-7,232 lines, including the new
+  servlet suite and removed obsolete workflow fixtures; no test movement contributes to production
+  reduction. HTML/SCSS, dependencies, locks, generated contracts and deployment topology are unchanged.
+  Documentation and application session-tracking YAML are separate from those source totals.
+- Handoff: R3-R6, Q1/Q2 and S10-S15 remain open. No email sent, mail dependency, reset/invitation/password
+  mutation implementation, full UI replacement, deployment, push or production-readiness claim.
 
 ### R3 — Shared action tokens and Boot email
 
@@ -270,7 +356,7 @@ or allowing S10 to consume it.
 | --- | --- |
 | S1-S7 scope/offline foundation | Retain implementation and evidence; update only authentication-specific handoffs |
 | S8 policy | Historical validated design; mandatory password+passkey, no-email recovery and factor freshness are superseded for the new baseline |
-| S9 runtime | Existing implementation remains until replaced; historical tests are not evidence for email/password behavior |
+| S9 runtime | R2 replaces the backend login/session boundary and closes authenticated admission; R3-R5 remain incomplete, and historical tests are not replacement evidence |
 | Prior delegation plan | Historical implementation log; preserving all old flows/contracts is no longer a requirement |
 | S10 provisioning | Consume controlled email invitations after S9-R; preserve distinct accounts/scopes and transactional ownership |
 | S11 devices | Remains future work; do not require passkeys or old operator/recovery ceremonies as prerequisites |

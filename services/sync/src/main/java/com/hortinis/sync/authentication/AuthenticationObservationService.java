@@ -1,93 +1,56 @@
 package com.hortinis.sync.authentication;
 
-import com.hortinis.sync.authentication.persistence.AuthenticationAccountPersistence;
-import com.hortinis.sync.authentication.persistence.AuthenticationSessionAdmissionPersistence;
-import com.hortinis.sync.authentication.persistence.AuthenticationSessionPublicationPersistence;
+import com.hortinis.sync.authentication.persistence.CurrentAuthenticationAuthorityPersistence;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.csrf.CsrfToken;
 
-/** Minimized status and explicit CSRF bootstrap; reads do not renew normal-factor proof. */
+/** Minimal session observation and explicit native CSRF materialization. */
 public final class AuthenticationObservationService {
-  private static final String STATE = "state";
-  private static final String FULL = "full";
-  private final AuthenticationPublication publication;
-  private final AuthenticationSessionAdmissionPersistence admission;
-  private final AuthenticationSessionPublicationPersistence sessions;
-  private final AuthenticationAccountPersistence accounts;
+  private final CurrentAuthenticationAuthorityPersistence authority;
+  private final AuthenticationAttemptLimiter attempts;
 
-  /** Shares ordered current-session locks and the bounded admission transaction. */
+  /** Public reads are bounded before allocating any anonymous session. */
   public AuthenticationObservationService(
-      AuthenticationPublication publication,
-      AuthenticationSessionAdmissionPersistence admission,
-      AuthenticationSessionPublicationPersistence sessions,
-      AuthenticationAccountPersistence accounts) {
-    this.publication = publication;
-    this.admission = admission;
-    this.sessions = sessions;
-    this.accounts = accounts;
+      CurrentAuthenticationAuthorityPersistence authority, AuthenticationAttemptLimiter attempts) {
+    this.authority = authority;
+    this.attempts = attempts;
   }
 
-  /** This explicit GET admits a bounded ceremony, reusing any native anonymous CSRF session. */
-  public Map<String, String> csrf(AuthenticationSessionTransport transport) {
-    return publication.mutate(
-        () -> {
-          var observed = transport.observe();
-          if (observed.isEmpty()) {
-            transport.bootstrap(admission::admitAnonymous);
-          } else {
-            try {
-              sessions.lock(observed.orElseThrow());
-            } catch (AuthenticationFailedException exception) {
-              transport.invalidate();
-              transport.bootstrap(admission::admitAnonymous);
-            }
-          }
-          return Map.of(
-              "token",
-              transport.csrfValue().orElseThrow(AuthenticationFailedException::new),
-              "headerName",
-              "X-CSRF-TOKEN");
-        });
+  /** Materializes only Spring's deferred, per-request masked token. */
+  public Map<String, String> csrf(HttpServletRequest request) {
+    admit(request);
+    var token = (CsrfToken) request.getAttribute(CsrfToken.class.getName());
+    return Map.of("token", token.getToken(), "headerName", token.getHeaderName());
   }
 
-  /** No account, factor, setup-availability or scope metadata is disclosed by limited status. */
-  public Map<String, String> status(AuthenticationSessionTransport transport) {
-    var observed = transport.observe();
-    if (observed.isEmpty()) {
-      return Map.of(STATE, "anonymous");
+  /** Does not allocate a session; stale/unverified/disabled contexts are anonymous. */
+  public Map<String, String> status(HttpServletRequest request) {
+    admit(request);
+    var session = request.getSession(false);
+    if (session != null) {
+      try {
+        var identity =
+            AuthenticationIdentity.from(SecurityContextHolder.getContext().getAuthentication());
+        if (authority.find(session.getId(), identity).isPresent()) {
+          return authenticated(identity);
+        }
+      } catch (AuthenticationRequiredException exception) {
+        return Map.of("state", "anonymous");
+      }
     }
-    try {
-      return publication.mutate(
-          () -> {
-            var parent = sessions.lock(observed.orElseThrow());
-            if (FULL.equals(parent.state())) {
-              sessions.requireFull(parent);
-              return Map.of(
-                  "state",
-                  "authenticated",
-                  "accountId",
-                  parent.account().toString(),
-                  "logoutTarget",
-                  parent.logoutTarget(),
-                  "absoluteExpiresAt",
-                  parent.expiresAt().toString());
-            }
-            return Map.of(STATE, parent.state());
-          });
-    } catch (AuthenticationFailedException exception) {
-      return Map.of(STATE, "anonymous");
-    }
+    return Map.of("state", "anonymous");
   }
 
-  /** Current server-owned account login for rate limits; never a request-selected account. */
-  public String login(AuthenticationSessionTransport transport) {
-    return publication.mutate(
-        () -> {
-          var parent =
-              sessions.lock(transport.observe().orElseThrow(AuthenticationFailedException::new));
-          if (parent.account() == null) {
-            throw new AuthenticationFailedException();
-          }
-          return accounts.findAccount(parent.account()).login();
-        });
+  /** Closed success response for the native password filter; never publishes authentication. */
+  public static Map<String, String> authenticated(AuthenticationIdentity identity) {
+    return Map.of("state", "authenticated", "accountId", identity.account().toString());
+  }
+
+  private void admit(HttpServletRequest request) {
+    if (!attempts.admitSource(request.getRemoteAddr())) {
+      throw new AuthenticationOverloadedException();
+    }
   }
 }

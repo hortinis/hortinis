@@ -9,7 +9,7 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class PasswordPolicyTest {
-  private static final String GARDENER = "gardener";
+  private static final String GARDENER = "gardener@example.test";
 
   private final PasswordPolicy policy = new PasswordPolicy(Set.of());
 
@@ -45,23 +45,24 @@ class PasswordPolicyTest {
 
   @Test
   void rejectsContextDerivativesAndCanonicalizesOnlyTheIdentifier() {
-    assertThat(PasswordPolicy.canonicalLogin("A.Gardener-2")).isEqualTo("a.gardener-2");
+    assertThat(PasswordPolicy.canonicalLogin("A.Gardener-2@Example.test"))
+        .isEqualTo("a.gardener-2@example.test");
     assertThat(policy.acceptsNewPassword("99-H-O-R-T-I-N-I-S-99", GARDENER)).isFalse();
     assertThat(policy.acceptsNewPassword("99-G-A-R-D-E-N-E-R-99", GARDENER)).isFalse();
-    assertThat(policy.acceptsNewPassword("other long phrase!", "Gardener")).isFalse();
+    assertThat(policy.acceptsNewPassword("other long phrase!", "Gardener@example.test")).isFalse();
     for (String login : new String[] {" a.b", "a.b ", "ab", "éclair", "_invalid", "x".repeat(65)}) {
       assertThatThrownBy(() -> PasswordPolicy.canonicalLogin(login))
           .isInstanceOf(IllegalArgumentException.class)
-          .hasMessage("Invalid login identifier.");
+          .hasMessage("Invalid email address.");
     }
   }
 
   @Test
   void shortCompactedIdentifiersDoNotRejectAnUnrelatedStrongPhrase() {
-    assertThat(policy.acceptsNewPassword("unrelated-phrase-42", "a..")).isTrue();
-    assertThat(policy.acceptsNewPassword("99-99999-a-99999999", "a..")).isFalse();
-    assertThat(policy.acceptsNewPassword("unrelated-phrase-42", "x.y")).isTrue();
-    assertThat(policy.acceptsNewPassword("99-99999-x.y-99999999", "x.y")).isFalse();
+    assertThat(policy.acceptsNewPassword("unrelated-phrase-42", "a@example.test")).isTrue();
+    assertThat(policy.acceptsNewPassword("99-99999-a-99999999", "a@example.test")).isFalse();
+    assertThat(policy.acceptsNewPassword("unrelated-phrase-42", "x.y@example.test")).isTrue();
+    assertThat(policy.acceptsNewPassword("99-99999-x.y-99999999", "x.y@example.test")).isFalse();
   }
 
   @Test

@@ -131,22 +131,25 @@ CREATE TABLE technical_exchange_expectation (
 CREATE INDEX technical_exchange_expectation_expiry ON technical_exchange_expectation (expires_at);
 
 
--- S9 fresh-install authentication storage. These rows grant no authority until the complete
--- controlled password/passkey transaction activates the account and authoritative session.
+-- S9-R fresh-install email identity. Production admission remains closed during replacement.
 CREATE TABLE authentication_account (
     account_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     server_instance_id UUID NOT NULL
         REFERENCES technical_server_installation (server_instance_id),
     synchronization_scope_id UUID NOT NULL UNIQUE
         REFERENCES technical_synchronization_scope (synchronization_scope_id),
-    login_identifier VARCHAR(64) NOT NULL UNIQUE
-        CHECK (login_identifier ~ '^[a-z0-9][a-z0-9._-]{2,63}$'),
-    status TEXT NOT NULL CHECK (status IN ('active', 'disabled')),
-    authority_epoch BIGINT NOT NULL DEFAULT 1 CHECK (authority_epoch > 0),
-    password_verifier VARCHAR(256) NOT NULL
+    delivery_email VARCHAR(254) COLLATE "C" NOT NULL,
+    canonical_email VARCHAR(254) COLLATE "C" NOT NULL UNIQUE
+        CHECK (canonical_email = lower(delivery_email COLLATE "C")),
+    CHECK (octet_length(delivery_email) <= 254 AND delivery_email ~
+        '^[A-Za-z0-9!#$%&''*+/=?^_`{|}~.-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$'),
+    status TEXT NOT NULL CHECK (status IN ('pending', 'active', 'disabled')),
+    security_version BIGINT NOT NULL DEFAULT 1 CHECK (security_version > 0),
+    password_verifier VARCHAR(256)
         CHECK (password_verifier LIKE '{argon2id}$argon2id$v=19$m=65536,t=3,p=1$%'),
-    user_handle BYTEA NOT NULL UNIQUE CHECK (octet_length(user_handle) = 32),
-    created_at TIMESTAMPTZ NOT NULL
+    created_at TIMESTAMPTZ NOT NULL,
+    verified_at TIMESTAMPTZ,
+    CHECK (status <> 'pending' OR (password_verifier IS NULL AND verified_at IS NULL))
 );
 
 CREATE TABLE authentication_credential (
@@ -243,6 +246,3 @@ CREATE TABLE spring_session_attributes (
     attribute_bytes BYTEA NOT NULL,
     PRIMARY KEY (session_primary_id, attribute_name)
 );
-
-CREATE INDEX spring_session_authority_reference ON spring_session_attributes (attribute_bytes)
-    WHERE attribute_name = 'hortinis.authority';

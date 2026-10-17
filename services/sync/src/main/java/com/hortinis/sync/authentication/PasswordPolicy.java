@@ -28,24 +28,23 @@ public final class PasswordPolicy {
       return false;
     }
     String context = contextText(password);
-    String loginContext = contextText(canonicalLogin);
+    String loginContext = contextText(canonicalLogin.substring(0, canonicalLogin.indexOf('@')));
     return !blockedDigests.contains(AuthenticationSecrets.digest(password))
         && !context.contains("hortinis")
         && !isLoginDerivative(context, loginContext);
   }
 
-  /** Canonicalization is for the local identifier only; never apply it to passwords. */
+  /** Canonicalization is for email identity only; never apply it to passwords. */
   public static String canonicalLogin(String value) {
-    if (value == null || !value.matches("[A-Za-z0-9][A-Za-z0-9._-]{2,63}")) {
-      throw new IllegalArgumentException("Invalid login identifier.");
-    }
-    return value.toLowerCase(Locale.ROOT);
+    return EmailAddress.canonical(value);
   }
 
   private static boolean isCanonicalLogin(String value) {
-    return value != null
-        && value.matches("[a-z0-9][a-z0-9._-]{2,63}")
-        && !contextText(value).isEmpty();
+    try {
+      return EmailAddress.canonical(value).equals(value);
+    } catch (IllegalArgumentException exception) {
+      return false;
+    }
   }
 
   private static boolean isLoginDerivative(String context, String loginContext) {

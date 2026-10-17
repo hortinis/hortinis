@@ -33,6 +33,10 @@ public class SynchronizationAccessConfiguration {
     if (mode == ServerAccessMode.MULTI_USER_AUTH) {
       throw new IllegalStateException("Multi-user server access is not implemented.");
     }
+    if (mode == ServerAccessMode.SINGLE_USER_AUTH) {
+      throw new IllegalStateException(
+          "Authenticated access is unavailable until S9-R is complete.");
+    }
     return mode;
   }
 

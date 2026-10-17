@@ -220,9 +220,13 @@ The S8 discussion above is historical where it asserts MFA/ticket/factor/target-
 | T20: Link/recipient leakage and timing enumeration | Fragment cleared into transient memory, no-referrer, no tracking/logging, token-free errors; generic reset acknowledgements and uniform prelookup gates. Mailbox/scanner can still read links; synchronous sends need measured timing equalization. | R3/R6 canary captures across app/edge/mail/browser and known/unknown/failed/quota timing; S15 recipient/processor inventory. |
 | T21: Long-lived or numerous native sessions; stale offline logout | Thirty-minute request inactivity, account-version checks and transactional reset/change/disable revocation; no separate absolute deadline or cap. Offline sign-out pauses locally and never replays old logout against a new cookie. Background traffic can prolong stolen authority and sessions consume storage. | R2/R4 native stale-save/rollback/fixation tests; R5/R6 tab/delayed-cookie/paused-outbox tests; S15 lifetime/sizing risk review. |
 
-This review finalizes the design boundaries, not their executable controls. Current historical runtime
-still has different recovery/login/logout behavior. S9-R R2-R6 and S15 remain mandatory; no production
-or ASVS-level claim is created by choosing native components or passing contract checks.
+R1 finalized these design boundaries. R2 now validates the native backend login/session boundary,
+with normal authenticated startup and old host workflows closed. Its fresh servlet/PostgreSQL tests
+cover eligible-account checks, fixation, CSRF/logout, bounded/encoded input, stale-version saves,
+revocation rollback, protected transaction locks and identity/scope substitution. The
+[R2 evidence record](../development/spring-email-authentication-plan.md#r2-implementation-and-review--2026-10-17)
+records actual checks and the remaining boundary. Invitation/reset/mail, native browser logout,
+Q1/Q2 and S15 remain open; no production or ASVS-level claim follows from these component tests.
 
 ## Open S9-R quota review questions
 

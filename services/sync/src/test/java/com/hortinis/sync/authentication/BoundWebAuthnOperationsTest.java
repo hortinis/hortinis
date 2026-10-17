@@ -48,7 +48,7 @@ class BoundWebAuthnOperationsTest {
   private static final String WEAK_RSA = "weak-rsa";
   private static final String RSA_ALGORITHM = "RSA";
   private static final String ORIGIN = "https://localhost:4200";
-  private static final String LOGIN = "synthetic-gardener";
+  private static final String LOGIN = "synthetic-gardener@example.test";
   private static final String AUTHENTICATOR_RP = "localhost";
   private static final int UP_UV = 0x05;
   private static final int ATTESTED = 0x40;

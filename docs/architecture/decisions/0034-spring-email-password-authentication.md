@@ -1,6 +1,7 @@
 # ADR-0034: Spring email and password authentication
 
-- Status: Accepted; R1 policy/contracts finalized, replacement runtime pending.
+- Status: Accepted; R1 complete, R2 native backend validated with authenticated admission
+  closed; remaining replacement runtime pending.
 - Date: 2026-10-17
 - Implementation owner: S9-R; S10-S15 consume the revised baseline.
 - Partially supersedes: [ADR-0033](0033-built-in-authentication-and-sessions.md).
@@ -10,8 +11,10 @@
 The implemented S9 password/passkey, self-service code recovery and host-ticket workflows require
 substantial application orchestration despite delegating session storage to Spring. The user selected
 a simpler initial product with verified email/password login, email self-service password reset and
-controlled email invitations, with passkeys/MFA and saved recovery codes deferred. The runtime has not
-yet been replaced. Existing security evidence applies only to the implementation it exercised.
+controlled email invitations, with passkeys/MFA and saved recovery codes deferred. R2 replaces the
+native backend login/session boundary while normal authenticated startup remains closed; the email
+and browser replacement is incomplete. Existing security evidence applies only to the implementation
+it exercised.
 
 ## Decision
 

@@ -83,7 +83,7 @@ class AuthenticationAttemptLimiterTest {
     assertThat(limiter.retainedKeyCount()).isZero();
     assertThat(limiter.admit(null, "source")).isFalse();
     assertThat(limiter.admit("fixture", "x".repeat(257))).isFalse();
-    assertThat(limiter.admit("x".repeat(65), "source")).isFalse();
+    assertThat(limiter.admit("x".repeat(255), "source")).isFalse();
     assertThat(limiter.retainedKeyCount()).isZero();
   }
 

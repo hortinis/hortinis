@@ -1,5 +1,6 @@
 package com.hortinis.sync.authentication;
 
+import com.hortinis.sync.authentication.http.AuthenticationHttpErrors;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.context.annotation.Bean;
@@ -39,8 +40,18 @@ public class AuthenticationSecurityConfiguration {
     http.requestCache(cache -> cache.disable());
     http.securityContext(
         context -> context.securityContextRepository(new NullSecurityContextRepository()));
+    http.exceptionHandling(
+        errors ->
+            errors
+                .authenticationEntryPoint(
+                    (request, response, exception) ->
+                        AuthenticationHttpErrors.UNAVAILABLE.write(response))
+                .accessDeniedHandler(
+                    (request, response, exception) ->
+                        AuthenticationHttpErrors.UNAVAILABLE.write(response)));
     http.authorizeHttpRequests(
         requests -> {
+          requests.requestMatchers("/api/v1/auth", "/api/v1/auth/**").denyAll();
           if (noAuth || isolatedScaffold) {
             requests.anyRequest().permitAll();
           } else {

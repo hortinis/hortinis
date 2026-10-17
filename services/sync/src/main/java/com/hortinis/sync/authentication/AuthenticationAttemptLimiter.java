@@ -55,7 +55,7 @@ public final class AuthenticationAttemptLimiter {
    * Source must come from the trusted transport/proxy adapter, never unvalidated forwarding input.
    */
   public synchronized boolean admit(String canonicalLogin, String trustedSource) {
-    if (canonicalLogin == null || canonicalLogin.length() > 64) {
+    if (canonicalLogin == null || canonicalLogin.length() > 254) {
       return false;
     }
     return admitSubjects(canonicalLogin, trustedSource);

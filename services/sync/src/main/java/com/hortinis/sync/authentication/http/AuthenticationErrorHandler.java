@@ -17,17 +17,16 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 /**
  * Fixed no-store failures for authentication controllers; no supplied text or cause is returned.
  */
-@RestControllerAdvice(
-    assignableTypes = {AuthenticationReadController.class, AuthenticationMutationController.class})
+@RestControllerAdvice(assignableTypes = AuthenticationReadController.class)
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public final class AuthenticationErrorHandler {
-  /** Account existence and factor validity remain indistinguishable. */
+  /** Account existence and credential validity remain indistinguishable. */
   @ExceptionHandler(AuthenticationFailedException.class)
   public ResponseEntity<?> failed() {
     return AuthenticationHttpErrors.FAILED.response();
   }
 
-  /** Current full authority is independently required by protected services. */
+  /** Current account authority is independently required by protected services. */
   @ExceptionHandler(AuthenticationRequiredException.class)
   public ResponseEntity<?> required() {
     return AuthenticationHttpErrors.REQUIRED.response();
@@ -39,7 +38,7 @@ public final class AuthenticationErrorHandler {
     return AuthenticationHttpErrors.THROTTLED.response();
   }
 
-  /** Target or ceremony replacement never silently mutates a newer login. */
+  /** Changed authentication preconditions have a fixed response. */
   @ExceptionHandler(AuthenticationPreconditionException.class)
   public ResponseEntity<?> precondition() {
     return AuthenticationHttpErrors.PRECONDITION.response();

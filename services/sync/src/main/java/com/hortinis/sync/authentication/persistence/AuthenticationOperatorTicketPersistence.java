@@ -2,7 +2,6 @@ package com.hortinis.sync.authentication.persistence;
 
 import com.hortinis.sync.authentication.AuthenticationFailedException;
 import com.hortinis.sync.authentication.AuthenticationLifetime;
-import com.hortinis.sync.configuration.SynchronizationPersistenceEnabled;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
@@ -10,12 +9,9 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.stereotype.Repository;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /** Host-only ticket publication; there is no HTTP entry point or factor/ownership bypass here. */
-@Repository
-@SynchronizationPersistenceEnabled
 public class AuthenticationOperatorTicketPersistence {
   private static final String AUTH_MODE = "single-user-auth";
   private final JdbcClient jdbc;

@@ -36,6 +36,33 @@ describe('browser authentication client', () => {
     TestBed.resetTestingModule();
   });
 
+  it('accepts the R1 native BREACH-masked CSRF alphabet in transient memory', async () => {
+    const client = TestBed.inject(AuthenticationHttpClient);
+    const refreshed = client.refreshCsrf();
+    http
+      .expectOne(`${location.origin}/api/v1/auth/csrf`)
+      .flush(
+        { token: 'native_masked+value/with=padding-', headerName: 'X-CSRF-TOKEN' },
+        { headers: { 'Cache-Control': 'no-store' } },
+      );
+    await refreshed;
+    expect(await client.csrfHeaders()).toEqual({
+      'X-CSRF-TOKEN': 'native_masked+value/with=padding-',
+    });
+  });
+
+  it('rejects CSRF values with trailing line breaks', async () => {
+    const client = TestBed.inject(AuthenticationHttpClient);
+    const refreshed = client.refreshCsrf();
+    http
+      .expectOne(`${location.origin}/api/v1/auth/csrf`)
+      .flush(
+        { token: 'native-token\n', headerName: 'X-CSRF-TOKEN' },
+        { headers: { 'Cache-Control': 'no-store' } },
+      );
+    await expect(refreshed).rejects.toThrow('invalid security token');
+  });
+
   it('keeps application startup offline until account access is explicitly opened', async () => {
     http.expectNone(`${location.origin}/api/v1/auth/session`);
     const opened = service.open();

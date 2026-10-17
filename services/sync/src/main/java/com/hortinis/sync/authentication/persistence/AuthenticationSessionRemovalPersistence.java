@@ -1,59 +1,22 @@
 package com.hortinis.sync.authentication.persistence;
 
-import com.hortinis.sync.authentication.SessionAttributeCodec;
-import com.hortinis.sync.authentication.SessionAuthorityReference;
 import com.hortinis.sync.configuration.SynchronizationPersistenceEnabled;
 import java.util.UUID;
-import org.springframework.core.convert.ConversionService;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-/** Native session and proof removal inside the caller's ordered account/session transaction. */
+/** Account-wide native revocation participates in the caller's account mutation transaction. */
 @Repository
 @SynchronizationPersistenceEnabled
 public class AuthenticationSessionRemovalPersistence {
-  private final JdbcClient jdbc;
-  private final AuthenticationNativeSessions nativeSessions;
-  private final ConversionService codec = SessionAttributeCodec.conversionService();
+  private final AuthenticationNativeSessions sessions;
 
-  /** Shares the application's datasource; no asynchronous save can restore removed authority. */
-  public AuthenticationSessionRemovalPersistence(
-      JdbcClient jdbc, AuthenticationNativeSessions nativeSessions) {
-    this.jdbc = jdbc;
-    this.nativeSessions = nativeSessions;
+  /** Native session persistence owns removal; no application authority table is maintained. */
+  public AuthenticationSessionRemovalPersistence(AuthenticationNativeSessions sessions) {
+    this.sessions = sessions;
   }
 
-  /** Caller holds the current account lock before removing its ordered parent rows. */
+  /** Caller holds the account lock and advances its security version in the same transaction. */
   public void removeAll(UUID account) {
-    requireTransaction();
-    for (UUID reference : nativeSessions.references(account)) {
-      remove(reference);
-    }
-  }
-
-  /** Caller has locked this exact parent, or established that its authority is already absent. */
-  public void remove(UUID reference) {
-    requireTransaction();
-    jdbc.sql("DELETE FROM authentication_challenge WHERE session_reference = ?")
-        .param(reference)
-        .update();
-    byte[] encoded = codec.convert(new SessionAuthorityReference(reference), byte[].class);
-    jdbc.sql(
-            "DELETE FROM spring_session WHERE primary_id IN "
-                + "(SELECT session_primary_id FROM spring_session_attributes "
-                + "WHERE attribute_name = 'hortinis.authority' AND attribute_bytes = ?)")
-        .param(encoded)
-        .update();
-    jdbc.sql("DELETE FROM authentication_operator_ticket WHERE claimed_session_reference = ?")
-        .param(reference)
-        .update();
-  }
-
-  private static void requireTransaction() {
-    if (!TransactionSynchronizationManager.isActualTransactionActive()
-        || TransactionSynchronizationManager.isCurrentTransactionReadOnly()) {
-      throw new IllegalStateException("Session removal requires an ordered writable transaction.");
-    }
+    sessions.removeAll(account);
   }
 }

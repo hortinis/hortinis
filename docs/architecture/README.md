@@ -94,8 +94,9 @@ The [implementation plan](../development/access-and-synchronization-scope-implem
 tracks the remaining contracts, scope isolation, authentication, recovery, and release evidence.
 
 The [built-in authentication and session specification](authentication-and-sessions.md) and ADR-0034
-define the S9-R email/password target. R1 finalizes policy/contracts; the current runtime remains the
-historical S9 MFA implementation until R2-R6 replace and validate it. S10-S15 gates and B01 strength
+define the S9-R email/password target. R1 finalized policy/contracts; R2 validates native backend
+login/sessions with normal authenticated startup closed. Email/account/UI replacement remains R3-R6
+work. S10-S15 gates and B01 strength
 review remain open; old S8/S9 evidence does not validate the replacement.
 
 ## Open decisions

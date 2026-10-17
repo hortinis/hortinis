@@ -1,16 +1,17 @@
 # Authentication HTTP contract handoff
 
 - Owner: S9-R R1, [ADR-0034](../architecture/decisions/0034-spring-email-password-authentication.md).
-- Status: Replacement TypeSpec/OpenAPI contracts defined, 2026-10-17; runtime adapters unchanged.
+- Status: R1 contracts defined; R2 backend login/session adapters validated, 2026-10-17.
+  Normal authenticated startup remains closed.
 - Sources: `contracts/typespec/authentication-models.tsp` and `authentication-operations.tsp`.
 - Policy: [authentication and sessions](../architecture/authentication-and-sessions.md).
 
-The generated artifacts describe the replacement target, ahead of the runtime. Existing S9 endpoints
-still implement historical MFA/ticket behavior and do not conform to this new authentication surface.
-Historical S8/S9 tests are not evidence for it. No compatibility aliases or runtime changes are added
-in R1; R2-R5 replace the adapters and remove obsolete routes before R6 validates the complete system.
-Synchronization/access contracts and their explicit mode boundaries remain unchanged. Auth routes
-are defined for authenticated modes; no-auth returns fixed 503 without allocating an auth session.
+The generated artifacts describe the complete target. R2 implements CSRF/status, native login and
+logout with authenticated production admission closed; invitation/reset/password mutation and the
+replacement browser remain R3-R5 work. Retired login/session mutation routes are disconnected and
+cannot authenticate. Historical S8/S9 tests are not evidence for these adapters. No compatibility
+aliases are introduced. Synchronization/access contracts and mode boundaries remain unchanged.
+Auth routes in no-auth mode return fixed 503 without allocating an auth session.
 
 ## Endpoint matrix
 

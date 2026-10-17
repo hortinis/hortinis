@@ -30,10 +30,11 @@ The [Spring email/password replacement plan](spring-email-authentication-plan.md
 [ADR-0034](../architecture/decisions/0034-spring-email-password-authentication.md) define the approved
 next authentication baseline. S8 and S9 evidence below is historical, not evidence for this rewrite.
 Mandatory passkeys/MFA, saved recovery codes, operator-ticket browser recovery, no-email requirements
-and preservation of their contracts are obsolete implementation targets. Current runtime behavior is
-unchanged until S9-R is implemented. R1 now finalizes replacement policy/contracts/inventories; the
-generated authentication API is ahead of that runtime. R2-R6 remain planned. Scope isolation, stable
-identity and offline preservation remain.
+and preservation of their contracts are obsolete implementation targets. R2 replaces the backend
+login/session boundary with normal authenticated startup closed during the incomplete replacement.
+R1 finalized replacement policy/contracts/inventories; the generated API still describes the complete
+future surface. R1-R2 are complete; R3-R6 remain planned. Scope isolation, stable identity and offline
+preservation remain.
 
 ## Required outcome
 
@@ -487,7 +488,8 @@ preserves local data and pending intent.
 
 ### S9 — Implement authenticated single-user access
 
-- Status: `implemented` for the historical MFA baseline; S9-R R1 is complete, R2-R6 are `planned`.
+- Status: `implemented` for the historical MFA baseline; S9-R R1-R2 are complete,
+  R3-R6 are `planned`.
 - Implementation plan: [S9 implementation plan](s9-implementation-plan.md).
 - Depends on: S6 and S8.
 - Scope: implement controlled first-account setup, authentication, server-side sessions, logout, expiry,
@@ -508,7 +510,8 @@ preserves local data and pending intent.
 
 ### S9-R — Replace authentication with Spring email and password flows
 
-- Status: R1 `complete` (2026-10-17); R2-R6 `planned`, no replacement runtime evidence yet.
+- Status: R1-R2 `complete` (2026-10-17); R3-R6 `planned`.
+  Normal authenticated startup remains closed.
 - Implementation plan: [Spring email/password replacement](spring-email-authentication-plan.md).
 - Depends on: the S9 scope/account boundary and ADR-0034; supersedes the old mechanism handoff.
 - Scope: native Spring password authentication, sessions/CSRF/logout, Boot SMTP delivery, controlled
@@ -533,6 +536,23 @@ preserves local data and pending intent.
   unknown-address exhaustion of the shared mail budget, and quota enforcement across isolated host
   processes/the HTTP service. Both must be resolved and validated by R6/end of S9-R; neither may be
   deferred to S15 or left open at S10 handoff.
+- R2 implementation: [R2 record](spring-email-authentication-plan.md#r2-implementation-and-review--2026-10-17)
+  tracks native form/provider/context/fixation, CSRF/logout, bounded input and verified-email/current-version
+  authority. Removed custom normal-login and partial-session publication and their dependent retired
+  routes. Fresh schema and a minimal masked-CSRF frontend adjustment precede full R3-R5 workflows.
+  Final `pnpm validate` passed; historical S8/S9 evidence does not validate this boundary. Production
+  authenticated admission and host workflows are closed, with no configurable bypass or second engine.
+- R2 evidence (2026-10-17): 40 fresh native servlet/provider/JDBC cases; final full suite passed with
+  231 Java unit tests, 130 PostgreSQL integration tests, 369 web unit tests, 11 standard and six topology
+  Chromium tests, seven topology-runner tests, ten web architecture tests, 21 contract tests and all
+  documented quality/build/documentation/repository checks. Reviewed native fixation/CSRF/logout,
+  malformed/encoded inputs, eligibility, account/scope substitution, transaction locks, revocation
+  rollback, stale saves, minimized events and English consistency. Both JARs exclude 23 removed main
+  classes and synthetic authority fixtures. Java is 6,571 lines / 108 files (+710/-4,978); production
+  TypeScript remains 6,173 / 71 (+1/-1), SQL 319 / four (+12/-12), using the R1 baseline rules.
+  Removed dependent legacy setup/recovery code has no replacement yet; tests of deleted workflows
+  were removed separately and are not counted as production reduction. Existing quality warnings,
+  R3-R6/Q1/Q2, mailbox/strength, browser native-logout and production-readiness gates remain open.
 - Handoff: S10 consumes S9-R after validation. No production-readiness or ASVS-level claim follows
   from adopting password-only login. SMTP/privacy and recovery-strength review remain S15 gates.
 

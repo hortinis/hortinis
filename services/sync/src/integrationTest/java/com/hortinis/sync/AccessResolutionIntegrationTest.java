@@ -286,6 +286,27 @@ class AccessResolutionIntegrationTest {
   }
 
   @Test
+  void noAuthRoutesAreUnavailableWithoutAllocatingAnAuthenticationSession() throws Exception {
+    for (String path :
+        java.util.List.of(
+            "/api/v1/auth/csrf",
+            "/api/v1/auth/session",
+            "/api/v1/auth/login",
+            "/api/v1/auth/logout")) {
+      var response =
+          mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(path))
+              .andReturn()
+              .getResponse();
+      assertThat(response.getStatus()).isEqualTo(503);
+      assertThat(response.getHeader(org.springframework.http.HttpHeaders.CACHE_CONTROL))
+          .contains(org.springframework.http.CacheControl.noStore().getHeaderValue());
+      assertThat(response.getHeader("Set-Cookie")).isNull();
+      assertThat(response.getContentAsString()).contains("ACCESS_UNAVAILABLE");
+    }
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM spring_session", Integer.class)).isZero();
+  }
+
+  @Test
   void committedAuthenticatedModesRejectNoAuthConfigurationAndStaleContexts() throws Exception {
     for (String mode : new String[] {"single-user-auth", "multi-user-auth"}) {
       jdbc.update("UPDATE technical_server_installation SET access_mode = ?", mode);

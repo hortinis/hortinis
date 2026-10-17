@@ -1,7 +1,8 @@
 # Development
 
 The approved next authentication increment is the [Spring email/password replacement plan](spring-email-authentication-plan.md)
-(S9-R). R1 finalizes policy/contracts and inventories; replacement runtime remains unimplemented.
+(S9-R). R1 finalized policy/contracts and inventories. R2 replaces the native backend boundary with
+normal authenticated startup and old host workflows closed; email/account/UI replacement remains incomplete.
 Earlier S8/S9 descriptions below are historical where they require passkeys/MFA, recovery codes or
 operator-ticket browser recovery. Generated authentication contracts now target S9-R ahead of runtime.
 
@@ -32,10 +33,12 @@ The root command stops at the first failure and runs the existing checks without
 MFA design. R1 defines native form login, sessions/CSRF/logout and email action-token contracts before
 adapters, plus SMTP/privacy/threat/ASVS reconciliation and the
 [production-code baseline](spring-email-authentication-r1-inventory.md). TypeSpec/OpenAPI describes the
-future authentication surface; current runtime still implements historical S9 and does not conform to
-it. R1 contract tests check shape only, not runtime authentication/mail/security behavior. No runtime
-code, dependency, schema or deployment configuration changes here. R2-R6 must replace/validate the
-runtime; S10 and production gates remain blocked. Historical S8/S9 tests cannot validate this design.
+complete authentication surface. R2 implements only native form login, sessions, CSRF/logout and
+verified-email/current-version authority, exercised through test-source assembly while production
+admission is closed. Invitation/reset/password mutation and the replacement browser remain R3-R5 work.
+The R1 contract tests check shape, not runtime security; use the R2 evidence record for actual native
+boundary checks. S10 and production gates remain blocked; historical S8/S9 evidence does not validate
+this design.
 
 ### Container topology
 
@@ -75,14 +78,12 @@ required at startup and avoids DNS-rebinding/edge-header trust. It does not enab
 compromise and reachable non-browser callers remain within the documented no-auth/shared-device
 boundary. Production edge trust and deployment readiness remain separate gates.
 
-S9 also implements `single-user-auth` for a fresh, single-user installation. It requires an explicit
-HTTPS public origin and protected operator-ticket directory; it rejects forwarded-header processing
-and does not trust proxy-supplied identity. Configure the TLS boundary and exact same-origin routing
-before selecting it. The local Compose example above remains no-auth and does not supply that TLS
-boundary. The S9 runtime integration test exercises a disposable, certificate-verified loopback HTTPS
-server, secure session cookies, HSTS and the selected Spring filter chain. This is implementation
-evidence, not a production deployment or personal-data readiness claim; S15 and applicable foundation
-gates still apply. See the [authentication operator workflow](../deployment/authentication-operator.md).
+Historical S9 enabled `single-user-auth` with password/passkey and host tickets. R2 now closes that
+mode during replacement: normal startup fails before mode initialization, with no bypass property.
+The native backend graph is exercised through disposable PostgreSQL and certificate-verified loopback
+HTTPS tests only. Do not configure the old operator directory or run ticket commands to enable it.
+The local Compose example remains explicitly no-auth. Deployment and S15/foundation gates remain
+open; see the [authentication operator workflow](../deployment/authentication-operator.md).
 
 The named `postgres-data` volume preserves database files across normal shutdown. Stop the topology
 predictably with:

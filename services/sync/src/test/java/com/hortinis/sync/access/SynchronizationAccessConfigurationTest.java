@@ -72,10 +72,11 @@ class SynchronizationAccessConfigurationTest {
             "hortinis.access.test-resolver.enabled=true")
         .run(
             context -> {
-              assertThat(context).hasNotFailed();
-              assertThat(context.getBean(SynchronizationAccessResolver.class))
-                  .isExactlyInstanceOf(AuthenticatedSynchronizationAccessResolver.class);
-              verify(installation).initializeMode(ServerAccessMode.SINGLE_USER_AUTH);
+              assertThat(context).hasFailed();
+              assertThat(context.getStartupFailure())
+                  .hasRootCauseMessage(
+                      "Authenticated access is unavailable until S9-R is complete.");
+              verifyNoInteractions(installation, authority);
             });
   }
 

@@ -3,17 +3,14 @@ package com.hortinis.sync.access;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.hortinis.sync.authentication.AuthenticationIdentity;
 import com.hortinis.sync.authentication.AuthenticationRequiredException;
 import com.hortinis.sync.authentication.AuthenticationSecrets;
-import com.hortinis.sync.authentication.SessionAuthorityReference;
 import com.hortinis.sync.authentication.persistence.CurrentAuthenticationAuthorityPersistence;
 import jakarta.servlet.http.HttpSession;
-import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -29,7 +26,6 @@ class AuthenticatedSynchronizationAccessResolverTest {
   private static final UUID ACCOUNT = UUID.randomUUID();
   private static final UUID REFERENCE = UUID.randomUUID();
   private static final String IDENTIFIER = AuthenticationSecrets.randomValue();
-  private static final String ATTRIBUTE = "hortinis.authority";
   private final CurrentAuthenticationAuthorityPersistence authority =
       mock(CurrentAuthenticationAuthorityPersistence.class);
   private final AuthenticatedSynchronizationAccessResolver resolver =
@@ -59,7 +55,12 @@ class AuthenticatedSynchronizationAccessResolverTest {
     when(session.getId()).thenReturn("untrusted-session-identifier");
     assertThatThrownBy(this::resolve).isInstanceOf(AuthenticationRequiredException.class);
     when(session.getId()).thenReturn(IDENTIFIER);
-    when(session.getAttribute(ATTRIBUTE)).thenReturn(REFERENCE.toString());
+    var invalid = SecurityContextHolder.createEmptyContext();
+    invalid.setAuthentication(
+        org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+            .authenticated("untyped", null, java.util.List.of()));
+    when(session.getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY))
+        .thenReturn(invalid);
     assertThatThrownBy(this::resolve).isInstanceOf(AuthenticationRequiredException.class);
     verifyNoInteractions(authority);
   }
@@ -67,10 +68,10 @@ class AuthenticatedSynchronizationAccessResolverTest {
   @Test
   void partialExpiredRevokedOrWrongModeCurrentAuthorityCannotBecomeNoAuth() {
     requestSession();
-    when(authority.findFull(AuthenticationSecrets.digest(IDENTIFIER), REFERENCE))
+    when(authority.find(IDENTIFIER, new AuthenticationIdentity(ACCOUNT, 7)))
         .thenReturn(Optional.empty());
     assertThatThrownBy(this::resolve).isInstanceOf(AuthenticationRequiredException.class);
-    when(authority.findFull(AuthenticationSecrets.digest(IDENTIFIER), REFERENCE))
+    when(authority.find(IDENTIFIER, new AuthenticationIdentity(ACCOUNT, 7)))
         .thenReturn(Optional.of(current("single-user-no-auth")));
     assertThatThrownBy(this::resolve).isInstanceOf(AuthenticationRequiredException.class);
   }
@@ -79,7 +80,7 @@ class AuthenticatedSynchronizationAccessResolverTest {
   void identityIsDerivedOnlyFromCurrentPersistentAuthorityAndEveryResolutionRechecks() {
     var session = requestSession();
     var current = current("single-user-auth");
-    when(authority.findFull(AuthenticationSecrets.digest(IDENTIFIER), REFERENCE))
+    when(authority.find(IDENTIFIER, new AuthenticationIdentity(ACCOUNT, 7)))
         .thenReturn(Optional.of(current));
     var resolved = resolve();
     assertThat(resolved.serverInstanceId().value()).isEqualTo(current.instance().toString());
@@ -89,10 +90,9 @@ class AuthenticatedSynchronizationAccessResolverTest {
     assertThat(full.sessionReference()).isEqualTo(REFERENCE);
     assertThat(full.authorityEpoch()).isEqualTo(7);
     assertThat(resolved.toString()).isEqualTo("SynchronizationAccessContext[redacted]");
-    when(authority.findFull(AuthenticationSecrets.digest(IDENTIFIER), REFERENCE))
+    when(authority.find(IDENTIFIER, new AuthenticationIdentity(ACCOUNT, 7)))
         .thenReturn(Optional.empty());
     assertThatThrownBy(this::resolve).isInstanceOf(AuthenticationRequiredException.class);
-    verify(session, org.mockito.Mockito.times(2)).getAttribute(ATTRIBUTE);
   }
 
   private SynchronizationAccessContext resolve() {
@@ -108,7 +108,7 @@ class AuthenticatedSynchronizationAccessResolverTest {
   @Test
   void unavailableStorageFailsClosedWithoutRetainingThePriorPrincipal() {
     requestSession();
-    when(authority.findFull(AuthenticationSecrets.digest(IDENTIFIER), REFERENCE))
+    when(authority.find(IDENTIFIER, new AuthenticationIdentity(ACCOUNT, 7)))
         .thenThrow(
             new org.springframework.dao.DataAccessResourceFailureException(
                 "private database details"));
@@ -121,9 +121,16 @@ class AuthenticatedSynchronizationAccessResolverTest {
     var session = mock(HttpSession.class);
     request.setSession(session);
     when(session.getId()).thenReturn(IDENTIFIER);
-    when(session.getAttribute(ATTRIBUTE)).thenReturn(new SessionAuthorityReference(REFERENCE));
     var context = SecurityContextHolder.createEmptyContext();
-    context.setAuthentication(AuthenticationIdentity.completed(ACCOUNT, 7, Instant.now()));
+    var user =
+        org.springframework.security.core.userdetails.User.withUsername(ACCOUNT.toString())
+            .password("")
+            .authorities(AuthenticationIdentity.versionAuthority(7))
+            .build();
+    ((org.springframework.security.core.CredentialsContainer) user).eraseCredentials();
+    context.setAuthentication(
+        org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+            .authenticated(user, null, user.getAuthorities()));
     when(session.getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY))
         .thenReturn(context);
     request.addHeader("X-Account-Id", UUID.randomUUID().toString());
@@ -131,18 +138,8 @@ class AuthenticatedSynchronizationAccessResolverTest {
     return session;
   }
 
-  private static CurrentAuthenticationAuthorityPersistence.FullAuthority current(String mode) {
-    Instant now = Instant.parse("2026-10-12T06:00:00Z");
-    return new CurrentAuthenticationAuthorityPersistence.FullAuthority(
-        REFERENCE,
-        ACCOUNT,
-        7,
-        UUID.randomUUID(),
-        UUID.randomUUID(),
-        mode,
-        now,
-        now,
-        now.plusSeconds(43_200),
-        now);
+  private static CurrentAuthenticationAuthorityPersistence.CurrentAuthority current(String mode) {
+    return new CurrentAuthenticationAuthorityPersistence.CurrentAuthority(
+        REFERENCE, ACCOUNT, 7, UUID.randomUUID(), UUID.randomUUID(), mode);
   }
 }

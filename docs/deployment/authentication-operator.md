@@ -1,15 +1,16 @@
 # Authentication operator workflow
 
-- Status: S9-R R1 deployment contract, 2026-10-17; email runtime and commands unimplemented.
+- Status: S9-R R1 deployment contract; R2 closes authenticated admission, 2026-10-17.
+  Email runtime and replacement commands remain unimplemented.
 - Authority: [ADR-0034](../architecture/decisions/0034-spring-email-password-authentication.md)
   and the [authentication specification](../architecture/authentication-and-sessions.md).
 
-The current executable still implements historical S9 MFA and protected host tickets. The old
-`setup-ticket`, `recovery-ticket` and ticket-file `reconcile` workflows are obsolete replacement
-targets; they do not issue email invitations or reset links. This document describes the future
-operator interface and prerequisites, not commands to run against the current binary. R1 changes no
-runtime or deployment configuration. Keep all development data synthetic until S9-R, applicable
-foundation gates and S15 pass; neither historical HTTPS tests nor this handoff authorize deployment.
+R2 closes normal authenticated startup and the historical `setup-ticket`, `recovery-ticket` and
+`reconcile` host commands while S9-R is incomplete. These commands fail before database/file/listener
+activity. There is no activation bypass, email invitation command or operator password-reset bypass.
+This document describes the future operator interface and prerequisites. Local-only and explicitly
+selected no-auth remain available without mail. Keep development data synthetic until S9-R, applicable
+foundation gates and S15 pass; isolated R2 HTTPS tests do not authorize deployment.
 
 ## Configuration and trust boundary
 
@@ -45,7 +46,7 @@ login. Local-only/no-auth use requires no SMTP and sends no mail. No startup tes
 
 ## Controlled invitation command contract
 
-The following command shapes are specified for R4, not implemented in R1:
+The following command shapes are specified for R4, not implemented in R1/R2:
 
 | Host command | Input and result |
 | --- | --- |

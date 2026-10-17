@@ -1,6 +1,7 @@
 # Built-in authentication and sessions
 
-- Status: R1 target design finalized, 2026-10-17; replacement runtime unimplemented.
+- Status: R1 target design finalized; R2 backend boundary validated, 2026-10-17.
+  Normal authenticated startup remains closed until the replacement is complete.
 - Decision: [ADR-0034](decisions/0034-spring-email-password-authentication.md).
 - Owner: [S9-R](../development/spring-email-authentication-plan.md), before S10.
 - Related boundaries: [access and scope](access-and-synchronization-scope.md),
@@ -8,11 +9,12 @@
   [ASVS register](../security/asvs-5.0.0-applicability.md),
   [data lifecycle](../privacy/access-data-lifecycle.md).
 
-This document specifies the replacement target. The repository runtime still implements historical
-S9 password/passkey and ticket recovery. Its tests do not validate this target. ADR-0033 and the S8/S9
-implementation logs preserve that history. Their required passkeys, factor ages, partial/recovery
-sessions, recovery codes, ticket files and five-completed-session accounting are superseded.
-R1 changes contracts and documentation only; R2-R6 must replace and validate the runtime before use.
+This document specifies the complete replacement target. R2 implements the native backend login,
+CSRF and session/logout boundary under a closed production admission gate; R3-R5 email, account
+mutation and browser flows are absent. ADR-0033 and historical S8/S9 implementation logs preserve the
+old behavior, not validation of the replacement. Required passkeys, factor ages, partial/recovery
+sessions, recovery codes, ticket files and completed-session counting are superseded. R2 removes
+session-dependent legacy workflows; remaining dormant artifacts are deleted by their owning increment.
 
 ## Authority and minimized account model
 

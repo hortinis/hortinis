@@ -66,7 +66,6 @@ class AuthenticationOperatorTicketIntegrationTest {
             POSTGRES.getUsername(),
             POSTGRES.getPassword());
     jdbc = new JdbcTemplate(source);
-    NativeAuthenticationSessions.installInspectionView(jdbc);
     transactionManager = new DataSourceTransactionManager(source);
     jdbc.update("UPDATE technical_server_installation SET access_mode = 'single-user-auth'");
     Files.setPosixFilePermissions(directory, PosixFilePermissions.fromString("rwx------"));
@@ -99,8 +98,7 @@ class AuthenticationOperatorTicketIntegrationTest {
         .isTrue();
     assertThat(jdbc.queryForObject("SELECT count(*) FROM authentication_account", Integer.class))
         .isZero();
-    assertThat(jdbc.queryForObject("SELECT count(*) FROM test_native_ceremony", Integer.class))
-        .isZero();
+    assertThat(jdbc.queryForObject("SELECT count(*) FROM spring_session", Integer.class)).isZero();
   }
 
   @Test
@@ -224,7 +222,7 @@ class AuthenticationOperatorTicketIntegrationTest {
                 "SELECT password_verifier FROM authentication_account", String.class))
         .isEqualTo(SYNTHETIC_VERIFIER);
     assertThat(
-            jdbc.queryForObject("SELECT authority_epoch FROM authentication_account", Long.class))
+            jdbc.queryForObject("SELECT security_version FROM authentication_account", Long.class))
         .isEqualTo(1);
     jdbc.update("UPDATE authentication_account SET status = 'disabled'");
     assertThatThrownBy(() -> issuer(ISSUED).issueRecovery(account))
@@ -324,12 +322,13 @@ class AuthenticationOperatorTicketIntegrationTest {
   private UUID account() {
     return jdbc.queryForObject(
         "INSERT INTO authentication_account "
-            + "(server_instance_id, synchronization_scope_id, login_identifier, status, "
-            + "password_verifier, user_handle, created_at) SELECT server_instance_id, "
-            + "synchronization_scope_id, 'synthetic-gardener', 'active', ?, ?, CURRENT_TIMESTAMP "
+            + "(server_instance_id, synchronization_scope_id, delivery_email, canonical_email, "
+            + "status, "
+            + "password_verifier, created_at) SELECT server_instance_id, "
+            + "synchronization_scope_id, 'synthetic@example.test', 'synthetic@example.test', "
+            + "'active', ?, CURRENT_TIMESTAMP "
             + "FROM technical_synchronization_scope WHERE technical_default RETURNING account_id",
         UUID.class,
-        SYNTHETIC_VERIFIER,
-        new byte[32]);
+        SYNTHETIC_VERIFIER);
   }
 }

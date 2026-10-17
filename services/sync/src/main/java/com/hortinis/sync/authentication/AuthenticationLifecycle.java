@@ -1,6 +1,5 @@
 package com.hortinis.sync.authentication;
 
-import com.hortinis.sync.access.SynchronizationAccessUnavailableException;
 import com.hortinis.sync.authentication.persistence.AuthenticationLifecyclePersistence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,58 +8,42 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.transaction.TransactionException;
 
-/**
- * Startup and scheduled application-record cleanup; request authorization is independent of purge.
- */
+/** Audit retention and transient admission cleanup; Spring owns native session expiry. */
 public final class AuthenticationLifecycle implements SmartInitializingSingleton {
   private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticationLifecycle.class);
   private final AuthenticationLifecyclePersistence persistence;
-  private final AuthenticationOperatorTickets tickets;
   private final AuthenticationAttemptLimiter attempts;
 
-  /** Constructed only for selected authentication; the runtime configuration owns scheduling. */
+  /** No partial-session, proof or ticket cleanup runs in the replacement graph. */
   public AuthenticationLifecycle(
-      AuthenticationLifecyclePersistence persistence,
-      AuthenticationOperatorTickets tickets,
-      AuthenticationAttemptLimiter attempts) {
+      AuthenticationLifecyclePersistence persistence, AuthenticationAttemptLimiter attempts) {
     this.persistence = persistence;
-    this.tickets = tickets;
     this.attempts = attempts;
   }
 
-  /** Completes before Spring starts its web-server lifecycle, or fails context initialization. */
   @Override
   public void afterSingletonsInstantiated() {
-    sweep();
+    persistence.purge();
+  }
+
+  /** Transient admission memory is swept every minute, independently of audit retention. */
+  @Scheduled(fixedDelay = 60000, initialDelay = 60000)
+  public void cleanupAttempts() {
+    attempts.cleanup();
   }
 
   /**
-   * The selected runtime enables a thirty-second tick; known failures retry with fixed diagnostics.
+   * Daily UTC retention retries only fixed diagnostic outcomes; startup handles overdue records.
    */
-  @Scheduled(fixedDelay = 30000, initialDelay = 30000)
-  public void scheduledSweep() {
+  @Scheduled(cron = "0 0 0 * * *", zone = "UTC")
+  public void scheduledPurge() {
     try {
-      sweep();
-    } catch (DataAccessException
-        | TransactionException
-        | AuthenticationFailedException
-        | SynchronizationAccessUnavailableException
-        | IllegalStateException exception) {
+      persistence.purge();
+    } catch (DataAccessException | TransactionException exception) {
       LOGGER
           .atWarn()
           .addKeyValue("event", "authentication_cleanup_failed")
           .log("Authentication cleanup failed.");
-    }
-  }
-
-  private void sweep() {
-    try {
-      if (!persistence.purge()) {
-        throw new SynchronizationAccessUnavailableException();
-      }
-      tickets.reconcile();
-    } finally {
-      attempts.cleanup();
     }
   }
 }
