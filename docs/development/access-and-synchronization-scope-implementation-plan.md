@@ -526,6 +526,13 @@ preserves local data and pending intent.
 - R1 review: password-only strength reopens B01; synchronous SMTP timing, native lifetime/cap policy,
   invitation lifetime interpretation and runtime/token/revocation/browser evidence remain open R2-R6/S15
   gates. All 345 ASVS rows retained with counts reconciled; no new compliance/production claim.
+- R1 review follow-up: host invite/resend/cancel target the pending account by validated email from
+  protected standard input; no UUID discovery is needed after issuance failure. Runtime commands
+  remain unimplemented. Findings 1/2 are open as
+  [Q1/Q2](spring-email-authentication-plan.md#open-questions-required-before-s9-r-completion): public
+  unknown-address exhaustion of the shared mail budget, and quota enforcement across isolated host
+  processes/the HTTP service. Both must be resolved and validated by R6/end of S9-R; neither may be
+  deferred to S15 or left open at S10 handoff.
 - Handoff: S10 consumes S9-R after validation. No production-readiness or ASVS-level claim follows
   from adopting password-only login. SMTP/privacy and recovery-strength review remain S15 gates.
 

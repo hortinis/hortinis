@@ -223,3 +223,13 @@ The S8 discussion above is historical where it asserts MFA/ticket/factor/target-
 This review finalizes the design boundaries, not their executable controls. Current historical runtime
 still has different recovery/login/logout behavior. S9-R R2-R6 and S15 remain mandatory; no production
 or ASVS-level claim is created by choosing native components or passing contract checks.
+
+## Open S9-R quota review questions
+
+R1 follow-up tracks [Q1/Q2](../development/spring-email-authentication-plan.md#open-questions-required-before-s9-r-completion)
+as mandatory end-of-S9-R/R6 resolutions. Q1 covers anonymous unknown-address requests exhausting the
+shared mail-attempt budget without sending mail and denying legitimate resets/operator invitations.
+Q2 covers shared quota enforcement across the HTTP service and separate host processes, whose current
+in-memory counters are independent. Current quota/accounting text is provisional for these defects;
+passing structural checks does not mitigate them. R6 must attach flood/concurrent-process evidence
+and close both questions before S9-R completion or S10 handoff; do not defer them to S15.

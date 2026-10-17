@@ -89,7 +89,7 @@ when the implementing phase owns it; no compatibility migration or old-route wra
 | `AuthenticationRuntimeConfiguration`, `AuthenticationSecurityConfiguration`, `AuthenticationSessionConfiguration`, `SessionAttributeCodec`, `AuthenticationSessionTransport`, `AuthenticationObservationService` | R2/R5: simplify wiring/codec/observation for credential-free native account context, native CSRF/logout and minimal status; remove partial ceremony/factor/target serialization and custom session transport behavior. Retain necessary allowlisted JSON, cookie policy and Boot repository extension points. |
 | `AuthenticationAccountPersistence`, `AuthenticationAccountSecurityPersistence`, `CurrentAuthenticationAuthorityPersistence`, `AuthenticationNativeSessions`, `AuthenticationSessionRemovalPersistence` and authenticated access resolver | R2/R4: adapt to canonical email, pending/verified status and native principal/version; retain stable scope ownership, ordered transaction checks and all-session revocation. Ordinary requests never select/provision arbitrary scopes. |
 | `PasswordPolicy`, `PasswordBlocklist`, `PasswordVerifier`, `AuthenticationPasswordService`, `CryptoWorkLimiter`, `AuthenticationAttemptLimiter`, `AuthenticationSecrets`, fixed exceptions/errors, `AuthenticationPolicyConfiguration`, `AuthenticationSecurityEventPersistence`, `AuthenticationBrowserGuard`, `HeaderOnlyCsrfTokenRequestHandler` | Retain/review password strength, encoder/provider glue, bounded work/limits, established secret primitives, origin/headers, CSRF delegation and minimized events. Adapt email/token limits; delete old factor-specific branches rather than adding parallel helpers. |
-| `com/hortinis/operator/HortinisOperatorCommand`, `OperatorCommandOptions`, `resources/authentication/operator-logback.xml` | R4/R5: retain isolated host dispatch/fixed diagnostics, replace ticket arguments with controlled invitation/resend/cancel input. Never output email/token or expose HTTP administrative capability. |
+| `com/hortinis/operator/HortinisOperatorCommand`, `OperatorCommandOptions`, `resources/authentication/operator-logback.xml` | R4/R5: retain isolated host dispatch/fixed diagnostics, replace ticket arguments with a validated email line on protected standard input for invitation/resend/cancel. Resolve only existing pending accounts for resend/cancel; no UUID discovery. Never output email/token or expose HTTP administrative capability. |
 | `apps/web/src/app/authentication/browser-webauthn.adapter.ts` | R5: delete. No replacement cryptographic browser adapter. |
 | `authentication-browser.service.ts`, `authentication-http-client.ts`, `authentication-http.port.ts`, `app.ts`, `app.html`, `app.scss`, `security/same-origin-csrf.port.ts`, `sync/authentication-cookie-gate.ts` | R5: replace MFA/setup/recovery-code/credential/session-list views and JSON login with email/password, invitation, reset and change forms plus native logout/CSRF lifecycle. Preserve offline binding/outbox/account matching and tab fences; remove remote logout-target replay. Count shell/template/style work separately. |
 | `V4__partition_technical_synchronization_scopes.sql`: `authentication_credential`, `authentication_challenge`, `authentication_operator_ticket`, `authentication_recovery_code`, `spring_session_authority_reference` index | R3-R5: delete obsolete tables/index in fresh schema. Adapt account email/status/verifier/verification/version fields and add minimal purpose-bound action-token storage. Retain technical scope tables, `spring_session`/attributes and minimized security events; no compatibility migrations. R1 SQL stays unchanged. |
@@ -111,5 +111,19 @@ when the implementing phase owns it; no compatibility migration or old-route wra
 - Native inactivity has no absolute deadline/cap; background traffic may sustain a stolen session.
   B01 password-only strength, session risk, invitation lifetime interpretation and deployment/privacy
   readiness remain S15 reviews. R1 validation cannot close them.
+
+## Open review questions and command-contract correction
+
+R1 follow-up corrects host targeting: invite/resend/cancel read a validated email line from protected
+standard input. Resend/cancel resolve the unique canonical email to an existing pending account,
+preserve stored recipient/scope and reject unknown/active/disabled targets without mutation. This
+allows a failed initial send to be retried without discovering a generated account UUID. No command
+is implemented or changed at runtime here; R4 owns the behavior and synthetic failure-path tests.
+
+Findings 1/2 remain open as [S9-R Q1/Q2](spring-email-authentication-plan.md#open-questions-required-before-s9-r-completion).
+Unknown-address public requests can exhaust the shared delivery budget, and process-local counters do
+not enforce shared quotas across isolated CLI processes. These questions must have reviewed decisions
+and executable evidence by R6/end of S9-R, before completion or S10 handoff. They are not merely S15
+operational assumptions, and R1's static checks do not resolve them.
 
 See the R1 completion record in the replacement plan for commands actually run and review fixes.

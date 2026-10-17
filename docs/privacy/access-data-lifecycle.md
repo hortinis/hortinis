@@ -297,6 +297,12 @@ consent or an architectural choice for the deployment's legal determination. Acc
 both emails, tokens, native sessions and SMTP/provider copies where controlled; email recipients and
 user exports cannot be remotely erased by Hortinis. Deletion/restore suppression remains S12/P0.6/S15.
 
+The quota-accounting and process-memory inventory above remains provisional for
+[S9-R Q1/Q2](../development/spring-email-authentication-plan.md#open-questions-required-before-s9-r-completion).
+Resolve unknown-address exhaustion of the shared mail budget and enforcement across isolated host
+processes by R6/end of S9-R. Any selected shared storage must add its fields, purpose, access and
+retention here before S9-R completion; neither question is deferred to S15.
+
 No real mailbox, email send, legal-compliance result or target-runtime evidence is introduced by R1.
 Synchronous SMTP timing, session lifetime, mailbox trust and provider retention stay explicit R3/R6/S15
 gates. The historical inventory below cannot be used to omit new email processing or retain old MFA

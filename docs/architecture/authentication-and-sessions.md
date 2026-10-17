@@ -76,6 +76,13 @@ controls expiry: a token is valid only while `now < expiresAt`; equality is expi
 | Cleanup | Immediate authorization expiry; consumed/replaced tokens removed in their mutation transaction. Bounded JDBC cleanup at startup/every 60 seconds, batches of at most 500, removes expired tokens and overdue pending accounts. Backlog may take several ticks; never authorizes expired state. Native Spring Session idle deletion runs every minute. |
 | Security events | Retain minimized fixed event/outcome/reason, UTC and fresh request reference for 30 days; daily and overdue-startup purge. No subject/recipient/session mapping. |
 
+R1 follow-up review leaves two aspects of this policy open:
+[S9-R Q1/Q2](../development/spring-email-authentication-plan.md#open-questions-required-before-s9-r-completion).
+The shared public mail-attempt budget can deny legitimate delivery after requests for unknown
+addresses, and process-local counters cannot enforce shared quotas across separate host invocations.
+The accounting/storage rules above record the current candidate, not a resolution of those defects.
+Resolve both with reviewed policy and executable evidence by R6, before S9-R completion or S10 handoff.
+
 A public reset request denied by its per-email mail quota still receives the same 202 as every other
 syntactically valid address. Source/request/global capacity violations return fixed 429 and
 `Retry-After: 60`; the header is minimum retry guidance, not a promise that an hourly quota has reset.
@@ -148,8 +155,12 @@ or CSRF in IndexedDB/localStorage/sessionStorage, URLs sent to the server or dia
 Host-only invitation provisioning records the intended mailbox and exact preassigned empty sole scope
 in a transaction; concurrent sole-owner invitations cannot create two owners. Fresh setup commits the
 selected authenticated mode explicitly; a committed no-auth mode cannot be claimed or converted here.
-No browser registration/issue/resend endpoint exists. A pending account remains inaccessible even if
-its mailbox/password appears elsewhere. Resend never creates another account or changes its scope.
+Host invite/resend/cancel commands read the target email from protected standard input. Resend/cancel
+resolve its unique canonical email only to an existing pending account; no UUID discovery is required.
+They recheck current eligibility in the mutation transaction, preserve the stored delivery address and
+scope, and fail without mutation for unknown/active/disabled targets. They never create or retarget
+an account. No browser registration/issue/resend endpoint exists. A pending account remains
+inaccessible even if its mailbox/password appears elsewhere. Resend never creates another account or changes its scope.
 
 Use one JDBC action-token component with explicit invitation/reset purposes, account/installation
 binding, verifier and trusted creation/expiry times. The route fixes purpose; request bodies cannot

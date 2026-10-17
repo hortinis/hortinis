@@ -50,8 +50,8 @@ The following command shapes are specified for R4, not implemented in R1:
 | Host command | Input and result |
 | --- | --- |
 | `operator invite` | Read exactly one bounded email line from protected standard input, never a password/token argument. Atomically reserve pending account/email and intended fresh sole scope, issue invitation and commit, then attempt SMTP. No active account or login is created. |
-| `operator resend-invitation --account=<uuid>` | Explicit pending account target only, same stored mailbox/scope. Replace the token under quotas, commit and attempt SMTP. |
-| `operator cancel-invitation --account=<uuid>` | Pending account only; invalidate token and remove unactivated reservation. Never delete an active/disabled account or transfer its scope. |
+| `operator resend-invitation` | Read one bounded email line from protected standard input. Validate/canonicalize it and resolve only its existing pending account in this installation. Keep the stored delivery mailbox/scope, replace the token under quotas, commit and attempt SMTP. Never create an account. |
+| `operator cancel-invitation` | Read one bounded email line from protected standard input. Validate/canonicalize it and resolve only its existing pending account in this installation. Invalidate its token and remove the unactivated reservation. Never delete an active/disabled account or transfer its scope. |
 
 Use authorized host identity and protected datasource/migration credentials through the existing Boot
 configuration mechanism. Do not print or log mailbox, account ID, token, link, configuration, SQL error
@@ -60,7 +60,21 @@ successful cancellation), exit 2 for invalid command/input, exit 1 for throttlin
 persistence or delivery failure. Delivery failure after commit must report fixed text explaining that
 the pending invitation was committed and may be resent after the cooldown; it must not imply rollback.
 Exit 0 SMTP acceptance is not proof of inbox delivery. A lost process result is resolved by an explicit
-same-account resend/cancel, never automatic scope provisioning.
+resubmission of the same email to resend/cancel, never automatic scope provisioning.
+
+All three commands use the same email syntax/canonicalization and single-line input contract. No
+account UUID, target-discovery command or database inspection is needed after initial issuance,
+SMTP failure or a lost response. Resolve and recheck pending status/installation/mode in the mutation
+transaction. Case variants may locate the same pending account but never change its stored delivery
+address. Unknown, active or disabled targets cause fixed failure with no mutation; resend/cancel
+never provision or retarget an account. Email and credentials remain absent from command arguments,
+process output and diagnostics. R4 must test first-send failure followed by email-selected resend,
+case variants, cancellation and denial for unknown/active/disabled targets.
+
+The public mail-budget exhaustion and cross-process quota-enforcement questions remain open as
+[S9-R Q1/Q2](../development/spring-email-authentication-plan.md#open-questions-required-before-s9-r-completion).
+Their resolution and evidence are required by R6 before S9-R completion; this input-contract fix
+does not settle either quota question.
 
 Invite syntax/canonicalization and the database unique constraint are defined in the specification.
 Duplicate/case-variant active or disabled emails never become new accounts. To correct a pending typo,
@@ -99,7 +113,8 @@ enrollment. Optional MFA/passkeys, saved recovery codes, email changes and extra
 R2-R6 must prove native login/session/CSRF/logout, pending denial, token races/rollback, SMTP timeout
 and failure, no leaks, timing and offline browser behavior. S15 must review SMTP transport, sender
 configuration/deliverability, abuse/restart limits, mailbox recovery strength, indefinite active-session
-risk and processor/retention policies. Backups can contain token verifiers and email; expiry remains
+risk and processor/retention policies. Q1/Q2 must already be resolved at the end of S9-R, rather
+than deferred to S15. Backups can contain token verifiers and email; expiry remains
 absolute after restore, sessions/old credentials must not be resurrected, and complete deletion/restore
 suppression remain S12/P0.6/S15 gates. Fresh schemas need no compatibility migrations.
 

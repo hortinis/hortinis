@@ -184,6 +184,24 @@ mode. Preserve no-auth isolation and synthetic test fixtures.
   blocked. SMTP timing equalization/delivery, native runtime/races/browser tests, B01/S15 risk review
   and the independent device/transition/deletion/privacy/deployment gates remain outstanding.
 
+#### R1 review follow-up — 2026-10-17
+
+- Finding 3 addressed in the host-command contract: invite/resend/cancel all accept one validated email
+  through protected standard input. Resend/cancel resolve only the matching existing pending account,
+  preserve stored delivery address/scope and recheck eligibility transactionally. No generated UUID
+  discovery, new lookup API or database inspection is required after a failed initial send. R4 must
+  test this workflow and reject unknown/active/disabled targets without mutation. Runtime remains
+  unchanged; this fixes the R1 specification, not an implemented command.
+- Findings 1 and 2 remain open as Q1/Q2 below. Their final resolution is a
+  mandatory R6/end-of-S9-R gate, not deferred S15 work. R1 stays complete with these explicitly tracked
+  follow-up questions; S9-R cannot be marked complete or handed to S10 while either remains open.
+- Follow-up validation: `pnpm docs:validate` passed eight tests plus documentation checks;
+  `pnpm contracts:validate` passed all 21 contract tests, generation/format and lint checks. Reviewed
+  the failed-initial-send, case-variant and ineligible-target command paths against the specification.
+  Repository whitespace, tracked-ignore and text/EOL checks passed; only English documentation
+  changed. No runtime command, dependency, schema, HTTP contract or real mail behavior is implemented
+  or validated by this follow-up.
+
 ### R2 — Native password login and session lifecycle
 
 - [ ] Configure Spring form login, provider, context persistence, CSRF, logout and API handlers.
@@ -228,8 +246,23 @@ mode. Preserve no-auth isolation and synthetic test fixtures.
 - [ ] Report additions/deletions separately for production Java, frontend, SQL, tests and documentation.
   No target is met merely by moving code or deleting tests. Review each custom component against the
   Spring mapping; justify any custom machinery replacing framework functionality.
+- [ ] Resolve and close [Q1/Q2](#open-questions-required-before-s9-r-completion) with reviewed decisions
+  and actual synthetic delivery/host-process evidence before S9-R completion or S10 handoff.
 - [ ] Mark S9-R implemented only with evidence. Reconcile S10-S15 dependencies and obsolete policy
   references. Keep multi-user, device, transition and production-readiness gates open.
+
+## Open questions required before S9-R completion
+
+| ID | Status and owner | Question and known failure | Required closure at R6 |
+| --- | --- | --- | --- |
+| Q1 | Open; S9-R R6, with R3/R4 delivery evidence | How should public reset admission and delivery accounting prevent unknown-address requests from exhausting mail capacity for legitimate resets and operator invitations while preserving generic public responses? The current rule charges every valid address to the shared 30/hour budget without refunds: one anonymous source can exhaust it with 30 distinct unknown addresses in 87 seconds under the source/minute limits, even though no email is sent. | Select and document the final quota/accounting policy; reconcile affected contracts, deployment/privacy/threat records and add synthetic known/unknown flood tests demonstrating legitimate reset and operator invitation availability without account enumeration. |
+| Q2 | Open; S9-R R6, with R3/R4 host-process evidence | How are email/global quotas enforced across the running HTTP service and separate isolated operator command processes? The current in-process counters and fresh per-process HMAC key restart on each invocation; the promised shared cooldown/hour/day quotas cannot be enforced by that storage alone. | Select and document the final accounting/enforcement boundary and any persistence/privacy lifecycle; test repeated and concurrent host invocations interleaved with HTTP issuance. Counters must obey the selected policy, with no raw address/token logging. Do not treat a normal CLI invocation as merely the S15 server-restart assumption. |
+
+Neither question is resolved by R1's passing structural contract/documentation tests. Retain the
+current numeric/accounting candidate visibly as provisional in the affected specification until the
+reviewed resolution replaces it. R6 must record the accepted decisions, implementation and actual
+synthetic validation evidence, close both rows and reconcile the S-track before marking S9-R complete
+or allowing S10 to consume it.
 
 ## S-track impact and obsolete information
 
