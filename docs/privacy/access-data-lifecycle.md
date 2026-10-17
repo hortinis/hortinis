@@ -3,9 +3,10 @@
 > 2026-10-17 R1: The target inventory now includes verified email, SMTP and invitation/reset
 > action tokens under ADR-0034. R2 introduces email identity and minimized native UUID/version
 > sessions under closed authenticated production admission. R3 adds internal hashed action tokens,
-> bounded pending/token cleanup and post-commit SMTP; account/UI workflows remain unimplemented.
+> bounded pending/token cleanup and post-commit SMTP. R4 adds account mutations and host invitation
+> commands; replacement UI and final S9-R handoff remain incomplete.
 > R2 removes partial-session/factor/target processing; dormant legacy storage remains
-> for R4/R5 deletion. Only synthetic loopback SMTP fixtures send test messages. The S8 inventory at the
+> for R5 deletion; R4 removes ticket issuance, raw files and ticket storage. Only synthetic loopback SMTP fixtures send test messages. The S8 inventory at the
 > end is explicitly historical for fields retired by the replacement.
 
 - Status: Accepted S1 inventory and lifecycle design, 2026-10-02.
@@ -320,8 +321,13 @@ mode remain. Immediate expiry does not depend on cleanup progress. Mail and requ
 share one 4,096-key process-memory ceiling; there is no new durable quota subject trail. SMTP debug,
 startup connection checks and mail-health probes are disabled. The [R3 record](../development/spring-email-authentication-plan.md#r3-implementation-and-review--2026-10-17)
 records synthetic local evidence and unresolved quota/timing/workflow boundaries, not real-data or
-provider activation. Q1/Q2, full R4 mutation/revocation, R5 browser persistence/fragment handling and
-S12/P0.6/S15 deletion/restore/provider obligations remain open.
+provider activation. R4 implements transient credential preparation, locked account/token mutations and native indexed
+session deletion in one transaction, plus host invite/resend/cancel from bounded protected stdin.
+Cancellation removes only the unactivated account/token reservation and preserves scope/content/mode.
+No new durable quota store or personal-data category is introduced; raw input, prepared password
+verifiers and delivery material remain transient and excluded from diagnostics. Ticket file handling,
+ticket storage and reconciliation are removed. Q1/Q2, timing resistance, R5 browser persistence/fragment
+handling and S12/P0.6/S15 deletion/restore/provider obligations remain open.
 
 ## Historical S8 authentication inventory and purposes (superseded target)
 

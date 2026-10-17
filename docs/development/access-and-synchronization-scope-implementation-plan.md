@@ -33,7 +33,7 @@ Mandatory passkeys/MFA, saved recovery codes, operator-ticket browser recovery, 
 and preservation of their contracts are obsolete implementation targets. R2 replaces the backend
 login/session boundary with normal authenticated startup closed during the incomplete replacement.
 R1 finalized replacement policy/contracts/inventories; the generated API still describes the complete
-future surface. R1-R3 are complete; R4-R6 remain planned. Scope isolation, stable identity and offline
+future surface. R1-R4 are complete; R5-R6 remain planned. Scope isolation, stable identity and offline
 preservation remain.
 
 ## Required outcome
@@ -488,8 +488,8 @@ preserves local data and pending intent.
 
 ### S9 — Implement authenticated single-user access
 
-- Status: `implemented` for the historical MFA baseline; S9-R R1-R3 are complete,
-  R4-R6 are `planned`.
+- Status: `implemented` for the historical MFA baseline; S9-R R1-R4 are complete,
+  R5-R6 are `planned`.
 - Implementation plan: [S9 implementation plan](s9-implementation-plan.md).
 - Depends on: S6 and S8.
 - Scope: implement controlled first-account setup, authentication, server-side sessions, logout, expiry,
@@ -510,7 +510,7 @@ preserves local data and pending intent.
 
 ### S9-R — Replace authentication with Spring email and password flows
 
-- Status: R1-R3 `complete` (2026-10-17); R4-R6 `planned`.
+- Status: R1-R4 `complete` (2026-10-17); R5-R6 `planned`.
   Normal authenticated startup remains closed.
 - Implementation plan: [Spring email/password replacement](spring-email-authentication-plan.md).
 - Depends on: the S9 scope/account boundary and ADR-0034; supersedes the old mechanism handoff.
@@ -580,6 +580,25 @@ preserves local data and pending intent.
   HTTPS and default-port/host canonicalization are covered by nine new regressions. Focused strict
   checks and full `pnpm validate` passed, including 282 Java unit and 184 integration tests and all six
   topology browser cases. Existing warnings remain. Authenticated startup and retired workflows remain closed; Q1/Q2 remain open. No R4 workflow is added.
+- R4 implementation: [record](spring-email-authentication-plan.md#r4-implementation-review-and-evidence--2026-10-17)
+  tracks bounded host invite/resend/cancel, atomic sole-scope reservation and complete MVC invitation,
+  reset and authenticated password-change adapters. Existing Spring password/CSRF/JDBC/session/mail
+  components remain authoritative. Password work precedes locked transactions; reset/change invalidate
+  tokens, advance security version and revoke all indexed sessions atomically, without login.
+  Ticket/file/persistence/table artifacts and the redundant session-removal passthrough are removed.
+  Normal authenticated HTTP startup remains closed. R5/R6, Q1/Q2, timing resistance and S10 stay open;
+  no historical S8/S9 test is counted as replacement evidence. The R4 record reports actual checks,
+  fresh synthetic fixtures, source changes and complete public-response samples separately from
+  R3's internal measurements.
+- R4 validation (2026-10-17): final `pnpm validate` passed with 276 Java unit and 237 PostgreSQL
+  integration tests, 369 web unit tests, 11 standard and six topology Chromium cases, plus all
+  contract/documentation/architecture/static/build/repository gates. Fresh R4 evidence is 59
+  HTTP/account cases, 14 isolated host cases and 16 parser/input unit cases. Native transaction rollback
+  and stale-session fencing, generic reset bodies and inert GETs are exercised. Complete synthetic
+  HTTPS timing samples remain measurements, not timing resistance. Java is 118 files / 7,476 lines
+  (+732/-562 versus `d260d06`); SQL four / 319 (+0/-19), TypeScript 71 / 6,173 unchanged. Tests are
+  separate (+1,596/-604). Both JARs exclude deleted classes and synthetic fixtures. Q1/Q2, normal
+  authenticated startup, R5/R6 and S10 readiness remain open; existing quality/bundle warnings remain.
 - Handoff: S10 consumes S9-R after validation. No production-readiness or ASVS-level claim follows
   from adopting password-only login. SMTP/privacy and recovery-strength review remain S15 gates.
 

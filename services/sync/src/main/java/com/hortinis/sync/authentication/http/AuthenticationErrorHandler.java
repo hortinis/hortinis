@@ -17,7 +17,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 /**
  * Fixed no-store failures for authentication controllers; no supplied text or cause is returned.
  */
-@RestControllerAdvice(assignableTypes = AuthenticationReadController.class)
+@RestControllerAdvice(
+    assignableTypes = {AuthenticationReadController.class, AuthenticationActionController.class})
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public final class AuthenticationErrorHandler {
   /** Account existence and credential validity remain indistinguishable. */

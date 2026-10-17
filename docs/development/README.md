@@ -3,7 +3,8 @@
 The approved next authentication increment is the [Spring email/password replacement plan](spring-email-authentication-plan.md)
 (S9-R). R1 finalized policy/contracts and inventories. R2 replaces the native backend boundary with
 normal authenticated startup and old host workflows closed. R3 supplies internal JDBC action-token
-and bounded Boot SMTP primitives; account/UI workflows remain incomplete.
+and bounded Boot SMTP primitives. R4 adds account-action adapters and isolated host invitations;
+replacement UI and final R6 handoff remain incomplete.
 Earlier S8/S9 descriptions below are historical where they require passkeys/MFA, recovery codes or
 operator-ticket browser recovery. Generated authentication contracts now target S9-R ahead of runtime.
 
@@ -36,8 +37,9 @@ adapters, plus SMTP/privacy/threat/ASVS reconciliation and the
 [production-code baseline](spring-email-authentication-r1-inventory.md). TypeSpec/OpenAPI describes the
 complete authentication surface. R2 implements only native form login, sessions, CSRF/logout and
 verified-email/current-version authority, exercised through test-source assembly while production
-admission is closed. R3 supplies internal token/mail primitives and bounded cleanup; invitation/reset/
-password workflows and the replacement browser remain R4/R5 work.
+admission is closed. R3 supplies shared token/mail primitives and bounded cleanup. R4 implements
+invitation/reset/password adapters and the isolated invite/resend/cancel commands; R5 owns the browser
+replacement. Q1/Q2 and timing resistance remain open through R6.
 The R1 contract tests check shape, not runtime security; use the R2 evidence record for actual native
 boundary checks. S10 and production gates remain blocked; historical S8/S9 evidence does not validate
 this design.
@@ -84,6 +86,7 @@ Historical S9 enabled `single-user-auth` with password/passkey and host tickets.
 mode during replacement: normal startup fails before mode initialization, with no bypass property.
 The native backend graph is exercised through disposable PostgreSQL and certificate-verified loopback
 HTTPS tests only. Do not configure the old operator directory or run ticket commands to enable it.
+R4 host commands use a separate non-web Boot graph and do not enable normal HTTP startup.
 The local Compose example remains explicitly no-auth. Deployment and S15/foundation gates remain
 open; see the [authentication operator workflow](../deployment/authentication-operator.md).
 

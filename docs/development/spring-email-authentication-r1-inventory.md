@@ -147,3 +147,21 @@ controlled provisioning still needs R4, and dormant ticket/file/WebAuthn/table/b
 with its coherent R4/R5 replacement. Q1/Q2 and full response timing remain open; new R3 fixtures do
 not inherit validation from historical S8/S9 tests. Final additions/deletions and counts belong to the
 R3 evidence record and retain this document's baseline/exclusion rules.
+
+## R4 boundary and deletion evidence — 2026-10-17
+
+The [R4 record](spring-email-authentication-plan.md#r4-implementation-review-and-evidence--2026-10-17)
+tracks native MVC account actions and isolated Boot invitation commands. R4 removes
+`AuthenticationOperatorTickets`, `OperatorTicketFiles`, `AuthenticationOperatorTicketPersistence`,
+the ticket-only `AuthenticationLifetime`, their dedicated tests and `authentication_operator_ticket`
+from the fresh schema. `AuthenticationSessionRemovalPersistence` is removed as a redundant passthrough;
+R4 mutations and R2 regression fixtures call the existing native session component directly.
+WebAuthn adapters/dependencies, remaining obsolete tables and old browser flows stay assigned to R5.
+No compatibility API, session authority or historical test movement contributes to replacement evidence.
+
+Using this inventory's physical-line/exclusion rules, R4 production Java is 118 files / 7,476 lines:
++732/-562 against `d260d06`, and +2,196/-5,559 (net -3,363) against `ce5c59b`. SQL is four / 319
+(+0/-19 in R4); TypeScript remains 71 / 6,173 (+0/-0 in R4). Tests are separate (+1,596/-604 in R4).
+HTML/SCSS, contracts, dependencies, locks and deployment configuration are unchanged. The replacement
+plan records actual validation and separate documentation evidence. Q1/Q2, timing resistance, normal authenticated
+HTTP admission, R5/R6 and S10 readiness remain open.

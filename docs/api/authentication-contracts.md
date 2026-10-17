@@ -1,14 +1,15 @@
 # Authentication HTTP contract handoff
 
 - Owner: S9-R R1, [ADR-0034](../architecture/decisions/0034-spring-email-password-authentication.md).
-- Status: R1 contracts defined; R2 backend login/session adapters validated, 2026-10-17.
+- Status: R1 contracts defined; R2 native login/session and R4 account-action adapters implemented, 2026-10-17.
   Normal authenticated startup remains closed.
 - Sources: `contracts/typespec/authentication-models.tsp` and `authentication-operations.tsp`.
 - Policy: [authentication and sessions](../architecture/authentication-and-sessions.md).
 
 The generated artifacts describe the complete target. R2 implements CSRF/status, native login and
-logout with authenticated production admission closed; invitation/reset/password mutation and the
-replacement browser remain R4/R5 work. R3 adds internal token/mail primitives without exposing action routes. Retired login/session mutation routes are disconnected and
+logout; R4 implements invitation acceptance, reset request/completion and password change, with
+normal authenticated production admission still closed. R3 supplies shared token/mail primitives;
+R5 owns the replacement browser. The isolated R4 host commands issue/resend/cancel invitations. Retired login/session mutation routes are disconnected and
 cannot authenticate. Historical S8/S9 tests are not evidence for these adapters. No compatibility
 aliases are introduced. Synchronization/access contracts and mode boundaries remain unchanged.
 Auth routes in no-auth mode return fixed 503 without allocating an auth session.
@@ -105,3 +106,17 @@ no-store and joint CSRF/cookie declarations. They do not exercise native filters
 canonical uniqueness, token transactions, timing, session revocation or offline behavior. Those remain
 R2-R6 work. The [R1 inventory](../development/spring-email-authentication-r1-inventory.md) and replacement
 plan record actual checks and the outstanding S-track gates.
+
+## R4 adapter evidence boundary
+
+Fresh R4 servlet/HTTPS and PostgreSQL fixtures exercise closed JSON/UTF-8/byte bounds, native CSRF,
+no-store fixed errors, eligibility/ownership, replacement/expiry/replay, concurrent completion,
+rollback and native session revocation. Password preparation runs outside the completion transaction;
+locked account/token/current-authority checks precede mutations. Acceptance/reset/change never
+establish a SecurityContext or an authenticated session. Real loopback SMTP is synthetic only.
+
+Generic reset bodies do not prove timing resistance. Complete synthetic HTTPS response samples are
+recorded separately from R3 internal JDBC/transport samples in the
+[R4 evidence](../development/spring-email-authentication-plan.md#r4-implementation-review-and-evidence--2026-10-17).
+Q1/Q2, final timing controls, R5/R6 and production admission remain open. No contract or generated
+artifact was changed to accommodate these adapters.

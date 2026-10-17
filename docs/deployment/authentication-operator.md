@@ -1,14 +1,16 @@
 # Authentication operator workflow
 
-- Status: S9-R R1 deployment contract; R3 internal mail/token foundation, 2026-10-17.
-  Authenticated admission remains closed; replacement commands remain unimplemented.
+- Status: S9-R R4 host invitations implemented, 2026-10-17.
+  Normal authenticated HTTP startup remains closed pending R5/R6.
 - Authority: [ADR-0034](../architecture/decisions/0034-spring-email-password-authentication.md)
   and the [authentication specification](../architecture/authentication-and-sessions.md).
 
-R2 closes normal authenticated startup and the historical `setup-ticket`, `recovery-ticket` and
-`reconcile` host commands while S9-R is incomplete. These commands fail before database/file/listener
-activity. There is no activation bypass, email invitation command or operator password-reset bypass.
-This document describes the future operator interface and prerequisites. Local-only and explicitly
+Normal authenticated HTTP startup remains closed while S9-R is incomplete. R4 implements only the
+new invitation host commands and complete account-action adapters. The historical `setup-ticket`,
+`recovery-ticket` and `reconcile` commands are rejected before context/database/file/listener activity.
+There is no configurable startup bypass or operator password-reset bypass. The isolated host graph
+uses non-web Boot auto-configuration for JDBC/Flyway/mail and never loads the web application's scan,
+security chain or access-mode startup admission bean. Local-only and explicitly
 selected no-auth remain available without mail. Keep development data synthetic until S9-R, applicable
 foundation gates and S15 pass; isolated R2 HTTPS tests do not authorize deployment.
 
@@ -50,12 +52,12 @@ Keep the application origin as the sole URL configuration; do not add a second m
 origin. Missing/invalid required authenticated-mode mail configuration must fail startup with a fixed
 message; transient SMTP unavailability must not trigger a mode downgrade or prevent valid password
 login. Local-only/no-auth use requires no SMTP and sends no mail. No startup test email is permitted.
-Internal fixture-tested delivery is not an available invitation
-or recovery command/API; R4 owns those workflows.
+R4 composes this delivery boundary with host invitation issuance and public reset requests. Normal
+authenticated HTTP startup remains closed, and the replacement browser is R5 work.
 
 ## Controlled invitation command contract
 
-The following command shapes are specified for R4, not implemented in R1/R2:
+R4 implements the following closed command shapes:
 
 | Host command | Input and result |
 | --- | --- |
@@ -89,9 +91,32 @@ does not settle either quota question.
 Invite syntax/canonicalization and the database unique constraint are defined in the specification.
 Duplicate/case-variant active or disabled emails never become new accounts. To correct a pending typo,
 cancel that reservation and explicitly issue a new invitation to the intended mailbox; never retarget
-an existing active account. Raw ticket directories/files are not part of the replacement deployment;
-their dormant artifacts remain for coherent R4/R5 removal.
-Remove their old configuration and cleanup only when the runtime replacement removes the dependency.
+an existing active account. R4 removes the retired ticket issuer, persistence, file handling, dedicated tests and fresh-schema
+ticket table. There is no raw ticket directory, reconciliation command or ticket compatibility layer.
+Remaining WebAuthn/browser/storage deletion belongs to R5.
+
+Read email from an operator-protected file or pipe, never an argument or shell history. The input is
+at most 254 ASCII mailbox bytes, optionally followed by one LF or CRLF; EOF without a terminator is
+accepted. Additional lines, trailing data, invalid ASCII/syntax and more than 256 total bytes fail
+with exit 2 before Boot starts. Protect the input source and normal datasource/SMTP configuration
+with host access controls; the command does not create a secret file or discover a target UUID.
+For example, substitute the built executable archive and your protected input path:
+
+```shell
+java -jar /path/to/hortinis-sync.jar operator invite < /protected/invitation-email
+java -jar /path/to/hortinis-sync.jar operator resend-invitation < /protected/invitation-email
+java -jar /path/to/hortinis-sync.jar operator cancel-invitation < /protected/invitation-email
+```
+
+Cancellation preserves the sole scope and committed authenticated mode. A later explicit invite may
+reserve that empty, unowned scope again; cancellation never converts mode or removes content. Resend
+cannot extend the original seven-day pending lifetime. A pending row that has reached that deadline
+may still be explicitly cancelled before bounded cleanup removes it.
+
+Q2 is observable in R4's isolated-process fixture: an immediate resend can pass a new process's fresh
+counter. This is evidence of incomplete cross-process enforcement, not approval to ignore the
+cooldown or proof of shared quotas. Operators must respect the provisional limits; R6 must replace
+this limitation with the reviewed enforcement boundary before S9-R completion.
 
 ## Mailbox recovery and delivery failures
 

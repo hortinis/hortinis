@@ -24,7 +24,7 @@ import com.hortinis.sync.authentication.AuthenticationIdentity;
 import com.hortinis.sync.authentication.AuthenticationRequiredException;
 import com.hortinis.sync.authentication.CryptoWorkLimiter;
 import com.hortinis.sync.authentication.PasswordVerifier;
-import com.hortinis.sync.authentication.persistence.AuthenticationSessionRemovalPersistence;
+import com.hortinis.sync.authentication.persistence.AuthenticationNativeSessions;
 import com.hortinis.sync.authentication.persistence.CurrentAuthenticationAuthorityPersistence;
 import com.hortinis.sync.configuration.SynchronizationAccessConfiguration;
 import com.hortinis.sync.persistence.ServerInstallationPersistence;
@@ -133,7 +133,7 @@ class NativeEmailAuthenticationIntegrationTest {
   @Autowired private JdbcTemplate jdbc;
   @Autowired private JdbcIndexedSessionRepository sessions;
   @Autowired private PlatformTransactionManager transactions;
-  @Autowired private AuthenticationSessionRemovalPersistence removal;
+  @Autowired private AuthenticationNativeSessions removal;
   @MockitoSpyBean private CurrentAuthenticationAuthorityPersistence authority;
 
   @MockitoSpyBean
@@ -666,8 +666,6 @@ class NativeEmailAuthenticationIntegrationTest {
             "/setup",
             "/step-up/password",
             "/recovery/operator",
-            "/password-reset/request",
-            "/password",
             "/sessions/revoke")) {
       assertThat(
               mutate("/api/v1/auth" + path, anonymous.cookie(), anonymous.token(), "{}", JSON_MEDIA)

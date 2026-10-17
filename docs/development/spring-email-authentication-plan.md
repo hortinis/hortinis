@@ -1,6 +1,6 @@
 # Spring email and password authentication replacement plan
 
-- Status: R1-R3 complete (2026-10-17); R4-R6 planned.
+- Status: R1-R4 complete (2026-10-17); R5-R6 planned.
   Normal authenticated startup is closed during replacement.
 - Date: 2026-10-17.
 - Track: S9-R, replacement of the implemented S9 authentication subsystem before S10.
@@ -428,10 +428,104 @@ mode. Preserve no-auth isolation and synthetic test fixtures.
 
 ### R4 — Invitation, reset and password change
 
-- [ ] Adapt the controlled host command to create/resend email invitations for the intended scope.
-- [ ] Implement transactional invitation activation, password reset and authenticated password change.
-- [ ] Keep incomplete accounts inaccessible, prevent scope reassignment and revoke sessions on changes.
-- [ ] Test repeat/concurrent completion, disabled accounts, failed transactions and lost responses.
+- [x] Adapt the controlled host command to create/resend email invitations for the intended scope.
+- [x] Implement transactional invitation activation, password reset and authenticated password change.
+- [x] Keep incomplete accounts inaccessible, prevent scope reassignment and revoke sessions on changes.
+- [x] Test repeat/concurrent completion, disabled accounts, failed transactions and lost responses.
+
+#### R4 implementation, review and evidence — 2026-10-17
+
+- Scope: approved analysis against clean `d260d06`, including R3 `a4da3b7` and its origin fix.
+  Implements only R4. Normal authenticated HTTP startup remains closed by the existing admission
+  bean, with no configurable bypass. New host commands run independently; retired ticket/recovery
+  commands remain rejected. R5 UI replacement, full R6 handoff, S10 and production readiness stay open.
+- Native reuse: Spring MVC controllers and existing native CSRF/security chain; Jackson duplicate,
+  depth and trailing-input enforcement with bounded closed action parsing; existing PasswordPolicy,
+  local blocklist, DelegatingPasswordEncoder/Argon2 and two-job crypto limiter. JdbcClient and explicit
+  TransactionTemplate boundaries retain account-before-session locking. Boot's indexed JDBC session
+  repository and existing REQUIRED transaction customization perform revocation; no second session
+  authority, custom authentication publication, token login or password-login controller is added.
+- Account glue: non-authoritative snapshots supply canonical email context and credential/version
+  comparison before hashing. Completion rejects enclosing transactions, prepares outside the mutation
+  transaction, locks/rechecks the account and current token, then consumes and mutates atomically.
+  Acceptance verifies/activates only the bound pending account. Reset/change replace the verifier,
+  invalidate action tokens, advance security version and delete every indexed account session in that
+  same transaction. Current-password change also rechecks native authority and the credential snapshot.
+  No workflow creates an authenticated session. Lost-success retry is a fixed conflict.
+- Host glue: closed three-command parser and bounded ASCII stdin, followed by an explicit non-web Boot
+  JDBC/Flyway/mail graph outside the web scan. Invite locks the installation/designated sole scope,
+  rejects committed no-auth/populated/owned state and atomically commits mode, pending account and
+  invitation token. Resend/cancel lock and resolve only canonical-email pending targets; neither can
+  change stored delivery case, scope or original pending deadline. Cancellation removes only the
+  unactivated reservation and cascading tokens, preserving scope/content/mode. Fixed exits distinguish
+  committed issuance followed by failed delivery. No UUID discovery, raw ticket file or listener.
+- Delivery/admission: reuse R3's prelookup reservation and post-commit SMTP boundary; its selector may
+  now return no eligible reset account. Request/source/global limits precede lookup; existing email
+  and installation mail budgets and send permits are reserved before selection. Unknown/ineligible,
+  per-email denial and recipient SMTP failure share 202. Capacity/storage failures retain fixed
+  account-independent errors. No database transaction spans SMTP, no queue/retry or new quota store.
+- Deletions: retire ticket issuer/file handling/persistence/lifetime, the ticket table and their
+  dedicated tests. Remove the redundant session-removal passthrough; real mutation services use the
+  existing native component directly. Retain WebAuthn dependencies, remaining obsolete tables and
+  browser workflows for coherent R5 removal. R2's retired-route assertion is adjusted only for newly
+  implemented R4 routes; it remains R2 regression evidence.
+- Fresh evidence: `R4AccountActionsIntegrationTest` has 59 new servlet/account cases with real native
+  login, hashing, CSRF and Boot JDBC sessions. Per-test delegates use the real request/mail limiters;
+  R3 retains aggregate-capacity/cleanup evidence. Cases exercise closed JSON/media/UTF-8/byte/scalar
+  bounds, fixed errors/no-store, eligibility and account/scope substitution, exact expiry, replacement,
+  replay/lost-success, two concurrent completers, invalid-password nonconsumption, activation rollback,
+  reset/change rollback including native deletion, changed preparation snapshots and delayed native
+  login/session saves after reset. GET/link opening is inert and completions never log in.
+- Host evidence: fourteen fresh separate-JVM cases use disposable PostgreSQL and loopback STARTTLS with a generated
+  synthetic certificate. They exercise canonical stored-recipient targeting, concurrent sole-owner
+  provisioning, cancellation, unknown/active/disabled rejection, issuance rollback including initial
+  mode, failed first send followed by resend, populated/undesignated/no-auth denial and non-web context
+  enforcement. Cancellation followed by an explicit corrected invitation preserves the empty scope
+  while allocating a new account, even with anonymous native sessions in committed authenticated mode.
+  Unconfigured-installation session residue still denies provisioning. A configuration-failure case
+  additionally checks redaction under verbose logger settings.
+  Sixteen fresh unit cases cover the closed parser and bounded single-line stdin before Boot startup.
+- Public timing: one focused complete HTTPS request/response sample measured accepted SMTP at 33,626
+  microseconds, refusal at 19,099, unknown email at 11,953 and per-email quota denial at 10,553. Each
+  returned identical 202 `{accepted: true}` with no-store. These are individual local fixture samples,
+  with fresh controlled mail counters per branch; they include HTTP/TLS/JDBC/SMTP work, unlike R3's
+  internal samples. They are neither stable bounds, statistical evidence nor timing equalization.
+- Validation: final `pnpm validate` passed on the corrected code: eight documentation tests and
+  link/ADR/index checks; 21 contract tests plus exact generation/format/schema/OpenAPI checks; ten web
+  architecture tests, frontend format/lint/type checks, 369 web unit tests, 11 standard Chromium tests,
+  development/production builds, wrapper/toolchain checks, backend build/Spotless/Checkstyle/PMD,
+  276 Java unit tests, 237 PostgreSQL integration tests, seven topology-runner tests and six real
+  topology Chromium tests, plus whitespace/tracked-ignore/text/EOL checks. Fresh R4 evidence is the
+  59 HTTP/account cases, 14 host cases and 16 parser/input unit cases above. Retained historical tests
+  are regressions, not replacement-design evidence. Separate static checks passed; changed Java files
+  have no Checkstyle warnings and PMD reports zero violations. Existing Checkstyle debt and Angular's
+  initial-bundle budget warning remain. Both application JARs contain the six new R4 classes and
+  exclude all five retired classes and R2/R3/R4/topology fixtures. Final documentation checks pass.
+- Validation repairs: initial compile/static checks and synthetic expiry/session fixtures needed fixes.
+  The R2 retired-route list was corrected for the new R4 endpoints; a mock clock unavailable during
+  startup cleanup and timing-loop re-stubbing also caused failed runs. Those failures are not counted
+  as passes. A native Boot initializer now rejects web-context/mode overrides before context refresh,
+  discovered during isolation review. A later review corrected an overbroad session-emptiness check:
+  anonymous CSRF rows in committed authenticated mode cannot reserve the unowned empty scope after
+  cancellation. Fresh unconfigured claims retain their stricter check. Final evidence follows the
+  corrected fixtures and code.
+- Size against `d260d06`, using R1 physical-line/exclusion rules: production Java +732/-562
+  (118 files / 7,476 lines, net +170); SQL +0/-19 (four / 319); TypeScript +0/-0 (71 / 6,173).
+  Against R1 `ce5c59b`, Java +2,196/-5,559 (net -3,363), TypeScript +1/-1 and SQL +31/-31.
+  Tests are separate: +1,596/-604; no test deletion or movement contributes to production reduction.
+  Documentation is separate: nine files, +224/-39 lines. HTML/SCSS, generated contracts, dependencies,
+  locks, verification metadata and deployment configuration are unchanged.
+- Review: token/account substitution, lock ordering, eligibility changes during password work,
+  single-use/replacement/expiry, rollback and stale-save fencing reviewed. Application code supplies
+  the documented account/action semantics and wire bounds; Spring retains authentication/session,
+  transaction and SMTP machinery. Repository language reviewed under ADR-0018. Synthetic PostgreSQL,
+  `.test` addresses and loopback SMTP/TLS material only; no real email, SMTP credentials, push or deploy.
+- Constraints: Q1/Q2 remain open for R6/end of S9-R. Provisional unknown-address charging can exhaust
+  delivery capacity without a send. Fresh isolated command processes reset their local counters;
+  immediate cross-process resend success is evidence of Q2, not complete shared quota enforcement.
+  Complete public HTTPS samples are distinct from R3 internal JDBC/SMTP samples. Neither generic
+  acknowledgements nor fixture measurements establish timing resistance; final response handling and
+  evidence remain R6 work. No S9-R completion or S10 handoff is authorized.
 
 ### R5 — Angular replacement and deletion
 
@@ -477,7 +571,7 @@ or allowing S10 to consume it.
 | --- | --- |
 | S1-S7 scope/offline foundation | Retain implementation and evidence; update only authentication-specific handoffs |
 | S8 policy | Historical validated design; mandatory password+passkey, no-email recovery and factor freshness are superseded for the new baseline |
-| S9 runtime | R2 replaces the backend login/session boundary and closes authenticated admission; R3 supplies internal token/mail primitives; R4-R5 remain incomplete, and historical tests are not replacement evidence |
+| S9 runtime | R2 replaces the backend login/session boundary and closes authenticated admission; R3 supplies internal token/mail primitives; R4 implements account actions/host invitations; R5-R6 remain incomplete, and historical tests are not replacement evidence |
 | Prior delegation plan | Historical implementation log; preserving all old flows/contracts is no longer a requirement |
 | S10 provisioning | Consume controlled email invitations after S9-R; preserve distinct accounts/scopes and transactional ownership |
 | S11 devices | Remains future work; do not require passkeys or old operator/recovery ceremonies as prerequisites |

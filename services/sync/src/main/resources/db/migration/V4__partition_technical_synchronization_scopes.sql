@@ -199,25 +199,6 @@ CREATE TABLE authentication_challenge (
 );
 CREATE INDEX authentication_challenge_expiry ON authentication_challenge (expires_at);
 
-CREATE TABLE authentication_operator_ticket (
-    ticket_reference UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    secret_verifier CHAR(64) NOT NULL CHECK (secret_verifier ~ '^[a-f0-9]{64}$'),
-    purpose TEXT NOT NULL CHECK (purpose IN ('setup', 'operator')),
-    target_id UUID NOT NULL,
-    server_instance_id UUID NOT NULL
-        REFERENCES technical_server_installation (server_instance_id),
-    access_mode TEXT NOT NULL CHECK (access_mode IN ('single-user-auth', 'multi-user-auth')),
-    account_id UUID REFERENCES authentication_account (account_id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ NOT NULL,
-    expires_at TIMESTAMPTZ NOT NULL,
-    claimed_session_reference UUID,
-    UNIQUE (purpose, target_id),
-    CHECK ((purpose = 'setup' AND account_id IS NULL)
-        OR (purpose = 'operator' AND account_id IS NOT NULL AND target_id = account_id)),
-    CHECK (expires_at > created_at AND expires_at <= created_at + INTERVAL '10 minutes')
-);
-CREATE INDEX authentication_operator_ticket_expiry ON authentication_operator_ticket (expires_at);
-
 CREATE TABLE authentication_recovery_code (
     account_id UUID NOT NULL REFERENCES authentication_account (account_id) ON DELETE CASCADE,
     secret_verifier CHAR(64) NOT NULL CHECK (secret_verifier ~ '^[a-f0-9]{64}$'),

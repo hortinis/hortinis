@@ -4,7 +4,11 @@ import com.hortinis.sync.authentication.http.AuthenticationBrowserGuard;
 import com.hortinis.sync.authentication.http.AuthenticationHttpErrors;
 import com.hortinis.sync.authentication.http.AuthenticationInputGuard;
 import com.hortinis.sync.authentication.http.HeaderOnlyCsrfTokenRequestHandler;
+import com.hortinis.sync.authentication.persistence.AccountActionPersistence;
+import com.hortinis.sync.authentication.persistence.ActionTokenPersistence;
 import com.hortinis.sync.authentication.persistence.AuthenticationAccountPersistence;
+import com.hortinis.sync.authentication.persistence.AuthenticationNativeSessions;
+import com.hortinis.sync.authentication.persistence.CurrentAuthenticationAuthorityPersistence;
 import java.net.URI;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -24,9 +28,10 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
+import org.springframework.transaction.PlatformTransactionManager;
 import tools.jackson.databind.json.JsonMapper;
 
-/** Native R2 graph; production mode admission stays closed until S9-R is complete. */
+/** Native security and account actions; production admission stays closed during replacement. */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(prefix = "hortinis.access", name = "mode", havingValue = "single-user-auth")
 @EnableScheduling
@@ -36,6 +41,21 @@ import tools.jackson.databind.json.JsonMapper;
   AuthenticationAudit.class
 })
 public class AuthenticationRuntimeConfiguration {
+  /** Account actions reuse native password and session infrastructure. */
+  @Bean
+  public AccountActionService accountActionService(
+      AccountActionPersistence accounts,
+      ActionTokenPersistence tokens,
+      CurrentAuthenticationAuthorityPersistence authority,
+      AuthenticationNativeSessions sessions,
+      PasswordPolicy policy,
+      PasswordVerifier passwords,
+      ActionTokenDelivery delivery,
+      PlatformTransactionManager transactions) {
+    return new AccountActionService(
+        accounts, tokens, authority, sessions, policy, passwords, delivery, transactions);
+  }
+
   /** The provider alone checks passwords and runs unknown-user mitigation. */
   @Bean
   public DaoAuthenticationProvider authenticationPasswordProvider(
@@ -162,6 +182,14 @@ public class AuthenticationRuntimeConfiguration {
                 .permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/login", "/api/v1/auth/logout")
                 .permitAll()
+                .requestMatchers(
+                    HttpMethod.POST,
+                    "/api/v1/auth/invitations/accept",
+                    "/api/v1/auth/password-reset/request",
+                    "/api/v1/auth/password-reset/complete")
+                .permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/auth/password")
+                .authenticated()
                 .requestMatchers("/api/v1/sync/**")
                 .authenticated()
                 .anyRequest()
