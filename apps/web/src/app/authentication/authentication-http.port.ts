@@ -8,7 +8,7 @@ export interface AuthenticationHttpPort extends SameOriginCsrfPort {
   get<T>(path: string): Promise<T>;
   post<T>(path: string, body: Record<string, unknown>, status?: number): Promise<T>;
   login<T>(email: string, password: string): Promise<T>;
-  postBodyless<T>(path: string): Promise<T>;
+  postBodyless<T>(path: string, allowDispatch?: () => boolean): Promise<T>;
 }
 
 export const AUTHENTICATION_HTTP = new InjectionToken<AuthenticationHttpPort>(

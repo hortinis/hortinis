@@ -68,7 +68,8 @@ export class AuthenticationHttpClient implements AuthenticationHttpPort {
   }
 
   async post<T>(path: string, body: Record<string, unknown>, status = 200): Promise<T> {
-    return this.request<T>('POST', path, body, await this.csrfHeaders(), status);
+    const revision = this.gate.revision();
+    return this.request<T>('POST', path, body, await this.csrfHeaders(), status, revision);
   }
 
   async login<T>(email: string, password: string): Promise<T> {
@@ -78,14 +79,25 @@ export class AuthenticationHttpClient implements AuthenticationHttpPort {
         if (code >= 0xd800 && code <= 0xdfff) throw new AccountRequestError(400);
       }
     const body = new URLSearchParams({ email, password }).toString();
-    return this.request<T>('POST', '/login', body, {
-      ...(await this.csrfHeaders()),
-      'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-    });
+    const revision = this.gate.revision();
+    return this.request<T>(
+      'POST',
+      '/login',
+      body,
+      {
+        ...(await this.csrfHeaders()),
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+      },
+      200,
+      revision,
+    );
   }
 
-  async postBodyless<T>(path: string): Promise<T> {
-    return this.request<T>('POST', path, undefined, await this.csrfHeaders());
+  async postBodyless<T>(path: string, allowDispatch: () => boolean = () => true): Promise<T> {
+    const revision = this.gate.revision();
+    const headers = await this.csrfHeaders();
+    if (!allowDispatch()) throw new AccountRequestError(0);
+    return this.request<T>('POST', path, undefined, headers, 200, revision);
   }
 
   private async request<T>(
@@ -94,9 +106,10 @@ export class AuthenticationHttpClient implements AuthenticationHttpPort {
     body?: unknown,
     headers?: Readonly<Record<string, string>>,
     status = 200,
+    revision = this.gate.revision(),
   ): Promise<T> {
-    const revision = this.gate.revision();
     try {
+      if (!this.gate.current(revision)) throw new AccountRequestError(0);
       const response = await firstValueFrom(
         this.http
           .request<T>(method, `${this.origin}/api/v1/auth${path}`, {

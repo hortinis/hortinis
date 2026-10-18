@@ -272,6 +272,12 @@ pause requiring explicit resolution, never a queued server logout. A locally pau
 session status and chooses login or a fresh native sign-out; status alone never releases the pause.
 A tab may keep work paused locally while another tab's login is in flight. Only explicit successful
 login releases the pause, after which ordinary binding verifies exact account/instance/scope identity.
+Login completion writes a separate acknowledgement of its exact pause revision; it cannot overwrite
+a newer pause published by another tab. Unsafe account requests retain their revision across CSRF
+bootstrap and check it before dispatch. Native logout also rechecks connectivity at dispatch, including
+an intervening offline event. Retained no-auth bindings cannot acquire an account pause; without a
+binding or observed native account service, public server capabilities must confirm authenticated mode
+before publishing a pause. These checks preserve local data and never queue logout.
 Native delayed cookie responses may still require another login; current server authority remains
 checked inside protected transactions. The R5 record distinguishes browser evidence from internal
 measurements and leaves Q1/Q2, timing resistance and production admission open.

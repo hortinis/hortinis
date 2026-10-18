@@ -466,6 +466,44 @@ try {
     expect(logouts).toBe(0);
     count++;
   }
+  step = 'logout cancelled by offline/reconnect during native CSRF bootstrap';
+  {
+    const { page, context } = await fresh();
+    await open(page);
+    await login(page);
+    let logouts = 0;
+    context.on('request', (req) => {
+      if (req.url().endsWith('/auth/logout')) logouts++;
+    });
+    let release;
+    const held = new Promise((resolve) => {
+      release = resolve;
+      releases.push(resolve);
+    });
+    let received;
+    const accepted = new Promise((resolve) => {
+      received = resolve;
+    });
+    edgeFault = { path: '/api/v1/auth/csrf', received, release: held };
+    await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+    await Promise.race([
+      accepted,
+      new Promise((_, reject) => setTimeout(() => reject(new Error()), 15000)),
+    ]);
+    await context.setOffline(true);
+    await expect.poll(() => page.evaluate(() => navigator.onLine)).toBe(false);
+    await context.setOffline(false);
+    release();
+    await expect(page.getByRole('button', { name: 'Check session status' })).toBeEnabled();
+    expect(logouts).toBe(0);
+    await expect(page.getByRole('region', { name: 'Account access' })).toContainText(
+      'server session may still exist',
+    );
+    await open(page);
+    await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible();
+    expect(logouts).toBe(0);
+    count++;
+  }
   step = 'retained account mismatch';
   {
     const { page, context } = await fresh();

@@ -1,5 +1,6 @@
 import { Injectable, OnDestroy, inject, signal } from '@angular/core';
 import { AUTHENTICATION_HTTP, AccountRequestError } from './authentication-http.port';
+import { BINDING_TRANSPORT } from '../sync/binding-transport.token';
 import { AuthenticationCookieGate } from '../sync/authentication-cookie-gate';
 import { LocalBindingExchangePersistence } from '../persistence/local-binding-exchange-persistence';
 
@@ -13,6 +14,8 @@ export class AuthenticationBrowserService implements OnDestroy {
   private readonly http = inject(AUTHENTICATION_HTTP);
   private readonly gate = inject(AuthenticationCookieGate);
   private readonly persistence = inject(LocalBindingExchangePersistence);
+  private readonly bindingTransport = inject(BINDING_TRANSPORT);
+  private accountServiceObserved = false;
   readonly view = signal<View>('closed');
   readonly notice = signal('');
   readonly busy = signal(false);
@@ -20,7 +23,12 @@ export class AuthenticationBrowserService implements OnDestroy {
   private readonly channel =
     typeof BroadcastChannel === 'undefined' ? undefined : new BroadcastChannel(LOCK);
   private readonly storage = (event: StorageEvent) => {
-    if (event.key === AuthenticationCookieGate.marker || event.key === null) this.changed();
+    if (
+      event.key === AuthenticationCookieGate.marker ||
+      event.key === AuthenticationCookieGate.completion ||
+      event.key === null
+    )
+      this.changed();
   };
 
   constructor() {
@@ -97,7 +105,19 @@ export class AuthenticationBrowserService implements OnDestroy {
             this.localSignOutNotice();
             return;
           }
-          this.completed(await this.uncertain(revision, () => this.http.postBodyless('/logout')));
+          try {
+            this.completed(
+              await this.uncertain(revision, () =>
+                this.http.postBodyless('/logout', () => !connectionLost && navigator.onLine),
+              ),
+            );
+          } catch (error) {
+            if (connectionLost || !navigator.onLine) {
+              this.localSignOutNotice();
+              return;
+            }
+            throw error;
+          }
           await this.finishAnonymous(
             revision,
             'Signed out. Local data and pending changes remain on this device.',
@@ -188,13 +208,13 @@ export class AuthenticationBrowserService implements OnDestroy {
         await this.uncertain(revision, operation);
         this.requireCurrent(revision);
         if (login) {
-          this.gate.markComplete(revision);
-          const ready = this.gate.revision();
+          const ready = this.gate.markComplete(revision);
           await this.persistence.resolveAuthenticationPause(() => this.gate.current(ready));
           this.requireCurrent(ready);
           this.http.clearCsrf();
           await this.http.refreshCsrf();
-          this.resolved = this.gate.revision();
+          this.requireCurrent(ready);
+          this.resolved = ready;
           this.view.set('authenticated');
           this.notice.set(notice);
           this.channel?.postMessage('boundary');
@@ -234,6 +254,15 @@ export class AuthenticationBrowserService implements OnDestroy {
   }
 
   private async pause(): Promise<string> {
+    const before = this.gate.revision();
+    const { binding } = await this.persistence.snapshot();
+    // Account requests cannot install a synchronization fence for a no-auth data set.
+    if (binding?.identity.accessMode === 'single-user-no-auth') throw new AccountRequestError(503);
+    if (!binding && !this.accountServiceObserved) {
+      const capabilities = await this.bindingTransport.capabilities();
+      if (capabilities.accessMode !== 'single-user-auth') throw new AccountRequestError(503);
+    }
+    this.requireCurrent(before);
     let revision: string;
     try {
       revision = this.gate.markPending();
@@ -278,14 +307,19 @@ export class AuthenticationBrowserService implements OnDestroy {
       throw new AccountRequestError(0);
     const status = value as Status;
     const keys = Object.keys(value).sort().join(',');
-    if (status.state === 'anonymous' && keys === 'state') return status;
+    if (status.state === 'anonymous' && keys === 'state') {
+      this.accountServiceObserved = true;
+      return status;
+    }
     if (
       status.state === 'authenticated' &&
       keys === 'accountId,state' &&
       typeof status.accountId === 'string' &&
       /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}(?![\s\S])/.test(status.accountId)
-    )
+    ) {
+      this.accountServiceObserved = true;
       return status;
+    }
     throw new AccountRequestError(0);
   }
 

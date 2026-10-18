@@ -111,8 +111,8 @@ class R5BrowserIntegrationTest {
       assertThat(running.exitValue())
           .withFailMessage("R5 browser failed: %s", Files.readString(output))
           .isZero();
-      assertThat(Files.readString(output)).contains("R5 browser scenarios passed: 22");
-      System.out.println("R5 browser scenarios passed: 22");
+      assertThat(Files.readString(output)).contains("R5 browser scenarios passed: 23");
+      System.out.println("R5 browser scenarios passed: 23");
     } finally {
       running.destroyForcibly();
     }

@@ -669,6 +669,50 @@ mode. Preserve no-auth isolation and synthetic test fixtures.
   measurement presented as public-response evidence. R6, S9-R completion, S10 and production admission
   remain blocked. No real email/SMTP credential, push or deployment; English consistency reviewed.
 
+#### R5 review follow-up — 2026-10-18
+
+The review of `f4d8fa4` found three boundary failures. Login completion could overwrite a newer tab's
+pause between localStorage validation and publication; logout could dispatch after offline/reconnect
+while awaiting CSRF; unavailable account access could install an unreleasable pause on no-auth use.
+
+- Completion now acknowledges the exact pending revision in a separate bounded, non-secret storage
+  entry. It never overwrites the pause marker. The caller retains the returned ready revision through
+  Dexie pause release and final CSRF refresh; storage notifications cover both entries.
+- Unsafe account requests capture their revision before awaiting CSRF and reject superseded work
+  before dispatch. Native logout additionally checks the remembered offline event/current connectivity
+  at dispatch and leaves an explicit local-pause notice instead of sending or replaying logout.
+- Before publishing a pause, check the retained binding's access mode. For an unbound device with no
+  observed native account service, reuse the existing read-only capability transport to require
+  authenticated mode. Preserve the captured revision across this asynchronous check. Neither path
+  changes ownership, outbox contents or retained provenance; no-auth account actions install no fence.
+- Six new unit cases pass (381 total), including a controlled write interleaving at the exact
+  completion-publication gap. That unit interleaving is not real browser concurrency evidence.
+  The authenticated browser fixture adds offline/reconnect during a held real native CSRF bootstrap;
+  the no-auth topology scenario checks local sign-out before and after binding plus retained reload.
+- R5 scope remains unchanged. Q1/Q2, timing resistance, R6, S9-R completion and S10 remain open.
+  Normal authenticated production startup remains closed. Only synthetic local SMTP is used.
+
+- Validation: full `pnpm validate` passes with 381 web unit, 23 authenticated and six no-auth topology
+  browser scenarios; 11 standard Chromium, 252 Java unit and 242 PostgreSQL integration checks,
+  contracts/generated/docs/static/build/archive checks and repository checks. Q1/Q2 remain open.
+- Follow-up size against `f4d8fa4`, using the R1 physical-line/exclusion rules:
+
+  | Category | Added lines | Deleted lines |
+  | --- | ---: | ---: |
+  | Production Java | 0 | 0 |
+  | Production TypeScript | 76 | 20 |
+  | Fresh-schema SQL | 0 | 0 |
+  | HTML/SCSS | 0 | 0 |
+  | Dependencies/build configuration | 0 | 0 |
+  | Tests and fixtures | 157 | 2 |
+  | Documentation | 62 | 0 |
+  | TypeSpec/generated artifacts | 0 | 0 |
+  | Validation tooling | 0 | 0 |
+
+  Production totals are Java 116 files / 6,961 lines, TypeScript 72 / 6,127 and SQL four / 281.
+  Cumulative TypeScript is +649/-695 against `a6c2f5f`, +650/-696 against R1 `ce5c59b` (net -46).
+  Runtime dependency coordinates are +0/-0. Test additions never count as production reduction.
+
 ### R6 — Complete review, validation and S-track handoff
 
 - [ ] Run the checks in [Development](README.md): full backend/frontend/static/build suites,

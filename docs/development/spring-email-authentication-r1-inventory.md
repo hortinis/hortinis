@@ -184,3 +184,9 @@ The new test-only browser/native/PostgreSQL assembly and all retired artifacts a
 production artifacts. Only synthetic local SMTP is used. Q1/Q2, timing resistance, normal authenticated
 startup, R6/S9-R completion and S10 remain open; the R5 record reports actual checks and distinguishes
 browser/HTTP evidence from earlier internal measurements.
+
+The [R5 review follow-up](spring-email-authentication-plan.md#r5-review-follow-up--2026-10-18) adds
++76/-20 production TypeScript lines against `f4d8fa4` (72 files / 6,127). Java and SQL production
+totals are unchanged. Cumulative TypeScript is +649/-695 against `a6c2f5f`, and +650/-696 against
+`ce5c59b` (net -46); the original R5 figures above remain the `f4d8fa4` snapshot. Tests/fixtures and
+documentation are separate from these production totals; no runtime dependency or template changes.

@@ -1,6 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { BINDING_TRANSPORT } from '../sync/binding-transport.token';
 import { AUTHENTICATION_HTTP } from './authentication-http.port';
 import { AuthenticationHttpClient } from './authentication-http-client';
 import { AuthenticationBrowserService } from './authentication-browser.service';
@@ -15,12 +16,22 @@ describe('R5 native Angular transport and browser state', () => {
   let http: HttpTestingController;
   let client: AuthenticationHttpClient;
   let service: AuthenticationBrowserService;
+  const capabilities = vi.fn(async () => ({ accessMode: 'single-user-auth' }));
   const persistence = {
+    snapshot: vi.fn(
+      async (): Promise<{ binding: { identity: { accessMode: string } } | undefined }> => ({
+        binding: { identity: { accessMode: 'single-user-auth' } },
+      }),
+    ),
     pauseAuthentication: vi.fn(async () => undefined),
     resolveAuthenticationPause: vi.fn(async () => undefined),
   };
   beforeEach(() => {
     localStorage.clear();
+    persistence.snapshot.mockResolvedValue({
+      binding: { identity: { accessMode: 'single-user-auth' } },
+    });
+    capabilities.mockResolvedValue({ accessMode: 'single-user-auth' });
     Object.defineProperty(navigator, 'locks', {
       configurable: true,
       value: {
@@ -33,6 +44,7 @@ describe('R5 native Angular transport and browser state', () => {
         provideHttpClientTesting(),
         { provide: AUTHENTICATION_HTTP, useExisting: AuthenticationHttpClient },
         { provide: LocalBindingExchangePersistence, useValue: persistence },
+        { provide: BINDING_TRANSPORT, useValue: { capabilities } },
       ],
     });
     client = TestBed.inject(AuthenticationHttpClient);
@@ -156,6 +168,66 @@ describe('R5 native Angular transport and browser state', () => {
     await opened;
     expect(TestBed.inject(AuthenticationCookieGate).paused()).toBe(true);
     http.expectNone(`${location.origin}/api/v1/auth/logout`);
+  });
+  it('cancels logout if connectivity was lost while the CSRF bootstrap was pending', async () => {
+    const opened = service.open();
+    flush('/session', { state: 'authenticated', accountId: account });
+    await csrf();
+    await opened;
+    const work = service.logout();
+    await tick();
+    dispatchEvent(new Event('offline'));
+    await csrf();
+    // Uncertain completion may refresh proof, but must never dispatch/replay native logout.
+    await csrf();
+    await work;
+    http.expectNone(`${location.origin}/api/v1/auth/logout`);
+    expect(TestBed.inject(AuthenticationCookieGate).paused()).toBe(true);
+    expect(service.notice()).toContain('server session may still exist');
+  });
+  it.each([true, false])(
+    'does not fence no-auth synchronization (retained binding: %s)',
+    async (bound) => {
+      persistence.snapshot.mockResolvedValue({
+        binding: bound ? { identity: { accessMode: 'single-user-no-auth' } } : undefined,
+      });
+      capabilities.mockResolvedValue({ accessMode: 'single-user-no-auth' });
+      const opened = service.open();
+      const failed = expect(opened).rejects.toThrow();
+      flush(
+        '/session',
+        { code: 'ACCESS_UNAVAILABLE', message: 'The access service is unavailable.' },
+        503,
+      );
+      await failed;
+      await expect(service.logout()).rejects.toThrow();
+      const gate = TestBed.inject(AuthenticationCookieGate);
+      expect(gate.revision()).toBe('');
+      expect(() => gate.assertExchangeAllowed()).not.toThrow();
+      http.expectNone(`${location.origin}/api/v1/auth/logout`);
+    },
+  );
+  it('rejects a superseded mutation before CSRF headers finish resolving', async () => {
+    const gate = TestBed.inject(AuthenticationCookieGate);
+    const csrf = vi.spyOn(client, 'csrfHeaders').mockImplementation(async () => {
+      gate.markPending();
+      return { 'X-CSRF-TOKEN': 'synthetic_masked' };
+    });
+    await expect(client.login('owner@example.test', 'synthetic password')).rejects.toThrow();
+    await expect(client.post('/password', { newPassword: 'synthetic password' })).rejects.toThrow();
+    await expect(client.postBodyless('/logout')).rejects.toThrow();
+    http.expectNone(() => true);
+    csrf.mockRestore();
+  });
+  it('does not publish an old intent after an asynchronous binding read', async () => {
+    const gate = TestBed.inject(AuthenticationCookieGate);
+    persistence.snapshot.mockImplementationOnce(async () => {
+      gate.markComplete(gate.markPending());
+      return { binding: { identity: { accessMode: 'single-user-auth' } } };
+    });
+    await expect(service.logout()).rejects.toThrow();
+    expect(gate.paused()).toBe(false);
+    http.expectNone(() => true);
   });
   it('uses native bodyless logout and remains anonymous after refresh', async () => {
     const opened = service.open();

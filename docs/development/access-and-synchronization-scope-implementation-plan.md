@@ -628,6 +628,12 @@ preserves local data and pending intent.
   production reduction. No new authentication engine, schema compatibility migration or startup bypass.
   Existing quality warnings remain. Q1/Q2, timing resistance, R6, S9-R completion and S10 remain open;
   authenticated production startup stays closed. No real email, push or deployment.
+- R5 review follow-up: [record](spring-email-authentication-plan.md#r5-review-follow-up--2026-10-18)
+  replaces completion publication with an exact-revision acknowledgement, checks unsafe dispatch
+  after CSRF/connectivity waits and isolates no-auth bindings/unbound capability selection from
+  account pause publication. It adds six unit regressions (381 total), a held-CSRF offline/reconnect
+  browser scenario and no-auth sign-out/reload assertions. Precise write interleaving remains unit
+  evidence; the record distinguishes it from actual browser/HTTP coverage.
 - Handoff: S10 consumes S9-R after validation. No production-readiness or ASVS-level claim follows
   from adopting password-only login. SMTP/privacy and recovery-strength review remain S15 gates.
 

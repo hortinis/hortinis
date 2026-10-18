@@ -24,11 +24,29 @@ test('explicitly binds both supported empty-server rows and pauses a new populat
     const empty = await emptyContext.newPage();
     await empty.goto('/');
     await waitForApplicationStartup(empty);
+    // An unavailable account panel cannot install an authentication fence on no-auth use.
+    await empty.getByRole('button', { name: 'Open account access' }).click();
+    await expect(empty.getByRole('button', { name: 'Check session status' })).toBeEnabled();
+    await empty.getByRole('button', { name: 'Sign out locally' }).click();
+    await expect(empty.getByRole('button', { name: 'Check session status' })).toBeEnabled();
+    expect(
+      await empty.evaluate(() => localStorage.getItem('hortinis.authentication-boundary.v2')),
+    ).toBeNull();
     await empty.getByRole('button', { name: 'Connect to server' }).click();
     await expect(empty.getByRole('region', { name: 'Server connection' })).toContainText(
       'connected to its server',
     );
     await waitForLeaseRelease(empty);
+    await empty.getByRole('button', { name: 'Sign out locally' }).click();
+    await expect(empty.getByRole('button', { name: 'Check session status' })).toBeEnabled();
+    expect(
+      await empty.evaluate(() => localStorage.getItem('hortinis.authentication-boundary.v2')),
+    ).toBeNull();
+    await empty.reload();
+    await waitForApplicationStartup(empty);
+    await expect(empty.getByRole('region', { name: 'Server connection' })).toContainText(
+      'connected to its server',
+    );
     const local = await localContext.newPage();
     await local.goto('/');
     await waitForApplicationStartup(local);

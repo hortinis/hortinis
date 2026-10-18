@@ -5,6 +5,7 @@ import { SynchronizationPausedError } from './synchronization-transport';
 @Injectable({ providedIn: 'root' })
 export class AuthenticationCookieGate {
   static readonly marker = 'hortinis.authentication-boundary.v2';
+  static readonly completion = 'hortinis.authentication-boundary-completion.v1';
   private failed = false;
 
   block(): void {
@@ -20,7 +21,10 @@ export class AuthenticationCookieGate {
       )
         throw new Error();
       if (this.failed) throw new Error();
-      return value;
+      const completed = localStorage.getItem(AuthenticationCookieGate.completion);
+      return value.endsWith(':paused') && completed === value
+        ? value.replace(':paused', ':ready')
+        : value;
     } catch {
       throw new SynchronizationPausedError();
     }
@@ -54,9 +58,14 @@ export class AuthenticationCookieGate {
     return revision;
   }
 
-  markComplete(expected: string): void {
-    if (!this.current(expected)) throw new SynchronizationPausedError();
-    localStorage.setItem(AuthenticationCookieGate.marker, `${crypto.randomUUID()}:ready`);
+  /** Completion acknowledges one pause; it never overwrites a concurrent tab's newer pause. */
+  markComplete(expected: string): string {
+    if (!expected.endsWith(':paused') || !this.current(expected))
+      throw new SynchronizationPausedError();
+    localStorage.setItem(AuthenticationCookieGate.completion, expected);
+    const ready = expected.replace(':paused', ':ready');
+    if (!this.current(ready)) throw new SynchronizationPausedError();
+    return ready;
   }
 
   assertExchangeAllowed(): void {
