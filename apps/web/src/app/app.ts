@@ -1,10 +1,11 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, HostListener, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterOutlet } from '@angular/router';
 import { SynchronizationBindingService } from './sync/synchronization-binding-service';
 import { TechnicalRecordSynchronizationService } from './sync/technical-record-synchronization-service';
 import { StorageSafetyService } from './storage/storage-safety-service';
 import { AuthenticationBrowserService } from './authentication/authentication-browser.service';
+import { takeActionFragment } from './authentication/action-fragment';
 
 @Component({
   imports: [FormsModule, RouterOutlet],
@@ -15,189 +16,94 @@ import { AuthenticationBrowserService } from './authentication/authentication-br
 export class App {
   readonly binding = inject(SynchronizationBindingService);
   private readonly synchronization = inject(TechnicalRecordSynchronizationService);
+  readonly storageSafety = inject(StorageSafetyService);
+  readonly authentication = inject(AuthenticationBrowserService);
+  readonly action = signal(takeActionFragment());
+  readonly accountPanelOpen = signal(!!this.action());
+  email = '';
+  password = '';
+  newPassword = '';
+  currentPassword = '';
+  resetEmail = '';
+
+  constructor() {
+    if (this.action()) void this.openAccount();
+  }
+
+  @HostListener('window:popstate')
+  @HostListener('window:pagehide')
+  clearSecrets(): void {
+    this.password = '';
+    this.newPassword = '';
+    this.currentPassword = '';
+    this.action.set(undefined);
+  }
 
   async connect(): Promise<void> {
     if ((await this.binding.connect()) === 'bound') await this.synchronization.retryNow();
   }
 
-  readonly storageSafety = inject(StorageSafetyService);
-  readonly authentication = inject(AuthenticationBrowserService);
-  readonly accountPanelOpen = signal(false);
-  loginName = '';
-  loginPassword = '';
-  setupTicket = '';
-  setupLogin = '';
-  setupPassword = '';
-  recoveryLogin = '';
-  recoveryCode = '';
-  recoveryNewPassword = '';
-  lostKeyLogin = '';
-  lostKeyPassword = '';
-  lostKeyCode = '';
-  lostKeyCredentialId = '';
-  operatorTicket = '';
-  operatorNewPassword = '';
-  currentPassword = '';
-  replacementPassword = '';
-
   async openAccount(): Promise<void> {
     this.accountPanelOpen.set(true);
-    await this.authentication.open();
-    if (this.authentication.view() === 'authenticated') {
-      try {
-        await this.authentication.loadAccountDetails();
-      } catch {
-        this.authentication.notice.set('Account details are temporarily unavailable.');
-      }
-    }
+    await this.run(() => this.authentication.open());
+  }
+
+  closeAccount(): void {
+    this.clearSecrets();
+    this.accountPanelOpen.set(false);
   }
 
   async login(): Promise<void> {
     try {
-      await this.authentication.login(this.loginName, this.loginPassword);
-      this.loginPassword = '';
-      const state = await this.binding.connect();
-      if (state === 'bound') await this.synchronization.retryNow();
-      await this.authentication.loadAccountDetails();
+      await this.authentication.login(this.email, this.password);
     } catch {
-      this.authentication.notice.set('Sign-in failed. Check your details and try again.');
-      this.loginPassword = '';
-    }
-  }
-
-  async setup(): Promise<void> {
-    try {
-      await this.authentication.setup(this.setupTicket, this.setupLogin, this.setupPassword);
-      this.setupTicket = '';
-    } catch {
-      this.authentication.notice.set(
-        'Account setup could not be completed. Check the ticket and try again.',
-      );
+      return;
     } finally {
-      this.setupPassword = '';
+      this.password = '';
     }
+    if (this.authentication.view() === 'authenticated') await this.connect();
   }
 
   async logout(): Promise<void> {
-    try {
-      await this.authentication.logout();
-    } catch {
-      // The authentication service reports whether sign-out was durably queued or storage failed.
-    }
+    this.clearSecrets();
+    await this.run(() => this.authentication.logout());
   }
 
-  async resetForgottenPassword(): Promise<void> {
+  async requestReset(): Promise<void> {
+    await this.run(() => this.authentication.requestReset(this.resetEmail));
+  }
+
+  async completeAction(): Promise<void> {
+    const action = this.action();
+    if (!action?.token) return;
     try {
-      await this.authentication.resetForgottenPassword(
-        this.recoveryLogin,
-        this.recoveryCode,
-        this.recoveryNewPassword,
-      );
+      if (action.kind === 'invitation')
+        await this.authentication.acceptInvitation(action.token, this.newPassword);
+      else await this.authentication.completeReset(action.token, this.newPassword);
+      this.action.set(undefined);
     } catch {
-      this.authentication.notice.set(
-        'Password recovery could not be completed. Check the details and try again.',
-      );
+      /* The fixed notice explains uncertain completion and deliberate recovery. */
     } finally {
-      this.recoveryCode = '';
-      this.recoveryNewPassword = '';
-    }
-  }
-
-  async replaceLostPasskey(): Promise<void> {
-    try {
-      await this.authentication.beginLostPasskeyRecovery(
-        this.lostKeyLogin,
-        this.lostKeyPassword,
-        this.lostKeyCode,
-      );
-    } catch {
-      this.authentication.notice.set(
-        'Passkey recovery could not be completed. Check the details and try again.',
-      );
-    } finally {
-      this.lostKeyPassword = '';
-      this.lostKeyCode = '';
-    }
-  }
-
-  async completeLostPasskeyRecovery(): Promise<void> {
-    try {
-      await this.authentication.completeLostPasskeyRecovery(this.lostKeyCredentialId);
-      this.lostKeyCredentialId = '';
-    } catch {
-      this.authentication.notice.set('Passkey replacement could not be completed. Try again.');
-    }
-  }
-
-  async recoverWithOperatorTicket(): Promise<void> {
-    try {
-      await this.authentication.operatorRecovery(this.operatorTicket, this.operatorNewPassword);
-      this.operatorTicket = '';
-    } catch {
-      this.authentication.notice.set(
-        'Operator recovery could not be completed. Check the ticket and try again.',
-      );
-    } finally {
-      this.operatorNewPassword = '';
+      this.newPassword = '';
     }
   }
 
   async changePassword(): Promise<void> {
-    await this.changeFactor(
-      () => this.authentication.changePassword(this.currentPassword, this.replacementPassword),
-      'Password changed. Sign in again with the new password.',
-      'Password change could not be completed. Verify both factors and try again.',
-      true,
-    );
-  }
-
-  async addPasskey(): Promise<void> {
-    await this.changeFactor(
-      () => this.authentication.addPasskey(),
-      'Passkey added. Sign in again to continue.',
-      'Passkey could not be added. Verify both factors and try again.',
-    );
-  }
-
-  async regenerateRecoveryCodes(): Promise<void> {
-    await this.changeFactor(
-      () => this.authentication.regenerateRecoveryCodes(),
-      'New recovery codes are ready. Save them now.',
-      'Recovery codes could not be replaced. Verify both factors and try again.',
-    );
-  }
-
-  async revokeCredential(credentialId: string): Promise<void> {
-    await this.changeFactor(
-      () => this.authentication.revokeCredential(credentialId),
-      'Passkey revoked. Sign in again to continue.',
-      'Passkey could not be revoked. Verify both factors and try again.',
-    );
-  }
-
-  private async changeFactor(
-    operation: () => Promise<void>,
-    success: string,
-    failure: string,
-    clearReplacement = false,
-  ): Promise<void> {
     try {
-      await this.authentication.stepUp(this.currentPassword);
-      await operation();
-      this.authentication.notice.set(success);
-    } catch {
-      this.authentication.notice.set(failure);
+      await this.run(() =>
+        this.authentication.changePassword(this.currentPassword, this.newPassword),
+      );
     } finally {
       this.currentPassword = '';
-      if (clearReplacement) this.replacementPassword = '';
+      this.newPassword = '';
     }
   }
 
-  async revokeSession(target: string): Promise<void> {
+  private async run(work: () => Promise<void>): Promise<void> {
     try {
-      await this.authentication.revokeSession(target);
+      await work();
     } catch {
-      this.authentication.notice.set('That session could not be revoked.');
+      /* Only the fixed service notice is rendered. */
     }
   }
 }

@@ -116,6 +116,7 @@ namespace Hortinis.Sync.Models {
     logoutPending: false;
   }
 
+  @doc("Local sign-out pause only. Reconnect requires explicit session resolution; never a queued native logout request.")
   model PendingLogoutExchangeState {
     state: "auth_required";
     exchangeFence: PositiveDecimal;

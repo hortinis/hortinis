@@ -65,6 +65,7 @@ describe('HttpSynchronizationTransport', () => {
     const operation = createOperation();
     const resultPromise = transport.submitOperation(operation);
     await Promise.resolve();
+    await Promise.resolve();
     const request = http.expectOne('/api/v1/sync/operations');
 
     expect(request.request.method).toBe('POST');
@@ -78,6 +79,8 @@ describe('HttpSynchronizationTransport', () => {
   it('attaches the current session CSRF token to authenticated synchronization writes', async () => {
     accessMode = 'single-user-auth';
     const resultPromise = transport.submitOperation(createOperation());
+    await Promise.resolve();
+    await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
     const request = http.expectOne('/api/v1/sync/operations');
@@ -102,6 +105,7 @@ describe('HttpSynchronizationTransport', () => {
     };
     const pending = transport.submitOperation(operation);
     await Promise.resolve();
+    await Promise.resolve();
     const request = http.expectOne('/api/v1/sync/operations');
     expect(request.request.body).toEqual(operation);
     request.flush(result);
@@ -110,6 +114,7 @@ describe('HttpSynchronizationTransport', () => {
 
   it('pulls a page and preserves an opaque cursor', async () => {
     const resultPromise = transport.pullChanges('cursor / with spaces');
+    await Promise.resolve();
     await Promise.resolve();
     const request = http.expectOne(
       (candidate) =>
@@ -197,6 +202,7 @@ describe('HttpSynchronizationTransport', () => {
   ])('maps a valid %s protocol error to a typed error', async (status, body) => {
     const resultPromise = transport.submitOperation(createOperation());
     await Promise.resolve();
+    await Promise.resolve();
     const request = http.expectOne('/api/v1/sync/operations');
     request.flush(body, { status, statusText: 'Rejected' });
 
@@ -211,10 +217,12 @@ describe('HttpSynchronizationTransport', () => {
   it('rejects malformed success and error bodies', async () => {
     const successPromise = transport.submitOperation(createOperation());
     await Promise.resolve();
+    await Promise.resolve();
     http.expectOne('/api/v1/sync/operations').flush({ outcome: 'accepted' });
     await expect(successPromise).rejects.toBeInstanceOf(SynchronizationUnexpectedResponseError);
 
     const errorPromise = transport.submitOperation(createOperation());
+    await Promise.resolve();
     await Promise.resolve();
     http
       .expectOne('/api/v1/sync/operations')
@@ -227,6 +235,7 @@ describe('HttpSynchronizationTransport', () => {
     async (outcome) => {
       const pending = transport.submitOperation(createOperation());
       const rejected = expect(pending).rejects.toBeInstanceOf(SynchronizationOwnershipLostError);
+      await Promise.resolve();
       await Promise.resolve();
       const request = http.expectOne('/api/v1/sync/operations');
       vi.spyOn(TestBed.inject(BindingSession), 'assertCurrent').mockRejectedValue(
@@ -245,6 +254,7 @@ describe('HttpSynchronizationTransport', () => {
   it('classifies network failures without retrying', async () => {
     const resultPromise = transport.submitOperation(createOperation());
     await Promise.resolve();
+    await Promise.resolve();
     const request = http.expectOne('/api/v1/sync/operations');
     request.error(new ProgressEvent('error'));
 
@@ -256,6 +266,7 @@ describe('HttpSynchronizationTransport', () => {
     vi.useFakeTimers();
     const resultPromise = transport.pullChanges('saved-cursor');
     const rejection = expect(resultPromise).rejects.toBeInstanceOf(SynchronizationUnavailableError);
+    await Promise.resolve();
     await Promise.resolve();
     http.expectOne('/api/v1/sync/changes?cursor=saved-cursor');
 
@@ -273,6 +284,7 @@ describe('HttpSynchronizationTransport', () => {
             ? transport.submitOperation(createOperation())
             : transport.pullChanges('saved-cursor');
         const rejection = expect(pending).rejects.toBeInstanceOf(SynchronizationUnavailableError);
+        await Promise.resolve();
         await Promise.resolve();
         const request = http.expectOne(
           phase === 'push' ? '/api/v1/sync/operations' : '/api/v1/sync/changes?cursor=saved-cursor',
@@ -293,6 +305,7 @@ describe('HttpSynchronizationTransport', () => {
     const rejection = expect(pending).rejects.toBeInstanceOf(
       SynchronizationUnexpectedResponseError,
     );
+    await Promise.resolve();
     await Promise.resolve();
     http
       .expectOne('/api/v1/sync/operations')

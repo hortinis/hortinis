@@ -157,6 +157,49 @@ describe('atomic local binding, admission and exchange fences', () => {
     expect(await database.localInitialAdmissions.count()).toBe(1);
   });
 
+  it('R5 pauses authenticated work atomically and never restores an old lease after login', async () => {
+    await records.commitCreate(testOperation);
+    const initial = await owner();
+    await binding.begin(initial);
+    const configured = await value();
+    const destination = parseAccessContract('LocalServerBinding', {
+      ...configured,
+      identity: {
+        authority: 'authenticated',
+        accessMode: 'single-user-auth',
+        synchronizationScopeId: configured.identity.synchronizationScopeId,
+        accountId: '01890f3e-7c5a-7b13-8abc-0123456789ac',
+      },
+    });
+    await binding.confirm(destination, 'synthetic-expectation', 1001, initial);
+    const old = await owner();
+    await binding.pauseAuthentication(() => true);
+    expect(await binding.snapshot()).toMatchObject({
+      binding: destination,
+      exchange: { state: 'auth_required', logoutPending: true, exchangeFence: '3' },
+      initial: { phase: 'uncertain', expectation: null },
+    });
+    await binding.resolveAuthenticationPause(() => true);
+    expect((await binding.snapshot()).exchange.logoutPending).toBe(false);
+    await expect(
+      records.commitAcceptedResult(testOperation, accepted(testOperation), old),
+    ).rejects.toThrow();
+    expect(await database.outboxOperations.get(testOperation.operationId)).toEqual(testOperation);
+    expect(await database.technicalRecords.count()).toBe(1);
+    const before = await binding.snapshot();
+    await binding.pauseAuthentication(() => false);
+    await expect(binding.resolveAuthenticationPause(() => false)).rejects.toThrow();
+    expect(await binding.snapshot()).toEqual(before);
+  });
+
+  it('R5 account pause leaves no-auth and standalone data unchanged', async () => {
+    await records.commitCreate(testOperation);
+    const before = await binding.snapshot();
+    await binding.pauseAuthentication(() => true);
+    expect(await binding.snapshot()).toEqual(before);
+    expect(await database.outboxOperations.get(testOperation.operationId)).toEqual(testOperation);
+  });
+
   async function owner(): Promise<SynchronizationOwnership> {
     const attempt = await coordinator.tryAcquire();
     if (!attempt.acquired) throw new Error('Expected owned lease.');

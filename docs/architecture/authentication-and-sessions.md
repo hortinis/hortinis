@@ -1,6 +1,6 @@
 # Built-in authentication and sessions
 
-- Status: R1-R4 implemented; replacement browser and final handoff remain open, 2026-10-17.
+- Status: R1-R5 implemented; final R6 handoff remains open, 2026-10-18.
   Normal authenticated startup remains closed until the replacement is complete.
 - Decision: [ADR-0034](decisions/0034-spring-email-password-authentication.md).
 - Owner: [S9-R](../development/spring-email-authentication-plan.md), before S10.
@@ -12,11 +12,11 @@
 This document specifies the complete replacement target. R2 implements the native backend login,
 CSRF and session/logout boundary under a closed production admission gate. R3 supplies internal
 JDBC action tokens, bounded cleanup and post-commit Boot SMTP. R4 implements the complete account-action
-adapters and isolated invitation commands; R5 browser flows remain absent. Normal authenticated HTTP
+adapters and isolated invitation commands; R5 supplies the replacement browser flows. Normal authenticated HTTP
 startup stays closed, without a configuration bypass. ADR-0033 and historical S8/S9 implementation logs preserve the
 old behavior, not validation of the replacement. Required passkeys, factor ages, partial/recovery
 sessions, recovery codes, ticket files and completed-session counting are superseded. R2 removes
-session-dependent legacy workflows; remaining dormant artifacts are deleted by their owning increment.
+session-dependent legacy workflows; R5 deletes the remaining dormant WebAuthn, ceremony and recovery storage artifacts.
 
 ## Authority and minimized account model
 
@@ -219,7 +219,7 @@ reads/writes and outbox. Offline sign-out cannot invalidate a remote session whi
 not persist/replay a remote logout request against a later cookie or automatically fetch fresh CSRF
 for an old logout. On reconnect, keep sync paused until the user explicitly resolves current status
 and signs out again or signs in. Coordinate tabs and fence in-flight login/logout operations; native
-delayed cookie responses can require login again. Browser testing belongs to R5/R6. Authentication
+delayed cookie responses can require login again. Fresh R5 browser evidence covers these transitions; R6 final handoff remains open. Authentication
 expiry never discards or transfers pending work; only the original account binding may resume it.
 
 ## Delivery, privacy and evidence handoff
@@ -256,3 +256,22 @@ Framework references checked on 2026-10-17 against the Boot 4.1 / Security 7.1 /
 [JDBC sessions](https://docs.spring.io/spring-session/reference/configuration/jdbc.html),
 [Boot Mail](https://docs.spring.io/spring-boot/reference/io/email.html).
 Numeric bounds, atomic action-token semantics and residual-risk choices above are Hortinis policy.
+
+## R5 browser implementation boundary
+
+The Angular entry point captures action fragments synchronously before importing/bootstraping the
+application, then clears browser history with `replaceState`. Inert Angular action routes render the
+shell forms. Secret values remain transient; completion/navigation clears them. The existing HTTP
+adapter uses standard UTF-8 form encoding for native login, accepts reset's 202 acknowledgement and
+refreshes Spring CSRF without retrying unsafe requests. Standalone startup remains local.
+
+Origin-wide non-secret revisions, Web Locks and storage/BroadcastChannel notifications coordinate
+cookie workflows. A pause immediately invalidates captured request revisions; Dexie advances exchange
+fences and expires leases without deleting content/outbox/provenance. `logoutPending` means a local
+pause requiring explicit resolution, never a queued server logout. A locally paused tab checks current
+session status and chooses login or a fresh native sign-out; status alone never releases the pause.
+A tab may keep work paused locally while another tab's login is in flight. Only explicit successful
+login releases the pause, after which ordinary binding verifies exact account/instance/scope identity.
+Native delayed cookie responses may still require another login; current server authority remains
+checked inside protected transactions. The R5 record distinguishes browser evidence from internal
+measurements and leaves Q1/Q2, timing resistance and production admission open.

@@ -222,7 +222,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-webmvc")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-session-jdbc")
-    implementation("org.springframework.security:spring-security-webauthn")
     implementation("com.password4j:password4j:1.8.4")
 
     runtimeOnly("org.postgresql:postgresql")
@@ -251,6 +250,7 @@ configurations[integrationTestSourceSet.runtimeOnlyConfigurationName].extendsFro
 
 val integrationTest =
     tasks.register<Test>("integrationTest") {
+        exclude("**/R5BrowserIntegrationTest*")
         description = "Runs PostgreSQL integration tests against Testcontainers."
         group = "verification"
         testClassesDirs = integrationTestSourceSet.output.classesDirs
@@ -269,3 +269,67 @@ tasks.named("check") {
 tasks.withType<Test> {
     useJUnitPlatform()
 }
+
+val authenticationBrowserTest =
+    tasks.register<Test>("authenticationBrowserTest") {
+        description = "Runs the isolated Angular/native Spring/PostgreSQL replacement browser fixture."
+        group = "verification"
+        testClassesDirs = integrationTestSourceSet.output.classesDirs
+        classpath = integrationTestSourceSet.runtimeClasspath
+        include("**/R5BrowserIntegrationTest.class")
+        inputs.file(rootProject.file("apps/web/e2e/r5-browser.mjs"))
+        inputs.dir(rootProject.file("apps/web/dist/web/browser"))
+        systemProperty("hortinis.repository.root", rootProject.projectDir.absolutePath)
+        useJUnitPlatform()
+    }
+
+val verifyAuthenticationReplacementIsolation =
+    tasks.register("verifyAuthenticationReplacementIsolation") {
+        group = "verification"
+        val archives = listOf(tasks.named<BootJar>("bootJar"), tasks.named<Jar>("jar"))
+        dependsOn(archives)
+        doLast {
+            require(
+                sourceSets.main
+                    .get()
+                    .runtimeClasspath.files
+                    .none { it in integrationTestSourceSet.output.files },
+            ) {
+                "Production runtime includes authentication test assembly."
+            }
+            val retired =
+                listOf(
+                    "BoundWebAuthnOperations",
+                    "AuthenticationCredential",
+                    "AuthenticationOperatorTickets",
+                    "OperatorTicketFiles",
+                    "com/hortinis/r2/",
+                    "com/hortinis/r3/",
+                    "com/hortinis/r4/",
+                    "com/hortinis/r5/",
+                    "spring-security-webauthn",
+                    "webauthn4j",
+                    "jackson-dataformat-cbor",
+                )
+            require(
+                configurations.runtimeClasspath
+                    .get()
+                    .files
+                    .none { file -> retired.any { file.name.contains(it) } },
+            )
+            for (archive in archives) {
+                ZipFile(
+                    archive
+                        .get()
+                        .archiveFile
+                        .get()
+                        .asFile,
+                ).use { zip ->
+                    require(zip.entries().asSequence().none { entry -> retired.any { entry.name.contains(it) } }) {
+                        "Production archive contains retired authentication or a synthetic fixture."
+                    }
+                }
+            }
+        }
+    }
+tasks.named("check") { dependsOn(verifyAuthenticationReplacementIsolation) }

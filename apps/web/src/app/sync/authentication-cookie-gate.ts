@@ -1,32 +1,65 @@
 import { Injectable } from '@angular/core';
 import { SynchronizationPausedError } from './synchronization-transport';
 
-/** Origin-wide, non-secret logout fence shared by every tab and local data set. */
+/** Origin-wide non-secret revision. A pause is never a queued logout request. */
 @Injectable({ providedIn: 'root' })
 export class AuthenticationCookieGate {
-  private static readonly marker = 'hortinis.pending-authentication-logout.v1';
-  private blockedInMemory = false;
+  static readonly marker = 'hortinis.authentication-boundary.v2';
+  private failed = false;
 
-  /** Fail closed in this tab if a durable logout marker could not be written. */
-  markPending(): void {
-    this.blockedInMemory = true;
+  block(): void {
+    this.failed = true;
   }
 
-  /** Clear the in-memory fence only after the server logout completed. */
-  markComplete(): void {
-    this.blockedInMemory = false;
-  }
-
-  /** Fail closed if a sign-out marker is present or cannot be read. */
-  assertExchangeAllowed(): void {
-    if (this.blockedInMemory) throw new SynchronizationPausedError();
+  revision(): string {
     try {
-      if (globalThis.localStorage.getItem(AuthenticationCookieGate.marker) !== null) {
-        throw new SynchronizationPausedError();
-      }
-    } catch (error) {
-      if (error instanceof SynchronizationPausedError) throw error;
+      const value = localStorage.getItem(AuthenticationCookieGate.marker) ?? '';
+      if (
+        value &&
+        !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}:(paused|ready)(?![\s\S])/.test(value)
+      )
+        throw new Error();
+      if (this.failed) throw new Error();
+      return value;
+    } catch {
       throw new SynchronizationPausedError();
     }
+  }
+
+  current(revision: string): boolean {
+    try {
+      return this.revision() === revision;
+    } catch {
+      return false;
+    }
+  }
+
+  paused(): boolean {
+    try {
+      return this.revision().endsWith(':paused');
+    } catch {
+      return true;
+    }
+  }
+
+  markPending(): string {
+    const revision = `${crypto.randomUUID()}:paused`;
+    try {
+      localStorage.setItem(AuthenticationCookieGate.marker, revision);
+      this.failed = false;
+    } catch {
+      this.failed = true;
+      throw new SynchronizationPausedError();
+    }
+    return revision;
+  }
+
+  markComplete(expected: string): void {
+    if (!this.current(expected)) throw new SynchronizationPausedError();
+    localStorage.setItem(AuthenticationCookieGate.marker, `${crypto.randomUUID()}:ready`);
+  }
+
+  assertExchangeAllowed(): void {
+    if (this.paused()) throw new SynchronizationPausedError();
   }
 }

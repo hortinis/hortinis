@@ -1,3 +1,7 @@
 import { Routes } from '@angular/router';
 
-export const routes: Routes = [];
+// The shell owns the small account forms; these inert routes perform no account action.
+export const routes: Routes = [
+  { path: 'accept-invitation', children: [] },
+  { path: 'reset-password', children: [] },
+];

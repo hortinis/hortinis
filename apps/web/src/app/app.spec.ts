@@ -43,16 +43,11 @@ describe('App', () => {
           useValue: {
             view: signal('closed'),
             notice: signal(''),
-            recoveryCodes: signal([]),
+            busy: signal(false),
             open: async () => undefined,
             login: async () => undefined,
-            setup: async () => undefined,
             logout: async () => undefined,
-            stepUp: async () => undefined,
             changePassword: async () => undefined,
-            addPasskey: async () => undefined,
-            regenerateRecoveryCodes: async () => undefined,
-            revokeCredential: async () => undefined,
           },
         },
       ],
@@ -107,38 +102,16 @@ describe('App', () => {
     expect(fixture.componentInstance).toBeTruthy();
   });
 
-  describe.each([
-    { method: 'changePassword', run: (app: App) => app.changePassword() },
-    { method: 'addPasskey', run: (app: App) => app.addPasskey() },
-    { method: 'regenerateRecoveryCodes', run: (app: App) => app.regenerateRecoveryCodes() },
-    { method: 'revokeCredential', run: (app: App) => app.revokeCredential('listed-credential') },
-  ] as const)('$method', ({ method, run }) => {
-    it.each(['success', 'proof failure', 'change failure'])(
-      'requires both factors and clears submitted secrets after %s',
-      async (outcome) => {
-        const app = TestBed.createComponent(App).componentInstance;
-        const auth = TestBed.inject(AuthenticationBrowserService);
-        const order: string[] = [];
-        vi.spyOn(auth, 'stepUp').mockImplementation(async (password) => {
-          expect(password).toBe('transient current password');
-          order.push('proof');
-          if (outcome === 'proof failure') throw new Error('Synthetic proof failure');
-        });
-        vi.spyOn(auth, method).mockImplementation(async () => {
-          order.push('change');
-          if (outcome === 'change failure') throw new Error('Synthetic change failure');
-        });
-        app.currentPassword = 'transient current password';
-        app.replacementPassword = 'transient replacement password';
-        await run(app);
-        expect(order).toEqual(outcome === 'proof failure' ? ['proof'] : ['proof', 'change']);
-        expect(app.currentPassword).toBe('');
-        expect(app.replacementPassword).toBe(
-          method === 'changePassword' ? '' : 'transient replacement password',
-        );
-        if (outcome !== 'success') expect(auth.notice()).toContain('try again');
-      },
+  it('clears both password fields after a failed change', async () => {
+    const app = TestBed.createComponent(App).componentInstance;
+    vi.spyOn(TestBed.inject(AuthenticationBrowserService), 'changePassword').mockRejectedValue(
+      new Error(),
     );
+    app.currentPassword = 'current secret';
+    app.newPassword = 'replacement secret';
+    await app.changePassword();
+    expect(app.currentPassword).toBe('');
+    expect(app.newPassword).toBe('');
   });
 
   it('should render the application name', async () => {

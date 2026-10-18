@@ -1,6 +1,6 @@
 # Spring email and password authentication replacement plan
 
-- Status: R1-R4 complete (2026-10-17); R5-R6 planned.
+- Status: R1-R5 complete (2026-10-18); R6 planned.
   Normal authenticated startup is closed during replacement.
 - Date: 2026-10-17.
 - Track: S9-R, replacement of the implemented S9 authentication subsystem before S10.
@@ -550,14 +550,124 @@ mode. Preserve no-auth isolation and synthetic test fixtures.
 
 ### R5 — Angular replacement and deletion
 
-- [ ] Keep login, invitation acceptance, forgot-password, reset and password-change screens only.
-- [ ] Use Spring's login encoding and CSRF lifecycle; fetch minimal session status for the shell.
-- [ ] Preserve offline reads/writes, outbox, binding provenance and account-matched sync resumption.
-- [ ] Remove WebAuthn/MFA dependencies, credential/challenge tables, saved recovery codes, ceremony
+- [x] Keep login, invitation acceptance, forgot-password, reset and password-change screens only.
+- [x] Use Spring's login encoding and CSRF lifecycle; fetch minimal session status for the shell.
+- [x] Preserve offline reads/writes, outbox, binding provenance and account-matched sync resumption.
+- [x] Remove WebAuthn/MFA dependencies, credential/challenge tables, saved recovery codes, ceremony
   models, operator-ticket files/cleanup, obsolete API models and frontend flows. Retain the host CLI
   entry point, password policy, scope authorization, abuse limits and minimized audit capability.
-- [ ] Edit the fresh schema directly; keep the R1 target contracts aligned through TypeSpec regeneration, never manual generated edits.
-- [ ] Verify built artifacts contain no retired authentication implementation or runtime dependency.
+- [x] Edit the fresh schema directly; keep the R1 target contracts aligned through TypeSpec regeneration, never manual generated edits.
+- [x] Verify built artifacts contain no retired authentication implementation or runtime dependency.
+
+#### R5 implementation, review and evidence — 2026-10-18
+
+- Start: approved analysis against clean `a6c2f5f`, following R4 `bc097aa` and its response-negotiation
+  fix. No unrelated starting changes. Implements R5 only; normal authenticated startup remains
+  closed, with no property/profile bypass. Retired commands remain rejected.
+- Browser reuse: standalone Angular shell, existing FormsModule/signals/Router/HttpClient and narrow
+  same-origin CSRF port. Keep email/password login, invitation acceptance, reset request/completion,
+  password change, minimal session status and native bodyless logout. The small browser service owns
+  account workflow and cookie coordination only; Spring still owns authentication, fixation, sessions,
+  CSRF and logout. No JSON login endpoint or authentication engine is introduced.
+- Wire/lifecycle: standard UTF-8 form encoding preserves literal plus signs, spaces, Unicode and
+  special password characters; reject lone surrogates before form encoding can replace them. Closed
+  JSON/no-store responses and fixed failures include reset's 202. CSRF stays transient, is refreshed
+  across native lifecycle/uncertain outcomes, and delayed bootstrap/error results cannot overwrite a
+  newer revision. A 403 refreshes proof without repeating its unsafe request.
+- Links/privacy: synchronous fragment capture precedes Angular imports/bootstrap, synchronization
+  recovery and service-worker registration. Clear the fragment with history.replaceState, retain the
+  secret only in memory, and clear on completion/navigation. Inert action routes perform no account
+  mutation on GET. Refresh requires reopening the email. Invitation screens disclose mailbox authority,
+  compromise/reassignment, no password-plus-mailbox-loss recovery/operator bypass, SMTP/mailbox/link
+  exposure, cookies/CSRF and local/export/backup retention before acceptance. Completion never logs in;
+  reset acknowledgement never exposes eligibility, quota branches or SMTP outcomes.
+- Offline/fencing: origin-wide non-secret revisions, Web Locks and storage/BroadcastChannel events
+  invalidate old authentication/CSRF/binding work. Existing Dexie exchange fences/leases guard local
+  commits, including responses delivered after a later login. Preserve records, outbox identifiers,
+  uncertainty and binding provenance. Only explicit successful login releases the local pause, followed
+  by exact account/instance/scope reobservation; matching email cannot select/rebind an owner. Status
+  resolution alone never resumes exchange. Offline sign-out stores no HTTP request/target and never
+  replays native logout on reconnect. A new deliberate session check and login/sign-out are required.
+- Deletion: remove the browser WebAuthn adapter and MFA, saved-code, ticket, credential and session-list
+  flows/models; remove BoundWebAuthnOperations, AuthenticationCredential and their dedicated adapter
+  tests. Remove credential/challenge/recovery tables and retired audit-event choices from fresh V4.
+  No compatibility migration or retired-route wrapper. Retain host invite/resend/cancel, password
+  policy/blocklist/Argon2 and bounded work, native security/session/CSRF/logout, action tokens/mail,
+  transaction-time scope/version authorization, revocation fencing, abuse admission and minimized audit.
+  Remove spring-security-webauthn plus unused webauthn4j-core and jackson-dataformat-cbor; locks and
+  verification metadata reflect removal, without unrelated version upgrades or new runtime libraries.
+- Contracts/artifacts: TypeSpec documents the existing logoutPending field as local pause metadata,
+  never a queued logout. Regenerate its schema rather than editing generated output. Both backend
+  archives and the production runtime exclude retired classes/dependencies and synthetic assemblies;
+  the frontend production build checks bundles for retired routes/adapter calls. The new browser
+  launcher is excluded from ordinary integrationTest and both production archives, and its task
+  declares the browser script/bundle as inputs.
+- Fresh evidence: one test-source-only JUnit assembly runs 22 real Chromium scenarios against the real
+  Angular production bundle, native Spring graph and disposable PostgreSQL. A loopback HTTPS edge
+  preserves browser requests/cookies and injects lost/delayed responses after real backend completion.
+  Trust only the generated fixture certificate/public key; no global certificate-validation bypass.
+  Synthetic loopback SMTP uses the existing mail adapter/transport. Source-only controls reset
+  synthetic fixture state and per-scenario real limiter delegates; they are not production APIs or
+  proof of aggregate/shared quotas. Browser checks cover exact form/password text, pending/disabled/
+  unverified denial, inert/cleared links, explicit completion, expiry/replacement/replay/lost success,
+  generic reset UI across eligibility/quota/SMTP refusal, password-change revocation, incompatible/
+  malformed Accept, native CSRF rejection without unsafe replay, offline reconnect, matching/mismatched
+  accounts, native session expiry/version revocation, multiple tabs, delayed login and in-flight accepted synchronization. Password/action/CSRF/
+  cookie canaries are absent from browser storage and diagnostics; tracing is disabled. New unit and
+  schema cases cover memory-only proof, stale bootstrap/denial fencing, malformed markers, failed
+  pause persistence, preserved local work and absent retired storage.
+- Review fixes: capture connectivity before persistence/lock waits, and remember an intervening offline
+  event, so reconnect cannot turn an offline click into native logout. Publish the new login revision
+  before conditionally clearing the Dexie pause, preventing late old-revision pause writes. Account
+  error copy does not claim synchronization is paused for unrelated reset-request admission failures. Fence stale
+  denials before lifecycle handling; use strict UUID/end-of-input marker validation. Add inert Angular
+  action routes and route-aware static serving. Fixture/early static failures included mail assembly,
+  restubbing a previous limiter, invalid synthetic expiry, asynchronous page readiness and formatting;
+  they were corrected before final evidence. Existing topology helpers now wait for the real
+  schema and completed startup lease (including a new fence after reload), avoiding premature
+  IndexedDB creation or interruption of deferred startup; their isolation/replay assertions remain. An early test interception failure exposed synthetic
+  request headers through the test framework; fixed/redacted diagnostics and edge fault injection
+  replace that path. No real credential or recipient was used. Historical S8/S9 tests are not
+  replacement evidence; retained tests are regressions only.
+- Validation: `pnpm validate` passed the full documented suite: eight documentation tests and
+  links/anchors/ADR/index checks; 21 contract tests and exact regeneration/format/schema/OpenAPI
+  checks; ten web architecture tests, frontend format/lint/type checks, 375 web unit tests, 11 standard
+  Chromium tests, development/production builds, wrapper/toolchain checks, backend build/Spotless/
+  Checkstyle/PMD, 252 Java unit tests, 242 PostgreSQL integration tests, seven topology-runner tests,
+  six real no-auth topology Chromium cases and repository checks. That full run passed the initial
+  20 authenticated browser scenarios; the final focused strict-verification browser/static run passed
+  all 22 after adding native session-expiry and version-revocation cases. Production code was unchanged
+  by that test extension. Final copy/static/browser checks also passed. Each synthetic scenario closes
+  prior browser profiles before resetting server state, retaining only in-memory storage snapshots for
+  leak assertions; this removes interference observed in repeated fixture runs. Both archive/runtime
+  checks and frontend bundle checks passed. Existing
+  baseline Checkstyle warnings remain; changed Java sources have no new warnings and PMD passes.
+  A prior full run stopped on formatting, and another exposed topology helper startup races; neither
+  failed run is counted as passing. Final documentation/format/generated checks also pass.
+- Size using R1 physical-line/exclusion rules, additions/deletions shown separately against `a6c2f5f`:
+
+  | Category | Added lines | Deleted lines |
+  | --- | ---: | ---: |
+  | Production Java | 0 | 526 |
+  | Production TypeScript | 592 | 694 |
+  | Fresh-schema SQL | 1 | 39 |
+  | HTML/SCSS | 127 | 221 |
+  | Dependency/build configuration | 67 | 38 |
+  | Tests and fixtures | 1361 | 893 |
+  | Documentation | 241 | 27 |
+  | TypeSpec/generated artifacts | 3 | 1 |
+  | Validation tooling | 24 | 0 |
+
+  Production totals: Java 116 files / 6,961 lines; TypeScript 72 / 6,071; SQL four / 281. Against R1
+  `ce5c59b`, Java +2,207/-6,085 (net -3,878), TypeScript +593/-695 (net -102), SQL +28/-66 (net -38).
+  Runtime dependency coordinates are +0/-3 (one direct, two transitive); the configuration row also
+  includes test tasks and archive checks. Tests, templates/styles, generated output, tooling and docs
+  never count as production Java/TypeScript/SQL reduction. The bootstrap split counts both source
+  files, and no test movement/deletion contributes to production reduction.
+- Boundary: R5 only. Q1/Q2 remain open for R6/end of S9-R; provisional controls are unchanged. This is
+  browser/HTTP evidence, with no new timing-resistance or complete shared-quota claim and no internal
+  measurement presented as public-response evidence. R6, S9-R completion, S10 and production admission
+  remain blocked. No real email/SMTP credential, push or deployment; English consistency reviewed.
 
 ### R6 — Complete review, validation and S-track handoff
 

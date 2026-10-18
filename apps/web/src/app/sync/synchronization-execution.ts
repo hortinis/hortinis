@@ -51,6 +51,7 @@ export class SynchronizationExecution {
     this.flight = flight;
     let completed = false;
     try {
+      const authenticationCurrent = this.coordinator.authenticationCurrent();
       const attempt = await this.coordinator.tryAcquire();
       if (!attempt.acquired) {
         if (scheduleWhenBusy) this.triggers.coordinationAt(attempt.retryAt);
@@ -61,7 +62,7 @@ export class SynchronizationExecution {
       const ownership: SynchronizationOwnership = {
         lease: attempt.lease,
         now: () => this.clock.now(),
-        isLost: () => lost,
+        isLost: () => lost || !authenticationCurrent(),
       };
       const stop = this.coordinator.keepAlive(attempt.lease, () => {
         lost = true;

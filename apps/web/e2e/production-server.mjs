@@ -48,7 +48,9 @@ const server = createServer(async (request, response) => {
     return;
   }
 
-  const relativePath = pathname === '/' ? 'index.html' : pathname.slice(1);
+  const relativePath = ['/', '/accept-invitation', '/reset-password'].includes(pathname)
+    ? 'index.html'
+    : pathname.slice(1);
   const filePath = resolve(root, relativePath);
   if (filePath !== root && !filePath.startsWith(`${root}${sep}`)) {
     response.writeHead(403).end();

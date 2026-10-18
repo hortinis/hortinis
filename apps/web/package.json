@@ -4,7 +4,7 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build --configuration production",
+    "build": "ng build --configuration production && node scripts/check-authentication-bundle.mjs",
     "build:development": "ng build --configuration development",
     "fix": "pnpm run lint:fix && pnpm run format",
     "format": "prettier --write .",

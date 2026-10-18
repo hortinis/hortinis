@@ -19,6 +19,7 @@ import {
 } from './access-contracts.rule';
 import type { AccessError } from './access-contracts.rule';
 import { SynchronizationAccessError } from './binding-transport';
+import { SAME_ORIGIN_CSRF } from '../security/same-origin-csrf.port';
 import { AuthenticationCookieGate } from './authentication-cookie-gate';
 
 export interface BindingRequestContext {
@@ -32,6 +33,7 @@ export class BindingSession {
   private readonly persistence = inject(LocalBindingExchangePersistence);
   private readonly transport = inject(BINDING_TRANSPORT);
   private readonly clock = inject(SYNCHRONIZATION_CLOCK);
+  private readonly csrf = inject(SAME_ORIGIN_CSRF, { optional: true });
   private readonly cookieGate = inject(AuthenticationCookieGate);
   private prepared: ExchangeAttemptBoundary | undefined;
   private cached:
@@ -183,10 +185,12 @@ export class BindingSession {
       await this.denyInitial(context);
       return;
     }
+    const revision = this.cookieGate.revision();
     await this.assertCurrent(context);
     const state = code === 'AUTHENTICATION_REQUIRED' ? 'auth_required' : 'disconnected';
     this.cached = undefined;
     await this.persistence.pause(state, context.exchangeFence);
+    if (this.cookieGate.current(revision)) await this.csrf?.sessionLost?.();
     throw new SynchronizationOwnershipLostError();
   }
 

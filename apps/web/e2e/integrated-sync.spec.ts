@@ -9,6 +9,7 @@ import {
   seedPendingOperation,
   tombstoneRevision,
   waitForLeaseRelease,
+  waitForApplicationStartup,
 } from './support/indexeddb';
 
 const execute = promisify(execFile);
@@ -22,6 +23,7 @@ test('explicitly binds both supported empty-server rows and pauses a new populat
   try {
     const empty = await emptyContext.newPage();
     await empty.goto('/');
+    await waitForApplicationStartup(empty);
     await empty.getByRole('button', { name: 'Connect to server' }).click();
     await expect(empty.getByRole('region', { name: 'Server connection' })).toContainText(
       'connected to its server',
@@ -29,6 +31,7 @@ test('explicitly binds both supported empty-server rows and pauses a new populat
     await waitForLeaseRelease(empty);
     const local = await localContext.newPage();
     await local.goto('/');
+    await waitForApplicationStartup(local);
     await waitForLeaseRelease(local);
     await localContext.setOffline(true);
     const operation = {
@@ -49,6 +52,7 @@ test('explicitly binds both supported empty-server rows and pauses a new populat
       if (/\/sync\/(operations|changes)/.test(request.url())) contentRequests++;
     });
     await fresh.goto('/');
+    await waitForApplicationStartup(fresh);
     await fresh.getByRole('button', { name: 'Connect to server' }).click();
     await expect(fresh.getByRole('region', { name: 'Server connection' })).toContainText(
       'require reconciliation',

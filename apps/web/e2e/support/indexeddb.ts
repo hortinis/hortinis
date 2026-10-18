@@ -11,6 +11,30 @@ type PendingOperation =
     }
   | { operationId: string; recordId: string; kind: 'delete'; expectedRevision: string };
 
+// Deferred bootstrap must finish before fixtures open a database or interrupt its startup exchange.
+export async function waitForApplicationStartup(page: Page, previousFence?: number): Promise<void> {
+  await expect(page.getByRole('heading', { name: 'Hortinis', exact: true })).toBeVisible();
+  await page.waitForFunction(async () =>
+    (await indexedDB.databases()).some(
+      (database) => database.name === 'hortinis' && database.version === 80,
+    ),
+  );
+  await expect
+    .poll(async () => {
+      const lease = await readStoredValue<{ expiresAt: number; fencingToken: number }>(
+        page,
+        'synchronizationLeases',
+        'technical-records',
+      );
+      return (
+        !!lease &&
+        (previousFence === undefined || lease.fencingToken > previousFence) &&
+        lease.expiresAt <= (await page.evaluate(() => Date.now()))
+      );
+    })
+    .toBe(true);
+}
+
 // Browser evaluations must be self-contained: Node-side closures cannot cross into the page.
 export async function readStoredValue<T>(
   page: Page,
@@ -106,7 +130,7 @@ export async function tombstoneRevision(page: Page, recordId: string): Promise<s
 }
 
 export async function leaseIsReleased(page: Page): Promise<boolean> {
-  const lease = await readStoredValue<{ expiresAt: number }>(
+  const lease = await readStoredValue<{ expiresAt: number; fencingToken: number }>(
     page,
     'synchronizationLeases',
     'technical-records',

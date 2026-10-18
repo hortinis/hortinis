@@ -208,6 +208,41 @@ export class LocalBindingExchangePersistence {
     });
   }
 
+  /** Account boundaries invalidate leases without touching content or binding provenance. */
+  pauseAuthentication(current: () => boolean): Promise<void> {
+    return this.database.transaction('rw', this.tables(), async () => {
+      const before = await this.read();
+      if (!current() || before.binding?.identity.accessMode !== 'single-user-auth') return;
+      const fence = (BigInt(before.exchange.exchangeFence) + 1n).toString();
+      await this.database.localExchangeState.put({
+        localDataSetId: before.localDataSetId,
+        value: { state: 'auth_required', exchangeFence: fence, logoutPending: true },
+      });
+      if (before.initial)
+        await this.database.localInitialAdmissions.put({
+          localDataSetId: before.localDataSetId,
+          exchangeFence: fence,
+          phase: 'uncertain',
+          expectation: null,
+          expiresAt: null,
+        });
+      await this.invalidateLease(fence);
+    });
+  }
+
+  /** Explicit login releases only the pause; normal binding still verifies the exact account. */
+  resolveAuthenticationPause(current: () => boolean): Promise<void> {
+    return this.database.transaction('rw', this.tables(), async () => {
+      const before = await this.read();
+      if (!current()) throw new SynchronizationOwnershipLostError();
+      if (before.exchange.logoutPending)
+        await this.database.localExchangeState.put({
+          localDataSetId: before.localDataSetId,
+          value: { ...before.exchange, logoutPending: false },
+        });
+    });
+  }
+
   private async read(): Promise<LocalBindingSnapshot> {
     const localDataSetId = await this.database.requireLocalDataSetId();
     const exchange = await this.database.requireLocalExchangeState(localDataSetId);

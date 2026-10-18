@@ -1,32 +1,35 @@
 import { SynchronizationPausedError } from './synchronization-transport';
 import { AuthenticationCookieGate } from './authentication-cookie-gate';
 
-describe('origin-wide authentication cookie gate', () => {
-  const marker = 'hortinis.pending-authentication-logout.v1';
-  let gate: AuthenticationCookieGate;
-
-  beforeEach(() => {
-    localStorage.clear();
-    gate = new AuthenticationCookieGate();
+describe('R5 origin-wide account revision', () => {
+  beforeEach(() => localStorage.clear());
+  it('allows untouched offline/no-auth use', () => {
+    expect(() => new AuthenticationCookieGate().assertExchangeAllowed()).not.toThrow();
+  });
+  it('fences another tab and never makes an old revision current again', () => {
+    const first = new AuthenticationCookieGate();
+    const second = new AuthenticationCookieGate();
+    const original = first.revision();
+    const paused = first.markPending();
+    expect(() => second.assertExchangeAllowed()).toThrow(SynchronizationPausedError);
+    second.markComplete(paused);
+    expect(() => second.assertExchangeAllowed()).not.toThrow();
+    expect(first.current(original)).toBe(false);
+    expect(first.current(paused)).toBe(false);
+    expect(() => first.markComplete(paused)).toThrow();
+  });
+  it('rejects a trailing newline rather than treating a malformed pause as ready', () => {
+    localStorage.setItem(AuthenticationCookieGate.marker, `${crypto.randomUUID()}:paused\n`);
+    expect(() => new AuthenticationCookieGate().assertExchangeAllowed()).toThrow();
   });
 
-  it('allows synchronization when there is no pending sign-out', () => {
-    expect(() => gate.assertExchangeAllowed()).not.toThrow();
-  });
-
-  it('pauses every data set while a non-secret sign-out marker exists', () => {
-    localStorage.setItem(
-      marker,
-      JSON.stringify({ origin: location.origin, target: 'non-authorizing-target' }),
-    );
-    expect(() => gate.assertExchangeAllowed()).toThrow(SynchronizationPausedError);
-  });
-
-  it('fails closed when the browser cannot read the shared marker', () => {
-    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-      throw new Error('unavailable');
+  it('rejects malformed state and unavailable storage', () => {
+    localStorage.setItem(AuthenticationCookieGate.marker, '{}');
+    expect(() => new AuthenticationCookieGate().assertExchangeAllowed()).toThrow();
+    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error();
     });
-    expect(() => gate.assertExchangeAllowed()).toThrow(SynchronizationPausedError);
-    getItem.mockRestore();
+    expect(() => new AuthenticationCookieGate().assertExchangeAllowed()).toThrow();
+    spy.mockRestore();
   });
 });

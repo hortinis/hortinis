@@ -1,5 +1,8 @@
-import { bootstrapApplication } from '@angular/platform-browser';
-import { appConfig } from './app/app.config';
-import { App } from './app/app';
+import { captureActionFragment } from './app/authentication/action-fragment';
 
-bootstrapApplication(App, appConfig).catch((err) => console.error(err));
+captureActionFragment();
+void import('./bootstrap')
+  .then(({ start }) => start())
+  .catch(() => {
+    document.body.textContent = 'Hortinis could not start. Local data is retained.';
+  });

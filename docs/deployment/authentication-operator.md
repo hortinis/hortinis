@@ -1,7 +1,7 @@
 # Authentication operator workflow
 
 - Status: S9-R R4 host invitations implemented, 2026-10-17.
-  Normal authenticated HTTP startup remains closed pending R5/R6.
+  Normal authenticated HTTP startup remains closed pending R6.
 - Authority: [ADR-0034](../architecture/decisions/0034-spring-email-password-authentication.md)
   and the [authentication specification](../architecture/authentication-and-sessions.md).
 
@@ -53,7 +53,7 @@ origin. Missing/invalid required authenticated-mode mail configuration must fail
 message; transient SMTP unavailability must not trigger a mode downgrade or prevent valid password
 login. Local-only/no-auth use requires no SMTP and sends no mail. No startup test email is permitted.
 R4 composes this delivery boundary with host invitation issuance and public reset requests. Normal
-authenticated HTTP startup remains closed, and the replacement browser is R5 work.
+authenticated HTTP startup remains closed, and R5 implements the replacement browser under closed production admission.
 
 ## Controlled invitation command contract
 
@@ -93,7 +93,7 @@ Duplicate/case-variant active or disabled emails never become new accounts. To c
 cancel that reservation and explicitly issue a new invitation to the intended mailbox; never retarget
 an existing active account. R4 removes the retired ticket issuer, persistence, file handling, dedicated tests and fresh-schema
 ticket table. There is no raw ticket directory, reconciliation command or ticket compatibility layer.
-Remaining WebAuthn/browser/storage deletion belongs to R5.
+R5 removes the remaining WebAuthn dependency/adapter, retired browser flows and obsolete storage.
 
 Read email from an operator-protected file or pipe, never an argument or shell history. The input is
 at most 254 ASCII mailbox bytes, optionally followed by one LF or CRLF; EOF without a terminator is

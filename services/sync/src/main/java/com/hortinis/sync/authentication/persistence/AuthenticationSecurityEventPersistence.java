@@ -59,12 +59,7 @@ public class AuthenticationSecurityEventPersistence {
 
   /** Closed authentication actions; no actor or credential reference is part of an event. */
   public enum Event {
-    SETUP,
     LOGIN,
-    RECOVERY,
-    STEP_UP,
-    CREDENTIAL_CHANGE,
-    SESSION_REVOKE,
     LOGOUT
   }
 

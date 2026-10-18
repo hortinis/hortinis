@@ -2,7 +2,7 @@
 
 - Status: Accepted; R1 complete, R2 native backend validated with authenticated admission
   closed; R3 action-token/Boot SMTP and R4 invitation/reset/password mutations implemented;
-  R5 browser replacement and R6 handoff pending.
+  R5 browser replacement implemented; R6 handoff pending.
 - Date: 2026-10-17
 - Implementation owner: S9-R; S10-S15 consume the revised baseline.
 - Partially supersedes: [ADR-0033](0033-built-in-authentication-and-sessions.md).
@@ -14,7 +14,7 @@ substantial application orchestration despite delegating session storage to Spri
 a simpler initial product with verified email/password login, email self-service password reset and
 controlled email invitations, with passkeys/MFA and saved recovery codes deferred. R2 replaces the
 native backend login/session boundary. R3/R4 add email and account mutations while normal authenticated
-startup remains closed; the browser replacement and final validation handoff are incomplete. Existing security evidence applies only to the implementation
+startup remains closed; R5 replaces the browser; the final validation handoff remains incomplete. Existing security evidence applies only to the implementation
 it exercised.
 
 ## Decision

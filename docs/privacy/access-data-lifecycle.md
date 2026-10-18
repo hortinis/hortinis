@@ -4,9 +4,8 @@
 > action tokens under ADR-0034. R2 introduces email identity and minimized native UUID/version
 > sessions under closed authenticated production admission. R3 adds internal hashed action tokens,
 > bounded pending/token cleanup and post-commit SMTP. R4 adds account mutations and host invitation
-> commands; replacement UI and final S9-R handoff remain incomplete.
-> R2 removes partial-session/factor/target processing; dormant legacy storage remains
-> for R5 deletion; R4 removes ticket issuance, raw files and ticket storage. Only synthetic loopback SMTP fixtures send test messages. The S8 inventory at the
+> commands; R5 replaces the browser while final S9-R handoff remains incomplete.
+> R2 removes partial-session/factor/target processing; R5 deletes dormant legacy storage and WebAuthn dependencies; R4 removes ticket issuance, raw files and ticket storage. Only synthetic loopback SMTP fixtures send test messages. The S8 inventory at the
 > end is explicitly historical for fields retired by the replacement.
 
 - Status: Accepted S1 inventory and lifecycle design, 2026-10-02.
@@ -375,3 +374,26 @@ expiry, necessary cookie/CSRF purposes, account metadata, optional authenticator
 server recipient/operator access, invalidated-cookie residue, offline retention/shared-profile access,
 revocation and local/export/backup deletion limits. Account closure/purge and restoration suppression
 remain S12/P0.6/S15 gates; no real personal-data deployment or legal-compliance finding follows from S8.
+
+## R5 transient browser state and local pause (2026-10-18)
+
+Action fragments are captured before Angular startup and cleared with `history.replaceState` before
+other application work. Passwords, invitation/reset secrets and Spring CSRF values stay only in
+transient memory and never enter browser storage, synchronization rows or diagnostics. Closing or
+navigating away clears form/action memory; refreshing requires reopening the email link. GET/link
+opening never activates an account or resets credentials.
+
+The origin-wide `hortinis.authentication-boundary.v2` value contains only a fresh random workflow
+revision and `paused`/`ready`, without account, email, session credential, logout target or CSRF.
+Storage/BroadcastChannel notifications and Web Locks coordinate tabs; exchange fences and leases
+continue to protect the selected Dexie data set. This metadata has the existing local workflow
+lifetime and survives reload so offline sign-out cannot silently resume exchange. `logoutPending`
+is only local pause metadata, cleared by explicit login; no HTTP logout is stored or automatically
+replayed. Explicit status resolution does not itself resume work. Binding provenance, local records
+and pending operations retain their existing lifetimes and exact account matching.
+
+Invitation screens disclose mailbox compromise/reassignment, no password-plus-mailbox-loss recovery,
+SMTP/mailbox recipients and action-link exposure, necessary cookies/CSRF and local/export/backup
+limits before acceptance. No eligibility or SMTP outcome appears in public reset UI. Synthetic browser
+fixtures disable traces and use loopback SMTP; they introduce no real recipient or processing
+activation. Q1/Q2, timing resistance and S12/P0.6/S15 privacy/deployment obligations remain open.

@@ -1,3 +1,4 @@
+import { readStoredValue, waitForApplicationStartup } from './indexeddb';
 import { expect, type APIRequestContext, type BrowserContext, type Page } from '@playwright/test';
 
 const serverInstanceId = '01890f3e-7c5a-7b12-8abc-0123456789ab';
@@ -125,14 +126,18 @@ export async function openRetainedDevice(page: Page): Promise<void> {
   expect(response.status()).toBe(200);
   const observation = (await response.json()) as Observation;
   await page.goto('/');
-  await page.waitForFunction(async () => {
-    const databases = await indexedDB.databases();
-    return databases.some((database) => database.name === 'hortinis' && database.version === 80);
-  });
+  await waitForApplicationStartup(page);
   await seedRetainedBinding(page, {
     serverInstanceId: observation.serverInstanceId,
     identity: observation.identity,
     boundary: observation.boundary,
   });
+  const previous = await readStoredValue<{ fencingToken: number }>(
+    page,
+    'synchronizationLeases',
+    'technical-records',
+  );
+  if (!previous) throw new Error('Synthetic startup lease was not created.');
   await page.reload();
+  await waitForApplicationStartup(page, previous.fencingToken);
 }

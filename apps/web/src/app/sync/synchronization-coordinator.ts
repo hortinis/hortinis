@@ -12,6 +12,8 @@ import {
   type SynchronizationScheduler,
 } from './synchronization-runtime';
 
+import { AuthenticationCookieGate } from './authentication-cookie-gate';
+
 const SCOPE = 'technical-records' as const;
 const LEASE_DURATION_MILLISECONDS = 15_000;
 const LEASE_RENEWAL_MILLISECONDS = 5_000;
@@ -34,10 +36,16 @@ export type SynchronizationLeaseAttempt =
 
 @Injectable({ providedIn: 'root' })
 export class SynchronizationCoordinator {
+  private readonly cookieGate = inject(AuthenticationCookieGate);
   private readonly database = inject(HortinisDatabase);
   private readonly ownerId = inject(SYNCHRONIZATION_OWNER_ID);
   private readonly clock = inject(SYNCHRONIZATION_CLOCK);
   private readonly scheduler = inject(SYNCHRONIZATION_COORDINATION_SCHEDULER);
+
+  authenticationCurrent(): () => boolean {
+    const revision = this.cookieGate.revision();
+    return () => this.cookieGate.current(revision) && !this.cookieGate.paused();
+  }
 
   async tryAcquire(): Promise<SynchronizationLeaseAttempt> {
     return this.acquire(this.ownerId);

@@ -1,417 +1,322 @@
 import { Injectable, OnDestroy, inject, signal } from '@angular/core';
-import { AUTHENTICATION_HTTP } from './authentication-http.port';
-import { BrowserWebAuthnAdapter } from './browser-webauthn.adapter';
+import { AUTHENTICATION_HTTP, AccountRequestError } from './authentication-http.port';
 import { AuthenticationCookieGate } from '../sync/authentication-cookie-gate';
+import { LocalBindingExchangePersistence } from '../persistence/local-binding-exchange-persistence';
 
-type JsonObject = Record<string, unknown>;
-type AuthenticationView =
-  'closed' | 'anonymous' | 'authenticated' | 'pending-logout' | 'unavailable';
+type View = 'closed' | 'anonymous' | 'authenticated' | 'resolution-required' | 'unavailable';
+type Status = { state: 'anonymous' } | { state: 'authenticated'; accountId: string };
+const LOCK = 'hortinis.authentication-cookie-workflow.v2';
 
-interface SessionStatus {
-  readonly state: string;
-  readonly logoutTarget?: string;
-}
-
-interface CredentialsResponse {
-  readonly credentials: readonly { readonly id: string; readonly label?: string }[];
-}
-
-interface SessionsResponse {
-  readonly sessions: readonly {
-    readonly target: string;
-    readonly expiresAt: string;
-    readonly current: boolean;
-  }[];
-}
-
-interface RecoveryStatus {
-  readonly remaining: number;
-  readonly expiresSoon: boolean;
-  readonly expiresAt?: string;
-}
-
-interface PendingLogout {
-  readonly origin: string;
-  readonly target: string;
-}
-
-const PENDING_LOGOUT_KEY = 'hortinis.pending-authentication-logout.v1';
-const COOKIE_WORKFLOW_LOCK = 'hortinis.authentication-cookie-workflow.v1';
-
-/** Same-origin authentication client; tokens stay in memory and logout intent is non-secret. */
+/** Browser coordination only; Spring remains the sole authentication/session authority. */
 @Injectable({ providedIn: 'root' })
 export class AuthenticationBrowserService implements OnDestroy {
   private readonly http = inject(AUTHENTICATION_HTTP);
-  private readonly webauthn = inject(BrowserWebAuthnAdapter);
-  private readonly cookieGate = inject(AuthenticationCookieGate);
-  private readonly origin = globalThis.location.origin;
-  readonly view = signal<AuthenticationView>('closed');
+  private readonly gate = inject(AuthenticationCookieGate);
+  private readonly persistence = inject(LocalBindingExchangePersistence);
+  readonly view = signal<View>('closed');
   readonly notice = signal('');
-  readonly recoveryCodes = signal<readonly string[]>([]);
-  readonly credentials = signal<CredentialsResponse['credentials']>([]);
-  readonly sessions = signal<SessionsResponse['sessions']>([]);
-  readonly recoveryStatus = signal<RecoveryStatus | undefined>(undefined);
-  private logoutTarget: string | undefined;
-  private channel: BroadcastChannel | undefined;
-  private readonly onStorage = (event: StorageEvent) => {
-    if (event.key !== PENDING_LOGOUT_KEY) return;
-    if (event.newValue !== null) this.applyLogoutPending();
-    else this.applyLogoutComplete();
+  readonly busy = signal(false);
+  private resolved: string | undefined;
+  private readonly channel =
+    typeof BroadcastChannel === 'undefined' ? undefined : new BroadcastChannel(LOCK);
+  private readonly storage = (event: StorageEvent) => {
+    if (event.key === AuthenticationCookieGate.marker || event.key === null) this.changed();
   };
 
   constructor() {
-    globalThis.addEventListener('storage', this.onStorage);
-    if (typeof BroadcastChannel !== 'undefined') {
-      this.channel = new BroadcastChannel(COOKIE_WORKFLOW_LOCK);
-      this.channel.onmessage = (event: MessageEvent<unknown>) => {
-        if (event.data === 'logout-pending') this.applyLogoutPending();
-        if (event.data === 'logout-complete') this.applyLogoutComplete();
+    addEventListener('storage', this.storage);
+    if (this.channel)
+      this.channel.onmessage = (event) => {
+        if (event.data === 'unavailable') this.gate.block();
+        this.changed();
       };
-    }
   }
 
   ngOnDestroy(): void {
-    globalThis.removeEventListener('storage', this.onStorage);
+    removeEventListener('storage', this.storage);
     this.channel?.close();
   }
 
-  /** Reads current state only after an explicit user action, preserving offline-first startup. */
   async open(): Promise<void> {
-    if (this.readPendingLogout()) {
-      this.view.set('pending-logout');
-      await this.completePendingLogout();
-      return;
+    await this.perform(async () => {
+      const revision = this.gate.revision();
+      await this.lock(async () => {
+        this.requireCurrent(revision);
+        const status = this.status(await this.http.get<unknown>('/session'));
+        this.requireCurrent(revision);
+        if (status.state === 'anonymous')
+          await this.persistence.pauseAuthentication(() => this.gate.current(revision));
+        await this.http.refreshCsrf();
+        this.requireCurrent(revision);
+        this.resolved = revision;
+        this.view.set(status.state);
+        this.notice.set(
+          this.gate.paused()
+            ? 'Synchronization remains paused. Choose sign in or a new sign-out after checking this session.'
+            : status.state === 'authenticated'
+              ? 'Signed in.'
+              : 'Sign in with your email and password.',
+        );
+      });
+    });
+  }
+
+  async login(email: string, password: string): Promise<void> {
+    await this.mutate(
+      async () => {
+        const status = this.status(await this.http.login<unknown>(email, password));
+        if (status.state !== 'authenticated') throw new AccountRequestError(0);
+        const observed = this.status(await this.http.get<unknown>('/session'));
+        if (observed.state !== 'authenticated' || observed.accountId !== status.accountId)
+          throw new AccountRequestError(401);
+      },
+      true,
+      'Signed in. Reconnect to verify the retained account and server binding.',
+    );
+  }
+
+  async logout(): Promise<void> {
+    if (this.busy()) return;
+    await this.perform(async () => {
+      // Capture intent before persistence/lock waits: reconnect cannot turn local sign-out into HTTP.
+      const mayLogout = navigator.onLine && this.resolved === this.gate.revision();
+      let connectionLost = false;
+      const offline = () => {
+        connectionLost = true;
+      };
+      addEventListener('offline', offline);
+      try {
+        const revision = await this.pause();
+        if (!mayLogout || connectionLost || !navigator.onLine) {
+          this.localSignOutNotice();
+          return;
+        }
+        await this.lock(async () => {
+          this.requireCurrent(revision);
+          if (connectionLost || !navigator.onLine) {
+            this.localSignOutNotice();
+            return;
+          }
+          this.completed(await this.uncertain(revision, () => this.http.postBodyless('/logout')));
+          await this.finishAnonymous(
+            revision,
+            'Signed out. Local data and pending changes remain on this device.',
+          );
+        });
+      } finally {
+        removeEventListener('offline', offline);
+      }
+    });
+  }
+
+  private localSignOutNotice(): void {
+    this.notice.set(
+      'Synchronization is paused locally. The server session may still exist. Reconnect and check session status before choosing sign in or a new sign-out.',
+    );
+  }
+
+  async requestReset(email: string): Promise<void> {
+    await this.perform(async () =>
+      this.lock(async () => {
+        const value = await this.http.post<{ accepted: true }>(
+          '/password-reset/request',
+          { email },
+          202,
+        );
+        if (Object.keys(value).join(',') !== 'accepted' || value.accepted !== true)
+          throw new AccountRequestError(0);
+        this.notice.set(
+          'If this address is eligible, reset instructions may be sent. This does not confirm an account or email delivery.',
+        );
+      }),
+    );
+  }
+
+  async acceptInvitation(token: string, newPassword: string): Promise<void> {
+    await this.mutate(
+      () => this.complete('/invitations/accept', { token, newPassword }),
+      false,
+      'Invitation accepted. Sign in normally with your email and password.',
+    );
+  }
+
+  async completeReset(token: string, newPassword: string): Promise<void> {
+    await this.mutate(
+      () => this.complete('/password-reset/complete', { token, newPassword }),
+      false,
+      'Password reset completed. Sign in normally with your new password.',
+    );
+  }
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    await this.mutate(
+      () => this.complete('/password', { currentPassword, newPassword }),
+      false,
+      'Password changed. All sessions were revoked. Sign in normally with your new password.',
+    );
+  }
+
+  private async complete(path: string, body: Record<string, unknown>): Promise<void> {
+    const value = await this.http.post<{ completed: true }>(path, body);
+    this.completed(value);
+  }
+
+  private completed(value: unknown): void {
+    if (
+      typeof value !== 'object' ||
+      value === null ||
+      Array.isArray(value) ||
+      Object.keys(value).join(',') !== 'completed' ||
+      (value as { completed: unknown }).completed !== true
+    ) {
+      throw new AccountRequestError(0);
     }
+  }
+
+  private async mutate(
+    operation: () => Promise<void>,
+    login: boolean,
+    notice: string,
+  ): Promise<void> {
+    await this.perform(async () => {
+      if (login && this.gate.paused() && this.resolved !== this.gate.revision()) {
+        throw new Error('Check the current session before signing in.');
+      }
+      const revision = await this.pause();
+      await this.lock(async () => {
+        this.requireCurrent(revision);
+        await this.uncertain(revision, operation);
+        this.requireCurrent(revision);
+        if (login) {
+          this.gate.markComplete(revision);
+          const ready = this.gate.revision();
+          await this.persistence.resolveAuthenticationPause(() => this.gate.current(ready));
+          this.requireCurrent(ready);
+          this.http.clearCsrf();
+          await this.http.refreshCsrf();
+          this.resolved = this.gate.revision();
+          this.view.set('authenticated');
+          this.notice.set(notice);
+          this.channel?.postMessage('boundary');
+        } else await this.finishAnonymous(revision, notice);
+      });
+    });
+  }
+
+  /** A lost response may follow a committed mutation; refresh proof, never repeat the mutation. */
+  private async uncertain<T>(revision: string, work: () => Promise<T>): Promise<T> {
     try {
-      await this.refreshStatus();
+      return await work();
+    } catch (error) {
+      if (
+        this.gate.current(revision) &&
+        error instanceof AccountRequestError &&
+        (error.status === 0 || error.status === 503)
+      ) {
+        this.http.clearCsrf();
+        try {
+          await this.http.refreshCsrf();
+        } catch {
+          /* Explicit status resolution remains required. */
+        }
+      }
+      throw error;
+    }
+  }
+
+  private async finishAnonymous(revision: string, notice: string): Promise<void> {
+    this.http.clearCsrf();
+    await this.http.refreshCsrf();
+    this.requireCurrent(revision);
+    this.resolved = revision;
+    this.view.set('anonymous');
+    this.notice.set(notice);
+  }
+
+  private async pause(): Promise<string> {
+    let revision: string;
+    try {
+      revision = this.gate.markPending();
+    } catch {
+      this.http.clearCsrf();
+      this.channel?.postMessage('unavailable');
+      throw new AccountRequestError(0);
+    }
+    this.resolved = undefined;
+    this.http.clearCsrf();
+    this.view.set('resolution-required');
+    this.channel?.postMessage('boundary');
+    await this.persistence.pauseAuthentication(() => this.gate.current(revision));
+    this.requireCurrent(revision);
+    return revision;
+  }
+
+  private changed(): void {
+    this.resolved = undefined;
+    this.http.clearCsrf();
+    this.view.set('resolution-required');
+    this.notice.set(
+      'Account state changed in another tab. Check the current session before continuing.',
+    );
+    try {
+      const revision = this.gate.revision();
+      if (this.gate.paused())
+        void this.persistence
+          .pauseAuthentication(() => this.gate.current(revision))
+          .catch(() => undefined);
     } catch {
       this.view.set('unavailable');
-      this.notice.set('Account services are unavailable. Your local data remains on this device.');
     }
   }
 
-  /** Retries an online logout after browser storage is available again. */
-  async retryPendingLogout(): Promise<void> {
-    const pending = this.readPendingLogout();
-    if (pending?.target) {
-      this.view.set('pending-logout');
-      await this.completePendingLogout();
-      return;
-    }
-    if (this.view() === 'pending-logout' && this.logoutTarget) {
-      await this.logout();
-      return;
-    }
-    this.notice.set(
-      'Sign-out needs attention. Reopen account access to check the current session.',
-    );
+  private requireCurrent(revision: string): void {
+    if (!this.gate.current(revision)) throw new AccountRequestError(0);
   }
 
-  /** Performs both required factors and refreshes CSRF after each cookie rotation. */
-  async login(login: string, password: string): Promise<void> {
-    await this.withCookieLock(async () => {
-      if (this.readPendingLogout()) throw new Error('Complete the pending sign-out first.');
-      await this.http.ensureCsrf();
-      const options = await this.http.post<JsonObject>('/login/password', { login, password });
-      await this.http.refreshCsrf();
-      const credential = await this.webauthn.assert(options);
-      await this.http.post('/login/passkey', credential);
-      await this.http.refreshCsrf();
-      await this.refreshStatus();
-      this.notice.set('Sign-in complete. Synchronization can resume for this account.');
-    });
+  private status(value: unknown): Status {
+    if (typeof value !== 'object' || value === null || Array.isArray(value))
+      throw new AccountRequestError(0);
+    const status = value as Status;
+    const keys = Object.keys(value).sort().join(',');
+    if (status.state === 'anonymous' && keys === 'state') return status;
+    if (
+      status.state === 'authenticated' &&
+      keys === 'accountId,state' &&
+      typeof status.accountId === 'string' &&
+      /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}(?![\s\S])/.test(status.accountId)
+    )
+      return status;
+    throw new AccountRequestError(0);
   }
 
-  /** Runs the operator-issued first-owner flow and returns recovery codes for a one-time display. */
-  async setup(ticket: string, login: string, password: string): Promise<void> {
-    await this.withCookieLock(async () => {
-      if (this.readPendingLogout()) throw new Error('Complete the pending sign-out first.');
-      await this.http.ensureCsrf();
-      const options = await this.http.post<JsonObject>('/setup', { ticket, login, password });
-      await this.http.refreshCsrf();
-      const credential = await this.webauthn.register(options);
-      const result = await this.http.post<{ codes: string[] }>('/setup/passkey', credential);
-      this.http.clearCsrf();
-      this.logoutTarget = undefined;
-      this.recoveryCodes.set(result.codes);
-      this.view.set('anonymous');
-      this.notice.set('Save these recovery codes now. They will only be shown once.');
-    });
+  private async lock(work: () => Promise<void>): Promise<void> {
+    if (!navigator.locks) throw new AccountRequestError(0);
+    await navigator.locks.request(LOCK, { mode: 'exclusive' }, work);
   }
 
-  /** Saves a non-authorizing target before the request and keeps it until server logout succeeds. */
-  async logout(): Promise<void> {
-    await this.withCookieLock(async () => {
-      const target = this.logoutTarget;
-      if (!target) throw new Error('The active session cannot be confirmed for sign-out.');
-      try {
-        this.storePendingLogout({ origin: this.origin, target });
-      } catch {
-        this.cookieGate.markPending();
-        this.applyLogoutPending();
-        this.broadcast('logout-pending');
-        this.notice.set(
-          'Sign-out could not be saved. Synchronization is paused in open tabs; keep this page open and retry.',
-        );
-        throw new Error('Pending sign-out could not be stored.');
-      }
-      this.cookieGate.markPending();
-      this.view.set('pending-logout');
-      this.broadcast('logout-pending');
-      try {
-        await this.sendLogout(target);
-      } catch (error) {
-        this.notice.set('Sign-out is pending. Synchronization is paused until it completes.');
-        throw error;
-      }
-      this.finishLogout();
-    });
-  }
-
-  /** Refreshes only minimized current-account management data after explicit sign-in. */
-  async loadAccountDetails(): Promise<void> {
-    const [credentials, sessions, recovery] = await Promise.all([
-      this.http.get<CredentialsResponse>('/credentials'),
-      this.http.get<SessionsResponse>('/sessions'),
-      this.http.get<RecoveryStatus>('/recovery-codes'),
-    ]);
-    this.credentials.set(credentials.credentials);
-    this.sessions.set(sessions.sessions);
-    this.recoveryStatus.set(recovery);
-  }
-
-  /** Completes the configured password-plus-passkey step-up without saving either factor. */
-  async stepUp(password: string): Promise<void> {
-    await this.withCookieLock(async () => {
-      if (this.readPendingLogout()) throw new Error('Complete the pending sign-out first.');
-      await this.http.ensureCsrf();
-      const options = await this.http.post<JsonObject>('/step-up/password', { password });
-      await this.http.refreshCsrf();
-      await this.http.post('/step-up/passkey', await this.webauthn.assert(options));
-      await this.http.refreshCsrf();
-      await this.refreshStatus();
-    });
-  }
-
-  /** Adds a user-verified passkey after a recent two-factor step-up. */
-  async addPasskey(): Promise<void> {
-    await this.withCookieLock(async () => {
-      const options = await this.http.postBodyless<JsonObject>('/credentials/options');
-      await this.http.post('/credentials', await this.webauthn.register(options));
-      this.http.clearCsrf();
-      await this.refreshStatus();
-    });
-  }
-
-  /** Changes the password only after both normal factors were recently verified. */
-  async changePassword(currentPassword: string, newPassword: string): Promise<void> {
-    await this.withCookieLock(async () => {
-      await this.http.post('/password', { currentPassword, newPassword });
-      this.http.clearCsrf();
-      await this.refreshStatus();
-    });
-  }
-
-  /** Revokes one server-listed credential; its identifier never grants data authority. */
-  async revokeCredential(id: string): Promise<void> {
-    await this.withCookieLock(async () => {
-      await this.http.post('/credentials/revoke', { credentialId: id });
-      this.http.clearCsrf();
-      await this.refreshStatus();
-      this.credentials.set([]);
-    });
-  }
-
-  /** Revokes one currently listed same-account session by its non-authorizing target. */
-  async revokeSession(target: string): Promise<void> {
-    await this.withCookieLock(async () => {
-      await this.http.post('/sessions/revoke', { target });
-      await this.loadAccountDetails();
-    });
-  }
-
-  /** Rotates recovery codes, which are returned only to this view's transient memory. */
-  async regenerateRecoveryCodes(): Promise<void> {
-    await this.withCookieLock(async () => {
-      const result = await this.http.postBodyless<{ codes: string[] }>('/recovery-codes');
-      this.http.clearCsrf();
-      this.recoveryCodes.set(result.codes);
-      this.recoveryStatus.set(undefined);
-      await this.refreshStatus();
-    });
-  }
-
-  /** Starts account-independent forgotten-password recovery using the other enrolled factor. */
-  async resetForgottenPassword(
-    login: string,
-    recoveryCode: string,
-    newPassword: string,
-  ): Promise<void> {
-    await this.withCookieLock(async () => {
-      await this.http.ensureCsrf();
-      const options = await this.http.post<JsonObject>('/recovery/password/options', {
-        login,
-        recoveryCode,
-      });
-      await this.http.refreshCsrf();
-      await this.http.post('/recovery/password/proof', await this.webauthn.assert(options), true);
-      await this.http.post('/recovery/password', { newPassword });
-      this.http.clearCsrf();
-      this.view.set('anonymous');
-      this.notice.set('Password reset is complete. Sign in with the new password and a passkey.');
-    });
-  }
-
-  /** Consumes the second recovery proof before showing this account's owned credential choices. */
-  async beginLostPasskeyRecovery(
-    login: string,
-    password: string,
-    recoveryCode: string,
-  ): Promise<void> {
-    await this.withCookieLock(async () => {
-      await this.http.ensureCsrf();
-      const choices = await this.http.post<CredentialsResponse>('/recovery/passkey', {
-        login,
-        password,
-        recoveryCode,
-      });
-      await this.http.refreshCsrf();
-      this.credentials.set(choices.credentials);
-      this.notice.set('Choose one of the listed credentials to replace.');
-    });
-  }
-
-  /** Replaces one listed credential within the restricted, already verified recovery session. */
-  async completeLostPasskeyRecovery(credentialId: string): Promise<void> {
-    if (!this.credentials().some((credential) => credential.id === credentialId)) {
-      throw new Error('Choose a credential listed for this recovery.');
-    }
-    await this.withCookieLock(async () => {
-      const options = await this.http.post<JsonObject>(
-        '/recovery/passkey/options',
-        { credentialId },
-        true,
+  private async perform(work: () => Promise<void>): Promise<void> {
+    if (this.busy()) return;
+    this.busy.set(true);
+    try {
+      await work();
+    } catch (error) {
+      this.view.set('resolution-required');
+      this.notice.set(
+        error instanceof AccountRequestError && error.status === 409
+          ? 'This link or account state is no longer current. A previous attempt may have completed. Try normal login or request a new reset.'
+          : 'The account request could not be completed. Check session status and try a new action. Local data is retained.',
       );
-      const credential = await this.webauthn.register(options);
-      await this.http.post('/recovery/passkey/proof', credential);
-      this.http.clearCsrf();
-      this.credentials.set([]);
-      this.view.set('anonymous');
-      this.notice.set('Passkey replacement is complete. Sign in again with both factors.');
-    });
-  }
-
-  /** Performs operator-authorized recovery; the new passkey still requires an ordinary login. */
-  async operatorRecovery(ticket: string, newPassword: string): Promise<void> {
-    await this.withCookieLock(async () => {
-      await this.http.ensureCsrf();
-      const options = await this.http.post<JsonObject>('/recovery/operator', {
-        ticket,
-        newPassword,
-      });
-      await this.http.refreshCsrf();
-      await this.http.post('/recovery/operator/proof', await this.webauthn.register(options));
-      this.http.clearCsrf();
-      this.view.set('anonymous');
-      this.notice.set('Recovery is complete. Sign in with the new password and passkey.');
-    });
-  }
-
-  private async completePendingLogout(): Promise<void> {
-    await this.withCookieLock(async () => {
-      const pending = this.readPendingLogout();
-      if (!pending || pending.origin !== this.origin) {
-        this.view.set('unavailable');
-        this.notice.set('Sign-out needs attention before another account can sign in.');
-        return;
+      if (error instanceof AccountRequestError && (error.status === 401 || error.status === 403)) {
+        try {
+          await this.pause();
+          await this.lock(() => this.http.refreshCsrf());
+        } catch {
+          /* Remain paused. */
+        }
       }
-      try {
-        await this.sendLogout(pending.target);
-        this.finishLogout();
-      } catch {
-        this.view.set('pending-logout');
-        this.notice.set('Sign-out is waiting for a connection. Synchronization remains paused.');
-      }
-    });
-  }
-
-  private async sendLogout(target: string): Promise<void> {
-    await this.http.ensureCsrf();
-    await this.http.post('/logout', { target });
-  }
-
-  private finishLogout(): void {
-    localStorage.removeItem(PENDING_LOGOUT_KEY);
-    this.cookieGate.markComplete();
-    this.applyLogoutComplete();
-    this.broadcast('logout-complete');
-  }
-
-  private applyLogoutPending(): void {
-    this.cookieGate.markPending();
-    this.http.clearCsrf();
-    this.view.set('pending-logout');
-    this.notice.set(
-      'Sign-out is pending. Synchronization is paused and local changes are retained.',
-    );
-  }
-
-  private applyLogoutComplete(): void {
-    this.cookieGate.markComplete();
-    this.http.clearCsrf();
-    this.logoutTarget = undefined;
-    this.recoveryCodes.set([]);
-    this.view.set('anonymous');
-    this.notice.set('Signed out. Local edits and pending changes remain on this device.');
-  }
-
-  private async refreshStatus(): Promise<void> {
-    const status = await this.http.get<SessionStatus>('/session');
-    this.logoutTarget = status.state === 'authenticated' ? status.logoutTarget : undefined;
-    this.view.set(status.state === 'authenticated' ? 'authenticated' : 'anonymous');
-  }
-
-  private readPendingLogout(): PendingLogout | undefined {
-    let value: string | null;
-    try {
-      value = localStorage.getItem(PENDING_LOGOUT_KEY);
-    } catch {
-      return undefined;
+      throw new AccountRequestError(error instanceof AccountRequestError ? error.status : 0);
+    } finally {
+      this.busy.set(false);
     }
-    if (!value) return undefined;
-    try {
-      const parsed: unknown = JSON.parse(value);
-      if (
-        typeof parsed === 'object' &&
-        parsed !== null &&
-        !Array.isArray(parsed) &&
-        Object.keys(parsed).sort().join(',') === 'origin,target' &&
-        typeof (parsed as PendingLogout).origin === 'string' &&
-        typeof (parsed as PendingLogout).target === 'string'
-      ) {
-        return parsed as PendingLogout;
-      }
-    } catch {
-      return { origin: this.origin, target: '' };
-    }
-    return { origin: this.origin, target: '' };
-  }
-
-  private storePendingLogout(value: PendingLogout): void {
-    localStorage.setItem(PENDING_LOGOUT_KEY, JSON.stringify(value));
-  }
-
-  private broadcast(message: 'logout-pending' | 'logout-complete'): void {
-    if (typeof BroadcastChannel !== 'undefined') {
-      this.channel ??= new BroadcastChannel(COOKIE_WORKFLOW_LOCK);
-      this.channel.postMessage(message);
-    }
-  }
-
-  private async withCookieLock<T>(operation: () => Promise<T>): Promise<T> {
-    if (!navigator.locks) {
-      throw new Error('This browser cannot safely coordinate account sessions.');
-    }
-    return navigator.locks.request(COOKIE_WORKFLOW_LOCK, { mode: 'exclusive' }, operation);
   }
 }

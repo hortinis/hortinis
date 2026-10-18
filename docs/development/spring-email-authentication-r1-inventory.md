@@ -165,3 +165,22 @@ Using this inventory's physical-line/exclusion rules, R4 production Java is 118 
 HTML/SCSS, contracts, dependencies, locks and deployment configuration are unchanged. The replacement
 plan records actual validation and separate documentation evidence. Q1/Q2, timing resistance, normal authenticated
 HTTP admission, R5/R6 and S10 readiness remain open.
+
+## R5 browser replacement and final legacy deletion — 2026-10-18
+
+The [R5 record](spring-email-authentication-plan.md#r5-implementation-review-and-evidence--2026-10-18)
+tracks Angular email/password/action forms, native form/CSRF/logout, transient fragment capture and
+revision/lease fences. The remaining WebAuthn adapter/dependencies, ceremony/recovery tables and old
+browser models/flows are removed. Host invitations, password controls, native sessions, action mail,
+transactional scope/version authorization and minimized audit remain. No test moves into production.
+
+Against R5 start `a6c2f5f`, production Java is +0/-526 lines (116 files / 6,961), TypeScript +592/-694
+(72 / 6,071) and schema SQL +1/-39 (four / 281). Against R1 `ce5c59b`, Java is +2,207/-6,085,
+TypeScript +593/-695 and SQL +28/-66, using the same physical-line/exclusion rules. Templates/styles,
+dependency/build metadata, tests, contracts, validation tooling and documentation are reported
+separately in the R5 record; historical test deletion never counts as production reduction.
+
+The new test-only browser/native/PostgreSQL assembly and all retired artifacts are excluded from
+production artifacts. Only synthetic local SMTP is used. Q1/Q2, timing resistance, normal authenticated
+startup, R6/S9-R completion and S10 remain open; the R5 record reports actual checks and distinguishes
+browser/HTTP evidence from earlier internal measurements.

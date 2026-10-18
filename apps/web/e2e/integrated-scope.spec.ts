@@ -13,6 +13,7 @@ import {
   seedPendingOperation,
   tombstoneRevision,
   waitForLeaseRelease,
+  waitForApplicationStartup,
 } from './support/indexeddb';
 import { establishedHeaders } from './support/binding';
 import { synchronizationDiagnostics, topologyCommand } from './support/topology';
@@ -412,6 +413,7 @@ async function device(
       diagnostics.push(message.text());
   });
   await page.goto('/');
+  await waitForApplicationStartup(page);
   await waitForLeaseRelease(page);
   await page.getByRole('button', { name: 'Connect to server' }).click();
   await expect(page.getByRole('region', { name: 'Server connection' })).toContainText(

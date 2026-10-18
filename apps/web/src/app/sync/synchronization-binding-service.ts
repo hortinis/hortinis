@@ -1,3 +1,5 @@
+import { SAME_ORIGIN_CSRF } from '../security/same-origin-csrf.port';
+import { AuthenticationCookieGate } from './authentication-cookie-gate';
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { liveQuery } from 'dexie';
 import {
@@ -23,6 +25,8 @@ import { SynchronizationAccessError } from './binding-transport';
 
 @Injectable({ providedIn: 'root' })
 export class SynchronizationBindingService {
+  private readonly csrf = inject(SAME_ORIGIN_CSRF, { optional: true });
+  private readonly cookieGate = inject(AuthenticationCookieGate);
   private readonly persistence = inject(LocalBindingExchangePersistence);
   private readonly coordinator = inject(SynchronizationCoordinator);
   private readonly transport = inject(BINDING_TRANSPORT);
@@ -56,13 +60,15 @@ export class SynchronizationBindingService {
     this.busy.set(true);
     this.failed.set(false);
     try {
+      this.cookieGate.assertExchangeAllowed();
+      const authenticationCurrent = this.coordinator.authenticationCurrent();
       const attempt = await this.coordinator.tryAcquireForBinding();
       if (!attempt.acquired) return this.current();
       let lost = false;
       const ownership: SynchronizationOwnership = {
         lease: attempt.lease,
         now: () => this.clock.now(),
-        isLost: () => lost || this.destroyed,
+        isLost: () => lost || this.destroyed || !authenticationCurrent(),
       };
       const stop = this.coordinator.keepAlive(attempt.lease, () => {
         lost = true;
@@ -183,9 +189,13 @@ export class SynchronizationBindingService {
     } catch (error) {
       if (
         error instanceof SynchronizationAccessError &&
-        error.body.code === 'AUTHENTICATION_REQUIRED'
+        (error.body.code === 'AUTHENTICATION_REQUIRED' || error.body.code === 'ACCESS_DENIED')
       ) {
-        await this.pause(before, 'auth_required', ownership);
+        await this.pause(
+          before,
+          error.body.code === 'AUTHENTICATION_REQUIRED' ? 'auth_required' : 'disconnected',
+          ownership,
+        );
         return undefined;
       }
       throw error;
@@ -220,7 +230,13 @@ export class SynchronizationBindingService {
     state: 'binding_mismatch' | 'reconciliation_required' | 'auth_required' | 'disconnected',
     ownership: SynchronizationOwnership,
   ): Promise<LocalExchangeStatus> {
+    const revision = this.cookieGate.revision();
     await this.persistence.pause(state, before.exchange.exchangeFence, undefined, ownership);
+    if (
+      this.cookieGate.current(revision) &&
+      (state === 'auth_required' || state === 'disconnected')
+    )
+      await this.csrf?.sessionLost?.();
     return state;
   }
 

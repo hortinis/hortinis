@@ -9,7 +9,7 @@
 The generated artifacts describe the complete target. R2 implements CSRF/status, native login and
 logout; R4 implements invitation acceptance, reset request/completion and password change, with
 normal authenticated production admission still closed. R3 supplies shared token/mail primitives;
-R5 owns the replacement browser. The isolated R4 host commands issue/resend/cancel invitations. Retired login/session mutation routes are disconnected and
+R5 implements the replacement browser. The isolated R4 host commands issue/resend/cancel invitations. Retired login/session mutation routes are disconnected and
 cannot authenticate. Historical S8/S9 tests are not evidence for these adapters. No compatibility
 aliases are introduced. Synchronization/access contracts and mode boundaries remain unchanged.
 Auth routes in no-auth mode return fixed 503 without allocating an auth session.
@@ -97,8 +97,7 @@ retries receive 409; normal login or a fresh reset resolves the outcome. Neither
 Expiry, logout or denied current authority pauses synchronization while preserving local reads/writes
 and outbox. Only account-matched reauthentication resumes the retained binding. Offline sign-out pauses
 locally; native logout is not saved for automatic replay against a newer cookie. On reconnect the user
-explicitly resolves status and chooses login or a new sign-out. Fence tabs and in-flight requests. R5/R6
-must test delayed responses and this changed logout policy rather than inheriting old target tests.
+explicitly resolves status and chooses login or a new sign-out. Fence tabs and in-flight requests. R5 supplies fresh browser tests for delayed responses and this changed logout policy rather than inheriting old target tests.
 
 ## R1 evidence boundary
 

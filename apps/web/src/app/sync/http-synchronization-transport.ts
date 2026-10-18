@@ -56,6 +56,7 @@ export class HttpSynchronizationTransport implements SynchronizationTransport {
         context.binding.identity.accessMode === 'single-user-auth'
           ? await this.csrf.csrfHeaders()
           : {};
+      await this.binding.assertCurrent(context);
       const response = await firstValueFrom(
         this.http
           .post<unknown>(`${this.baseUrl}/operations`, operation, {
@@ -84,6 +85,7 @@ export class HttpSynchronizationTransport implements SynchronizationTransport {
     let context: BindingRequestContext | undefined;
     try {
       context = await this.binding.requestContext();
+      await this.binding.assertCurrent(context);
       const response = await firstValueFrom(
         this.http
           .get<unknown>(`${this.baseUrl}/changes`, {

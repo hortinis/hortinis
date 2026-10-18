@@ -2,6 +2,7 @@ import { InjectionToken } from '@angular/core';
 
 /** Supplies the current in-memory CSRF header for protected same-origin application writes. */
 export interface SameOriginCsrfPort {
+  sessionLost?(): Promise<void>;
   csrfHeaders(): Promise<Readonly<Record<string, string>>>;
 }
 

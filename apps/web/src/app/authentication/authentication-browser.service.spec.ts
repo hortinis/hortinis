@@ -4,198 +4,214 @@ import { TestBed } from '@angular/core/testing';
 import { AUTHENTICATION_HTTP } from './authentication-http.port';
 import { AuthenticationHttpClient } from './authentication-http-client';
 import { AuthenticationBrowserService } from './authentication-browser.service';
-import { BrowserWebAuthnAdapter } from './browser-webauthn.adapter';
 import { AuthenticationCookieGate } from '../sync/authentication-cookie-gate';
-import { SynchronizationPausedError } from '../sync/synchronization-transport';
+import { LocalBindingExchangePersistence } from '../persistence/local-binding-exchange-persistence';
 
-async function allowHttpWorkflowToContinue(): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 0));
-}
+const headers = { 'Cache-Control': 'no-store', 'Content-Type': 'application/json' };
+const account = '00000000-0000-4000-8000-000000000001';
+const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-describe('browser authentication client', () => {
-  let service: AuthenticationBrowserService;
+describe('R5 native Angular transport and browser state', () => {
   let http: HttpTestingController;
-  const webAuthn = { assert: vi.fn().mockResolvedValue({ assertion: 'test-proof' }) };
-
+  let client: AuthenticationHttpClient;
+  let service: AuthenticationBrowserService;
+  const persistence = {
+    pauseAuthentication: vi.fn(async () => undefined),
+    resolveAuthenticationPause: vi.fn(async () => undefined),
+  };
   beforeEach(() => {
     localStorage.clear();
+    Object.defineProperty(navigator, 'locks', {
+      configurable: true,
+      value: {
+        request: (_name: string, _options: unknown, work: () => Promise<void>) => work(),
+      },
+    });
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: AUTHENTICATION_HTTP, useExisting: AuthenticationHttpClient },
-        { provide: BrowserWebAuthnAdapter, useValue: webAuthn },
+        { provide: LocalBindingExchangePersistence, useValue: persistence },
       ],
     });
+    client = TestBed.inject(AuthenticationHttpClient);
     service = TestBed.inject(AuthenticationBrowserService);
     http = TestBed.inject(HttpTestingController);
   });
-
   afterEach(() => {
     http.verify();
     TestBed.resetTestingModule();
+    Reflect.deleteProperty(navigator, 'locks');
   });
+  function flush(path: string, body: object, status = 200) {
+    const request = http.expectOne(`${location.origin}/api/v1/auth${path}`);
+    request.flush(body, { headers, status, statusText: 'Synthetic' });
+    return request;
+  }
+  async function csrf() {
+    await tick();
+    flush('/csrf', { token: 'native_masked+value/with=padding-', headerName: 'X-CSRF-TOKEN' });
+    await tick();
+  }
 
-  it('accepts the R1 native BREACH-masked CSRF alphabet in transient memory', async () => {
-    const client = TestBed.inject(AuthenticationHttpClient);
-    const refreshed = client.refreshCsrf();
-    http
-      .expectOne(`${location.origin}/api/v1/auth/csrf`)
-      .flush(
-        { token: 'native_masked+value/with=padding-', headerName: 'X-CSRF-TOKEN' },
-        { headers: { 'Cache-Control': 'no-store' } },
-      );
-    await refreshed;
+  it('makes no request during local-only construction', () => {
+    http.expectNone(() => true);
+  });
+  it('bootstraps masked CSRF only in memory', async () => {
+    const work = client.refreshCsrf();
+    await csrf();
+    await work;
     expect(await client.csrfHeaders()).toEqual({
       'X-CSRF-TOKEN': 'native_masked+value/with=padding-',
     });
+    expect(localStorage.length).toBe(0);
+  });
+  it('does not repopulate CSRF after a boundary changed', async () => {
+    const work = client.refreshCsrf();
+    const failed = expect(work).rejects.toThrow();
+    TestBed.inject(AuthenticationCookieGate).markPending();
+    await csrf();
+    await failed;
+  });
+  it('rejects a cacheable or non-JSON status', async () => {
+    const work = service.open();
+    const failed = expect(work).rejects.toThrow();
+    http.expectOne(`${location.origin}/api/v1/auth/session`).flush({ state: 'anonymous' });
+    await failed;
+    expect(service.view()).not.toBe('authenticated');
+  });
+  it('rejects lone surrogates before the form encoder can replace password text', async () => {
+    await expect(
+      client.login('owner@example.test', 'synthetic' + String.fromCharCode(0xd800)),
+    ).rejects.toThrow();
+    http.expectNone(() => true);
   });
 
-  it('rejects CSRF values with trailing line breaks', async () => {
-    const client = TestBed.inject(AuthenticationHttpClient);
-    const refreshed = client.refreshCsrf();
-    http
-      .expectOne(`${location.origin}/api/v1/auth/csrf`)
-      .flush(
-        { token: 'native-token\n', headerName: 'X-CSRF-TOKEN' },
-        { headers: { 'Cache-Control': 'no-store' } },
-      );
-    await expect(refreshed).rejects.toThrow('invalid security token');
+  it('uses exact native form encoding and refreshes after login', async () => {
+    const work = service.login('Gardener+tag@Example.test', ' exact +&=🌱 password ');
+    await csrf();
+    const request = http.expectOne(`${location.origin}/api/v1/auth/login`);
+    expect(request.request.body).toBe(
+      'email=Gardener%2Btag%40Example.test&password=+exact+%2B%26%3D%F0%9F%8C%B1+password+',
+    );
+    expect(request.request.headers.get('Content-Type')).toContain(
+      'application/x-www-form-urlencoded',
+    );
+    expect(request.request.headers.has('X-CSRF-TOKEN')).toBe(true);
+    request.flush({ state: 'authenticated', accountId: account }, { headers });
+    await tick();
+    flush('/session', { state: 'authenticated', accountId: account });
+    await csrf();
+    await work;
+    expect(service.view()).toBe('authenticated');
+    expect(JSON.stringify(localStorage)).not.toContain('password');
+  });
+  it('accepts the generic 202 acknowledgement', async () => {
+    const work = service.requestReset('unknown@example.test');
+    await csrf();
+    flush('/password-reset/request', { accepted: true }, 202);
+    await work;
+    expect(service.notice()).toContain('does not confirm');
+  });
+  it('never retries a CSRF-rejected unsafe request', async () => {
+    const work = service.requestReset('unknown@example.test');
+    const failed = expect(work).rejects.toThrow();
+    await csrf();
+    flush('/password-reset/request', { code: 'ACCESS_DENIED', message: 'Access is denied.' }, 403);
+    await csrf();
+    await failed;
+    http.expectNone(`${location.origin}/api/v1/auth/password-reset/request`);
+    expect(service.view()).toBe('resolution-required');
+  });
+  it('ignores a delayed denial after a newer login boundary instead of pausing it', async () => {
+    const work = service.requestReset('unknown@example.test');
+    const failed = expect(work).rejects.toThrow();
+    await csrf();
+    const gate = TestBed.inject(AuthenticationCookieGate);
+    gate.markComplete(gate.markPending());
+    const current = gate.revision();
+    flush('/password-reset/request', { code: 'ACCESS_DENIED', message: 'Access is denied.' }, 403);
+    await failed;
+    expect(gate.revision()).toBe(current);
+    expect(gate.paused()).toBe(false);
+    http.expectNone(`${location.origin}/api/v1/auth/csrf`);
   });
 
-  it('keeps application startup offline until account access is explicitly opened', async () => {
-    http.expectNone(`${location.origin}/api/v1/auth/session`);
+  it('keeps offline logout paused across explicit status resolution without replay', async () => {
+    const initial = service.open();
+    flush('/session', { state: 'authenticated', accountId: account });
+    await csrf();
+    await initial;
+    const online = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const localLogout = service.logout();
+    online.mockReturnValue(true);
+    await localLogout;
+    expect(service.view()).toBe('resolution-required');
+    http.expectNone(`${location.origin}/api/v1/auth/logout`);
+    online.mockRestore();
     const opened = service.open();
-    const request = http.expectOne(`${location.origin}/api/v1/auth/session`);
-    expect(request.request.method).toBe('GET');
-    expect(request.request.withCredentials).toBe(true);
-    request.flush({ state: 'anonymous' }, { headers: { 'Cache-Control': 'no-store' } });
+    flush('/session', { state: 'authenticated', accountId: account });
+    await csrf();
     await opened;
+    expect(TestBed.inject(AuthenticationCookieGate).paused()).toBe(true);
+    http.expectNone(`${location.origin}/api/v1/auth/logout`);
+  });
+  it('uses native bodyless logout and remains anonymous after refresh', async () => {
+    const opened = service.open();
+    flush('/session', { state: 'authenticated', accountId: account });
+    await csrf();
+    await opened;
+    const work = service.logout();
+    await csrf();
+    const request = flush('/logout', { completed: true });
+    expect(request.request.body).toBeNull();
+    await csrf();
+    await work;
     expect(service.view()).toBe('anonymous');
   });
-
-  it('does not accept an account response that could be cached', async () => {
-    const opened = service.open();
-    http.expectOne(`${location.origin}/api/v1/auth/session`).flush({ state: 'anonymous' });
-    await opened;
-    expect(service.view()).toBe('unavailable');
-    expect(service.notice()).toContain('unavailable');
+  it.each(['invitation', 'reset', 'change'])('does not login after %s', async (kind) => {
+    const work =
+      kind === 'invitation'
+        ? service.acceptInvitation('A'.repeat(43), 'new synthetic password')
+        : kind === 'reset'
+          ? service.completeReset('A'.repeat(43), 'new synthetic password')
+          : service.changePassword('current', 'new synthetic password');
+    await csrf();
+    flush(
+      kind === 'invitation'
+        ? '/invitations/accept'
+        : kind === 'reset'
+          ? '/password-reset/complete'
+          : '/password',
+      { completed: true },
+    );
+    await csrf();
+    await work;
+    expect(service.view()).toBe('anonymous');
+    http.expectNone(`${location.origin}/api/v1/auth/login`);
+  });
+  it('fails closed and notifies other tabs when the durable pause cannot be written', async () => {
+    const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error();
+    });
+    const notify = vi.spyOn(BroadcastChannel.prototype, 'postMessage');
+    await expect(service.logout()).rejects.toThrow();
+    expect(TestBed.inject(AuthenticationCookieGate).paused()).toBe(true);
+    expect(notify).toHaveBeenCalledWith('unavailable');
+    http.expectNone(() => true);
+    write.mockRestore();
+    notify.mockRestore();
   });
 
-  it('rejects a non-string CSRF token rather than coercing it into a header', async () => {
-    const refreshed = TestBed.inject(AuthenticationHttpClient).refreshCsrf();
-    const rejected = expect(refreshed).rejects.toThrow('invalid security token');
-    http
-      .expectOne(`${location.origin}/api/v1/auth/csrf`)
-      .flush(
-        { token: 123, headerName: 'X-CSRF-TOKEN' },
-        { headers: { 'Cache-Control': 'no-store' } },
-      );
-    await rejected;
-  });
-
-  it('keeps password and passkey login in one coordinated CSRF-bound workflow', async () => {
-    Object.defineProperty(navigator, 'locks', {
-      configurable: true,
-      value: {
-        request: (_name: string, _options: unknown, operation: () => Promise<void>) => operation(),
-      },
-    });
-    try {
-      const login = service.login('owner', 'password held only for this call');
-      const csrf = http.expectOne(`${location.origin}/api/v1/auth/csrf`);
-      expect(csrf.request.method).toBe('GET');
-      csrf.flush(
-        { token: 'fc172f68-a11e-4c9e-91d8-1f1b44693789', headerName: 'X-CSRF-TOKEN' },
-        { headers: { 'Cache-Control': 'no-store' } },
-      );
-      await allowHttpWorkflowToContinue();
-
-      const password = http.expectOne(`${location.origin}/api/v1/auth/login/password`);
-      expect(password.request.withCredentials).toBe(true);
-      expect(password.request.headers.get('X-CSRF-TOKEN')).toBe(
-        'fc172f68-a11e-4c9e-91d8-1f1b44693789',
-      );
-      expect(password.request.body).toEqual({
-        login: 'owner',
-        password: 'password held only for this call',
-      });
-      password.flush({ challenge: 'challenge' }, { headers: { 'Cache-Control': 'no-store' } });
-      await allowHttpWorkflowToContinue();
-
-      const rotatedCsrf = http.expectOne(`${location.origin}/api/v1/auth/csrf`);
-      rotatedCsrf.flush(
-        { token: 'f6c8a5f4-45e0-4278-9d7a-5fde43231c0e', headerName: 'X-CSRF-TOKEN' },
-        { headers: { 'Cache-Control': 'no-store' } },
-      );
-      await allowHttpWorkflowToContinue();
-
-      const passkey = http.expectOne(`${location.origin}/api/v1/auth/login/passkey`);
-      expect(passkey.request.headers.get('X-CSRF-TOKEN')).toBe(
-        'f6c8a5f4-45e0-4278-9d7a-5fde43231c0e',
-      );
-      expect(passkey.request.body).toEqual({ assertion: 'test-proof' });
-      passkey.flush({}, { headers: { 'Cache-Control': 'no-store' } });
-      await allowHttpWorkflowToContinue();
-
-      const finalCsrf = http.expectOne(`${location.origin}/api/v1/auth/csrf`);
-      finalCsrf.flush(
-        { token: 'C'.repeat(43), headerName: 'X-CSRF-TOKEN' },
-        { headers: { 'Cache-Control': 'no-store' } },
-      );
-      await allowHttpWorkflowToContinue();
-
-      const status = http.expectOne(`${location.origin}/api/v1/auth/session`);
-      status.flush(
-        { state: 'authenticated', logoutTarget: 'non-authorizing-target' },
-        { headers: { 'Cache-Control': 'no-store' } },
-      );
-      await login;
-      expect(webAuthn.assert).toHaveBeenCalledWith({ challenge: 'challenge' });
-      expect(service.view()).toBe('authenticated');
-    } finally {
-      Reflect.deleteProperty(navigator, 'locks');
-    }
-  });
-
-  it('fails closed when it cannot persist the cross-tab logout marker', async () => {
-    Object.defineProperty(navigator, 'locks', {
-      configurable: true,
-      value: {
-        request: (_name: string, _options: unknown, operation: () => Promise<void>) => operation(),
-      },
-    });
-    const opened = service.open();
-    http
-      .expectOne(`${location.origin}/api/v1/auth/session`)
-      .flush(
-        { state: 'authenticated', logoutTarget: 'logout-target' },
-        { headers: { 'Cache-Control': 'no-store' } },
-      );
-    await opened;
-    const originalSetItem = Storage.prototype.setItem;
-    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (
-      this: Storage,
-      key,
-      value,
-    ) {
-      if (key === 'hortinis.pending-authentication-logout.v1') {
-        throw new DOMException('Storage is full.', 'QuotaExceededError');
-      }
-      return originalSetItem.call(this, key, value);
-    });
-    try {
-      await expect(service.logout()).rejects.toThrow('Pending sign-out could not be stored.');
-      expect(setItem).toHaveBeenCalledOnce();
-      expect(service.view()).toBe('pending-logout');
-      expect(service.notice()).toContain('paused in open tabs');
-      expect(() => TestBed.inject(AuthenticationCookieGate).assertExchangeAllowed()).toThrow(
-        SynchronizationPausedError,
-      );
-      http.expectNone(`${location.origin}/api/v1/auth/logout`);
-    } finally {
-      setItem.mockRestore();
-      Reflect.deleteProperty(navigator, 'locks');
-    }
+  it('rejects a delayed login after another boundary without releasing the pause', async () => {
+    const work = service.login('owner@example.test', 'synthetic password');
+    const failed = expect(work).rejects.toThrow();
+    await csrf();
+    TestBed.inject(AuthenticationCookieGate).markPending();
+    flush('/login', { state: 'authenticated', accountId: account });
+    await failed;
+    expect(service.view()).not.toBe('authenticated');
+    expect(TestBed.inject(AuthenticationCookieGate).paused()).toBe(true);
   });
 });

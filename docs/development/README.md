@@ -4,7 +4,7 @@ The approved next authentication increment is the [Spring email/password replace
 (S9-R). R1 finalized policy/contracts and inventories. R2 replaces the native backend boundary with
 normal authenticated startup and old host workflows closed. R3 supplies internal JDBC action-token
 and bounded Boot SMTP primitives. R4 adds account-action adapters and isolated host invitations;
-replacement UI and final R6 handoff remain incomplete.
+R5 replaces the browser; final R6 handoff remains incomplete.
 Earlier S8/S9 descriptions below are historical where they require passkeys/MFA, recovery codes or
 operator-ticket browser recovery. Generated authentication contracts now target S9-R ahead of runtime.
 
@@ -43,6 +43,30 @@ replacement. Q1/Q2 and timing resistance remain open through R6.
 The R1 contract tests check shape, not runtime security; use the R2 evidence record for actual native
 boundary checks. S10 and production gates remain blocked; historical S8/S9 evidence does not validate
 this design.
+
+### R5 authenticated browser evidence
+
+Run the replacement browser fixture independently:
+
+```shell
+pnpm test:e2e:authentication
+```
+
+The command builds the real production Angular bundle and runs Gradle's separate
+`:services:sync:authenticationBrowserTest` task. Its integration-test-only assembly selects the
+production native security/account/synchronization graph while omitting the closed admission bean.
+Neither production archive includes the fixture, its controls or a configurable bypass. Ordinary
+`integrationTest` excludes this browser launcher; `pnpm validate` runs it separately.
+
+The fixture uses disposable PostgreSQL 18, a loopback HTTPS edge, a generated one-day certificate
+pinned by its public key in Chromium, and synthetic local SMTP only. The edge proxies native cookies,
+form bodies and API responses unchanged. Fixture controls reset synthetic accounts and limiter state
+between scenarios, issue/expire test tokens and select SMTP refusal. SMTP still uses the real mail
+adapter and transport. This is browser/HTTP evidence, not complete shared quota enforcement, timing
+resistance or authenticated production startup. Q1/Q2 remain R6 gates. It requires Chromium, Docker,
+Node.js and Java; temporary TLS/output files and disposable containers are removed afterward.
+Browser tracing is disabled for these secret-bearing synthetic workflows; diagnostics are fixed or
+redacted. The production bundle and both backend archives have replacement-isolation checks.
 
 ### Container topology
 

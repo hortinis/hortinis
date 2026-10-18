@@ -22,5 +22,6 @@
     ],
     "unevaluatedProperties": {
         "not": {}
-    }
+    },
+    "description": "Local sign-out pause only. Reconnect requires explicit session resolution; never a queued native logout request."
 }

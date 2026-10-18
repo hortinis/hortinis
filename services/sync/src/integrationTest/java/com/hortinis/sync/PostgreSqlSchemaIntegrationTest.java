@@ -84,6 +84,20 @@ class PostgreSqlSchemaIntegrationTest {
   }
 
   @Test
+  void replacementSchemaExcludesRetiredAuthenticationStorage() {
+    for (String retired :
+        List.of(
+            "authentication_credential",
+            "authentication_challenge",
+            "authentication_recovery_code",
+            "authentication_operator_ticket",
+            "spring_session_authority_reference")) {
+      assertThat(jdbc.queryForObject("SELECT to_regclass(?)::text", String.class, retired))
+          .isNull();
+    }
+  }
+
+  @Test
   void rejectsMultipleInstallationsAndMultipleDefaultScopes() {
     assertThatThrownBy(
             () ->

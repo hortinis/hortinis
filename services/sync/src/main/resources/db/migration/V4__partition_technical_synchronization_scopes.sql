@@ -171,51 +171,13 @@ CREATE INDEX authentication_action_token_expiry ON authentication_action_token (
 CREATE INDEX authentication_pending_account_expiry ON authentication_account (created_at)
     WHERE status = 'pending';
 
-CREATE TABLE authentication_credential (
-    credential_id BYTEA PRIMARY KEY CHECK (octet_length(credential_id) BETWEEN 1 AND 1536),
-    account_id UUID NOT NULL REFERENCES authentication_account (account_id) ON DELETE CASCADE,
-    public_key_cose BYTEA NOT NULL CHECK (octet_length(public_key_cose) BETWEEN 1 AND 2048),
-    algorithm INTEGER NOT NULL CHECK (algorithm IN (-7, -257, -8)),
-    signature_count BIGINT NOT NULL CHECK (signature_count BETWEEN 0 AND 4294967295),
-    backup_eligible BOOLEAN NOT NULL,
-    backed_up BOOLEAN NOT NULL,
-    label VARCHAR(64),
-    CHECK (NOT backed_up OR backup_eligible)
-);
-CREATE INDEX authentication_credential_account ON authentication_credential (account_id);
-
--- Pending ceremonies and password/full authentication are stored only in Spring Session.
-CREATE TABLE authentication_challenge (
-    session_reference UUID PRIMARY KEY,
-    account_id UUID REFERENCES authentication_account (account_id) ON DELETE CASCADE,
-    challenge BYTEA NOT NULL CHECK (octet_length(challenge) = 32),
-    purpose TEXT NOT NULL CHECK (purpose IN (
-        'setup', 'login', 'step-up', 'credential', 'recover-password', 'recover-passkey', 'operator'
-    )),
-    created_at TIMESTAMPTZ NOT NULL,
-    expires_at TIMESTAMPTZ NOT NULL,
-    recovery_code_verifier CHAR(64) CHECK (recovery_code_verifier ~ '^[a-f0-9]{64}$'),
-    CHECK (expires_at > created_at AND expires_at <= created_at + INTERVAL '5 minutes')
-);
-CREATE INDEX authentication_challenge_expiry ON authentication_challenge (expires_at);
-
-CREATE TABLE authentication_recovery_code (
-    account_id UUID NOT NULL REFERENCES authentication_account (account_id) ON DELETE CASCADE,
-    secret_verifier CHAR(64) NOT NULL CHECK (secret_verifier ~ '^[a-f0-9]{64}$'),
-    created_at TIMESTAMPTZ NOT NULL,
-    expires_at TIMESTAMPTZ NOT NULL,
-    PRIMARY KEY (account_id, secret_verifier),
-    CHECK (expires_at > created_at AND expires_at <= created_at + INTERVAL '8760 hours')
-);
-CREATE INDEX authentication_recovery_code_expiry ON authentication_recovery_code (expires_at);
-
 -- Protected security events contain only closed codes, trusted UTC and a fresh request reference.
 -- They deliberately have no account/session/source address/credential mapping or arbitrary payload.
 CREATE TABLE authentication_security_event (
     request_reference UUID PRIMARY KEY,
     occurred_at TIMESTAMPTZ NOT NULL,
     event TEXT NOT NULL CHECK (event IN (
-        'setup', 'login', 'recovery', 'step-up', 'credential-change', 'session-revoke', 'logout'
+        'login', 'logout'
     )),
     outcome TEXT NOT NULL CHECK (outcome IN ('succeeded', 'denied', 'unavailable')),
     reason TEXT NOT NULL CHECK (reason IN (

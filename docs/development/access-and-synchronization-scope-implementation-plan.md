@@ -33,7 +33,7 @@ Mandatory passkeys/MFA, saved recovery codes, operator-ticket browser recovery, 
 and preservation of their contracts are obsolete implementation targets. R2 replaces the backend
 login/session boundary with normal authenticated startup closed during the incomplete replacement.
 R1 finalized replacement policy/contracts/inventories; the generated API still describes the complete
-future surface. R1-R4 are complete; R5-R6 remain planned. Scope isolation, stable identity and offline
+future surface. R1-R5 are complete; R6 remains planned. Scope isolation, stable identity and offline
 preservation remain.
 
 ## Required outcome
@@ -488,8 +488,8 @@ preserves local data and pending intent.
 
 ### S9 — Implement authenticated single-user access
 
-- Status: `implemented` for the historical MFA baseline; S9-R R1-R4 are complete,
-  R5-R6 are `planned`.
+- Status: `implemented` for the historical MFA baseline; S9-R R1-R5 are complete,
+  R6 is `planned`.
 - Implementation plan: [S9 implementation plan](s9-implementation-plan.md).
 - Depends on: S6 and S8.
 - Scope: implement controlled first-account setup, authentication, server-side sessions, logout, expiry,
@@ -510,7 +510,7 @@ preserves local data and pending intent.
 
 ### S9-R — Replace authentication with Spring email and password flows
 
-- Status: R1-R4 `complete` (2026-10-17); R5-R6 `planned`.
+- Status: R1-R5 `complete` (2026-10-18); R6 `planned`.
   Normal authenticated startup remains closed.
 - Implementation plan: [Spring email/password replacement](spring-email-authentication-plan.md).
 - Depends on: the S9 scope/account boundary and ADR-0034; supersedes the old mechanism handoff.
@@ -607,6 +607,27 @@ preserves local data and pending intent.
   run's test-only PMD duplicate-literal findings were corrected before the final pass. Native
   authentication, transactional revocation and closed production admission remain intact;
   Q1/Q2 and timing resistance stay open.
+- R5 implementation/evidence (2026-10-18): [record](spring-email-authentication-plan.md#r5-implementation-review-and-evidence--2026-10-18)
+  tracks Angular email/password/action forms, native form encoding/CSRF/bodyless logout, transient
+  fragment capture, mailbox disclosures and origin/lease fencing. Offline sign-out remains local,
+  never queues native logout, and requires explicit status resolution/login or a new sign-out.
+  Retained work resumes only for the exact original account/instance/scope; no email-derived binding.
+  Remove WebAuthn/COSE dependencies, adapters, obsolete ceremony/recovery storage and management UI;
+  host invitations, native security, action mail, transactional authorization and bounded controls remain.
+- R5 validation: full `pnpm validate` passed with 375 web unit, 252 Java unit and 242 PostgreSQL
+  integration tests, 11 standard and six no-auth topology Chromium cases, contracts/generated checks,
+  documentation, architecture, static/build and repository gates. A separate final focused strict run
+  passes 22 real Angular/native Spring/PostgreSQL browser scenarios, including remote session expiry/
+  version revocation, offline reconnect, account mismatch, tabs, delayed login and in-flight sync.
+  Only synthetic loopback SMTP/TLS is used; source-only controls/assembly are absent from production.
+  Cookie/CSRF/action/password canaries are excluded from browser storage/diagnostics. Runtime
+  and both backend archives plus frontend bundles exclude retired authentication implementation.
+- R5 size uses R1 rules: Java 116 files / 6,961 lines (+0/-526 versus `a6c2f5f`); TypeScript 72 /
+  6,071 (+592/-694); SQL four / 281 (+1/-39). The record separates template/style, dependency/build,
+  tests, documentation and tooling counts; historical test deletion/moving bootstrap is not a
+  production reduction. No new authentication engine, schema compatibility migration or startup bypass.
+  Existing quality warnings remain. Q1/Q2, timing resistance, R6, S9-R completion and S10 remain open;
+  authenticated production startup stays closed. No real email, push or deployment.
 - Handoff: S10 consumes S9-R after validation. No production-readiness or ASVS-level claim follows
   from adopting password-only login. SMTP/privacy and recovery-strength review remain S15 gates.
 
