@@ -1,7 +1,7 @@
 # Authentication HTTP contract handoff
 
 - Owner: S9-R R1, [ADR-0034](../architecture/decisions/0034-spring-email-password-authentication.md).
-- Status: R1 contracts defined; R2 native login/session and R4 account-action adapters implemented, 2026-10-17.
+- Status: R1-R6 contracts/adapters and replacement validation complete, 2026-10-19.
   Normal authenticated startup remains closed.
 - Sources: `contracts/typespec/authentication-models.tsp` and `authentication-operations.tsp`.
 - Policy: [authentication and sessions](../architecture/authentication-and-sessions.md).
@@ -28,7 +28,7 @@ is incompatible or malformed; response negotiation must not fail after a committ
 | GET `/session` | None | Public; 200 `{state: "anonymous"}` or current verified active `{state: "authenticated", accountId}`. No new session. |
 | POST `/login` | `application/x-www-form-urlencoded`: exactly `email`, `password` | Native Spring form login; 200 authenticated status. Configure `usernameParameter("email")`; no JSON login controller. |
 | POST `/invitations/accept` | JSON `{token, newPassword}` | Current invitation for its pending account; 200 `{completed: true}`, then normal login. |
-| POST `/password-reset/request` | JSON `{email}` | Public; identical 202 `{accepted: true}` for eligible, unknown, pending, disabled, per-email mail quota or recipient-specific SMTP failure. |
+| POST `/password-reset/request` | JSON `{email}` | Public; identical 202 `{accepted: true}` for eligible, unknown, pending, disabled, email/installation delivery quota, transport-capacity denial or recipient-specific SMTP failure. |
 | POST `/password-reset/complete` | JSON `{token, newPassword}` | Current reset for its verified active account; 200 `{completed: true}`, all sessions revoked, then normal login. |
 | POST `/password` | JSON `{currentPassword, newPassword}` | Current verified active session and current password; 200 `{completed: true}`, all sessions revoked including caller. |
 | POST `/logout` | No body/query | Native CSRF-protected logout of current cookie session; 200 `{completed: true}`, including anonymous state with valid CSRF. |
@@ -62,7 +62,7 @@ to purpose and account. Neither caller-selected account/scope nor email/purpose 
 | 401 | `AUTHENTICATION_REQUIRED`, `Authentication is required.` | Password change without current authenticated authority. |
 | 403 | `ACCESS_DENIED`, `Access is denied.` | CSRF/origin/authorization rejection. |
 | 409 | `AUTHENTICATION_PRECONDITION_FAILED`, `The authentication precondition no longer holds.` | Uniform expired/used/replaced/wrong-purpose/ineligible action token or changed credential snapshot. |
-| 429 | `AUTHENTICATION_THROTTLED`, `Authentication attempts are temporarily limited.` | Request/source/global capacity limits, independent of account existence; `Retry-After: 60`. Per-email reset-mail quotas still acknowledge 202. |
+| 429 | `AUTHENTICATION_THROTTLED`, `Authentication attempts are temporarily limited.` | Request/source/global request limits, independent of account existence; `Retry-After: 60`. All reset delivery-quota/capacity denials still acknowledge 202. |
 | 503 | `ACCESS_UNAVAILABLE`, `The access service is unavailable.` | Account-independent access infrastructure failure. Recipient-specific SMTP failure is never exposed here. |
 
 Each operation declares only applicable errors. No HTML, redirects, input reflection, token/email,
@@ -119,5 +119,19 @@ establish a SecurityContext or an authenticated session. Real loopback SMTP is s
 Generic reset bodies do not prove timing resistance. Complete synthetic HTTPS response samples are
 recorded separately from R3 internal JDBC/transport samples in the
 [R4 evidence](../development/spring-email-authentication-plan.md#r4-implementation-review-and-evidence--2026-10-17).
-Q1/Q2, final timing controls, R5/R6 and production admission remain open. No contract or generated
+At R4 completion Q1/Q2 and browser/final validation remained open; the R6 record supersedes that
+quota/evidence boundary. Timing resistance and production admission remain open. No contract or generated
 artifact was changed to accommodate these adapters.
+
+## R6 delivery admission revision
+
+TypeSpec remains authoritative. Only committed eligible issuance spends durable shared email/global
+mail reservations. Unknown/ineligible requests do not spend mail capacity. Resets have 20/hour and
+80/day; host invitations/resends ten/hour and 20/day, without borrowing; email cooldown/three-hourly/
+ten-daily limits span purposes. Public delivery quota/capacity/failure branches always acknowledge
+202, including recipient-specific token-store/commit failure with no delivery/retry. Shared
+pre-eligibility storage/clock failures remain 503 for known and unknown addresses; only request limits
+produce 429. No quota count or delivery status is exposed.
+A one-second acknowledgement floor adds bounded padding; slow SMTP/HTTP tails remain observable.
+See [fresh R6 evidence](../development/spring-email-authentication-r6-evidence.md); generic output and
+local timing distributions do not establish timing resistance or production readiness.

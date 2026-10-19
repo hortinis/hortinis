@@ -13,15 +13,18 @@ import com.hortinis.sync.authentication.persistence.CurrentAuthenticationAuthori
 import com.hortinis.sync.protocol.InvalidRequestException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.async.DeferredResult;
 
 /** CSRF remains in the native filter chain; action tokens never authenticate a browser. */
 @RestController
@@ -30,15 +33,18 @@ import org.springframework.web.bind.annotation.RestController;
 public final class AuthenticationActionController {
   private static final String NEW_PASSWORD = "newPassword";
 
+  private final TaskScheduler scheduler;
   private final AccountActionService actions;
   private final AuthenticationAttemptLimiter attempts;
   private final CurrentAuthenticationAuthorityPersistence authority;
 
   /** Delegates workflows while retaining bounded request admission. */
   public AuthenticationActionController(
+      TaskScheduler scheduler,
       AccountActionService actions,
       AuthenticationAttemptLimiter attempts,
       CurrentAuthenticationAuthorityPersistence authority) {
+    this.scheduler = scheduler;
     this.actions = actions;
     this.attempts = attempts;
     this.authority = authority;
@@ -46,7 +52,9 @@ public final class AuthenticationActionController {
 
   /** Acknowledges all recipient-specific reset outcomes identically. */
   @PostMapping("/password-reset/request")
-  public ResponseEntity<?> requestReset(HttpServletRequest request) throws IOException {
+  public DeferredResult<ResponseEntity<?>> requestReset(HttpServletRequest request)
+      throws IOException {
+    final long started = System.nanoTime();
     var body = AuthenticationActionBody.read(request, Set.of("email"));
     String canonical;
     try {
@@ -56,10 +64,24 @@ public final class AuthenticationActionController {
     }
     admit(canonical, request);
     actions.requestReset(canonical);
-    return ResponseEntity.accepted()
-        .contentType(MediaType.APPLICATION_JSON)
-        .header("Cache-Control", "no-store")
-        .body(Map.of("accepted", true));
+    var accepted =
+        ResponseEntity.accepted()
+            .contentType(MediaType.APPLICATION_JSON)
+            .header("Cache-Control", "no-store")
+            .body(Map.of("accepted", true));
+    var response = new DeferredResult<ResponseEntity<?>>(2000L);
+    response.onTimeout(
+        () -> response.setErrorResult(AuthenticationHttpErrors.UNAVAILABLE.response()));
+    long remaining = Math.max(0L, 1_000_000_000L - (System.nanoTime() - started));
+    if (remaining == 0) {
+      response.setResult(accepted);
+    } else {
+      var completion =
+          scheduler.schedule(
+              () -> response.setResult(accepted), Instant.now().plusNanos(remaining));
+      response.onCompletion(() -> completion.cancel(false));
+    }
+    return response;
   }
 
   /** Activates only the account bound to the invitation, without login. */

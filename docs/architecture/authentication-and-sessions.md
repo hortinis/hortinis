@@ -1,7 +1,7 @@
 # Built-in authentication and sessions
 
-- Status: R1-R5 implemented; final R6 handoff remains open, 2026-10-18.
-  Normal authenticated startup remains closed until the replacement is complete.
+- Status: R1-R6 implemented and validated, 2026-10-19; production activation remains closed.
+  Normal authenticated startup remains closed; activation requires separate explicit approval.
 - Decision: [ADR-0034](decisions/0034-spring-email-password-authentication.md).
 - Owner: [S9-R](../development/spring-email-authentication-plan.md), before S10.
 - Related boundaries: [access and scope](access-and-synchronization-scope.md),
@@ -71,29 +71,42 @@ controls expiry: a token is valid only while `now < expiresAt`; equality is expi
 | Invitation token | 32 independent CSPRNG bytes, canonical unpadded base64url (43 characters), SHA-256 verifier only. Valid 24 hours or earlier pending-account purge. One current invitation per pending account. |
 | Reset token | Same secret profile, reset purpose only; valid ten minutes. One current reset per verified active account. This tightens the preliminary 30-minute proposal to ten minutes for conservative ASVS lifetime coverage. |
 | Native session | Thirty minutes since the last native request, including sync, polling, status and CSRF. Anonymous CSRF sessions use the same timeout. No separate absolute expiry, factor-age rule, remember-me or concurrent-session cap. Active background requests can keep a session alive indefinitely; see the explicit session risk below. |
-| Authentication attempts | Five per canonical-email key per rolling minute, 20 per trusted-source key per minute, 60 installation-wide per minute. Token completion uses a token-digest key plus source/global limits; password change uses the current account key. Unknown/disabled/pending cases count equally. No permanent account lockout. |
-| CSRF/status reads | 20 per trusted-source key per rolling minute and 60 installation-wide per minute. No account-existence branch. Status never allocates a session. |
-| Mail issuance/resend | At least 60 seconds between issuance attempts for a canonical email, at most three per rolling hour and ten per rolling 24 hours, shared across invitation/reset purposes. Includes failed delivery. Installation ceiling: 30 per rolling hour and 100 per rolling 24 hours, checked before account lookup. Host invitation issuance obeys the same quotas. |
-| Limiter storage | Bounded in-process HMAC-SHA-256 keys using a random 32-byte process secret; no raw email/IP/token in keys or diagnostics. Maximum 4,096 keys; retain mail-window keys for 24 hours idle, other keys 15 minutes; clean every 60 seconds. Full capacity denies without evicting active restrictions. Restart resets counters; S15 must assess restart abuse and single-instance operation. |
+| Authentication attempts | Five per canonical-email key per rolling minute, 20 per trusted-source key per minute, 60 per HTTP process per minute (one active HTTP service initially). Token completion uses a token-digest key plus source/global limits; password change uses the current account key. Unknown/disabled/pending cases count equally. No permanent account lockout. |
+| CSRF/status reads | 20 per trusted-source key per rolling minute and 60 per HTTP process per minute. No account-existence branch. Status never allocates a session. |
+| Mail issuance/resend | Committed eligible token issuance costs one delivery reservation: canonical email cooldown 60 seconds, three/rolling hour and ten/rolling 24 hours across purposes. Resets have 20/hour and 80/day; invitations/resends ten/hour and 20/day; no borrowing. Combined ceiling 30/hour and 100/day. HTTP and isolated host processes share PostgreSQL accounting. SMTP failure, uncertain delivery and crash after commit remain charged. Ineligible/rolled-back issuance costs nothing. |
+| Request limiter storage | Bounded in-process HMAC-SHA-256 keys with a random 32-byte process secret; no raw email/IP/token in keys or diagnostics. Maximum 4,096 keys, 15-minute idle expiry, 60-second cleanup; no active eviction. Restart resets request counters only. S15 retains single-service/request-flood assumptions; these counters do not enforce delivery quotas. |
+| Delivery ledger | Installation-lifetime random 32-byte HMAC key and clock high-water mark; email HMAC/purpose/issuance timestamp reservations in restricted PostgreSQL. No account/token mapping or unknown-recipient trail. Lock the quota singleton before invitation/account/token locks. Reserve in the issuance transaction and roll back if ineligible. No transaction spans SMTP. Reservations count for exactly 24 hours, regardless of cancellation, consumption or process restart; bounded startup/pre-issuance/minute purge removes up to 500 expired rows. |
 | Request bounds | 16,384 raw bytes for every authentication POST; login includes percent-encoded bytes. Closed JSON or exactly two form fields; reject duplicates, extra fields, query parameters, malformed UTF-8/escapes, lone surrogates and unsupported media types with fixed 400. JSON depth at most two. Bodyless logout has no query/body. No password hashing before syntax/size/abuse gates. |
-| SMTP | Synchronous send, two concurrent sends, no queue or automatic retries. Connection/read/write timeout each 5,000 ms; no infinite defaults. Gate capacity before account lookup; generic global overload is 429 for every requester. These are per-I/O bounds, not a promised whole-request deadline. |
+| SMTP | Synchronous post-commit send, two concurrent sends per process, no waiting queue or automatic retries. Unknown requests acquire no transport permit. Capacity denial rolls back issuance and is public 202. Connection/read/write timeout each 5,000 ms; no infinite defaults. Neither concurrency nor the I/O bounds are an installation-wide send cap or whole-request deadline. Shared rolling delivery quotas independently bound committed issuance. |
 | Cleanup | Immediate authorization expiry; consumed/replaced tokens removed in their mutation transaction. Bounded JDBC cleanup at startup/every 60 seconds, batches of at most 500, removes expired tokens and overdue pending accounts. Backlog may take several ticks; never authorizes expired state. Native Spring Session idle deletion runs every minute. |
 | Security events | Retain minimized fixed event/outcome/reason, UTC and fresh request reference for 30 days; daily and overdue-startup purge. No subject/recipient/session mapping. |
 
-R1 follow-up review leaves two aspects of this policy open:
-[S9-R Q1/Q2](../development/spring-email-authentication-plan.md#open-questions-required-before-s9-r-completion).
-The shared public mail-attempt budget can deny legitimate delivery after requests for unknown
-addresses, and process-local counters cannot enforce shared quotas across separate host invocations.
-The accounting/storage rules above record the current candidate, not a resolution of those defects.
-Resolve both with reviewed policy and executable evidence by R6, before S9-R completion or S10 handoff.
+R6 replaces the provisional no-send charging and process-local mail windows with the approved
+[shared delivery policy](../development/spring-email-authentication-r6-evidence.md).
+Unknown-address requests cannot spend delivery reservations; the invitation allocation is unavailable
+to resets. Normal request/source/global request admission remains account-independent. Request-window
+exhaustion returns fixed 429 with `Retry-After: 60`; this is minimum guidance, not an hourly reset promise.
+All recipient-related outcomes, including email/installation delivery quota and transport-capacity
+denial, acknowledge the same 202. Host commands retain fixed throttling/failure output.
 
-A public reset request denied by its per-email mail quota still receives the same 202 as every other
-syntactically valid address. Source/request/global capacity violations return fixed 429 and
-`Retry-After: 60`; the header is minimum retry guidance, not a promise that an hourly quota has reset.
-Charge email/global mail-attempt windows and reserve send capacity before eligibility lookup for
-every syntactically valid reset request, including unknown/pending/disabled addresses; no refund for
-no-send or failed delivery. Release concurrency permits after processing every branch. Host commands
-report fixed throttling/failure without email or token output. Quotas bound sending and hashing independently; no address-existence-dependent error or quota response is allowed.
+A reservation and token/provisioning mutation commit together. Rejection, transaction failure or no
+eligible account rolls back the reservation and replacement; committed failure/uncertain delivery does
+not refund it. Cancel/reinvite cannot erase email history. Quota locking is bounded to one second;
+shared pre-eligibility storage/lock failure returns fixed 503 without an in-memory fallback.
+Recipient-specific token-store/commit failures receive generic 202 without delivery/retry; a failed
+transaction rolls back reservation/token changes, while an uncertain commit may retain them unsent. An admission timestamp behind the last committed admission observation returns account-independent
+503 and denies issuance and prevents cleanup from removing restrictions. Independent application clocks must be
+synchronized; a forward clock jump can age windows early and remains an operator clock-trust risk.
+Ordinary restart preserves key and reservations; restored older backups can omit recent sends and
+must remain inaccessible through the existing restore gate, including waiting out the 24-hour mail
+window. Runtime mail privileges are quota SELECT/INSERT and UPDATE of `last_observed_at` only, plus
+reservation SELECT/INSERT/DELETE; no HMAC-key UPDATE, quota DELETE or schema authority is required. Privileged database tampering is outside application quota enforcement.
+
+Public reset acknowledgements have a one-second minimum from controller entry, using Spring MVC
+asynchronous completion and the Spring scheduler after synchronous account/mail work. There is no
+mail queue or retry. The maximum extra padding is one second; SMTP work can take longer. Fast branch
+padding does not conceal slow SMTP, contention, source throttling or network tails. No timing-resistance
+or ASVS ENUMERATION pass follows; measured residual risk remains part of activation/S15 review.
 
 ## Spring ownership and session policy
 
@@ -219,7 +232,7 @@ reads/writes and outbox. Offline sign-out cannot invalidate a remote session whi
 not persist/replay a remote logout request against a later cookie or automatically fetch fresh CSRF
 for an old logout. On reconnect, keep sync paused until the user explicitly resolves current status
 and signs out again or signs in. Coordinate tabs and fence in-flight login/logout operations; native
-delayed cookie responses can require login again. Fresh R5 browser evidence covers these transitions; R6 final handoff remains open. Authentication
+delayed cookie responses can require login again. Fresh R5/R6 browser evidence covers these transitions under closed production admission. Authentication
 expiry never discards or transfers pending work; only the original account binding may resume it.
 
 ## Delivery, privacy and evidence handoff
@@ -231,21 +244,22 @@ outage; configured SMTP outage makes invitation/reset unavailable without disabl
 Never downgrade access mode. Public reset always acknowledges eligible/unknown/pending/disabled and
 recipient-specific SMTP failure identically; only account-independent infrastructure failure may be
 503. Report fixed operational delivery outcome, without recipient, body, secret or provider exception.
-Synchronous sending creates a timing distinction between send/no-send: generic JSON alone does not
-solve enumeration. R3/R6 must measure success/failure/unknown/quota timing and apply bounded equalized
-response handling before release. No timing resistance is claimed by R1.
+Synchronous sending can distinguish send/no-send in slow tails. R6 adds bounded response padding and
+fresh public HTTPS measurements, separately from internal SMTP/JDBC measurements. Generic JSON and
+minimum response duration do not establish timing resistance; activation/S15 must review residual tails.
 
 The [R3 evidence record](../development/spring-email-authentication-plan.md#r3-implementation-and-review--2026-10-17)
 distinguishes its internal primitive/transport checks from full workflow evidence. The
 [R4 record](../development/spring-email-authentication-plan.md#r4-implementation-review-and-evidence--2026-10-17)
-adds account/host/HTTP evidence and complete synthetic HTTPS timing samples; Q1/Q2 and timing resistance
-remain unresolved.
+adds account/host/HTTP evidence and complete synthetic HTTPS timing samples. Q1/Q2 were open at
+that increment; the [R6 record](../development/spring-email-authentication-r6-evidence.md) supplies
+shared-quota closure and complete replacement validation. Timing resistance remains unverified.
 
 Required runtime evidence includes native filter login/CSRF/logout and fixation, status/authorization
 for pending/disabled/stale versions, account/scope isolation, races/rollback, SMTP failure and timeouts,
 fixed origin, no secret leakage, form parsing and browser offline/multi-tab behavior. Contract schemas
-check shapes, not those behaviors. Full S9-R validation, S10-S15 and applicable foundation gates remain
-open. See the [R1 inventory](../development/spring-email-authentication-r1-inventory.md) for removal and
+check shapes, not those behaviors. R6 supplies the complete replacement validation; S10-S15,
+separate activation approval and applicable foundation release gates remain open. See the [R1 inventory](../development/spring-email-authentication-r1-inventory.md) for removal and
 line-count baselines and the [operator handoff](../deployment/authentication-operator.md) for deployment.
 
 Framework references checked on 2026-10-17 against the Boot 4.1 / Security 7.1 / Session 4.1 family:
@@ -280,4 +294,5 @@ binding or observed native account service, public server capabilities must conf
 before publishing a pause. These checks preserve local data and never queue logout.
 Native delayed cookie responses may still require another login; current server authority remains
 checked inside protected transactions. The R5 record distinguishes browser evidence from internal
-measurements and leaves Q1/Q2, timing resistance and production admission open.
+measurements. R6 closes Q1/Q2 with fresh shared-store/host/HTTP evidence; timing resistance and
+production admission remain open.

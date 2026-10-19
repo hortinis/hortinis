@@ -20,6 +20,7 @@ const email = 'Gardener+tag@Example.test';
 const password = ' exact +&=🌱 synthetic password ';
 const replacement = ' new +&=🌷 synthetic password ';
 let step = 'startup';
+setInterval(() => console.log('Replacement browser phase: ' + step), 15000).unref();
 process.on('unhandledRejection', () => {
   console.error('R5 asynchronous fixture failure at: ' + step);
   process.exit(1);
@@ -372,9 +373,18 @@ try {
   }
   step = 'generic reset UI eligibility quota and SMTP failure';
   let generic;
-  for (const status of ['active', 'pending', 'disabled', 'unknown', 'quota', 'smtp-failure']) {
+  for (const status of [
+    'active',
+    'pending',
+    'disabled',
+    'unknown',
+    'quota',
+    'global-quota',
+    'smtp-failure',
+  ]) {
     const { page } = await fresh(status === 'pending' || status === 'disabled' ? status : 'active');
     if (status === 'smtp-failure') await control('smtp-failure');
+    if (status === 'global-quota') await control('fill-reset-allocation');
     await open(page);
     await page.getByText('Forgot your password?', { exact: true }).click();
     await page.locator('#reset-email').fill(status === 'unknown' ? 'unknown@example.test' : email);
@@ -387,6 +397,24 @@ try {
     const text = await notice.innerText();
     generic ??= text;
     expect(text).toBe(generic);
+    count++;
+  }
+  step = 'R6 unknown reset flood preserves real ledger and subsequent SMTP delivery';
+  {
+    const { page } = await fresh();
+    for (let index = 0; index < 4; index++) {
+      const response = await api(page, '/password-reset/request', {
+        email: 'unknown' + index + '@example.test',
+      });
+      expect(response.status).toBe(202);
+      expect(response.body).toEqual({ accepted: true });
+    }
+    expect((await control('observe')).reservations).toBe(0);
+    expect((await control('observe')).deliveries).toBe(0);
+    const response = await api(page, '/password-reset/request', { email });
+    expect(response.status).toBe(202);
+    expect((await control('observe')).reservations).toBe(1);
+    expect((await control('observe')).deliveries).toBe(1);
     count++;
   }
   step = 'password change and negotiated fixed errors';
@@ -585,13 +613,16 @@ try {
     await login(page);
     await retained(page);
     const second = await context.newPage();
-    await second.goto(origin);
-    await open(second);
-    await expect(second.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible();
     const statuses = [];
     second.on('response', (response) => {
       if (response.url().includes('/api/v1/auth/')) statuses.push(response.status());
     });
+    await second.goto(origin);
+    const initialSession = second.waitForResponse('**/api/v1/auth/session');
+    await open(second);
+    await (await initialSession).finished();
+    step = 'in-flight initial other-tab status, auth HTTP ' + statuses.join(',');
+    await expect(second.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible();
     await context.setOffline(true);
     const operation = await seed(page);
     let release;

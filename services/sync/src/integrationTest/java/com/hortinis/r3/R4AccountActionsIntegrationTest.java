@@ -98,6 +98,18 @@ import tools.jackson.databind.json.JsonMapper;
 class R4AccountActionsIntegrationTest {
   private static final String CURRENT_PASSWORD_FIELD = "currentPassword";
   private static final String SCOPE_STATE = "scope";
+  private static final String DELETE_ACCOUNT = "DELETE FROM authentication_account";
+  private static final String RESET_LINK = "/reset-password#token=";
+  private static final String TIMEOUT = "timeout";
+  private static final String SENDER = "sender@example.test";
+  private static final String INVITE = "invite";
+  private static final String RESEND = "resend-invitation";
+  private static final String UNAVAILABLE = "ACCESS_UNAVAILABLE";
+  private static final String RETRY_AFTER = "Retry-After";
+  private static final String ELIGIBLE = "eligible";
+  private static final String UNKNOWN_EMAIL = "unknown@example.test";
+  private static final String TOKEN_VERIFIER_SQL =
+      "SELECT secret_verifier FROM authentication_action_token";
   private static final String EMAIL_FIELD = "email";
   private static final String ACCEPTED = "accepted";
 
@@ -149,7 +161,8 @@ class R4AccountActionsIntegrationTest {
 
   @Autowired private CurrentAuthenticationAuthorityPersistence authority;
   @MockitoBean private AuthenticationAttemptLimiter attempts;
-  @MockitoBean private ActionMailAdmission mail;
+  @Autowired private ActionMailAdmission mail;
+  @Autowired private com.hortinis.sync.authentication.persistence.MailIssuancePersistence quotas;
   @MockitoBean private ActionMailDelivery delivery;
   @LocalServerPort private int port;
   private UUID account;
@@ -178,7 +191,7 @@ class R4AccountActionsIntegrationTest {
     jdbc.execute("DROP TRIGGER IF EXISTS synthetic_revoke_failure ON spring_session");
     jdbc.update("DELETE FROM spring_session");
     jdbc.update("DELETE FROM technical_exchange_expectation");
-    jdbc.update("DELETE FROM authentication_account");
+    jdbc.update(DELETE_ACCOUNT);
     jdbc.update("DELETE FROM authentication_security_event");
     jdbc.update("UPDATE technical_synchronization_scope SET technical_default = true");
     jdbc.update("UPDATE technical_server_installation SET access_mode = 'single-user-auth'");
@@ -195,8 +208,8 @@ class R4AccountActionsIntegrationTest {
             EMAIL,
             EmailAddress.canonical(EMAIL),
             VERIFIER);
-    realMail = new ActionMailAdmission(Clock.systemUTC());
-    when(mail.reserve(anyString())).thenAnswer(call -> realMail.reserve(call.getArgument(0)));
+    realMail = mail;
+    clearQuotas();
     var realAttempts = new AuthenticationAttemptLimiter(Clock.systemUTC());
     when(attempts.admit(anyString(), anyString()))
         .thenAnswer(call -> realAttempts.admit(call.getArgument(0), call.getArgument(1)));
@@ -296,7 +309,7 @@ class R4AccountActionsIntegrationTest {
     var throttled =
         postJson(REQUEST, browser, JSON.writeValueAsString(Map.of(EMAIL_FIELD, EMAIL)), accept);
     error(throttled, 429, "AUTHENTICATION_THROTTLED");
-    assertThat(throttled.getHeader("Retry-After")).isEqualTo("60");
+    assertThat(throttled.getHeader(RETRY_AFTER)).isEqualTo("60");
     assertThat(tokenCount()).isZero();
   }
 
@@ -473,7 +486,7 @@ class R4AccountActionsIntegrationTest {
                 JSON.writeValueAsString(
                     Map.of(CURRENT_PASSWORD_FIELD, PASSWORD, PASSWORD_FIELD, NEW_PASSWORD)),
                 MediaType.TEXT_HTML_VALUE);
-    error(response, 503, "ACCESS_UNAVAILABLE");
+    error(response, 503, UNAVAILABLE);
     assertThat(version()).isEqualTo(1);
     assertThat(storedVerifier()).isEqualTo(VERIFIER);
     assertThat(tokenCount()).isEqualTo(1);
@@ -486,7 +499,7 @@ class R4AccountActionsIntegrationTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {"eligible", UNKNOWN, PENDING, DISABLED, UNVERIFIED, QUOTA, "smtp"})
+  @ValueSource(strings = {ELIGIBLE, UNKNOWN, PENDING, DISABLED, UNVERIFIED, QUOTA, "smtp"})
   void resetAcknowledgementIsGenericAcrossEligibilityQuotaAndDeliveryFailure(
       String branch, CapturedOutput output) throws Exception {
     if (Set.of(PENDING, DISABLED, UNVERIFIED).contains(branch)) {
@@ -494,9 +507,9 @@ class R4AccountActionsIntegrationTest {
     }
     String email = branch.equals(UNKNOWN) ? "Unknown@Example.test" : EMAIL;
     if (branch.equals(QUOTA)) {
-      try (var ignored = realMail.reserve(EmailAddress.canonical(email))) {
-        assertThat(ignored.allowed()).isTrue();
-      }
+      new TransactionTemplate(transactions)
+          .executeWithoutResult(
+              status -> assertThat(quotas.reserve(email, ActionTokenPurpose.RESET)).isTrue());
     }
     if (branch.equals("smtp")) {
       when(delivery.deliver(org.mockito.ArgumentMatchers.any())).thenReturn(false);
@@ -504,7 +517,7 @@ class R4AccountActionsIntegrationTest {
     var response =
         postJson(REQUEST, bootstrap(), JSON.writeValueAsString(Map.of(EMAIL_FIELD, email)));
     success(response, 202, ACCEPTED);
-    assertThat(tokenCount()).isEqualTo(Set.of("eligible", "smtp").contains(branch) ? 1 : 0);
+    assertThat(tokenCount()).isEqualTo(Set.of(ELIGIBLE, "smtp").contains(branch) ? 1 : 0);
     assertThat(output.getAll()).doesNotContain(email, PASSWORD, account.toString());
   }
 
@@ -524,7 +537,7 @@ class R4AccountActionsIntegrationTest {
           postJson(REQUEST, bootstrap(), "{\"email\":\"GARDENER+TAG@EXAMPLE.TEST\"}"),
           202,
           ACCEPTED);
-      assertThat(smtp.message()).contains("/reset-password#token=");
+      assertThat(smtp.message()).contains(RESET_LINK);
     }
   }
 
@@ -534,7 +547,7 @@ class R4AccountActionsIntegrationTest {
     when(attempts.admit(anyString(), anyString())).thenReturn(false);
     var denied = postJson(REQUEST, browser, "{\"email\":\"Unknown@Example.test\"}");
     error(denied, 429, "AUTHENTICATION_THROTTLED");
-    assertThat(denied.getHeader("Retry-After")).isEqualTo("60");
+    assertThat(denied.getHeader(RETRY_AFTER)).isEqualTo("60");
     assertThat(tokenCount()).isZero();
   }
 
@@ -627,10 +640,7 @@ class R4AccountActionsIntegrationTest {
             + "synthetic_activation_failure()");
     Browser browser = bootstrap();
     try {
-      error(
-          postJson(ACCEPT, browser, completion(issued.secret(), NEW_PASSWORD)),
-          503,
-          "ACCESS_UNAVAILABLE");
+      error(postJson(ACCEPT, browser, completion(issued.secret(), NEW_PASSWORD)), 503, UNAVAILABLE);
       assertThat(jdbc.queryForObject("SELECT status FROM authentication_account", String.class))
           .isEqualTo(PENDING);
       assertThat(storedVerifier()).isNull();
@@ -755,46 +765,320 @@ class R4AccountActionsIntegrationTest {
     error(postJson(RESET, browser, loneSurrogate), 400, INVALID);
   }
 
-  @Test
-  void completePublicHttpsResponseSamplesRemainGenericWithoutTimingClaim() throws Exception {
-    try (var client = trustedTestClient()) {
-      var csrf = client.send(realRequest(CSRF).GET().build(), HttpResponse.BodyHandlers.ofString());
-      String cookie = csrf.headers().firstValue("Set-Cookie").orElseThrow().split(";", 2)[0];
-      String token = JSON.readTree(csrf.body()).get(TOKEN_FIELD).asString();
-      for (String branch : List.of(ACCEPTED, "refused", UNKNOWN, QUOTA)) {
-        realMail = new ActionMailAdmission(Clock.systemUTC());
-        String email = branch.equals(UNKNOWN) ? "Unknown@Example.test" : EMAIL;
+  @ParameterizedTest
+  @ValueSource(strings = {ACCEPTED, "refused", UNKNOWN, QUOTA, "global-quota", TIMEOUT})
+  void r6RepeatedPublicHttpsMeasurementsSeparateFastPaddingFromSmtpTimeoutTails(String branch)
+      throws Exception {
+    Browser browser = bootstrap();
+    var samples = new java.util.ArrayList<Long>();
+    try (var client = trustedTestClient("127.0.0.2")) {
+      int repetitions = branch.equals(TIMEOUT) ? 2 : 5;
+      for (int sample = 0; sample < repetitions; sample++) {
+        clearQuotas();
+        String email = branch.equals(UNKNOWN) ? UNKNOWN_EMAIL : EMAIL;
         if (branch.equals(QUOTA)) {
-          try (var permit = realMail.reserve(EmailAddress.canonical(email))) {
-            assertThat(permit.allowed()).isTrue();
-          }
+          new TransactionTemplate(transactions)
+              .executeWithoutResult(
+                  status -> assertThat(quotas.reserve(email, ActionTokenPurpose.RESET)).isTrue());
+        } else if (branch.equals("global-quota")) {
+          fillResetAllocation();
         }
-        try (var smtp = new LocalSmtpFixture(false, branch.equals("refused"))) {
-          var adapter = new SmtpActionMailDelivery(smtp.sender(), "Hortinis@Example.test", ORIGIN);
+        try (var smtp = new LocalSmtpFixture(branch.equals(TIMEOUT), branch.equals("refused"))) {
+          var adapter = new SmtpActionMailDelivery(smtp.sender(), SENDER, ORIGIN);
           org.mockito.Mockito.doAnswer(call -> adapter.deliver(call.getArgument(0)))
               .when(delivery)
               .deliver(org.mockito.ArgumentMatchers.any());
           long started = System.nanoTime();
-          var response =
-              client.send(
-                  realRequest(REQUEST)
-                      .header("Origin", ORIGIN)
-                      .header("Cookie", cookie)
-                      .header(CSRF_HEADER, token)
-                      .header("Content-Type", JSON_MEDIA)
-                      .POST(
-                          HttpRequest.BodyPublishers.ofString(
-                              JSON.writeValueAsString(Map.of(EMAIL_FIELD, email))))
-                      .build(),
-                  HttpResponse.BodyHandlers.ofString());
-          final long micros = (System.nanoTime() - started) / 1000;
-          assertThat(response.statusCode()).isEqualTo(202);
-          assertThat(response.body()).isEqualTo("{\"accepted\":true}");
-          assertThat(response.headers().firstValue(HttpHeaders.CACHE_CONTROL)).contains(NO_STORE);
-          System.out.println("R4 synthetic public reset " + branch + " microseconds=" + micros);
+          var response = realReset(client, browser, email);
+          long micros = (System.nanoTime() - started) / 1000;
+          assertPublicAccepted(response);
+          assertThat(micros).isGreaterThanOrEqualTo(990_000);
+          if (branch.equals(TIMEOUT)) {
+            assertThat(micros).isGreaterThanOrEqualTo(4_900_000);
+          }
+          samples.add(micros);
         }
       }
     }
+    samples.sort(Long::compareTo);
+    System.out.println("R6 synthetic public HTTPS reset " + branch + " microseconds=" + samples);
+  }
+
+  @Test
+  void r6UnknownHttpFloodLeavesResetAndInvitationDeliveryCapacityAvailable() throws Exception {
+    Browser browser = bootstrap();
+    // Distinct loopback source addresses exercise the real trusted-source key, without forwarded
+    // headers.
+    for (int source = 2; source <= 3; source++) {
+      try (var client = trustedTestClient("127.0.0." + source)) {
+        for (int index = 0; index < 20; index++) {
+          assertPublicAccepted(
+              realReset(client, browser, "unknown" + source + "x" + index + "@example.test"));
+        }
+      }
+    }
+    assertThat(mailReservations()).isZero();
+    try (var client = trustedTestClient("127.0.0.4");
+        var smtp = new LocalSmtpFixture(false, false)) {
+      var adapter = new SmtpActionMailDelivery(smtp.sender(), SENDER, ORIGIN);
+      org.mockito.Mockito.doAnswer(call -> adapter.deliver(call.getArgument(0)))
+          .when(delivery)
+          .deliver(org.mockito.ArgumentMatchers.any());
+      assertPublicAccepted(realReset(client, browser, EMAIL));
+      assertThat(smtp.message()).contains(RESET_LINK);
+    }
+    assertThat(mailReservations()).isEqualTo(1);
+    // Separate lifecycle: the sole account cannot be both pending and active at once.
+    jdbc.update(DELETE_ACCOUNT);
+    Path directory = Files.createTempDirectory("hortinis-r6-host-");
+    try (var smtp = new com.hortinis.r4.HostSmtpFixture(directory)) {
+      assertThat(host(smtp).run(INVITE, "invited@example.test")).isZero();
+      assertThat(smtp.messages()).hasSize(1);
+      assertThat(mailReservations()).isEqualTo(2);
+    } finally {
+      Files.deleteIfExists(directory.resolve("smtp.p12"));
+      Files.delete(directory);
+    }
+  }
+
+  @Test
+  void r6HostProcessesAndHttpShareQuotaAcrossCancellationActivationAndConcurrentResends()
+      throws Exception {
+    jdbc.update(DELETE_ACCOUNT);
+    Browser browser = bootstrap();
+    Path directory = Files.createTempDirectory("hortinis-r6-interleaving-");
+    try (var smtp = new com.hortinis.r4.HostSmtpFixture(directory);
+        var client = trustedTestClient("127.0.0.5");
+        var executor = Executors.newFixedThreadPool(3)) {
+      var host = host(smtp);
+      assertThat(host.run(INVITE, EMAIL)).isZero();
+      final var key =
+          jdbc.queryForObject("SELECT hmac_key FROM authentication_mail_quota", byte[].class);
+      assertThat(host.run(RESEND, EMAIL)).isEqualTo(1);
+      var first = executor.submit(() -> host.run(RESEND, EMAIL));
+      var second =
+          executor.submit(() -> host.run(RESEND, EMAIL.toUpperCase(java.util.Locale.ROOT)));
+      assertPublicAccepted(realReset(client, browser, EMAIL));
+      assertThat(first.get(45, TimeUnit.SECONDS)).isEqualTo(1);
+      assertThat(second.get(45, TimeUnit.SECONDS)).isEqualTo(1);
+      assertThat(mailReservations()).isEqualTo(1);
+      ageMailSeconds(61);
+      var third = executor.submit(() -> host.run(RESEND, EMAIL));
+      var fourth = executor.submit(() -> host.run(RESEND, EMAIL));
+      assertPublicAccepted(realReset(client, browser, UNKNOWN_EMAIL));
+      assertThat(List.of(third.get(45, TimeUnit.SECONDS), fourth.get(45, TimeUnit.SECONDS)))
+          .containsExactlyInAnyOrder(0, 1);
+      assertThat(mailReservations()).isEqualTo(2);
+      assertThat(host.run("cancel-invitation", EMAIL)).isZero();
+      assertThat(host.run(INVITE, EMAIL)).isEqualTo(1);
+      assertThat(jdbc.queryForObject("SELECT count(*) FROM authentication_account", Integer.class))
+          .isZero();
+      ageMailSeconds(61);
+      assertThat(host.run(INVITE, EMAIL)).isZero();
+      assertThat(mailReservations()).isEqualTo(3);
+      var lastMessage = smtp.messages().getLast();
+      var secret =
+          java.util.regex.Pattern.compile("#token=([A-Za-z0-9_-]{43})").matcher(lastMessage);
+      assertThat(secret.find()).isTrue();
+      success(postJson(ACCEPT, browser, completion(secret.group(1), PASSWORD)), 200, COMPLETED);
+      assertPublicAccepted(realReset(client, browser, EMAIL));
+      assertThat(tokenCount()).isZero();
+      assertThat(mailReservations()).isEqualTo(3);
+      // Controlled SQL aging models elapsed time; it is not a claim that host wall time advanced.
+      ageMailSeconds(3600);
+      try (var resetSmtp = new LocalSmtpFixture(false, false)) {
+        var adapter = new SmtpActionMailDelivery(resetSmtp.sender(), SENDER, ORIGIN);
+        org.mockito.Mockito.doAnswer(call -> adapter.deliver(call.getArgument(0)))
+            .when(delivery)
+            .deliver(org.mockito.ArgumentMatchers.any());
+        var cancel = executor.submit(() -> host.run("cancel-invitation", EMAIL));
+        var resend = executor.submit(() -> host.run(RESEND, EMAIL));
+        assertPublicAccepted(realReset(client, browser, EMAIL));
+        assertThat(cancel.get(45, TimeUnit.SECONDS)).isEqualTo(1);
+        assertThat(resend.get(45, TimeUnit.SECONDS)).isEqualTo(1);
+        assertThat(resetSmtp.message()).contains(RESET_LINK);
+      }
+      assertThat(mailReservations()).isEqualTo(4);
+      assertThat(
+              jdbc.queryForObject("SELECT hmac_key FROM authentication_mail_quota", byte[].class))
+          .isEqualTo(key);
+    } finally {
+      Files.deleteIfExists(directory.resolve("smtp.p12"));
+      Files.delete(directory);
+    }
+  }
+
+  @Test
+  void r6KnownResetFloodAndExhaustedResetAllocationPreserveInvitationAllocation() throws Exception {
+    Browser browser = bootstrap();
+    try (var client = trustedTestClient("127.0.0.6")) {
+      for (int index = 0; index < 3; index++) {
+        try (var smtp = new LocalSmtpFixture(false, false)) {
+          var adapter = new SmtpActionMailDelivery(smtp.sender(), SENDER, ORIGIN);
+          org.mockito.Mockito.doAnswer(call -> adapter.deliver(call.getArgument(0)))
+              .when(delivery)
+              .deliver(org.mockito.ArgumentMatchers.any());
+          assertPublicAccepted(realReset(client, browser, EMAIL));
+          assertThat(smtp.message()).contains(RESET_LINK);
+        }
+        ageMailSeconds(61);
+      }
+      assertThat(mailReservations()).isEqualTo(3);
+      String before = jdbc.queryForObject(TOKEN_VERIFIER_SQL, String.class);
+      assertPublicAccepted(realReset(client, browser, EMAIL));
+      assertThat(jdbc.queryForObject(TOKEN_VERIFIER_SQL, String.class)).isEqualTo(before);
+      clearQuotas();
+      fillResetAllocation();
+      assertPublicAccepted(realReset(client, browser, EMAIL));
+      assertThat(mailReservations()).isEqualTo(20);
+      jdbc.update(DELETE_ACCOUNT);
+      Path directory = Files.createTempDirectory("hortinis-r6-reserved-");
+      try (var smtp = new com.hortinis.r4.HostSmtpFixture(directory)) {
+        assertThat(host(smtp).run(INVITE, EMAIL)).isZero();
+        assertThat(smtp.messages()).hasSize(1);
+        assertThat(mailReservations()).isEqualTo(21);
+      } finally {
+        Files.deleteIfExists(directory.resolve("smtp.p12"));
+        Files.delete(directory);
+      }
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {ELIGIBLE, UNKNOWN})
+  void r6QuotaStorageFailureIsFixedBeforeEligibilityAndRollsBackTokenAndAccounting(
+      String branch, CapturedOutput output) throws Exception {
+    var old = issue(ActionTokenPurpose.RESET);
+    Browser browser = bootstrap();
+    jdbc.execute(
+        "CREATE OR REPLACE FUNCTION reject_mail_reservation() RETURNS trigger "
+            + "LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION "
+            + "'synthetic-quota-diagnostic-canary'; END $$");
+    jdbc.execute(
+        "CREATE TRIGGER reject_mail_reservation BEFORE INSERT "
+            + "ON authentication_mail_reservation "
+            + "FOR EACH ROW EXECUTE FUNCTION reject_mail_reservation()");
+    try (var client = trustedTestClient("127.0.0.7")) {
+      var response = realReset(client, browser, branch.equals(UNKNOWN) ? UNKNOWN_EMAIL : EMAIL);
+      assertThat(response.statusCode()).isEqualTo(503);
+      assertThat(response.body()).contains(UNAVAILABLE).doesNotContain(EMAIL);
+      assertThat(mailReservations()).isZero();
+      assertThat(lastMail.get()).isNull();
+      assertThat(jdbc.queryForObject(TOKEN_VERIFIER_SQL, String.class))
+          .isEqualTo(AuthenticationSecrets.digest(old.secret()));
+      assertThat(output.getAll())
+          .doesNotContain(EMAIL, old.secret(), "synthetic-quota-diagnostic-canary");
+    } finally {
+      jdbc.execute("DROP TRIGGER reject_mail_reservation ON authentication_mail_reservation");
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {ELIGIBLE, UNKNOWN})
+  void r6BackwardSharedClockIsAnAccountIndependentInfrastructureFailure(String branch)
+      throws Exception {
+    new TransactionTemplate(transactions)
+        .executeWithoutResult(
+            status ->
+                assertThat(quotas.reserve("synthetic@example.test", ActionTokenPurpose.RESET))
+                    .isTrue());
+    jdbc.update(
+        "UPDATE authentication_mail_quota " + "SET last_observed_at = now() + INTERVAL '1 minute'");
+    try (var client = trustedTestClient("127.0.0.7")) {
+      var response = realReset(client, bootstrap(), branch.equals(UNKNOWN) ? UNKNOWN_EMAIL : EMAIL);
+      assertThat(response.statusCode()).isEqualTo(503);
+      assertThat(response.body()).contains(UNAVAILABLE);
+      assertThat(response.headers().firstValue(RETRY_AFTER)).isEmpty();
+      assertThat(mailReservations()).isEqualTo(1);
+      assertThat(tokenCount()).isZero();
+      assertThat(lastMail.get()).isNull();
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"immediate", "commit"})
+  void r6RecipientSpecificIssuanceFailuresRollbackAndAcknowledgeLikeUnknownRequests(
+      String failure, CapturedOutput output) throws Exception {
+    var old = issue(ActionTokenPurpose.RESET);
+    Browser browser = bootstrap();
+    jdbc.execute(
+        "CREATE OR REPLACE FUNCTION reject_recipient_issuance() RETURNS trigger "
+            + "LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION "
+            + "'synthetic-recipient-failure-canary'; END $$");
+    boolean deferred = "commit".equals(failure);
+    jdbc.execute(
+        "CREATE "
+            + (deferred ? "CONSTRAINT " : "")
+            + "TRIGGER reject_recipient_issuance "
+            + (deferred ? "AFTER" : "BEFORE")
+            + " INSERT OR UPDATE ON authentication_action_token "
+            + (deferred ? "DEFERRABLE INITIALLY DEFERRED " : "")
+            + "FOR EACH ROW EXECUTE FUNCTION reject_recipient_issuance()");
+    try (var client = trustedTestClient("127.0.0.7")) {
+      for (String email : List.of(EMAIL, UNKNOWN_EMAIL)) {
+        assertPublicAccepted(realReset(client, browser, email));
+        assertThat(mailReservations()).isZero();
+        assertThat(lastMail.get()).isNull();
+        assertThat(jdbc.queryForObject(TOKEN_VERIFIER_SQL, String.class))
+            .isEqualTo(AuthenticationSecrets.digest(old.secret()));
+      }
+      assertThat(output.getAll())
+          .doesNotContain(EMAIL, old.secret(), "synthetic-recipient-failure-canary");
+    } finally {
+      jdbc.execute("DROP TRIGGER reject_recipient_issuance ON authentication_action_token");
+    }
+  }
+
+  private com.hortinis.r6.HostCommandFixture host(com.hortinis.r4.HostSmtpFixture smtp) {
+    return new com.hortinis.r6.HostCommandFixture(
+        POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword(), ORIGIN, smtp);
+  }
+
+  private HttpResponse<String> realReset(HttpClient client, Browser browser, String email)
+      throws Exception {
+    return client.send(
+        realRequest(REQUEST)
+            .header("Origin", ORIGIN)
+            .header("Cookie", browser.cookie().getName() + "=" + browser.cookie().getValue())
+            .header(CSRF_HEADER, browser.token())
+            .header("Content-Type", JSON_MEDIA)
+            .POST(
+                HttpRequest.BodyPublishers.ofString(
+                    JSON.writeValueAsString(Map.of(EMAIL_FIELD, email))))
+            .build(),
+        HttpResponse.BodyHandlers.ofString());
+  }
+
+  private static void assertPublicAccepted(HttpResponse<String> response) {
+    assertThat(response.statusCode()).isEqualTo(202);
+    assertThat(response.body()).isEqualTo("{\"accepted\":true}");
+    assertThat(response.headers().firstValue(HttpHeaders.CACHE_CONTROL)).contains(NO_STORE);
+    assertThat(response.headers().firstValue(RETRY_AFTER)).isEmpty();
+  }
+
+  private int mailReservations() {
+    return jdbc.queryForObject(
+        "SELECT count(*) FROM authentication_mail_reservation", Integer.class);
+  }
+
+  private void ageMailSeconds(int seconds) {
+    jdbc.update(
+        "UPDATE authentication_mail_reservation "
+            + "SET issued_at = issued_at - (? * INTERVAL '1 second')",
+        seconds);
+  }
+
+  private void fillResetAllocation() {
+    new TransactionTemplate(transactions)
+        .executeWithoutResult(
+            status -> {
+              for (int index = 0; index < 20; index++) {
+                assertThat(
+                        quotas.reserve(
+                            "synthetic" + index + "@example.test", ActionTokenPurpose.RESET))
+                    .isTrue();
+              }
+            });
   }
 
   private HttpRequest.Builder realRequest(String path) {
@@ -857,17 +1141,17 @@ class R4AccountActionsIntegrationTest {
   }
 
   @Test
-  void mailCapacityIsReservedBeforeEligibilityLookupForEveryAddress() throws Exception {
+  void mailCapacityDenialIsGenericAndDoesNotCommitTokenOrQuota() throws Exception {
     Browser browser = bootstrap();
-    try (var first = realMail.reserve("First@Example.test");
-        var second = realMail.reserve("Second@Example.test")) {
+    try (var first = realMail.reserve();
+        var second = realMail.reserve()) {
       assertThat(first.allowed()).isTrue();
       assertThat(second.allowed()).isTrue();
       for (String email : List.of(EMAIL, "Unknown@Example.test")) {
-        error(
+        success(
             postJson(REQUEST, browser, JSON.writeValueAsString(Map.of(EMAIL_FIELD, email))),
-            429,
-            "AUTHENTICATION_THROTTLED");
+            202,
+            ACCEPTED);
       }
       assertThat(tokenCount()).isZero();
     }
@@ -975,27 +1259,47 @@ class R4AccountActionsIntegrationTest {
 
   private MockHttpServletResponse postJson(String path, Browser browser, String json)
       throws Exception {
-    return http.perform(
-            postRequest(path)
-                .cookie(browser.cookie())
-                .header(CSRF_HEADER, browser.token())
-                .contentType(JSON_MEDIA)
-                .content(json))
-        .andReturn()
-        .getResponse();
+    var result =
+        http.perform(
+                postRequest(path)
+                    .cookie(browser.cookie())
+                    .header(CSRF_HEADER, browser.token())
+                    .contentType(JSON_MEDIA)
+                    .content(json))
+            .andReturn();
+    return finish(result);
   }
 
   private MockHttpServletResponse postJson(String path, Browser browser, String json, String accept)
       throws Exception {
-    return http.perform(
-            postRequest(path)
-                .cookie(browser.cookie())
-                .header(CSRF_HEADER, browser.token())
-                .header("Accept", accept)
-                .contentType(JSON_MEDIA)
-                .content(json))
-        .andReturn()
-        .getResponse();
+    var result =
+        http.perform(
+                postRequest(path)
+                    .cookie(browser.cookie())
+                    .header(CSRF_HEADER, browser.token())
+                    .header("Accept", accept)
+                    .contentType(JSON_MEDIA)
+                    .content(json))
+            .andReturn();
+    return finish(result);
+  }
+
+  private MockHttpServletResponse finish(org.springframework.test.web.servlet.MvcResult result)
+      throws Exception {
+    if (result.getRequest().isAsyncStarted()) {
+      result.getAsyncResult(5000);
+      return http.perform(
+              org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch(
+                  result))
+          .andReturn()
+          .getResponse();
+    }
+    return result.getResponse();
+  }
+
+  private void clearQuotas() {
+    jdbc.update("DELETE FROM authentication_mail_reservation");
+    jdbc.update("DELETE FROM authentication_mail_quota");
   }
 
   private static MockHttpServletRequestBuilder browserGet(String path) {
@@ -1088,6 +1392,10 @@ class R4AccountActionsIntegrationTest {
   }
 
   private static HttpClient trustedTestClient() {
+    return trustedTestClient("127.0.0.1");
+  }
+
+  private static HttpClient trustedTestClient(String localAddress) {
     try {
       KeyStore store = KeyStore.getInstance("PKCS12");
       try (var input = Files.newInputStream(TLS_DIRECTORY.resolve(KEYSTORE_FILE))) {
@@ -1097,7 +1405,10 @@ class R4AccountActionsIntegrationTest {
       trust.init(store);
       var context = SSLContext.getInstance("TLS");
       context.init(null, trust.getTrustManagers(), null);
-      return HttpClient.newBuilder().sslContext(context).build();
+      return HttpClient.newBuilder()
+          .sslContext(context)
+          .localAddress(java.net.InetAddress.getByName(localAddress))
+          .build();
     } catch (GeneralSecurityException | IOException exception) {
       throw new ExceptionInInitializerError(exception);
     }

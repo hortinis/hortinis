@@ -5,7 +5,8 @@
 
 - Status: Accepted S1 design baseline, 2026-10-02; S3-S7 synthetic scope foundation implemented
   and historical S8 authentication design recorded, 2026-10-11. R1 replacement policy/contracts refined
-  2026-10-17; replacement authentication and operational verification remain pending.
+  2026-10-17; R6 replacement evidence is validated on 2026-10-19 under closed production admission.
+  Operational/security/privacy release verification remains S15.
 - Policy: [ADR-0029](../architecture/decisions/0029-access-and-synchronization-scope.md).
 - Functional rules and scenarios: [access specification](../architecture/access-and-synchronization-scope.md).
 - Data classification and retention: [privacy lifecycle](../privacy/access-data-lifecycle.md).
@@ -217,7 +218,7 @@ The S8 discussion above is historical where it asserts MFA/ticket/factor/target-
 | T17: Pending invitation grants account/scope access or redirects ownership | Pending accounts have no verifier/login/data authority; unique canonical email and explicit scope reservation. Only the current invitation activates its fixed account, without login. Cancel/new invitation corrects pending typos; never transfer active ownership. | R2/R4 pending/disabled denial, case-variant uniqueness, concurrent sole-owner invitation and wrong-purpose tests. |
 | T18: Scanner, replay, token race, lost response or rollback | GET is inert; explicit CSRF POST, 256-bit hashed purpose-bound secret, current-token/account/expiry lock and atomic consumption/update. Rollback preserves old state; committed success retry fails generically. | R3/R4/R6 single winner, expiry equality, replacement, malformed/weak password, rollback and lost-success tests. |
 | T19: SMTP outage, partial send or malicious recipient/header/origin | Commit token before SMTP, stored recipient only, fixed plain text/origin, I/O timeouts/quotas; no automatic retry or downgrade. Failed resend invalidates old link; uncertain send may still deliver current link. | R3/R4 SMTP refusal/timeout/ack-loss and transaction-boundary tests; S15 transport/delivery review. |
-| T20: Link/recipient leakage and timing enumeration | Fragment cleared into transient memory, no-referrer, no tracking/logging, token-free errors; generic reset acknowledgements and uniform prelookup gates. Mailbox/scanner can still read links; synchronous sends need measured timing equalization. | R3/R6 canary captures across app/edge/mail/browser and known/unknown/failed/quota timing; S15 recipient/processor inventory. |
+| T20: Link/recipient leakage and timing enumeration | Fragment cleared into transient memory, no-referrer, no tracking/logging, token-free errors; generic reset acknowledgements and account-independent request gates. Mailbox/scanner can still read links; R6 fast-branch padding leaves slow SMTP timing observable. | R3/R6 canary captures across app/edge/mail/browser and known/unknown/failed/quota timing; S15 recipient/processor inventory. |
 | T21: Long-lived or numerous native sessions; stale offline logout | Thirty-minute request inactivity, account-version checks and transactional reset/change/disable revocation; no separate absolute deadline or cap. Offline sign-out pauses locally and never replays old logout against a new cookie. Background traffic can prolong stolen authority and sessions consume storage. | R2/R4 native stale-save/rollback/fixation tests; R5/R6 tab/delayed-cookie/paused-outbox tests; S15 lifetime/sizing risk review. |
 
 R1 finalized these design boundaries. R2 now validates the native backend login/session boundary,
@@ -228,15 +229,14 @@ revocation rollback, protected transaction locks and identity/scope substitution
 records actual checks and the remaining boundary. Invitation/reset/mail, native browser logout,
 Q1/Q2 and S15 remain open; no production or ASVS-level claim follows from these component tests.
 
-## Open S9-R quota review questions
+## S9-R quota review questions
 
-R1 follow-up tracks [Q1/Q2](../development/spring-email-authentication-plan.md#open-questions-required-before-s9-r-completion)
-as mandatory end-of-S9-R/R6 resolutions. Q1 covers anonymous unknown-address requests exhausting the
-shared mail-attempt budget without sending mail and denying legitimate resets/operator invitations.
-Q2 covers shared quota enforcement across the HTTP service and separate host processes, whose current
-in-memory counters are independent. Current quota/accounting text is provisional for these defects;
-passing structural checks does not mitigate them. R6 must attach flood/concurrent-process evidence
-and close both questions before S9-R completion or S10 handoff; do not defer them to S15.
+R1 recorded [Q1/Q2](../development/spring-email-authentication-plan.md#open-questions-required-before-s9-r-completion):
+unknown-address exhaustion of the provisional mail budget and incomplete quotas across isolated host
+processes. R6 replaces those controls with eligible-only durable delivery accounting and reserved
+invitation capacity. The [R6 record](../development/spring-email-authentication-r6-evidence.md) owns
+review, actual flood/concurrent-process evidence and completion status; structural checks alone
+cannot close either question. These are R6/S9-R gates, not S15 deferrals.
 
 ## R3 primitive evidence boundary — 2026-10-17
 
@@ -250,3 +250,21 @@ fixture records unequal local internal send/rejection/unknown/quota branches; co
 equalization remains R4/R6 work. Q1 shared-budget exhaustion is deliberately reproduced; Q2
 cross-process enforcement remains unimplemented. Neither is closed by primitive tests, and both must
 be resolved by R6 before S9-R completion or S10. No historical S8/S9 proof or compliance claim transfers.
+
+## R6 delivery policy review (2026-10-19)
+
+The approved [R6 record](../development/spring-email-authentication-r6-evidence.md) replaces the
+provisional Q1/Q2 controls above. Only committed eligible issuance costs delivery capacity; unknown
+resets do not. Fixed reset/invitation allocations preserve operator budget under reset floods.
+Restricted PostgreSQL reservations and a stable installation HMAC key share email/global delivery
+limits across actual host JVMs and HTTP, including cancellation/recreation. Transaction rollback,
+commit-before-send failure, clock/cleanup/restart and restore boundaries are explicit. Request limits
+and two-send transport concurrency remain per process and must not be called distributed controls.
+
+T07/T15 require fresh flood and quota/concurrent-process evidence; T18/T19 require atomic reservation
+plus token rollback and post-commit failure evidence. T10/T11 add the restricted secret key and 24-hour
+pseudonymous ledger to privilege/backup/redaction review. T20 uses generic quota/failure acknowledgements
+and one-second fast-branch padding; slow SMTP, scheduler/contention and network tails remain observable.
+There is no claim of timing resistance, ASVS ENUMERATION satisfaction or production readiness.
+Q1/Q2 close with the actual flood/concurrent-process and lifecycle results in the R6 record; all
+remaining activation/release gates and timing limitations are explicit there.

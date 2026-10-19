@@ -1,10 +1,11 @@
 # Development
 
-The approved next authentication increment is the [Spring email/password replacement plan](spring-email-authentication-plan.md)
-(S9-R). R1 finalized policy/contracts and inventories. R2 replaces the native backend boundary with
+The [Spring email/password replacement plan](spring-email-authentication-plan.md) (S9-R) is implemented
+and validated under closed production admission. R1 finalized policy/contracts and inventories. R2 replaces the native backend boundary with
 normal authenticated startup and old host workflows closed. R3 supplies internal JDBC action-token
 and bounded Boot SMTP primitives. R4 adds account-action adapters and isolated host invitations;
-R5 replaces the browser; final R6 handoff remains incomplete.
+R5 replaces the browser; R6 shared accounting, review and full validation are complete. Production
+activation remains closed pending separate explicit approval. See the [R6 evidence](spring-email-authentication-r6-evidence.md).
 Earlier S8/S9 descriptions below are historical where they require passkeys/MFA, recovery codes or
 operator-ticket browser recovery. Generated authentication contracts now target S9-R ahead of runtime.
 
@@ -39,7 +40,8 @@ complete authentication surface. R2 implements only native form login, sessions,
 verified-email/current-version authority, exercised through test-source assembly while production
 admission is closed. R3 supplies shared token/mail primitives and bounded cleanup. R4 implements
 invitation/reset/password adapters and the isolated invite/resend/cancel commands; R5 owns the browser
-replacement. Q1/Q2 and timing resistance remain open through R6.
+replacement. R6 resolves Q1/Q2 through shared PostgreSQL delivery accounting and actual
+HTTP/host evidence; timing resistance remains unverified.
 The R1 contract tests check shape, not runtime security; use the R2 evidence record for actual native
 boundary checks. S10 and production gates remain blocked; historical S8/S9 evidence does not validate
 this design.
@@ -60,10 +62,10 @@ Neither production archive includes the fixture, its controls or a configurable 
 
 The fixture uses disposable PostgreSQL 18, a loopback HTTPS edge, a generated one-day certificate
 pinned by its public key in Chromium, and synthetic local SMTP only. The edge proxies native cookies,
-form bodies and API responses unchanged. Fixture controls reset synthetic accounts and limiter state
+form bodies and API responses unchanged. Fixture controls reset synthetic accounts, delivery ledger rows and transient request state
 between scenarios, issue/expire test tokens and select SMTP refusal. SMTP still uses the real mail
-adapter and transport. This is browser/HTTP evidence, not complete shared quota enforcement, timing
-resistance or authenticated production startup. Q1/Q2 remain R6 gates. It requires Chromium, Docker,
+adapter and transport. R6 exercises the real shared delivery store in this fixture and adds actual host/HTTP interleaving
+evidence separately. These are not timing-resistance or authenticated-production-startup claims. It requires Chromium, Docker,
 Node.js and Java; temporary TLS/output files and disposable containers are removed afterward.
 Browser tracing is disabled for these secret-bearing synthetic workflows; diagnostics are fixed or
 redacted. The production bundle and both backend archives have replacement-isolation checks.

@@ -1,18 +1,20 @@
 # Authentication operator workflow
 
-- Status: S9-R R4 host invitations implemented, 2026-10-17.
-  Normal authenticated HTTP startup remains closed pending R6.
+- Status: S9-R R1-R6 implemented and validated, 2026-10-19.
+  Normal authenticated HTTP startup requires separate explicit activation approval.
 - Authority: [ADR-0034](../architecture/decisions/0034-spring-email-password-authentication.md)
   and the [authentication specification](../architecture/authentication-and-sessions.md).
 
-Normal authenticated HTTP startup remains closed while S9-R is incomplete. R4 implements only the
-new invitation host commands and complete account-action adapters. The historical `setup-ticket`,
+Normal authenticated HTTP startup remains closed after validated S9-R; activation requires separate
+explicit approval. R4 supplied the invitation host commands and account-action adapters; R6 validates
+the complete replacement and shared delivery policy. The historical `setup-ticket`,
 `recovery-ticket` and `reconcile` commands are rejected before context/database/file/listener activity.
 There is no configurable startup bypass or operator password-reset bypass. The isolated host graph
 uses non-web Boot auto-configuration for JDBC/Flyway/mail and never loads the web application's scan,
 security chain or access-mode startup admission bean. Local-only and explicitly
-selected no-auth remain available without mail. Keep development data synthetic until S9-R, applicable
-foundation gates and S15 pass; isolated R2 HTTPS tests do not authorize deployment.
+selected no-auth remain available without mail. Keep development data synthetic until applicable
+foundation/S15 release gates and separate activation approval pass; local fixture evidence does not
+authorize deployment.
 
 ## Configuration and trust boundary
 
@@ -83,10 +85,12 @@ never provision or retarget an account. Email and credentials remain absent from
 process output and diagnostics. R4 must test first-send failure followed by email-selected resend,
 case variants, cancellation and denial for unknown/active/disabled targets.
 
-The public mail-budget exhaustion and cross-process quota-enforcement questions remain open as
-[S9-R Q1/Q2](../development/spring-email-authentication-plan.md#open-questions-required-before-s9-r-completion).
-Their resolution and evidence are required by R6 before S9-R completion; this input-contract fix
-does not settle either quota question.
+R6 replaces the provisional process-local mail counters with a shared PostgreSQL ledger.
+Invite/resend use the same canonical-email cooldown (60 seconds), three/hour and ten/day windows as
+HTTP resets, including failed/uncertain delivery. Invitation allocation is ten/hour and 20/day;
+reset allocation is 20/hour and 80/day, without borrowing. Total issuance remains at most 30/hour and
+100/day. Only eligible committed issuance costs a reservation; unknown reset floods spend no mail
+budget. Normal request throttles are separate and do not limit host commands.
 
 Invite syntax/canonicalization and the database unique constraint are defined in the specification.
 Duplicate/case-variant active or disabled emails never become new accounts. To correct a pending typo,
@@ -113,10 +117,27 @@ reserve that empty, unowned scope again; cancellation never converts mode or rem
 cannot extend the original seven-day pending lifetime. A pending row that has reached that deadline
 may still be explicitly cancelled before bounded cleanup removes it.
 
-Q2 is observable in R4's isolated-process fixture: an immediate resend can pass a new process's fresh
-counter. This is evidence of incomplete cross-process enforcement, not approval to ignore the
-cooldown or proof of shared quotas. Operators must respect the provisional limits; R6 must replace
-this limitation with the reviewed enforcement boundary before S9-R completion.
+An immediate resend now fails even in a fresh JVM. Cancellation followed by re-invitation of the
+same canonical email also retains the cooldown/hour/day history; cancellation itself sends nothing
+and spends no delivery quota. Token consumption/replacement does not erase that history. Failed
+issuance transactions preserve prior tokens and spend nothing; after commit, SMTP failure or process
+crash does not refund a reservation. Never retry automatically after an uncertain result.
+
+Both web and host issuers lock the same quota row before account/token mutations. One-second lock
+waiting/storage failures deny issuance with fixed diagnostics; there is no memory fallback. Ordinary
+restart retains quotas and the installation HMAC key. Keep application clocks synchronized; backward
+observations deny sends, while forward jumps can age windows. A restored old database may omit recent
+sends: keep it inaccessible under the restore procedure and wait out the 24-hour mail window before
+mail reactivation. Mail runtime privileges require quota SELECT/INSERT and UPDATE of
+`last_observed_at`, and reservation SELECT/INSERT/DELETE; no key UPDATE or quota DELETE is needed. Protect the HMAC key and ledger in database/backups; never export or log them.
+Startup, issuance and minute cleanup remove up to 500 expired reservations; logical limits expire at
+24 hours independently of physical cleanup. Idle host-only installations purge on the next command.
+
+SMTP concurrency is two per process (one synchronous action per host invocation), not two across
+all processes. Shared rolling quotas bound committed mail volume across them. S15 must size SMTP
+burst capacity and preserve the single-HTTP-service assumption for transient request limits.
+The [R6 evidence record](../development/spring-email-authentication-r6-evidence.md) distinguishes
+actual host/HTTP/browser evidence from primitive storage tests.
 
 ## Mailbox recovery and delivery failures
 
@@ -134,9 +155,9 @@ Mail infrastructure/mailboxes may retain messages and action secrets; document t
 security, retention and backup policies. A scanner must not activate/reset through GET.
 
 Public reset requests always return the same acknowledgement for unknown/pending/disabled accounts,
-mail quotas and recipient-specific SMTP failure. Operational diagnostics use only fixed delivery
-outcome codes and fresh references. Synchronous sending still needs timing equalization and evidence
-in R3/R6. Operators investigate SMTP availability through protected infrastructure procedures, without
+mail quotas and recipient-specific token-store/commit or SMTP failure. Operational diagnostics use only fixed delivery
+outcome codes and fresh references. R6 adds a one-second minimum public acknowledgement and fresh timing samples; slow SMTP tails
+remain observable, so timing resistance is not claimed. Operators investigate SMTP availability through protected infrastructure procedures, without
 turning on body/recipient/credential logging. Authentication never downgrades during outage.
 
 Mailbox control can replace the password. Mailbox compromise or reassignment therefore threatens the
@@ -146,11 +167,12 @@ enrollment. Optional MFA/passkeys, saved recovery codes, email changes and extra
 
 ## Readiness and restore gates
 
-R2-R6 must prove native login/session/CSRF/logout, pending denial, token races/rollback, SMTP timeout
-and failure, no leaks, timing and offline browser behavior. S15 must review SMTP transport, sender
+The [R6 record](../development/spring-email-authentication-r6-evidence.md) supplies actual native
+login/session/CSRF/logout, pending denial, token races/rollback, SMTP failure/timing, redaction and
+offline browser evidence under closed production admission. S15 must review SMTP transport, sender
 configuration/deliverability, abuse/restart limits, mailbox recovery strength, indefinite active-session
-risk and processor/retention policies. Q1/Q2 must already be resolved at the end of S9-R, rather
-than deferred to S15. Backups can contain token verifiers and email; expiry remains
+risk and processor/retention policies. Q1/Q2 are resolved in R6 with executable evidence, not deferred to S15. Timing resistance remains
+unverified and is not inferred from matching acknowledgements or bounded response padding. Backups can contain token verifiers and email; expiry remains
 absolute after restore, sessions/old credentials must not be resurrected, and complete deletion/restore
 suppression remain S12/P0.6/S15 gates. Fresh schemas need no compatibility migrations.
 

@@ -1,6 +1,7 @@
 package com.hortinis.sync.authentication;
 
 import com.hortinis.sync.authentication.persistence.AuthenticationLifecyclePersistence;
+import com.hortinis.sync.authentication.persistence.MailIssuancePersistence;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.SmartInitializingSingleton;
@@ -13,13 +14,13 @@ public final class AuthenticationLifecycle implements SmartInitializingSingleton
   private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticationLifecycle.class);
   private final AuthenticationLifecyclePersistence persistence;
   private final AuthenticationAttemptLimiter attempts;
-  private final ActionMailAdmission mail;
+  private final MailIssuancePersistence mail;
 
   /** No partial-session, proof or ticket cleanup runs in the replacement graph. */
   public AuthenticationLifecycle(
       AuthenticationLifecyclePersistence persistence,
       AuthenticationAttemptLimiter attempts,
-      ActionMailAdmission mail) {
+      MailIssuancePersistence mail) {
     this.persistence = persistence;
     this.attempts = attempts;
     this.mail = mail;
@@ -28,6 +29,7 @@ public final class AuthenticationLifecycle implements SmartInitializingSingleton
   @Override
   public void afterSingletonsInstantiated() {
     try {
+      mail.purge();
       persistence.purge();
       persistence.purgeActions();
     } catch (DataAccessException | TransactionException exception) {
@@ -39,8 +41,8 @@ public final class AuthenticationLifecycle implements SmartInitializingSingleton
   @Scheduled(fixedDelay = 60000, initialDelay = 60000)
   public void cleanupAttempts() {
     attempts.cleanup();
-    mail.cleanup();
     try {
+      mail.purge();
       persistence.purgeActions();
     } catch (DataAccessException | TransactionException exception) {
       LOGGER

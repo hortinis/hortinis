@@ -593,3 +593,16 @@ links, I/O/concurrency bounds and redacted diagnostics. No action endpoint, acco
 workflow or browser replacement is enabled. Q1/Q2 and full response timing remain unresolved R6
 closure requirements; local transport timing is not enumeration resistance. No register disposition,
 requirement-level pass, ASVS-level result or S15 production finding changes through this increment.
+
+## R6 evidence handoff (2026-10-19)
+
+[R6](../development/spring-email-authentication-r6-evidence.md) owns fresh shared-delivery enforcement
+and full replacement review evidence for AUTH/ACTION_DELIVERY/FLOW/CONCURRENCY/RETENTION/LOG. Unknown
+addresses do not spend delivery quota; restricted pseudonymous PostgreSQL reservations survive host
+process boundaries and cancellation. Native Spring login/session/CSRF/logout and scope/version
+revocation remain authoritative. Exact requirement evidence and limitations must be assessed at S15;
+this does not change any of the 345 dispositions/counts or imply a requirement/Level 2 pass.
+
+ENUMERATION remains unverified: fixed 202 and a one-second response floor do not conceal slow SMTP
+and all contention/network tails. STRENGTH/B01, ACTION_LIFETIME's invitation distinction, SESSION's
+idle-only/no-cap policy, D01-D03 and B03-B05 retain their documented release/activation gates.

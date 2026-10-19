@@ -208,3 +208,19 @@ CREATE TABLE spring_session_attributes (
     attribute_bytes BYTEA NOT NULL,
     PRIMARY KEY (session_primary_id, attribute_name)
 );
+
+-- R6 delivery accounting survives HTTP/host process boundaries and account cancellation.
+CREATE TABLE authentication_mail_quota (
+    singleton BOOLEAN PRIMARY KEY DEFAULT TRUE CHECK (singleton),
+    server_instance_id UUID NOT NULL REFERENCES technical_server_installation (server_instance_id),
+    hmac_key BYTEA NOT NULL CHECK (octet_length(hmac_key) = 32),
+    last_observed_at TIMESTAMPTZ NOT NULL
+);
+CREATE TABLE authentication_mail_reservation (
+    reservation_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    quota BOOLEAN NOT NULL DEFAULT TRUE REFERENCES authentication_mail_quota (singleton),
+    email_key TEXT NOT NULL CHECK (email_key ~ '^[0-9a-f]{64}$'),
+    purpose TEXT NOT NULL CHECK (purpose IN ('invitation', 'reset')),
+    issued_at TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX authentication_mail_reservation_time ON authentication_mail_reservation (issued_at);

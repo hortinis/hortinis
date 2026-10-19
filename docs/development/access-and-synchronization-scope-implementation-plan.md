@@ -33,7 +33,7 @@ Mandatory passkeys/MFA, saved recovery codes, operator-ticket browser recovery, 
 and preservation of their contracts are obsolete implementation targets. R2 replaces the backend
 login/session boundary with normal authenticated startup closed during the incomplete replacement.
 R1 finalized replacement policy/contracts/inventories; the generated API still describes the complete
-future surface. R1-R5 are complete; R6 remains planned. Scope isolation, stable identity and offline
+future surface. R1-R6 are complete; normal authenticated production startup remains closed pending separate activation approval. Scope isolation, stable identity and offline
 preservation remain.
 
 ## Required outcome
@@ -62,7 +62,7 @@ Keep these identifiers distinct:
 | `synchronizationScopeId` | Created and controlled by the server                            | Partitions records, receipts, changes, tombstones, cursors, generations, and reconciliation state | Obtained only from trusted server configuration or an authorized session context |
 | `accountId`              | Created by an authenticated server                              | Owns the permitted synchronization scope or scopes                                                | Never accepted from the browser as proof of identity                             |
 | `deviceId`               | Created during enrollment when device management is implemented | Binds sessions and supports device visibility and revocation                                      | Does not own business or synchronization data                                    |
-| `sessionId`              | Created and rotated by the server                               | Resolves an authenticated account, device, and authorized scope context                           | Random opaque credential carried only in a protected cookie                      |
+| `sessionId`              | Created and rotated by the server                               | Resolves an authenticated account and authorized scope; device binding remains S11                           | Random opaque credential carried only in a protected cookie                      |
 
 For the first release, one account owns one synchronization scope. Keep the database relationship
 explicit so a later accepted decision can allow more than one scope without equating `accountId` and
@@ -510,7 +510,7 @@ preserves local data and pending intent.
 
 ### S9-R — Replace authentication with Spring email and password flows
 
-- Status: R1-R5 `complete` (2026-10-18); R6 `planned`.
+- Status: R1-R6 `complete` (2026-10-19); production activation remains closed.
   Normal authenticated startup remains closed.
 - Implementation plan: [Spring email/password replacement](spring-email-authentication-plan.md).
 - Depends on: the S9 scope/account boundary and ADR-0034; supersedes the old mechanism handoff.
@@ -634,7 +634,13 @@ preserves local data and pending intent.
   account pause publication. It adds six unit regressions (381 total), a held-CSRF offline/reconnect
   browser scenario and no-auth sign-out/reload assertions. Precise write interleaving remains unit
   evidence; the record distinguishes it from actual browser/HTTP coverage.
-- Handoff: S10 consumes S9-R after validation. No production-readiness or ASVS-level claim follows
+- R6 completion (2026-10-19): [fresh evidence and review](spring-email-authentication-r6-evidence.md)
+  close Q1/Q2 with eligible-only delivery accounting, reserved invitation capacity and shared PostgreSQL
+  reservations across real HTTP/host processes. Full documented checks, 25 authenticated browser
+  scenarios and offline topology pass. Native authority, exact-account/offline preservation and
+  production isolation remain intact; timing tails and independent release gates remain explicit.
+- Handoff: S10 may consume the validated baseline only in separately authorized future work. R6 stops
+  after its local commit; normal authenticated startup requires separate explicit activation approval. No production-readiness or ASVS-level claim follows
   from adopting password-only login. SMTP/privacy and recovery-strength review remain S15 gates.
 
 ### S10 — Implement multi-user accounts and scope authorization
@@ -660,7 +666,7 @@ preserves local data and pending intent.
 - Status: `planned`.
 - Depends on: revised S8 policy, S9-R and S10.
 - Revised handoff: device management remains planned; passkeys/MFA and recovery codes are not
-  prerequisites. Specify device authorization against the email/password baseline before implementation.
+  prerequisites. Specify device authorization against the email/password baseline before implementation. Invitation/reset links never grant device enrollment authority.
 - Scope: implement device enrollment, device-bound sessions, additional-device bootstrap, device listing,
   optional user-supplied labels, last-activity behavior where justified, and revocation. Keep `deviceId`
   off business ownership and synchronization partition keys. Previously accepted data remains owned by
@@ -693,7 +699,7 @@ preserves local data and pending intent.
   and implement the user's selected outcome without presenting deletion as secure erasure when browser or
   backup limitations prevent that guarantee.
 - Validation: interrupted transition, rollback, stale session, concurrent administrator, wrong-account,
-  replaced-server, offline pending logout, in-flight binding change, interrupted purge, backup/restore
+  replaced-server, offline local sign-out pause with explicit status resolution, in-flight binding change, interrupted purge, backup/restore
   suppression, direct mode downgrade, and reload scenarios pass (AC-AS-06 through AC-AS-14).
 
 ### S13 — Make G3 generations scope-aware
@@ -734,7 +740,7 @@ preserves local data and pending intent.
   backup/restore review, operator hardening guidance, privacy information, rights procedures, incident and
   breach runbooks, processing-record template, and DPIA screening result.
 - Revised authentication evidence: reassess password-only strength, mailbox recovery, verified email,
-  SMTP delivery failures and privacy/retention. Do not inherit historical MFA compliance conclusions.
+  SMTP delivery failures, observable timing tails, shared-ledger privilege/clock/restore behavior and privacy/retention. Do not inherit historical MFA compliance conclusions.
 - Design baseline: consume the complete S1 applicability register and B01-B05 blockers rather than
   starting a new checklist. Verify complete deletion and restoration suppression, review D01-D03
   deviations explicitly, and distinguish verification target from requirements actually satisfied.

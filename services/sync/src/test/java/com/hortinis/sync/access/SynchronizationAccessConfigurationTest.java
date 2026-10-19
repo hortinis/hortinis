@@ -75,7 +75,7 @@ class SynchronizationAccessConfigurationTest {
               assertThat(context).hasFailed();
               assertThat(context.getStartupFailure())
                   .hasRootCauseMessage(
-                      "Authenticated access is unavailable until S9-R is complete.");
+                      "Authenticated production access requires separate activation approval.");
               verifyNoInteractions(installation, authority);
             });
   }

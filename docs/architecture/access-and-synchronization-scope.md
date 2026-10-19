@@ -126,7 +126,7 @@ state and current permission are separate: being bound does not imply a valid se
 | First binding interrupted | Repeat only the authorized, idempotent handshake; deny unconfirmed upload. | `binding_pending`; retain data/outbox. |
 | Valid original binding and access | Resolve scope on every request. | `bound`; normal exchange under its fenced binding. |
 | Session expiry or sign-out | Invalidate the session server-side; deny further use. | `auth_required`; stop new sync attempts, clear credential/transient account UI state, keep local garden access and edits. |
-| Sign-out while offline | No claim of confirmed remote logout; server expiry remains effective. | Persist pending logout, pause sync, and complete remote invalidation when reachable before any sync resumes. |
+| Sign-out while offline | No claim of confirmed remote logout; server expiry remains effective. | Persist a local synchronization pause, retain work, and require explicit status resolution/login or a new sign-out after reconnect; never queue remote logout. |
 | Reauthentication to original account | Rotate session; revalidate owner/scope/device and installation state. | Resume original binding only after all identities match. |
 | Another account signs in | Its authorized context cannot access the previous scope. | `binding_mismatch` for the original data set; select/create a separate data set explicitly. |
 | Device/account revoked or disabled | Deny subsequent data access and invalidate applicable sessions. | `revoked` when observed; retain offline data and pending intent. |
@@ -209,7 +209,7 @@ These are required future executable scenarios, not claims of tests added by S1.
 | AC-AS-03 | Two devices in A exchange create/replace/delete; B sees none; identical record/operation IDs, locks, receipts, retries, and leases remain independent. | S3, S5, S7 |
 | AC-AS-04 | Substituted cursor, generation, snapshot ID, and resource ID cannot reveal/modify another scope. | S2, S7, S13, S14 |
 | AC-AS-05 | Each first-connection row, racing server population, interrupted handshake, and reload preserve local intent; unsupported paths pause. | S6, S14 |
-| AC-AS-06 | Online/offline logout and expiry stop synchronization; offline edits persist; pending logout precedes later exchange; same-account reauthentication resumes safely. | S9, S12 |
+| AC-AS-06 | Online/offline logout and expiry stop synchronization; offline edits persist; local sign-out pause prevents exchange until explicit resolution; same-account reauthentication resumes safely. | S9, S12 |
 | AC-AS-07 | Account switch/server replacement during a request fences its response and preserves ambiguous submitted work without cross-binding retries. | S6, S12, S14 |
 | AC-AS-08 | Enrollment requires authorized single-use proof and rejects replay/forged device IDs; concurrent revocation and acceptance have a defined committed ordering; revoked sessions cannot authorize later work; accepted data remains owned by the account. | S9, S11 |
 | AC-AS-09 | Interrupted/concurrent no-auth claim preserves one committed mode/owner and identity; post-commit unauthenticated access denies. | S9, S12 |

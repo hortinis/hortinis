@@ -21,7 +21,9 @@ class ActionMailConfigurationTest {
           .withConfiguration(AutoConfigurations.of(MailSenderAutoConfiguration.class))
           .withUserConfiguration(ActionMailConfiguration.class)
           .withBean(Clock.class, Clock::systemUTC)
-          .withBean(AuthenticationAdmissionCapacity.class, AuthenticationAdmissionCapacity::new)
+          .withBean(
+              org.springframework.jdbc.core.simple.JdbcClient.class,
+              () -> mock(org.springframework.jdbc.core.simple.JdbcClient.class))
           .withBean(ActionTokenPersistence.class, () -> mock(ActionTokenPersistence.class))
           .withBean(PlatformTransactionManager.class, () -> mock(PlatformTransactionManager.class))
           .withPropertyValues(

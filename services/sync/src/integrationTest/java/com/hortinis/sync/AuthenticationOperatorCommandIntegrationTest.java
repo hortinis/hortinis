@@ -27,6 +27,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 /** Fresh R4 evidence: actual executable dispatch, isolated Boot/JDBC and loopback STARTTLS SMTP. */
 @Testcontainers
 class AuthenticationOperatorCommandIntegrationTest {
+  private static final String RESEND = "resend-invitation";
   private static final String INVITE = "invite";
   private static final String ACCOUNT_ROWS = "SELECT * FROM authentication_account";
   private static final String TOKEN_VERIFIER =
@@ -67,10 +68,11 @@ class AuthenticationOperatorCommandIntegrationTest {
       assertThat(issued.code()).isZero();
       assertThat(issued.output()).isEqualTo("Invitation committed and SMTP accepted.\n");
       assertThat(jdbc.queryForObject(MODE, String.class)).isEqualTo("single-user-auth");
-      Map<String, Object> reservation = jdbc.queryForMap(ACCOUNT_ROWS);
-      String old = jdbc.queryForObject(TOKEN_VERIFIER, String.class);
-      Result resent =
-          command(smtp, "resend-invitation", EMAIL.toUpperCase(java.util.Locale.ROOT) + "\n");
+      final Map<String, Object> reservation = jdbc.queryForMap(ACCOUNT_ROWS);
+      final String old = jdbc.queryForObject(TOKEN_VERIFIER, String.class);
+      assertThat(command(smtp, RESEND, EMAIL).code()).isEqualTo(1);
+      ageCooldown();
+      Result resent = command(smtp, RESEND, EMAIL.toUpperCase(java.util.Locale.ROOT) + "\n");
       assertThat(resent.code()).isZero();
       assertThat(jdbc.queryForMap(ACCOUNT_ROWS)).isEqualTo(reservation);
       assertThat(jdbc.queryForObject(TOKEN_VERIFIER, String.class)).isNotEqualTo(old);
@@ -94,7 +96,7 @@ class AuthenticationOperatorCommandIntegrationTest {
       assertThat(corrected.get("account_id")).isNotEqualTo(reservation.get("account_id"));
       assertThat(corrected.get("delivery_email")).isEqualTo("Corrected@Example.test");
       assertThat(count("SELECT count(*) FROM spring_session")).isEqualTo(1);
-      // Q2 evidence: immediate resends in separate processes pass their fresh local counters.
+      // The ledger survived resend, cancellation and fresh JVM invocations.
     }
   }
 
@@ -107,10 +109,10 @@ class AuthenticationOperatorCommandIntegrationTest {
       assertThat(failed.output())
           .isEqualTo("Invitation committed; delivery failed. Resend after the cooldown.\n");
       assertThat(count(ACCOUNTS)).isEqualTo(1);
-      String old = jdbc.queryForObject(TOKEN_VERIFIER, String.class);
-      assertThat(
-              command(smtp, "resend-invitation", EMAIL.toLowerCase(java.util.Locale.ROOT)).code())
-          .isZero();
+      final String old = jdbc.queryForObject(TOKEN_VERIFIER, String.class);
+      assertThat(command(smtp, RESEND, EMAIL).code()).isEqualTo(1);
+      ageCooldown();
+      assertThat(command(smtp, RESEND, EMAIL.toLowerCase(java.util.Locale.ROOT)).code()).isZero();
       assertThat(smtp.messages()).hasSize(1);
       assertThat(jdbc.queryForObject(TOKEN_VERIFIER, String.class)).isNotEqualTo(old);
     }
@@ -137,10 +139,11 @@ class AuthenticationOperatorCommandIntegrationTest {
       if (!state.equals("unknown")) {
         assertThat(command(smtp, INVITE, EMAIL).code()).isZero();
         jdbc.update("UPDATE authentication_account SET status = ?", state);
+        ageCooldown();
       }
       var before = jdbc.queryForList(ACCOUNT_ROWS);
       var tokens = jdbc.queryForList("SELECT * FROM authentication_action_token");
-      for (String action : List.of("resend-invitation", "cancel-invitation")) {
+      for (String action : List.of(RESEND, "cancel-invitation")) {
         var denied = command(smtp, action, EMAIL);
         assertThat(denied.code()).isEqualTo(1);
         assertThat(denied.output()).isEqualTo(FAILURE);
@@ -261,6 +264,11 @@ class AuthenticationOperatorCommandIntegrationTest {
         now,
         1800,
         now + 1800000);
+  }
+
+  private void ageCooldown() {
+    jdbc.update(
+        "UPDATE authentication_mail_reservation SET issued_at = issued_at - INTERVAL '61 seconds'");
   }
 
   private Result command(HostSmtpFixture smtp, String action, String input) throws Exception {

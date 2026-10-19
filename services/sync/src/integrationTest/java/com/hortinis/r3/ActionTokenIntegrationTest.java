@@ -233,7 +233,7 @@ class ActionTokenIntegrationTest {
     var sends = new AtomicInteger();
     var service =
         service(
-            new ActionMailAdmission(clock),
+            new ActionMailAdmission(),
             token -> {
               sends.incrementAndGet();
               return true;
@@ -242,6 +242,10 @@ class ActionTokenIntegrationTest {
             () -> service.issueAndDeliver(EMAIL, ActionTokenPurpose.INVITATION, () -> account))
         .isInstanceOf(org.springframework.transaction.TransactionException.class);
     assertThat(sends).hasValue(0);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM authentication_mail_reservation", Integer.class))
+        .isZero();
     consume(ActionTokenPurpose.INVITATION, issued.secret());
     assertThat(output.getAll())
         .doesNotContain(issued.secret(), EMAIL, "synthetic-commit-diagnostic-canary");
@@ -405,7 +409,7 @@ class ActionTokenIntegrationTest {
       CapturedOutput output) {
     var old = issue(ActionTokenPurpose.INVITATION);
     var seen = new java.util.ArrayList<IssuedToken>();
-    var admission = new ActionMailAdmission(clock);
+    var admission = new ActionMailAdmission();
     var delivery =
         service(
             admission,
@@ -436,7 +440,7 @@ class ActionTokenIntegrationTest {
     var calls = new AtomicInteger();
     var service =
         service(
-            new ActionMailAdmission(clock),
+            new ActionMailAdmission(),
             token -> {
               calls.incrementAndGet();
               return true;
@@ -452,13 +456,13 @@ class ActionTokenIntegrationTest {
   }
 
   @Test
-  void concurrentDeliveryIsBoundedBeforeLookupAndDoesNotHoldAccountLocks() throws Exception {
+  void concurrentDeliveryCapacityDoesNotHoldAccountLocks() throws Exception {
     var entered = new CountDownLatch(2);
     var firstEntered = new CountDownLatch(1);
     var release = new CountDownLatch(1);
     var service =
         service(
-            new ActionMailAdmission(clock),
+            new ActionMailAdmission(),
             token -> {
               entered.countDown();
               firstEntered.countDown();
@@ -484,11 +488,8 @@ class ActionTokenIntegrationTest {
                 () -> service.issueAndDeliver(EMAIL, ActionTokenPurpose.INVITATION, () -> account));
         assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
         clock.now = START.plusSeconds(120);
-        assertThatThrownBy(
-                () ->
-                    service.issueAndDeliver(
-                        "unknown@example.test", ActionTokenPurpose.RESET, () -> UUID.randomUUID()))
-            .isInstanceOf(com.hortinis.sync.authentication.AuthenticationOverloadedException.class);
+        assertThat(service.issueAndDeliver(EMAIL, ActionTokenPurpose.INVITATION, () -> account))
+            .isEqualTo(ActionTokenDelivery.Outcome.LIMITED);
         release.countDown();
         assertThat(first.get(5, TimeUnit.SECONDS)).isEqualTo(ActionTokenDelivery.Outcome.ACCEPTED);
         assertThat(second.get(5, TimeUnit.SECONDS)).isEqualTo(ActionTokenDelivery.Outcome.ACCEPTED);
@@ -501,29 +502,33 @@ class ActionTokenIntegrationTest {
   }
 
   @Test
-  void provisionalUnknownAttemptAccountingReproducesOpenQ1RatherThanClaimingAvailability() {
+  void unknownFloodSpendsNoDeliveryBudgetAndInvitationStillSends() {
     var sends = new AtomicInteger();
     var service =
         service(
-            new ActionMailAdmission(clock),
+            new ActionMailAdmission(),
             token -> {
               sends.incrementAndGet();
               return true;
             });
-    for (int index = 0; index < 30; index++) {
-      String email = "unknown" + index + "@example.test";
-      conflict(
-          () -> service.issueAndDeliver(email, ActionTokenPurpose.RESET, () -> UUID.randomUUID()));
+    for (int index = 0; index < 100; index++) {
+      assertThat(
+              service.issueAndDeliver(
+                  "unknown" + index + "@example.test", ActionTokenPurpose.RESET, () -> null))
+          .isEqualTo(ActionTokenDelivery.Outcome.INELIGIBLE);
     }
-    assertThatThrownBy(
-            () -> service.issueAndDeliver(EMAIL, ActionTokenPurpose.INVITATION, () -> account))
-        .isInstanceOf(com.hortinis.sync.authentication.AuthenticationOverloadedException.class);
-    assertThat(sends).hasValue(0);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM authentication_mail_reservation", Integer.class))
+        .isZero();
+    assertThat(service.issueAndDeliver(EMAIL, ActionTokenPurpose.INVITATION, () -> account))
+        .isEqualTo(ActionTokenDelivery.Outcome.ACCEPTED);
+    assertThat(sends).hasValue(1);
   }
 
   @Test
   void localBranchTimingEvidenceDoesNotClaimPublicResponseEqualization() throws Exception {
-    var admission = new ActionMailAdmission(clock);
+    var admission = new ActionMailAdmission();
     long accepted;
     long quota;
     long refused;
@@ -576,7 +581,7 @@ class ActionTokenIntegrationTest {
 
   @Test
   void callerSelectionRunsAfterAdmissionAndItsChangesShareTokenCommitOrRollback() {
-    var admission = new ActionMailAdmission(clock);
+    var admission = new ActionMailAdmission();
     var sends = new AtomicInteger();
     var service =
         service(
@@ -629,7 +634,7 @@ class ActionTokenIntegrationTest {
   void enclosingTransactionCannotIssueOrSend() {
     var service =
         service(
-            new ActionMailAdmission(clock),
+            new ActionMailAdmission(),
             token -> {
               throw new AssertionError("Unexpected send.");
             });
@@ -707,7 +712,8 @@ class ActionTokenIntegrationTest {
         new com.hortinis.sync.authentication.AuthenticationLifecycle(
             lifecycle,
             new com.hortinis.sync.authentication.AuthenticationAttemptLimiter(clock),
-            new ActionMailAdmission(clock));
+            new com.hortinis.sync.authentication.persistence.MailIssuancePersistence(
+                JdbcClient.create(source), clock, manager));
     runner.cleanupAttempts();
     assertThat(jdbc.queryForObject(COUNT, Integer.class)).isEqualTo(1);
     assertThat(jdbc.queryForObject(ACCOUNTS, Integer.class)).isEqualTo(1);
@@ -779,7 +785,13 @@ class ActionTokenIntegrationTest {
   }
 
   private ActionTokenDelivery service(ActionMailAdmission admission, ActionMailDelivery delivery) {
-    return new ActionTokenDelivery(tokens, admission, delivery, manager);
+    return new ActionTokenDelivery(
+        tokens,
+        admission,
+        new com.hortinis.sync.authentication.persistence.MailIssuancePersistence(
+            JdbcClient.create(source), clock, manager),
+        delivery,
+        manager);
   }
 
   private IssuedToken issue(ActionTokenPurpose purpose) {

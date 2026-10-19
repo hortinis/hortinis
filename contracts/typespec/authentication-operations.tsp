@@ -104,7 +104,7 @@ namespace Hortinis.Sync {
     @route("/password-reset/request")
     @TypeSpec.OpenAPI.operationId("requestAccountPasswordReset")
     @summary("Request a password-reset email with a generic acknowledgement")
-    @doc("202 does not confirm an account, token issuance or SMTP delivery. Only verified active accounts are eligible. Per-email mail quotas are silently acknowledged for all addresses; request/source/global overload is generic 429. 503 is reserved for account-independent infrastructure failure, never recipient-specific SMTP failure.")
+    @doc("202 does not confirm an account, token issuance or SMTP delivery. Only verified active accounts are eligible. Email and installation delivery quotas, SMTP capacity and recipient failures are silently acknowledged. Only committed eligible issuance spends shared PostgreSQL delivery quotas: email 60 seconds/3 per hour/10 per day; resets 20 per hour/80 per day; invitations 10 per hour/20 per day, without borrowing. Request/source/global request overload is generic 429. A one-second acknowledgement floor does not guarantee timing resistance. Recipient-specific token issuance/commit and SMTP failures share 202; 503 is reserved for shared pre-eligibility infrastructure failure. A failed or uncertain commit never triggers delivery or automatic retry.")
     requestReset(@body request: Models.PasswordResetRequest):
       | PasswordResetAcceptedResponse
       | PublicAuthenticationFailures;

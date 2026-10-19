@@ -2,7 +2,7 @@
 
 - Status: Accepted; R1 complete, R2 native backend validated with authenticated admission
   closed; R3 action-token/Boot SMTP and R4 invitation/reset/password mutations implemented;
-  R5 browser replacement implemented; R6 handoff pending.
+  R5 browser replacement and R6 review/validation complete; production activation remains closed.
 - Date: 2026-10-17
 - Implementation owner: S9-R; S10-S15 consume the revised baseline.
 - Partially supersedes: [ADR-0033](0033-built-in-authentication-and-sessions.md).
@@ -81,3 +81,25 @@ reassessed; this decision makes no new production, legal-compliance or security-
 The [implementation plan](../../development/spring-email-authentication-plan.md) defines component
 mappings, phased replacement, deletion targets, validation and S-track reconciliation. S9-R must finish
 before S10 consumes the new authentication baseline. S11-S15 retain their independent gates.
+
+## R6 delivery policy refinement (2026-10-19)
+
+The approved R6 policy separates account-independent transient request admission from durable mail
+accounting. Only committed eligible issuance spends the email cooldown/three-hourly/ten-daily quota.
+Unknown/ineligible requests spend none. Resets receive 20/hour and 80/day; host invitations/resends
+receive ten/hour and 20/day, with no borrowing and the existing total ceiling of 30/hour/100/day.
+This reserves invitation capacity under reset floods at the cost of unused capacity in either lane.
+All public delivery quota/capacity/failure branches share 202; request-limit rejection remains 429.
+
+Reuse PostgreSQL, JdbcClient and Spring transactions for a small shared delivery ledger, rather than
+adding a cache service, delivery queue or authentication engine. Persist one installation HMAC key
+and 24-hour pseudonymous reservations independently of account deletion. A singleton row lock
+serializes concurrent HTTP and isolated host issuers. Issuance rollback refunds by rolling back the
+reservation; commit followed by failure/crash does not. Ordinary restart preserves restrictions.
+The [authentication specification](../authentication-and-sessions.md#numeric-policy) defines retention,
+clock/failure/restore rules and distinguishes shared quotas from per-process SMTP concurrency.
+
+A fixed one-second public acknowledgement floor uses native Spring MVC asynchronous responses and
+scheduling. This adds bounded padding, not constant-time delivery or a claim of enumeration resistance.
+The [R6 record](../../development/spring-email-authentication-r6-evidence.md) owns fresh evidence and
+remaining activation gates. Production authenticated startup stays closed after this increment.

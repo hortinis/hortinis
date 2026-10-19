@@ -20,7 +20,7 @@ public final class AuthenticationAttemptLimiter {
   private static final Duration CLEANUP_INTERVAL = Duration.ofSeconds(60);
   private static final int MAX_KEYS = 4096;
   private final Clock clock;
-  private final AuthenticationAdmissionCapacity capacity;
+  private final int maximumKeys;
   private final Mac mac;
   private final Map<String, Attempts> subjects = new HashMap<>();
   private final Attempts installation = new Attempts();
@@ -33,12 +33,11 @@ public final class AuthenticationAttemptLimiter {
   }
 
   AuthenticationAttemptLimiter(Clock clock, int maximumKeys) {
-    this(clock, new AuthenticationAdmissionCapacity(maximumKeys));
-  }
-
-  AuthenticationAttemptLimiter(Clock clock, AuthenticationAdmissionCapacity capacity) {
     this.clock = java.util.Objects.requireNonNull(clock);
-    this.capacity = java.util.Objects.requireNonNull(capacity);
+    if (maximumKeys < 1 || maximumKeys > MAX_KEYS) {
+      throw new IllegalArgumentException("Invalid admission key capacity.");
+    }
+    this.maximumKeys = maximumKeys;
     byte[] key = new byte[32];
     new SecureRandom().nextBytes(key);
     try {
@@ -91,7 +90,7 @@ public final class AuthenticationAttemptLimiter {
     if (!installation.available(now, 60)
         || (login != null && !login.available(now, 5))
         || (source != null && !source.available(now, 20))
-        || !capacity.acquire(additional)) {
+        || subjects.size() + additional > maximumKeys) {
       return false;
     }
     if (loginKey != null) {
@@ -124,7 +123,6 @@ public final class AuthenticationAttemptLimiter {
           .removeIf(
               entry -> {
                 if (!now.isBefore(entry.getValue().lastAttempt.plus(KEY_IDLE))) {
-                  capacity.release();
                   return true;
                 }
                 return false;

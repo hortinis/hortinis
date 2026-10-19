@@ -86,6 +86,9 @@ public final class HortinisOperatorCommand {
             .logStartupInfo(false)
             .registerShutdownHook(false)
             .run()) {
+      context
+          .getBean(com.hortinis.sync.authentication.persistence.MailIssuancePersistence.class)
+          .purge();
       var invitations = context.getBean(InvitationPersistence.class);
       final String target = email;
       if (options.action() == OperatorCommandOptions.Action.CANCEL) {

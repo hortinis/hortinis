@@ -4,7 +4,7 @@
 > action tokens under ADR-0034. R2 introduces email identity and minimized native UUID/version
 > sessions under closed authenticated production admission. R3 adds internal hashed action tokens,
 > bounded pending/token cleanup and post-commit SMTP. R4 adds account mutations and host invitation
-> commands; R5 replaces the browser while final S9-R handoff remains incomplete.
+> commands; R5 replaces the browser and R6 validates shared accounting/replacement with production activation closed.
 > R2 removes partial-session/factor/target processing; R5 deletes dormant legacy storage and WebAuthn dependencies; R4 removes ticket issuance, raw files and ticket storage. Only synthetic loopback SMTP fixtures send test messages. The S8 inventory at the
 > end is explicitly historical for fields retired by the replacement.
 
@@ -65,7 +65,7 @@ recipients, location/transfers, terms, and lawful-basis review.
 ## Inventory and proposed lifecycle
 
 ADR-0023's synchronization periods and the [R1 authentication numeric policy](../architecture/authentication-and-sessions.md#numeric-policy)
-are accepted design. Replacement authentication values remain inactive until R2-R6 pass; other operational/backup
+are accepted design. Normal authenticated HTTP remains inactive pending separate activation approval and release gates; other operational/backup
 periods below remain proposals for S15/operator assessment. A deployment must record its effective
 values and justification, implement automatic purge, and close the blockers below before
 real-data use. Account inactivity alone does not discard garden history or unresolved local intent.
@@ -168,7 +168,7 @@ address residual high risk before processing; seek qualified review where necess
 ## Blocking work and authoritative sources
 
 ADR-0034 and S9-R R1 settle email/password, mailbox recovery, native session and action-token policy
-and data minimization. R2-R6 must implement/verify them; device enrollment and sensitive transitions
+and data minimization. R1-R6 implement/verify the replacement boundary; device enrollment and sensitive transitions
 remain separate S11/S12 gates. P0.6/S12/S15 must
 settle numeric log/backup/cleanup periods, implement deletion and restore suppression, verify logs at
 every layer, and document operator safeguards. The operator must complete the legal-purpose/rights,
@@ -283,7 +283,8 @@ target processing. R1 documents it without adding runtime data, SMTP configurati
 | Fixed plain-text subject/body containing action, expiry and fragment link; SMTP recipient/envelope | Deliver controlled invitation or requested reset. Recipient, mailbox/SMTP operators and potentially their relays/scanners see personal address and secret link. No garden/account/scope ID, tracker, remote asset or attachments. | No application mail archive/queue. Discard raw message/secret after synchronous attempt. Infrastructure/mailbox copies follow separately documented operator/provider retention and backups; expiry limits authority but does not erase email. Disable link tracking and secret-bearing logs. |
 | SMTP credentials, fixed sender/host and timeout/TLS configuration | Authenticate the selected transport; secrets in protected deployment configuration. No browser/business export/log recipient. | Rotate/revoke under deployment policy; no committed values. S15 reviews TLS, credentials and provider processing/transfer terms. |
 | Native session principal/version, request activity/expiry and CSRF | Stateful account authorization and request defense; minimal restricted native JSON, cookie secret HttpOnly, CSRF transient memory. No email/password/token in principal. | Thirty-minute request inactivity, no absolute deadline/cap. Background sync can extend storage/authority. Native minute cleanup and immediate account-wide revocation on reset/change/disable; stale contexts fail current-version checks. |
-| HMAC email/source/token-digest keys, counters/windows, process random secret | Bound attempts/sends without raw identifier tracking; pseudonymous memory only, no persisted subject trail. Unknown addresses receive the same keys/gates and charge mail-attempt quotas without refund. | At most 4,096 keys combined across request and mail limiters; mail-window keys 24 hours idle, other keys 15 minutes; 60-second cleanup. Restart resets counters and is an S15 abuse assumption. |
+| Request email/source/token-digest HMAC keys, counters/windows, process random secret | Bound requests without raw identifier tracking; pseudonymous process memory only. Known/unknown requests share request gates. | At most 4,096 request keys, 15-minute idle expiry, minute cleanup. Restart resets request counters, not delivery quotas. Single-service/restart request-abuse assumptions remain S15. |
+| Installation mail HMAC key and UTC high-water mark; reservation UUID, canonical-email HMAC, purpose, issuance timestamp | Enforce shared delivery quotas across HTTP/isolated host processes and account cancellation. Pseudonymous personal metadata in restricted JDBC, not anonymous; key is secret. No raw address/IP, token, account/scope mapping or unknown-recipient record. Database/key access can link known candidate addresses. | Key and high-water mark follow installation lifetime; no per-process regeneration. Reservations logically expire after exactly 24 hours and purge in startup/pre-issuance/minute batches up to 500; idle host-only cleanup runs at next command. Committed SMTP failures/crashes count; rollback/ineligible issuance does not. Cancellation/consumption cannot erase recent restrictions. Restricted backups inherit their separate lifetime; old restores remain closed and wait out the mail window. Never include these fields in diagnostics, browser responses or business exports. |
 | Local sign-out pause/fence, without remote target/CSRF/token | Preserve user intent and outbox offline; browser workflow metadata only. | Remains paused until explicit user resolution of current session; never automatically replays logout against a later cookie. R5 defines/reviews minimal replacement of old target markers. |
 | Fixed security/delivery outcome, UTC, fresh request reference | Bounded diagnosis, no recipient/token/content/exception or stable subject mapping. Separate restricted store. | Security records rolling 30 days with daily/overdue-startup purge. Operational delivery events inherit the separately reviewed operational retention policy. |
 
@@ -301,11 +302,11 @@ consent or an architectural choice for the deployment's legal determination. Acc
 both emails, tokens, native sessions and SMTP/provider copies where controlled; email recipients and
 user exports cannot be remotely erased by Hortinis. Deletion/restore suppression remains S12/P0.6/S15.
 
-The quota-accounting and process-memory inventory above remains provisional for
+R1 originally left delivery accounting and process-memory storage provisional for
 [S9-R Q1/Q2](../development/spring-email-authentication-plan.md#open-questions-required-before-s9-r-completion).
-Resolve unknown-address exhaustion of the shared mail budget and enforcement across isolated host
-processes by R6/end of S9-R. Any selected shared storage must add its fields, purpose, access and
-retention here before S9-R completion; neither question is deferred to S15.
+The current inventory rows incorporate R6's approved shared PostgreSQL design; the
+[R6 evidence record](../development/spring-email-authentication-r6-evidence.md) owns executable closure.
+These quota questions are not deferred to S15.
 
 No real mailbox, email send, legal-compliance result or target-runtime evidence is introduced by R1.
 Synchronous SMTP timing, session lifetime, mailbox trust and provider retention stay explicit R3/R6/S15
@@ -323,7 +324,7 @@ records synthetic local evidence and unresolved quota/timing/workflow boundaries
 provider activation. R4 implements transient credential preparation, locked account/token mutations and native indexed
 session deletion in one transaction, plus host invite/resend/cancel from bounded protected stdin.
 Cancellation removes only the unactivated account/token reservation and preserves scope/content/mode.
-No new durable quota store or personal-data category is introduced; raw input, prepared password
+At the R4 boundary no durable quota store or personal-data category was introduced; raw input, prepared password
 verifiers and delivery material remain transient and excluded from diagnostics. Ticket file handling,
 ticket storage and reconciliation are removed. Q1/Q2, timing resistance, R5 browser persistence/fragment
 handling and S12/P0.6/S15 deletion/restore/provider obligations remain open.
@@ -396,4 +397,20 @@ Invitation screens disclose mailbox compromise/reassignment, no password-plus-ma
 SMTP/mailbox recipients and action-link exposure, necessary cookies/CSRF and local/export/backup
 limits before acceptance. No eligibility or SMTP outcome appears in public reset UI. Synthetic browser
 fixtures disable traces and use loopback SMTP; they introduce no real recipient or processing
-activation. Q1/Q2, timing resistance and S12/P0.6/S15 privacy/deployment obligations remain open.
+activation. R6 resolves Q1/Q2 with fresh shared-store/HTTP/host evidence; timing resistance and
+S12/P0.6/S15 privacy/deployment obligations remain open.
+
+## R6 shared delivery-accounting revision (2026-10-19)
+
+The current request/delivery rows in the inventory supersede R1-R5 provisional process-memory mail
+statements above; those implementation paragraphs describe their historical increments. Delivery
+accounting now has a distinct restricted 24-hour durable purpose. No public recipient-existence trail
+is retained: an unknown/ineligible reset rolls back the entire issuance reservation. Fixed public
+acknowledgements include delivery quota/capacity and SMTP failures. The one-second response floor
+adds no browser storage or new recipient; scheduled completion retains only the fixed acknowledgement.
+
+The [R6 record](../development/spring-email-authentication-r6-evidence.md) supplies fresh storage,
+HTTP/host/browser and minimized-diagnostic evidence. Quota keys are pseudonyms, not anonymization or
+protection against a hostile database administrator. Deployment lawful basis, least privilege,
+encrypted backups, provider retention, deletion/restore suppression and real-data activation remain
+S12/P0.6/S15/operator gates. No real mailbox, credentials or SMTP service is activated.

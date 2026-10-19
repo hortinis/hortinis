@@ -1,7 +1,7 @@
 # Spring email and password authentication replacement plan
 
-- Status: R1-R5 complete (2026-10-18); R6 planned.
-  Normal authenticated startup is closed during replacement.
+- Status: R1-R6 complete (2026-10-19); normal authenticated production startup remains closed.
+  Activation requires a separate explicitly approved step after evidence review.
 - Date: 2026-10-17.
 - Track: S9-R, replacement of the implemented S9 authentication subsystem before S10.
 - Decision: [ADR-0034](../architecture/decisions/0034-spring-email-password-authentication.md).
@@ -60,7 +60,7 @@ that reproduce the previous workflows. Record any unavoidable exception and the 
 | Email | `spring-boot-starter-mail`, Boot mail auto-configuration, `JavaMailSender`, `SimpleMailMessage` | Narrow replaceable delivery adapter, two templates, fixed trusted application URL |
 | Invitation/reset tokens | Spring JDBC `JdbcClient` and Spring transactions | Hashed, purpose-bound, expiring tokens and atomic consumption; these are action tokens, not login |
 | Account mutations | Spring-managed services with `@Transactional` or `TransactionTemplate` | Activate account, replace password, increment security version and revoke sessions |
-| Retention | Spring scheduling and JDBC | One bounded cleanup of expired invitation/reset records; Spring owns session expiry |
+| Retention | Spring scheduling and JDBC | Bounded expired invitation/reset/pending and delivery-reservation cleanup; Spring owns session expiry |
 | Audit | Spring authentication events where suitable | Existing minimized event vocabulary, redaction and documented retention |
 
 Do not use `oneTimeTokenLogin()` for invitation acceptance or password reset: these operations must
@@ -99,9 +99,13 @@ Document token-free error responses, no-store behavior and how the PWA handles e
 ## Email and token lifecycle
 
 Use one shared token component with explicit invitation/reset purposes, account binding, hashed random
-secret, expiry and atomic consumption. R1 fixes the [numeric policy](../architecture/authentication-and-sessions.md#numeric-policy):
+secret, expiry and atomic consumption. R1 established the token bounds; R6 revises delivery accounting in the [numeric policy](../architecture/authentication-and-sessions.md#numeric-policy):
 24-hour invitations, ten-minute resets, 60-second email cooldown and three/hour plus ten/day email
-mail-attempt quotas, with independent request/source/global limits. These are application choices, not
+delivery reservations across purposes, with independent request/source/global request limits. Only
+committed eligible issuance spends mail quota; reset allocation is 20/hour and 80/day, invitations
+ten/hour and 20/day, without borrowing (combined 30/hour and 100/day). PostgreSQL shares delivery
+accounting across HTTP and isolated host processes, including cancellation and restart. Failed SMTP
+or crash after issuance commit remains charged; ineligible/rolled-back issuance does not. These are application choices, not
 implicit framework settings. Validate bounded ASCII email, preserve delivery case and uniquely
 canonicalize the entire address to lowercase; no provider-specific alias rewriting. Pending account
 reservations expire seven days after original creation, irrespective of resend.
@@ -122,8 +126,9 @@ Use synchronous SMTP with explicit connection/read/write timeouts and no deliver
 Send after committing token issuance; do not hold a database transaction during network delivery.
 Send only to the account's stored address. Mail failure never activates an account or changes a
 password; the user/operator can resend. Keep public reset acknowledgement generic even on delivery
-failure, with minimized operational failure reporting. Rate-limit unknown and known addresses alike
-and review observable timing differences before release. SMTP secrets are deployment secrets, never
+failure, with minimized operational failure reporting. Apply the same request limits to unknown and known addresses; do not charge unknown requests
+to delivery capacity. Use bounded response padding and measure observable timing differences, including
+slow SMTP tails, before release. SMTP secrets are deployment secrets, never
 committed. Do not log recipients, tokens, mail content or provider exception messages.
 
 ## Implementation increments
@@ -715,30 +720,57 @@ while awaiting CSRF; unavailable account access could install an unreleasable pa
 
 ### R6 — Complete review, validation and S-track handoff
 
-- [ ] Run the checks in [Development](README.md): full backend/frontend/static/build suites,
+Approved implementation and fresh evidence are recorded in the
+[R6 review record](spring-email-authentication-r6-evidence.md); the complete documented suite and final review passed.
+
+- [x] Run the checks in [Development](README.md): full backend/frontend/static/build suites,
   contract generation checks, documentation checks, browser tests and real offline topology.
-- [ ] Review authorization, token races, transaction failures, revocation, mailbox trust, logging,
+- [x] Review authorization, token races, transaction failures, revocation, mailbox trust, logging,
   repository language and SMTP deployment behavior.
-- [ ] Report additions/deletions separately for production Java, frontend, SQL, tests and documentation.
+- [x] Report additions/deletions separately for production Java, frontend, SQL, tests and documentation.
   No target is met merely by moving code or deleting tests. Review each custom component against the
   Spring mapping; justify any custom machinery replacing framework functionality.
-- [ ] Resolve and close [Q1/Q2](#open-questions-required-before-s9-r-completion) with reviewed decisions
+- [x] Resolve and close [Q1/Q2](#open-questions-required-before-s9-r-completion) with reviewed decisions
   and actual synthetic delivery/host-process evidence before S9-R completion or S10 handoff.
-- [ ] Mark S9-R implemented only with evidence. Reconcile S10-S15 dependencies and obsolete policy
+- [x] Mark S9-R implemented only with evidence. Reconcile S10-S15 dependencies and obsolete policy
   references. Keep multi-user, device, transition and production-readiness gates open.
+
+#### R6 implementation, review and evidence — 2026-10-19
+
+The [R6 record](spring-email-authentication-r6-evidence.md) records the approved policy, implementation,
+review corrections, actual commands, fresh HTTP/SMTP/JVM/browser evidence, response timings and line
+counts. Q1 now charges only committed eligible issuance and reserves invitation allocation. Q2 shares
+email/global delivery reservations and an installation HMAC key through PostgreSQL across HTTP and
+isolated host commands, preserving restrictions across cancellation and restart. Rollback, uncertain
+commit, clock/storage failures and bounded cleanup are explicit. Recipient-specific issuance/SMTP
+failure and all delivery-quota/capacity denials acknowledge 202; shared pre-eligibility infrastructure
+failure remains 503. Native Spring login/session/CSRF/logout and transaction-time scope/version
+revocation remain authoritative. Removed the provisional memory mail windows and redundant aggregate
+capacity helper. TypeSpec and generated OpenAPI are reconciled before final validation.
+
+Fresh synthetic floods, real HTTPS, immediate/deferred SQL failures, concurrent/repeated host JVMs,
+shared-store boundaries and the expanded 25-scenario real Angular/backend fixture pass. Full
+`pnpm validate`, focused strict checks and Compose configuration validation pass, including the offline
+topology and runtime/JAR/bundle isolation. Counts and command totals are in the R6 record; historical
+S8/S9 tests are not replacement evidence. Fast public timing samples cluster around one second while
+SMTP timeout samples remain around five seconds. Timing resistance/ASVS ENUMERATION is not claimed.
+
+R6/S9-R are complete within this boundary. S10-S15 remain separately authorized future work. Normal
+authenticated startup stays closed without a configurable bypass; activation requires separate explicit
+approval. Password-only/mailbox strength, session/invitation-lifetime appropriateness, SMTP/deployment/
+privacy operations, deletion/restore and foundation release gates remain open. No real email,
+credentials, push, deployment, compatibility layer or deferred account/device/transition feature.
 
 ## Open questions required before S9-R completion
 
-| ID | Status and owner | Question and known failure | Required closure at R6 |
+| ID | Status and owner | Question and known failure | R6 decision and evidence |
 | --- | --- | --- | --- |
-| Q1 | Open; S9-R R6, with R3/R4 delivery evidence | How should public reset admission and delivery accounting prevent unknown-address requests from exhausting mail capacity for legitimate resets and operator invitations while preserving generic public responses? The current rule charges every valid address to the shared 30/hour budget without refunds: one anonymous source can exhaust it with 30 distinct unknown addresses in 87 seconds under the source/minute limits, even though no email is sent. | Select and document the final quota/accounting policy; reconcile affected contracts, deployment/privacy/threat records and add synthetic known/unknown flood tests demonstrating legitimate reset and operator invitation availability without account enumeration. |
-| Q2 | Open; S9-R R6, with R3/R4 host-process evidence | How are email/global quotas enforced across the running HTTP service and separate isolated operator command processes? The current in-process counters and fresh per-process HMAC key restart on each invocation; the promised shared cooldown/hour/day quotas cannot be enforced by that storage alone. | Select and document the final accounting/enforcement boundary and any persistence/privacy lifecycle; test repeated and concurrent host invocations interleaved with HTTP issuance. Counters must obey the selected policy, with no raw address/token logging. Do not treat a normal CLI invocation as merely the S15 server-restart assumption. |
+| Q1 | Closed by R6 (2026-10-19); fresh flood/SMTP/HTTP evidence | How should public reset admission and delivery accounting prevent unknown-address requests from exhausting mail capacity for legitimate resets and operator invitations while preserving generic public responses? The superseded R1-R5 rule charged every valid address to the shared 30/hour budget without refunds: one anonymous source can exhaust it with 30 distinct unknown addresses in 87 seconds under the source/minute limits, even though no email is sent. | Eligible-only committed accounting and reserved invitation capacity; 40 unknown HTTPS requests leave no mail reservation, then legitimate reset/invitation reach local SMTP. Generic public outcomes and explicit timing limitations are recorded in the [R6 evidence](spring-email-authentication-r6-evidence.md). |
+| Q2 | Closed by R6 (2026-10-19); fresh concurrent JVM/HTTP and JDBC evidence | How are email/global quotas enforced across the running HTTP service and separate isolated operator command processes? The superseded R1-R5 in-process counters and fresh per-process HMAC key restarted on each invocation; the promised shared cooldown/hour/day quotas cannot be enforced by that storage alone. | Shared PostgreSQL key/reservations with atomic issuance, cancellation-independent history, bounded cleanup and failure/clock/restore rules. Actual repeated/concurrent JVMs interleave with HTTP; independent-connection final-slot contention, rollback and lifecycle checks pass. See [R6 evidence](spring-email-authentication-r6-evidence.md). |
 
-Neither question is resolved by R1's passing structural contract/documentation tests. Retain the
-current numeric/accounting candidate visibly as provisional in the affected specification until the
-reviewed resolution replaces it. R6 must record the accepted decisions, implementation and actual
-synthetic validation evidence, close both rows and reconcile the S-track before marking S9-R complete
-or allowing S10 to consume it.
+R1 structural checks did not resolve these questions. R6 now closes them through the reviewed policy,
+implemented shared boundary and fresh synthetic evidence above. Timing resistance, production
+activation and independent release gates are not implied by either closure.
 
 ## S-track impact and obsolete information
 
@@ -746,7 +778,7 @@ or allowing S10 to consume it.
 | --- | --- |
 | S1-S7 scope/offline foundation | Retain implementation and evidence; update only authentication-specific handoffs |
 | S8 policy | Historical validated design; mandatory password+passkey, no-email recovery and factor freshness are superseded for the new baseline |
-| S9 runtime | R2 replaces the backend login/session boundary and closes authenticated admission; R3 supplies internal token/mail primitives; R4 implements account actions/host invitations; R5-R6 remain incomplete, and historical tests are not replacement evidence |
+| S9 runtime | R2 replaces the backend login/session boundary and closes authenticated admission; R3 supplies internal token/mail primitives; R4 implements account actions/host invitations; R1-R6 are validated under closed production admission; historical tests are not replacement evidence |
 | Prior delegation plan | Historical implementation log; preserving all old flows/contracts is no longer a requirement |
 | S10 provisioning | Consume controlled email invitations after S9-R; preserve distinct accounts/scopes and transactional ownership |
 | S11 devices | Remains future work; do not require passkeys or old operator/recovery ceremonies as prerequisites |

@@ -6,7 +6,6 @@ import com.hortinis.sync.HortinisSyncApplication;
 import com.hortinis.sync.access.AuthenticatedSynchronizationAccessResolver;
 import com.hortinis.sync.access.ServerAccessMode;
 import com.hortinis.sync.access.SynchronizationAccessResolver;
-import com.hortinis.sync.authentication.ActionMailAdmission;
 import com.hortinis.sync.authentication.ActionMailDelivery;
 import com.hortinis.sync.authentication.ActionTokenPurpose;
 import com.hortinis.sync.authentication.AuthenticationAttemptLimiter;
@@ -73,7 +72,6 @@ class R5BrowserIntegrationTest {
   @LocalServerPort private int port;
   @Autowired private Control control;
   @MockitoBean private AuthenticationAttemptLimiter attempts;
-  @MockitoBean private ActionMailAdmission mail;
   @MockitoBean private ActionMailDelivery delivery;
 
   @DynamicPropertySource
@@ -96,7 +94,6 @@ class R5BrowserIntegrationTest {
     org.mockito.Mockito.when(delivery.deliver(org.mockito.ArgumentMatchers.any()))
         .thenAnswer(call -> control.deliver(call.getArgument(0)));
     control.attempts = attempts;
-    control.mail = mail;
     Path repository = Path.of(System.getProperty("hortinis.repository.root"));
     var process =
         new ProcessBuilder("node", "apps/web/e2e/r5-browser.mjs").directory(repository.toFile());
@@ -111,8 +108,8 @@ class R5BrowserIntegrationTest {
       assertThat(running.exitValue())
           .withFailMessage("R5 browser failed: %s", Files.readString(output))
           .isZero();
-      assertThat(Files.readString(output)).contains("R5 browser scenarios passed: 23");
-      System.out.println("R5 browser scenarios passed: 23");
+      assertThat(Files.readString(output)).contains("R5 browser scenarios passed: 25");
+      System.out.println("R5 browser scenarios passed: 25");
     } finally {
       running.destroyForcibly();
     }
@@ -148,8 +145,11 @@ class R5BrowserIntegrationTest {
 
     @Bean
     Control control(
-        JdbcTemplate jdbc, ActionTokenPersistence tokens, PlatformTransactionManager manager) {
-      return new Control(jdbc, tokens, manager);
+        JdbcTemplate jdbc,
+        ActionTokenPersistence tokens,
+        PlatformTransactionManager manager,
+        com.hortinis.sync.authentication.persistence.MailIssuancePersistence quotas) {
+      return new Control(jdbc, tokens, manager, quotas);
     }
 
     @Bean
@@ -161,6 +161,7 @@ class R5BrowserIntegrationTest {
   /** Test controls use only synthetic state and are excluded from the production classpath. */
   @RestController
   static final class Control {
+    private static final String FILL_RESET_ALLOCATION = "fill-reset-allocation";
     private static final String EXPIRE = "expire";
     private static final String REVOKE = "revoke";
     private static final String EXPIRE_SESSION = "expire-session";
@@ -169,14 +170,19 @@ class R5BrowserIntegrationTest {
     private final JdbcTemplate jdbc;
     private final ActionTokenPersistence tokens;
     private final TransactionTemplate transactions;
+    private final com.hortinis.sync.authentication.persistence.MailIssuancePersistence quotas;
     private AuthenticationAttemptLimiter attempts;
-    private ActionMailAdmission mail;
     private UUID account;
     private String secret = "";
     private boolean smtpFailure;
     private int deliveries;
 
-    Control(JdbcTemplate jdbc, ActionTokenPersistence tokens, PlatformTransactionManager manager) {
+    Control(
+        JdbcTemplate jdbc,
+        ActionTokenPersistence tokens,
+        PlatformTransactionManager manager,
+        com.hortinis.sync.authentication.persistence.MailIssuancePersistence quotas) {
+      this.quotas = quotas;
       this.jdbc = jdbc;
       this.tokens = tokens;
       transactions = new TransactionTemplate(manager);
@@ -217,10 +223,8 @@ class R5BrowserIntegrationTest {
         org.mockito.Mockito.doAnswer(call -> realAttempts.admitSource(call.getArgument(0)))
             .when(attempts)
             .admitSource(org.mockito.ArgumentMatchers.anyString());
-        var realMail = new ActionMailAdmission(Clock.systemUTC());
-        org.mockito.Mockito.doAnswer(call -> realMail.reserve(call.getArgument(0)))
-            .when(mail)
-            .reserve(org.mockito.ArgumentMatchers.anyString());
+        jdbc.update("DELETE FROM authentication_mail_reservation");
+        jdbc.update("DELETE FROM authentication_mail_quota");
         secret = "";
         deliveries = 0;
         smtpFailure = false;
@@ -257,6 +261,16 @@ class R5BrowserIntegrationTest {
                     + "FROM technical_synchronization_scope RETURNING account_id",
                 UUID.class,
                 VERIFIER);
+      } else if (FILL_RESET_ALLOCATION.equals(action)) {
+        transactions.executeWithoutResult(
+            status -> {
+              for (int index = 0; index < 20; index++) {
+                assertThat(
+                        quotas.reserve(
+                            "synthetic" + index + "@example.test", ActionTokenPurpose.RESET))
+                    .isTrue();
+              }
+            });
       } else if (SMTP_FAILURE.equals(action)) {
         smtpFailure = true;
       } else if (!"observe".equals(action)) {
@@ -267,6 +281,9 @@ class R5BrowserIntegrationTest {
           secret,
           "deliveries",
           deliveries,
+          "reservations",
+          jdbc.queryForObject(
+              "SELECT count(*) FROM authentication_mail_reservation", Integer.class),
           "status",
           jdbc.queryForObject("SELECT status FROM authentication_account", String.class));
     }

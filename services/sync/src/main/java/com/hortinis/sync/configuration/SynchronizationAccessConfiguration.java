@@ -35,7 +35,7 @@ public class SynchronizationAccessConfiguration {
     }
     if (mode == ServerAccessMode.SINGLE_USER_AUTH) {
       throw new IllegalStateException(
-          "Authenticated access is unavailable until S9-R is complete.");
+          "Authenticated production access requires separate activation approval.");
     }
     return mode;
   }

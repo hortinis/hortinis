@@ -1,6 +1,7 @@
 package com.hortinis.sync.authentication;
 
 import com.hortinis.sync.authentication.persistence.ActionTokenPersistence;
+import com.hortinis.sync.authentication.persistence.MailIssuancePersistence;
 import java.time.Clock;
 import java.util.List;
 import java.util.Map;
@@ -12,6 +13,7 @@ import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.transaction.PlatformTransactionManager;
 
@@ -19,11 +21,17 @@ import org.springframework.transaction.PlatformTransactionManager;
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnProperty(prefix = "hortinis.access", name = "mode", havingValue = "single-user-auth")
 public class ActionMailConfiguration {
-  /** Per-process candidate quotas; Q1/Q2 are unresolved and production remains closed. */
+  /** Process transport capacity is separate from the shared durable delivery ledger. */
   @Bean
-  public ActionMailAdmission actionMailAdmission(
-      Clock clock, AuthenticationAdmissionCapacity capacity) {
-    return new ActionMailAdmission(clock, capacity);
+  public ActionMailAdmission actionMailAdmission() {
+    return new ActionMailAdmission();
+  }
+
+  /** Shared rolling delivery policy, independent of transport permits and native authentication. */
+  @Bean
+  public MailIssuancePersistence mailIssuancePersistence(
+      JdbcClient jdbc, Clock clock, PlatformTransactionManager transactions) {
+    return new MailIssuancePersistence(jdbc, clock, transactions);
   }
 
   /** Boot-managed sender with fixed application configuration and finite I/O bounds. */
@@ -51,9 +59,10 @@ public class ActionMailConfiguration {
   public ActionTokenDelivery actionTokenDelivery(
       ActionTokenPersistence tokens,
       ActionMailAdmission admission,
+      MailIssuancePersistence quotas,
       ActionMailDelivery delivery,
       PlatformTransactionManager transactions) {
-    return new ActionTokenDelivery(tokens, admission, delivery, transactions);
+    return new ActionTokenDelivery(tokens, admission, quotas, delivery, transactions);
   }
 
   private static void validate(Environment environment) {

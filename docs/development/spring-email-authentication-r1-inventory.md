@@ -190,3 +190,13 @@ The [R5 review follow-up](spring-email-authentication-plan.md#r5-review-follow-u
 totals are unchanged. Cumulative TypeScript is +649/-695 against `a6c2f5f`, and +650/-696 against
 `ce5c59b` (net -46); the original R5 figures above remain the `f4d8fa4` snapshot. Tests/fixtures and
 documentation are separate from these production totals; no runtime dependency or template changes.
+
+## R6 final replacement comparison — 2026-10-19
+
+[R6 review/evidence and final counts](spring-email-authentication-r6-evidence.md#change-counts) use
+this inventory's physical-line/exclusion rules against both `d46e219` and `ce5c59b`. Shared PostgreSQL
+mail accounting replaces provisional process counters; the redundant aggregate memory-capacity
+component is removed. Native Spring remains authoritative. Tests, dependencies/build metadata,
+contracts, HTML/SCSS and documentation are separate; no test move/deletion counts as production
+reduction. R6/S9-R are complete with fresh full-suite/HTTP/JVM/browser/topology evidence. Production
+activation, S10-S15 and applicable release gates remain separate; no real email, push or deployment.
