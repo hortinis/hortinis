@@ -220,3 +220,64 @@ Against R1 `ce5c59b`: Java +2,288/-6,081 (net -3,793), TypeScript +650/-696
 (net -46), SQL +43/-65 (net -22). R6 introduces necessary shared policy/persistence; its production
 change need not be a net reduction. The cumulative replacement removes the retired engine; no
 reduction is attributed to test deletion or movement.
+
+## Scheduler response review follow-up
+
+Date: 2026-10-20; baseline `3f21fa3`. Review found that the shared single-thread scheduler could
+block response padding behind database cleanup. The new certificate-verified real HTTPS regressions
+first ran against that revision: twelve cases, ten failures. The five fast branches (SMTP accepted,
+SMTP refused, unknown, email quota and reset allocation exhausted) returned 503 with the scheduler
+blocked and 500 with scheduling rejected; the two slow SMTP timeout cases retained 202.
+
+The controller now uses native DeferredResult timeout fallback with the already completed 202
+response, and catches TaskRejectedException only around padding scheduling to return that response.
+It retains cancellation of queued callbacks on completion. Pre-issuance errors retain their existing
+responses; padding never retries issuance or SMTP. Shared delivery accounting and token transactions
+are unchanged. This adds no scheduler, queue, dependency, activation path or custom timeout engine.
+
+The twelve fresh cases exercise the real servlet timeout with the scheduler held until after the
+response, or reject only one-shot scheduling on the real scheduler spy. All account/JDBC/CSRF/HTTP and
+SMTP adapter/loopback transport behavior remains real. Assertions cover identical no-store 202 bodies,
+no Retry-After, expected token/reservation counts and exactly one or zero SMTP adapter calls. Blocked
+fast paths wait for the native timeout; slow SMTP still bypasses padding. Rejected scheduling may
+skip the normal one-second floor. These are HTTP response-consistency regressions, not statistical
+timing measurements or timing-resistance evidence. Synthetic local mail only; activation stays closed.
+
+The twelve focused HTTPS regressions and strict Java formatting, Checkstyle and PMD checks passed.
+The full run has passed 246 Java unit tests and 280 PostgreSQL integration tests, including all 89
+account-action cases. Changed Java sources have no Checkstyle findings; PMD has zero violations.
+Existing baseline Checkstyle warnings remain. Two full runs stopped at the browser fixture's
+four-minute wait during other-tab setup, despite intermediate focused runs passing all 25 scenarios.
+A later full run was interrupted after fixed phase diagnostics located the redundant raw Playwright
+response.finished() wait: the application had already consumed the session response and completed
+its CSRF refresh. The fixture now registers the response observer before navigation with a ten-second
+bound, uses fifteen-second browser action bounds and retains the authenticated UI assertion before
+continuing. It no longer awaits that redundant transport completion. No production browser code or
+scenario is removed.
+
+Final `pnpm validate` passed after these corrections: documentation/contracts and exact generated
+checks; 381 frontend unit tests, eleven standard Chromium tests, development/production builds;
+246 Java unit and 280 PostgreSQL integration tests; all 25 real authenticated browser scenarios;
+seven topology-runner tests and all six real offline topology scenarios; repository whitespace,
+tracked-ignore and text/EOL checks. Backend archive/runtime and frontend bundle isolation checks
+passed. The twelve focused strict HTTPS regressions and Java quality checks also passed. Only evidence
+text changed after this successful full run; final documentation and whitespace checks passed again.
+
+Follow-up physical-line counts against `3f21fa3` use the R1 counting rules. No test movement or deletion
+is counted as a production reduction; TypeSpec/wire shapes and generated artifacts are unchanged.
+
+| Category | Additions | Deletions |
+| --- | --- | --- |
+| Production Java | 11 | 7 |
+| Production TypeScript | 0 | 0 |
+| Fresh-schema SQL | 0 | 0 |
+| HTML | 0 | 0 |
+| SCSS | 0 | 0 |
+| Dependencies, locks and verification metadata | 0 | 0 |
+| Build/isolation metadata | 0 | 0 |
+| Tests and fixtures | 98 | 5 |
+| TypeSpec and generated contracts | 0 | 0 |
+| Documentation | 82 | 5 |
+
+Production totals after this follow-up: 116 Java files / 7,050 lines, 72 TypeScript / 6,127 and
+four SQL / 297. Production Java changes by four lines; no new production component is introduced.

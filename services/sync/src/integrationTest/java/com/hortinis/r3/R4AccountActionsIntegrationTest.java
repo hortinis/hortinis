@@ -38,6 +38,7 @@ import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -72,6 +73,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.session.jdbc.JdbcIndexedSessionRepository;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -96,6 +98,8 @@ import tools.jackson.databind.json.JsonMapper;
 @AutoConfigureMockMvc(print = org.springframework.boot.webmvc.test.autoconfigure.MockMvcPrint.NONE)
 @ExtendWith(OutputCaptureExtension.class)
 class R4AccountActionsIntegrationTest {
+  private static final String REFUSED = "refused";
+  private static final String GLOBAL_QUOTA = "global-quota";
   private static final String CURRENT_PASSWORD_FIELD = "currentPassword";
   private static final String SCOPE_STATE = "scope";
   private static final String DELETE_ACCOUNT = "DELETE FROM authentication_account";
@@ -158,6 +162,9 @@ class R4AccountActionsIntegrationTest {
 
   @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
   private PasswordVerifier passwords;
+
+  @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+  private TaskScheduler scheduler;
 
   @Autowired private CurrentAuthenticationAuthorityPersistence authority;
   @MockitoBean private AuthenticationAttemptLimiter attempts;
@@ -766,7 +773,7 @@ class R4AccountActionsIntegrationTest {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {ACCEPTED, "refused", UNKNOWN, QUOTA, "global-quota", TIMEOUT})
+  @ValueSource(strings = {ACCEPTED, REFUSED, UNKNOWN, QUOTA, GLOBAL_QUOTA, TIMEOUT})
   void r6RepeatedPublicHttpsMeasurementsSeparateFastPaddingFromSmtpTimeoutTails(String branch)
       throws Exception {
     Browser browser = bootstrap();
@@ -780,10 +787,10 @@ class R4AccountActionsIntegrationTest {
           new TransactionTemplate(transactions)
               .executeWithoutResult(
                   status -> assertThat(quotas.reserve(email, ActionTokenPurpose.RESET)).isTrue());
-        } else if (branch.equals("global-quota")) {
+        } else if (branch.equals(GLOBAL_QUOTA)) {
           fillResetAllocation();
         }
-        try (var smtp = new LocalSmtpFixture(branch.equals(TIMEOUT), branch.equals("refused"))) {
+        try (var smtp = new LocalSmtpFixture(branch.equals(TIMEOUT), branch.equals(REFUSED))) {
           var adapter = new SmtpActionMailDelivery(smtp.sender(), SENDER, ORIGIN);
           org.mockito.Mockito.doAnswer(call -> adapter.deliver(call.getArgument(0)))
               .when(delivery)
@@ -802,6 +809,88 @@ class R4AccountActionsIntegrationTest {
     }
     samples.sort(Long::compareTo);
     System.out.println("R6 synthetic public HTTPS reset " + branch + " microseconds=" + samples);
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {ACCEPTED, REFUSED, UNKNOWN, QUOTA, GLOBAL_QUOTA, TIMEOUT})
+  void r6BlockedPaddingSchedulerPreservesPublicHttpsAcknowledgements(String branch)
+      throws Exception {
+    Browser browser = bootstrap();
+    preparePaddingBranch(branch);
+    var entered = new CountDownLatch(1);
+    var release = new CountDownLatch(1);
+    var blocker =
+        scheduler.schedule(
+            () -> {
+              entered.countDown();
+              try {
+                if (!release.await(20, TimeUnit.SECONDS)) {
+                  throw new IllegalStateException("Synthetic scheduler block expired.");
+                }
+              } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Synthetic scheduler block interrupted.");
+              }
+            },
+            Instant.now());
+    try {
+      assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+      long started = System.nanoTime();
+      assertPaddingBranchAccepted(branch, browser);
+      // The real servlet timeout, rather than a released scheduling thread, completes fast paths.
+      assertThat(System.nanoTime() - started).isGreaterThanOrEqualTo(1_900_000_000L);
+      assertThat(blocker.isDone()).isFalse();
+    } finally {
+      release.countDown();
+      blocker.get(5, TimeUnit.SECONDS);
+    }
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {ACCEPTED, REFUSED, UNKNOWN, QUOTA, GLOBAL_QUOTA, TIMEOUT})
+  void r6RejectedPaddingSchedulingPreservesPublicHttpsAcknowledgements(String branch)
+      throws Exception {
+    Browser browser = bootstrap();
+    preparePaddingBranch(branch);
+    org.mockito.Mockito.doThrow(
+            new org.springframework.core.task.TaskRejectedException(
+                "Synthetic scheduler rejection."))
+        .when(scheduler)
+        .schedule(
+            org.mockito.ArgumentMatchers.any(Runnable.class),
+            org.mockito.ArgumentMatchers.any(Instant.class));
+    assertPaddingBranchAccepted(branch, browser);
+  }
+
+  private void preparePaddingBranch(String branch) {
+    if (branch.equals(QUOTA)) {
+      new TransactionTemplate(transactions)
+          .executeWithoutResult(
+              status -> assertThat(quotas.reserve(EMAIL, ActionTokenPurpose.RESET)).isTrue());
+    } else if (branch.equals(GLOBAL_QUOTA)) {
+      fillResetAllocation();
+    }
+  }
+
+  private void assertPaddingBranchAccepted(String branch, Browser browser) throws Exception {
+    try (var client = trustedTestClient("127.0.0.8");
+        var smtp = new LocalSmtpFixture(branch.equals(TIMEOUT), branch.equals(REFUSED))) {
+      var adapter = new SmtpActionMailDelivery(smtp.sender(), SENDER, ORIGIN);
+      org.mockito.Mockito.doAnswer(call -> adapter.deliver(call.getArgument(0)))
+          .when(delivery)
+          .deliver(org.mockito.ArgumentMatchers.any());
+      assertPublicAccepted(
+          realReset(client, browser, branch.equals(UNKNOWN) ? UNKNOWN_EMAIL : EMAIL));
+      boolean eligible = Set.of(ACCEPTED, REFUSED, TIMEOUT).contains(branch);
+      assertThat(tokenCount()).isEqualTo(eligible ? 1 : 0);
+      assertThat(mailReservations())
+          .isEqualTo(branch.equals(GLOBAL_QUOTA) ? 20 : branch.equals(UNKNOWN) ? 0 : 1);
+      org.mockito.Mockito.verify(delivery, org.mockito.Mockito.times(eligible ? 1 : 0))
+          .deliver(org.mockito.ArgumentMatchers.any());
+      if (branch.equals(ACCEPTED)) {
+        assertThat(smtp.message()).contains(RESET_LINK);
+      }
+    }
   }
 
   @Test

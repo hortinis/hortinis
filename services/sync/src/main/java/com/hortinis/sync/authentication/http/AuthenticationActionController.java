@@ -17,6 +17,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.task.TaskRejectedException;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.TaskScheduler;
@@ -69,17 +70,20 @@ public final class AuthenticationActionController {
             .contentType(MediaType.APPLICATION_JSON)
             .header("Cache-Control", "no-store")
             .body(Map.of("accepted", true));
-    var response = new DeferredResult<ResponseEntity<?>>(2000L);
-    response.onTimeout(
-        () -> response.setErrorResult(AuthenticationHttpErrors.UNAVAILABLE.response()));
+    // Padding failure cannot change the completed recipient-specific outcome.
+    var response = new DeferredResult<ResponseEntity<?>>(2000L, accepted);
     long remaining = Math.max(0L, 1_000_000_000L - (System.nanoTime() - started));
     if (remaining == 0) {
       response.setResult(accepted);
     } else {
-      var completion =
-          scheduler.schedule(
-              () -> response.setResult(accepted), Instant.now().plusNanos(remaining));
-      response.onCompletion(() -> completion.cancel(false));
+      try {
+        var completion =
+            scheduler.schedule(
+                () -> response.setResult(accepted), Instant.now().plusNanos(remaining));
+        response.onCompletion(() -> completion.cancel(false));
+      } catch (TaskRejectedException exception) {
+        response.setResult(accepted);
+      }
     }
     return response;
   }

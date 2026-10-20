@@ -102,11 +102,16 @@ must remain inaccessible through the existing restore gate, including waiting ou
 window. Runtime mail privileges are quota SELECT/INSERT and UPDATE of `last_observed_at` only, plus
 reservation SELECT/INSERT/DELETE; no HMAC-key UPDATE, quota DELETE or schema authority is required. Privileged database tampering is outside application quota enforcement.
 
-Public reset acknowledgements have a one-second minimum from controller entry, using Spring MVC
-asynchronous completion and the Spring scheduler after synchronous account/mail work. There is no
-mail queue or retry. The maximum extra padding is one second; SMTP work can take longer. Fast branch
-padding does not conceal slow SMTP, contention, source throttling or network tails. No timing-resistance
-or ASVS ENUMERATION pass follows; measured residual risk remains part of activation/S15 review.
+Public reset acknowledgements normally have a one-second minimum from controller entry, using
+Spring MVC asynchronous completion and the Spring scheduler after synchronous account/mail work.
+Once that work completes, padding failure cannot change its generic 202 acknowledgement: native
+MVC async timeout uses the accepted response after two seconds, and scheduler rejection returns it
+immediately. Completion cancels any queued padding callback; neither fallback repeats issuance or
+SMTP. There is no mail queue or retry. Normal extra padding is at most one second; scheduler contention
+can defer completion to the async timeout, and servlet scheduling/CPU delay can add latency. SMTP work
+can take longer. Fast branch padding does not conceal slow SMTP, contention, source throttling or
+network tails; rejection can skip the timing floor. No timing-resistance or ASVS ENUMERATION pass
+follows; measured residual risk remains part of activation/S15 review.
 
 ## Spring ownership and session policy
 

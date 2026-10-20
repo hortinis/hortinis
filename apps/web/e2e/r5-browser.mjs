@@ -154,6 +154,7 @@ async function fresh(status = 'active') {
   }
   await control('fresh-' + status);
   const context = await browser.newContext({ serviceWorkers: 'block' });
+  context.setDefaultTimeout(15000);
   contexts.push(context);
   const page = await context.newPage();
   page.on('console', (message) => diagnostics.push(message.text()));
@@ -609,18 +610,21 @@ try {
   step = 'in-flight accepted synchronization cannot commit across sign-out';
   {
     const { page, context } = await fresh();
+    step = 'in-flight first-tab authentication';
     await open(page);
     await login(page);
     await retained(page);
+    step = 'in-flight initial other-tab session';
     const second = await context.newPage();
     const statuses = [];
     second.on('response', (response) => {
       if (response.url().includes('/api/v1/auth/')) statuses.push(response.status());
     });
+    const initialSession = second.waitForResponse('**/api/v1/auth/session', { timeout: 10000 });
     await second.goto(origin);
-    const initialSession = second.waitForResponse('**/api/v1/auth/session');
+    step = 'in-flight opening other-tab account panel';
     await open(second);
-    await (await initialSession).finished();
+    await initialSession;
     step = 'in-flight initial other-tab status, auth HTTP ' + statuses.join(',');
     await expect(second.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible();
     await context.setOffline(true);

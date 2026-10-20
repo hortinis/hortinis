@@ -761,6 +761,17 @@ approval. Password-only/mailbox strength, session/invitation-lifetime appropriat
 privacy operations, deletion/restore and foundation release gates remain open. No real email,
 credentials, push, deployment, compatibility layer or deferred account/device/transition feature.
 
+#### R6 review follow-up — 2026-10-20
+
+Review found that padding shared the cleanup scheduler: blocked callbacks returned 503 after completed
+reset work, while rejected scheduling returned 500; slow SMTP bypassed padding and retained 202.
+The native MVC timeout now falls back to the accepted response, and scheduling rejection returns the
+same acknowledgement. Queued completion is cancelled on response completion, without reissuing or
+retrying mail. Fresh real HTTPS regression cases cover blocked/rejected scheduling across unknown,
+email/global quota denial and synthetic SMTP acceptance/refusal/timeout. The
+[R6 evidence](spring-email-authentication-r6-evidence.md#scheduler-response-review-follow-up) records
+validation and counts. Timing resistance and production activation remain separate gates.
+
 ## Open questions required before S9-R completion
 
 | ID | Status and owner | Question and known failure | R6 decision and evidence |
