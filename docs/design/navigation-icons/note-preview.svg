@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 240">
+<rect width="600" height="240" fill="white"/>
+<g font-family="sans-serif" fill="#183e2b"><text x="32" y="36" font-size="20">Quick note · Botanical speech bubble</text></g>
+<g transform="translate(100 75) scale(4.0)" fill="none" stroke="#18552d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10a4 4 0 0 1 4 4v8a4 4 0 0 1-4 4H9l-5 3 1-4a4 4 0 0 1-2-3V7a4 4 0 0 1 4-4Z"/>
+  <path d="M8 14c-2-4 1-7 8-7 0 6-3 9-8 7Zm-1 2 5-5"/></g>
+<text x="148.0" y="210" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#183e2b">96 px</text>
+<g transform="translate(320 75) scale(1.3333333333333333)" fill="none" stroke="#18552d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10a4 4 0 0 1 4 4v8a4 4 0 0 1-4 4H9l-5 3 1-4a4 4 0 0 1-2-3V7a4 4 0 0 1 4-4Z"/>
+  <path d="M8 14c-2-4 1-7 8-7 0 6-3 9-8 7Zm-1 2 5-5"/></g>
+<text x="336.0" y="210" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#183e2b">32 px</text>
+<g transform="translate(460 75) scale(1.0)" fill="none" stroke="#18552d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h10a4 4 0 0 1 4 4v8a4 4 0 0 1-4 4H9l-5 3 1-4a4 4 0 0 1-2-3V7a4 4 0 0 1 4-4Z"/>
+  <path d="M8 14c-2-4 1-7 8-7 0 6-3 9-8 7Zm-1 2 5-5"/></g>
+<text x="472.0" y="210" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#183e2b">24 px</text>
+</svg>
