@@ -8,11 +8,11 @@ Five custom outlined SVGs based on the approved concepts: a plain house, two gar
 
 ## Assets
 
-- [Home](../../../apps/web/public/icons/navigation/home.svg)
-- [Garden](../../../apps/web/public/icons/navigation/garden.svg)
-- [Schedule](../../../apps/web/public/icons/navigation/schedule.svg)
-- [Diary](../../../apps/web/public/icons/navigation/diary.svg)
-- [Quick note](../../../apps/web/public/icons/navigation/note.svg)
+- [Home](../../../public/icons/navigation/home.svg)
+- [Garden](../../../public/icons/navigation/garden.svg)
+- [Schedule](../../../public/icons/navigation/schedule.svg)
+- [Diary](../../../public/icons/navigation/diary.svg)
+- [Quick note](../../../public/icons/navigation/note.svg)
 
 Each asset uses a `0 0 24 24` viewBox, a 1-unit stroke, rounded caps and joins, a transparent background, and `currentColor`. No fonts or external resources are required. Keep the square aspect ratio. Color is controlled by the containing element. Artwork bounds are centered at `(12, 12)`; small vertical translations balance the canvas margins. Navigation uses square 24 px icon containers with no inherited text-line minimum height.
 
@@ -27,9 +27,9 @@ provideAppInitializer(() => {
   const registry = inject(MatIconRegistry);
   const sanitizer = inject(DomSanitizer);
 
-  for (const name of ["home", "garden", "schedule", "diary", "note"]) {
+  for (const name of ['home', 'garden', 'schedule', 'diary', 'note']) {
     registry.addSvgIconInNamespace(
-      "hortinis",
+      'hortinis',
       name,
       sanitizer.bypassSecurityTrustResourceUrl(`icons/navigation/${name}.svg`),
     );

@@ -9,35 +9,27 @@ run_check() {
   "$@"
 }
 
-printf '%s\n' 'Validating Hortinis workspace'
+printf '%s\n' 'Validating Hortinis web application'
 
 run_check node --version
 run_check pnpm --version
-run_check pnpm list --recursive --depth -1
+run_check pnpm list --depth -1
 
 printf '\n%s\n' 'Frontend validation'
-run_check pnpm contracts:validate
-run_check pnpm --filter @hortinis/web format:check
-run_check pnpm --filter @hortinis/web lint
-run_check pnpm --filter @hortinis/web architecture:check
-run_check pnpm --filter @hortinis/web test:architecture
-run_check pnpm --filter @hortinis/web typecheck
-run_check pnpm --filter @hortinis/web test
-run_check pnpm --filter @hortinis/web test:e2e
-run_check pnpm --filter @hortinis/web build:development
-run_check pnpm --filter @hortinis/web build
-
-printf '\n%s\n' 'Backend validation'
-run_check java --version
-run_check sha256sum --check gradle/wrapper/gradle-wrapper.jar.sha256
-run_check ./gradlew --version
-run_check ./gradlew projects
-run_check ./gradlew build
+run_check pnpm format:check
+run_check pnpm lint
+run_check pnpm architecture:check
+run_check pnpm test:architecture
+run_check pnpm typecheck
+run_check pnpm test
+run_check pnpm test:e2e
+run_check pnpm build:development
+run_check pnpm build
 
 printf '\n%s\n' 'Repository validation'
 run_check git diff --check
 run_check git ls-files -ci --exclude-standard
-run_check git check-attr text eol -- .gitattributes README.md gradlew gradlew.bat
+run_check git check-attr text eol -- .gitattributes README.md
 run_check git ls-files --eol
 
 printf '\n%s\n' 'All validation checks passed.'

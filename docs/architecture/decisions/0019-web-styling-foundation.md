@@ -38,7 +38,7 @@ A utility framework could provide a predefined styling system, but it would add 
 
 ## Consequences
 
-- Sass is part of the frontend build dependency graph and is pinned by the workspace lockfile.
+- Sass is part of the frontend build dependency graph and is pinned by the application lockfile.
 - Most component SCSS should remain ordinary CSS where preprocessing adds no value.
 - Component styles remain locally scoped, while global tokens can cross component boundaries through CSS custom-property inheritance.
 - A future component library and its theming model require a separate decision and implementation increment.

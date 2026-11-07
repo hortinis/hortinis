@@ -1,74 +1,26 @@
-# Operating system metadata
+# Local environment, editor state, and worktrees
 .DS_Store
 Thumbs.db
-
-# Local editor and IDE state
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
-
-# Local environment overrides
 .env
 .env.local
-
-# Git
 .worktree/
 
-# Frontend dependencies and pnpm local state
+# Frontend dependencies and generated outputs
 node_modules/
 .pnpm-store/
 pnpm-debug.log*
-
-# Gradle local state and build outputs
-.gradle/
-**/build/
-
-# Angular local state and outputs
 .angular/
 dist/
 coverage/
 .sass-cache/
-
-# Playwright test outputs
 playwright-report/
 test-results/
 
-# Java
-.gradle
+# Leftover local outputs from the removed backend
+.gradle/
 build/
-!gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-bin/
-!**/src/main/**/bin/
-!**/src/test/**/bin/
-
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
-out/
-!**/src/main/**/out/
-!**/src/test/**/out/
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-
-### VS Code ###
-.vscode/

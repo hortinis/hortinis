@@ -37,17 +37,9 @@ This improves access for some readers but duplicates maintenance and creates amb
 - Proper names, stable identifiers, and externally defined technical symbols retain their identity; the language rule is not a reason to rewrite a protocol or data identifier.
 - Language review is a content check. Searching for non-ASCII characters alone cannot establish whether text is English.
 
-## Migration impact
-
-- Translate the two initial product documents into English and rename them to `docs/product/functional-decisions.md` and `docs/product/open-questions.md`.
-- Update all references to their previous paths and remove the superseded copies.
-- Preserve their decision identifiers and accepted requirements during translation.
-- Write the new `docs/product/product-direction.md` in English and separate exploratory ideas from release commitments.
-- No application data, public runtime contract, or selected technology changes as a result of this decision.
-
 ## Validation criteria
 
 - Review added and modified content for English wording, including filenames, examples, and embedded prompts.
 - Verify that translation preserves accepted decisions and unresolved questions.
 - Check that renamed documentation has no stale references and all relative links and anchors resolve.
-- Run the pre-scaffold checks documented in `docs/development/README.md` until executable validation tooling exists.
+- Run the web application and repository checks documented in `docs/development/README.md`.

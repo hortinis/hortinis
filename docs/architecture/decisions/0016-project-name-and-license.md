@@ -19,4 +19,3 @@ For software that can be operated as a network service, a permissive license wou
 - Hortinis itself can be operated as a hosted service under the same license.
 - Dependencies must be checked for compatibility with AGPL-3.0-only.
 - Any future dual-licensing strategy requires a separate legal and governance decision.
-

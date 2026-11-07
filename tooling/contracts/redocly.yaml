@@ -1,5 +1,0 @@
-extends:
-  - minimal
-rules:
-  no-empty-servers: off
-  security-defined: off

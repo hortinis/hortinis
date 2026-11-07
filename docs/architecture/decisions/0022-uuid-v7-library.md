@@ -1,23 +1,14 @@
 # ADR-0022: UUIDv7 generation library
 
-- Status: Accepted
-
-## Context
-
-ADR-0010 requires clients to generate stable UUID record and operation identifiers. The web application
-currently chooses UUIDv7 for generation, while the protocol accepts any canonical UUID. UUID
-construction is not business logic and should not be maintained as bespoke code.
+- Status: Accepted; narrowed to local identifiers
 
 ## Decision
 
-Use the pinned `uuid` npm package's UUIDv7 generator from a small synchronization-side wrapper. Keep
-the package dependency isolated from pure protocol rules and persistence components. Persist generated
-identifiers as part of the local operation and never regenerate them during retry or reload. UUID
-version is a generation choice, not a server acceptance constraint.
+Use the pinned `uuid` package to generate stable local garden and configuration
+identifiers through `src/app/utils/uuid-v7.ts`. UUID generation is a
+utility, independent of persistence and application workflows.
 
 ## Consequences
 
-- UUIDv7 encoding and randomness remain maintained by the dependency rather than application code.
-- The dependency version, lockfile entry, and package integrity metadata must be reviewed together.
-- Tests must verify canonical lowercase UUIDv7 shape and stable persisted identifiers.
-- Replacing the dependency later affects only the wrapper and its focused tests.
+Persist identifiers when creating local records. Reopening the database preserves
+them. Review the package dependency and lockfile integrity metadata together.
