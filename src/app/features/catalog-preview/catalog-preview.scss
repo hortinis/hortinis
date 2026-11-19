@@ -1,0 +1,36 @@
+.preview {
+  max-width: 65rem;
+  margin-inline: auto;
+  padding: 1rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+select {
+  display: block;
+  max-width: 100%;
+  margin-block: 0.5rem;
+  padding: 0.5rem;
+  color: inherit;
+  background-color: var(--mat-sys-surface);
+}
+
+.claim {
+  border-block-start: 1px solid var(--mat-sys-outline-variant);
+  padding-block: 0.75rem;
+}
+
+.evidence {
+  border-inline-start: 1px solid var(--mat-sys-outline-variant);
+  padding-inline: 0.75rem;
+}
+
+pre,
+dd {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

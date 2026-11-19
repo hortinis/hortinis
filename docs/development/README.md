@@ -1,10 +1,13 @@
 # Development
 
 The repository contains one Angular PWA at the repository root. Use Node.js 24.18.0 and
-pnpm 11.26.0, pinned by `.nvmrc` and the root package manifest.
+pnpm 11.26.0, pinned by `.nvmrc` and the root package manifest. Supply the pinned
+[catalog schema bundle](catalog-preview.md#build-input) before starting the app or
+running the builds and tests.
 
 ```shell
 pnpm install --frozen-lockfile
+export HORTINIS_CATALOG_SCHEMA_BUNDLE=/path/to/schemas.json
 pnpm start
 ```
 
@@ -39,15 +42,16 @@ git ls-files --eol
 ```
 
 Browser tests serve the production build and check application loading and offline
-shell caching in Chromium. Unit tests cover local persistence and application behavior.
+shell caching in Chromium. The [catalog preview guide](catalog-preview.md) covers
+real rehearsal verification and the synthetic fixture. Unit tests cover local
+persistence and application behavior.
 Architecture checks cover component boundaries, pure rules, and import cycles.
 Review changes for English language consistency and valid relative documentation links.
 
 ## Local data and build output
 
-Gardens and setup state are stored locally in IndexedDB through Dexie. The database
-upgrade removes obsolete synchronization stores while preserving local gardens and
-configuration. There is no backend or frontend/backend synchronization.
+Gardens, setup state, and catalog preview snapshots are stored locally in IndexedDB
+through Dexie. Versioned upgrades preserve local gardens and configuration. There is no backend or frontend/backend synchronization.
 
 `pnpm build` writes static deployment files to `dist/web/browser`. Serve
 that directory over HTTPS, with navigation fallback to `index.html`, for PWA use.

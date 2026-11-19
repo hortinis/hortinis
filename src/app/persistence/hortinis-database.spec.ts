@@ -25,8 +25,10 @@ describe('HortinisDatabase', () => {
     await database.open();
 
     expect(database.isOpen()).toBe(true);
-    expect(database.verno).toBe(2);
+    expect(database.verno).toBe(3);
     expect(database.tables.map((table) => table.name).sort()).toEqual([
+      'catalogRecords',
+      'catalogState',
       'configuration',
       'garden',
       'space',
@@ -60,6 +62,8 @@ describe('HortinisDatabase', () => {
       { id: 'existing-configuration', sync: false },
     ]);
     expect(upgraded.tables.map((table) => table.name).sort()).toEqual([
+      'catalogRecords',
+      'catalogState',
       'configuration',
       'garden',
       'space',

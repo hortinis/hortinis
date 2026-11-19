@@ -9,12 +9,19 @@ export const routes: Routes = [
   {
     path: '',
     component: Layout,
-    canActivate: [configurationCheckGuard],
+    canActivate: [],
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'home' },
       {
         path: 'home',
         loadComponent: async () => import('./features/home/home').then(({ Home }) => Home),
+      },
+      {
+        path: 'catalog-preview',
+        loadComponent: async () =>
+          import('./features/catalog-preview/catalog-preview').then(
+            ({ CatalogPreview }) => CatalogPreview,
+          ),
       },
       {
         path: 'garden',

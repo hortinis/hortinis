@@ -3,6 +3,7 @@ import Dexie, { Table } from 'dexie';
 import { HORTINIS_DATABASE_SCHEMA } from './database-schema';
 import type { GardenRecord } from './features/garden-record';
 import type { ConfigurationRecord } from './configuration/configuration-record';
+import type { CatalogSnapshotState, StoredCatalogEntry } from './catalog/catalog-records';
 
 export const HORTINIS_DATABASE_NAME = new InjectionToken<string>('Hortinis database name', {
   providedIn: 'root',
@@ -15,6 +16,8 @@ export type HortinisTables = keyof HortinisDatabase;
 export class HortinisDatabase extends Dexie {
   readonly garden!: Table<GardenRecord, string>;
   readonly configuration!: Table<ConfigurationRecord, string>;
+  readonly catalogRecords!: Table<StoredCatalogEntry, [string, string]>;
+  readonly catalogState!: Table<CatalogSnapshotState, CatalogSnapshotState['id']>;
 
   // The constructor must pass the injected name to Dexie before the database is initialized.
   // eslint-disable-next-line @angular-eslint/prefer-inject
@@ -30,6 +33,10 @@ export class HortinisDatabase extends Dexie {
       acceptedOperationResults: null,
       revisionConflicts: null,
       synchronizationState: null,
+    });
+    this.version(3).stores({
+      catalogRecords: '[snapshotId+id], snapshotId, [snapshotId+kind], [snapshotId+subjectId]',
+      catalogState: 'id',
     });
   }
 }

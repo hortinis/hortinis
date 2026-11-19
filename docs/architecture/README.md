@@ -8,6 +8,7 @@ service worker caches the application shell for offline use.
 Retained decisions:
 
 - [Web application and local persistence](decisions/0008-web-and-local-persistence.md)
+- [Plant catalog distribution contract](decisions/0014-plant-catalog-distribution.md)
 - [Project name and license](decisions/0016-project-name-and-license.md)
 - [Repository language](decisions/0018-repository-language.md)
 - [Web styling foundation](decisions/0019-web-styling-foundation.md)

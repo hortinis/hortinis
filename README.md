@@ -6,10 +6,13 @@ persistence, `public` contains static assets, and `e2e` contains browser tests.
 
 ## Development
 
-Use Node.js 24.18.0 and pnpm 11.26.0:
+Use Node.js 24.18.0 and pnpm 11.26.0. Set the path to the pinned
+[catalog schema bundle](docs/development/catalog-preview.md#build-input)
+before starting, building, or testing Hortinis.
 
 ```shell
 pnpm install --frozen-lockfile
+export HORTINIS_CATALOG_SCHEMA_BUNDLE=/path/to/schemas.json
 pnpm start
 ```
 

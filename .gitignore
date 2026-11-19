@@ -24,3 +24,6 @@ test-results/
 # Leftover local outputs from the removed backend
 .gradle/
 build/
+
+# Compiled catalog schema validators
+/src/app/features/catalog-preview/catalog-validators.mjs

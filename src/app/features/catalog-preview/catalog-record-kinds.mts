@@ -1,0 +1,18 @@
+export const recordKinds = [
+  'attribution',
+  'cultivar',
+  'cultivar-group',
+  'cultivation-context',
+  'cultivation-rule',
+  'evidence-reference',
+  'geographic-context',
+  'licence',
+  'localized-name',
+  'plant-concept',
+  'plant-fact',
+  'relationship',
+  'review',
+  'source',
+  'taxon',
+  'taxonomic-name',
+] as const;

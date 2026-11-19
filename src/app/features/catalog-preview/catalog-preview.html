@@ -1,0 +1,156 @@
+<section class="preview" aria-labelledby="preview-title">
+  <h1 id="preview-title">Internal catalog preview</h1>
+  <p>Files are imported into this browser. The preview may include content with pending rights.</p>
+
+  <div class="actions">
+    <input
+      #files
+      type="file"
+      aria-label="Catalog preview files"
+      [disabled]="busy()"
+      (change)="import(files)"
+      multiple
+      hidden />
+    <button matButton="filled" type="button" [disabled]="busy()" (click)="files.click()">
+      Import catalog preview
+    </button>
+    @if (importing()) {
+      <button matButton="outlined" type="button" (click)="cancel()">Cancel import</button>
+    }
+    @if (catalog.value()?.previous; as previous) {
+      <button matButton="outlined" type="button" [disabled]="busy()" (click)="rollback()">
+        Restore previous preview ({{ previous.catalogVersion }})
+      </button>
+    }
+  </div>
+  <p>Select manifest.json and its referenced files together.</p>
+
+  <div role="status" aria-live="polite">
+    @if (busy()) {
+      <p>Working on the catalog preview…</p>
+    } @else if (message()) {
+      <p>{{ message() }}</p>
+    }
+  </div>
+  @if (failure()) {
+    <p role="alert">{{ failure() }}</p>
+  }
+
+  @if (catalog.error()) {
+    <p role="alert">The browser could not read the catalog preview.</p>
+  } @else if (catalog.value(); as snapshot) {
+    <h2>Active catalog</h2>
+    <p>
+      Version {{ snapshot.active.catalogVersion }} · Schema {{ snapshot.active.schemaVersion }} ·
+      {{ snapshot.subjects.length }} subjects
+    </p>
+    <label for="catalog-subject">Browse subjects</label>
+    <select
+      id="catalog-subject"
+      #subjects
+      [value]="selectedId()"
+      (change)="selectedId.set(subjects.value)">
+      <option value="">Choose a subject</option>
+      @for (subject of snapshot.subjects; track subject.id) {
+        <option [value]="subject.id">
+          {{ subject.label }} ({{ subject.kind }}){{
+            subject.status === 'retired' ? ' · retired' : ''
+          }}
+        </option>
+      }
+    </select>
+  } @else if (!catalog.isLoading()) {
+    <p>No catalog preview has been imported.</p>
+  }
+
+  @if (selected(); as subject) {
+    <h2>{{ subject.label }}</h2>
+    <p>{{ subject.kind }} · {{ subject.id }}</p>
+    @if (subject.parentId) {
+      <p>Parent concept {{ subject.parentId }}</p>
+    }
+    @if (details.isLoading()) {
+      <p>Loading subject…</p>
+    } @else if (details.error()) {
+      <p role="alert">The browser could not read this catalog subject.</p>
+    } @else if (details.value(); as detail) {
+      <details>
+        <summary>Identity, names and provenance</summary>
+        <pre>{{ detail.identity | json }}</pre>
+        @for (name of detail.names; track name.id) {
+          <p>{{ name['value'] }} ({{ name['languageTag'] }})</p>
+        }
+        @for (item of detail.evidence; track item.id) {
+          <ng-container *ngTemplateOutlet="evidence; context: { $implicit: item }" />
+        }
+      </details>
+
+      <h3>Facts and rule parameters</h3>
+      @for (claim of detail.claims; track claim.id) {
+        <article class="claim">
+          <h4>{{ claim.title }}</h4>
+          <p>{{ claim.kind }} · {{ claim.raw['status'] }} · {{ claim.id }}</p>
+          <pre>{{ claim.raw['value'] ?? claim.raw['timing'] ?? claim.raw | json }}</pre>
+          <p>
+            Geographic scope
+            @for (area of claim.geography; track area?.id) {
+              <span>{{ area?.['name'] }} ({{ area?.['coverage'] }})</span>
+            } @empty {
+              <span>{{ claim.geographyType ?? 'unknown' }}</span>
+            }
+          </p>
+          <details>
+            <summary>Scope, content review and evidence</summary>
+            <pre>{{ claim.raw | json }}</pre>
+            <pre>{{ claim.context | json }}</pre>
+            @for (area of claim.geography; track area?.id) {
+              <pre>{{ area | json }}</pre>
+            }
+            <p>Content review {{ claim.review.id }} · {{ claim.review.status }}</p>
+            @if (claim.review.confidence !== undefined) {
+              <p>Confidence {{ claim.review.confidence }}</p>
+            }
+            @for (item of claim.provenance; track item.id) {
+              <ng-container *ngTemplateOutlet="evidence; context: { $implicit: item }" />
+            }
+          </details>
+        </article>
+      } @empty {
+        <p>No facts or rules are recorded for this subject.</p>
+      }
+    }
+  }
+
+  <ng-template #evidence let-item>
+    <div class="evidence">
+      <p>{{ item.source }} · {{ item.sourceReleaseId }}</p>
+      <p>Rights {{ item.decision }} · {{ item.licence }}</p>
+      <details>
+        <summary>Source and rights details</summary>
+        <dl>
+          <dt>Source ID</dt>
+          <dd>{{ item.sourceId }}</dd>
+          <dt>Source manifest</dt>
+          <dd>{{ item.sourceManifestId }}</dd>
+          <dt>Source record</dt>
+          <dd>{{ item.sourceRecordId }}</dd>
+          <dt>Locator</dt>
+          <dd>{{ item.locator }}</dd>
+          <dt>Rights review</dt>
+          <dd>{{ item.reviewId }} · {{ item.reviewStatus }}</dd>
+          <dt>Rights reason</dt>
+          <dd>{{ item.reason }}</dd>
+          <dt>Licence expression</dt>
+          <dd>{{ item.licenceExpression }}</dd>
+          @if (item.notice) {
+            <dt>Required notice</dt>
+            <dd>{{ item.notice }}</dd>
+          }
+        </dl>
+        @if (item.normalization) {
+          <pre>{{ item.normalization | json }}</pre>
+        }
+      </details>
+    </div>
+  </ng-template>
+</section>
